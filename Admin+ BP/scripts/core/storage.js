@@ -110,6 +110,10 @@ export function tableReport() {
     return tables.map(t => ({
         key: t.key,
         fromStorage: t.fromStorage,
+        // Still unreadable RIGHT NOW, which is different from "read fine, the
+        // world simply had nothing yet". Conflating those two made the startup
+        // line shout about data loss on every brand-new world.
+        unreadable: !!t.pendingRead,
         entries: Object.keys(t.data ?? {}).length
     }))
 }

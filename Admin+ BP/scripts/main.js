@@ -129,14 +129,22 @@ world.afterEvents.worldLoad.subscribe(() => {
         // ranks load" but "did ANY of them". A world that reverted its ladder on
         // every rejoin was very likely failing to read all of these and running
         // on seeds; ranks are just the table whose contents you notice.
+        // Three distinct states, and only the third is a problem. Reading fails
+        // during early execution on every world — getDynamicProperty is simply
+        // not callable there — so the retry doing its job is the NORMAL case,
+        // and a table sitting on its seed usually just means a young world.
         const report = tableReport()
-        const seeded = report.filter(t => !t.fromStorage)
-        if (!seeded.length) {
+        const loaded = report.filter(t => t.fromStorage)
+        const stuck = report.filter(t => t.unreadable)
+
+        if (stuck.length) {
+            console.warn(`[Admin+] storage: ${stuck.length} of ${report.length} tables STILL cannot be read — nothing will save this session, but nothing has been overwritten either: ${stuck.map(t => t.key).join(", ")}`)
+        } else if (loaded.length === report.length) {
             console.log(`[Admin+] storage: all ${report.length} tables read from the world`)
-        } else if (seeded.length === report.length) {
-            console.warn(`[Admin+] storage: NONE of the ${report.length} tables could be read — running on defaults. If this world had data, it did not come back.`)
+        } else if (!loaded.length) {
+            console.log(`[Admin+] storage: ${report.length} tables read fine, this world had no Admin+ data yet — starting fresh`)
         } else {
-            console.log(`[Admin+] storage: ${report.length - seeded.length}/${report.length} tables read; new or empty: ${seeded.map(t => t.key).join(", ")}`)
+            console.log(`[Admin+] storage: ${loaded.length}/${report.length} tables had saved data; the rest were empty and have been started`)
         }
     } catch (e) {
         console.warn(`[Admin+] could not report the rank state: ${e}`)
