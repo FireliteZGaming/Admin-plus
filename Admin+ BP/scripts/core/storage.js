@@ -74,9 +74,28 @@ export function drop(key) {
  * A named table: a plain object persisted under one key, with the whole table
  * kept in memory. Every feature (warps, bans, ranks) uses one of these.
  */
+/**
+ * Every table built this session, so startup can report on the lot.
+ *
+ * The question worth answering in one line is not "did ranks load" but "did
+ * ANY of them". A world that reverted its ladder on every rejoin was almost
+ * certainly failing to read all of them and running on seeds — ranks are just
+ * the table whose contents you notice.
+ */
+const tables = []
+
+export function tableReport() {
+    return tables.map(t => ({
+        key: t.key,
+        fromStorage: t.fromStorage,
+        entries: Object.keys(t.data ?? {}).length
+    }))
+}
+
 export class Table {
     constructor(key, seed = {}) {
         this.key = key
+        tables.push(this)
         const stored = load(key, null)
         this.data = stored ?? JSON.parse(JSON.stringify(seed))
 

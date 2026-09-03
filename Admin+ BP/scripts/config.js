@@ -1,7 +1,7 @@
 // Admin+ — single tunable config. Everything an operator would want to change
 // lives here; runtime state (ranks, warps, bans) lives in world storage.
 
-export const ADMINPLUS_VERSION = "1.10.2"
+export const ADMINPLUS_VERSION = "1.10.3"
 
 export const CONFIG = {
     // Command namespace. Registration is always namespaced (/<ns>:<name>) —

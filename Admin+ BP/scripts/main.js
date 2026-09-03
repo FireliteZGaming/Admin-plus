@@ -3,6 +3,7 @@ import { CONFIG, NS, ADMINPLUS_VERSION } from "./config.js"
 import { command } from "./core/registry.js"
 import { onPlayerJoin, refreshNameTag, canActOn, has, ladder, ranksTable } from "./core/ranks.js"
 import { detectServerPreset } from "./core/serverPresets.js"
+import { tableReport } from "./core/storage.js"
 import { ok, err, msg } from "./core/util.js"
 import { openPanel } from "./features/panel.js"
 import "./features/gamemode.js"
@@ -123,6 +124,20 @@ world.afterEvents.worldLoad.subscribe(() => {
     try {
         const source = ranksTable.fromStorage ? "from world storage" : "DEFAULTS — nothing was stored"
         console.log(`[Admin+] ranks: ${ladder().length} on the "${detectServerPreset().label}" shape, ${source}`)
+
+        // And the whole storage layer, because the useful question is not "did
+        // ranks load" but "did ANY of them". A world that reverted its ladder on
+        // every rejoin was very likely failing to read all of these and running
+        // on seeds; ranks are just the table whose contents you notice.
+        const report = tableReport()
+        const seeded = report.filter(t => !t.fromStorage)
+        if (!seeded.length) {
+            console.log(`[Admin+] storage: all ${report.length} tables read from the world`)
+        } else if (seeded.length === report.length) {
+            console.warn(`[Admin+] storage: NONE of the ${report.length} tables could be read — running on defaults. If this world had data, it did not come back.`)
+        } else {
+            console.log(`[Admin+] storage: ${report.length - seeded.length}/${report.length} tables read; new or empty: ${seeded.map(t => t.key).join(", ")}`)
+        }
     } catch (e) {
         console.warn(`[Admin+] could not report the rank state: ${e}`)
     }
