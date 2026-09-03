@@ -102,31 +102,61 @@ export function endPair(playerOrId) {
 }
 
 // ------------------------------------------------------------------- invites
+//
+// A LIST per invited player, not one slot. Keyed one-per-player, a second
+// person asking silently replaced the first: they were told the invite was
+// sent, the invited player never saw it, and nobody could tell. That is the
+// same fault /tpaccept had, and it is worth not shipping twice.
 
 export function invite(from, to) {
-    const toId = idOf(to)
-    if (!toId || toId === idOf(from)) return false
-    invites.set(toId, { from: idOf(from), at: Date.now() })
+    const toId = idOf(to), fromId = idOf(from)
+    if (!toId || !fromId || toId === fromId) return false
+    const held = live(toId).filter(i => i.from !== fromId)
+    held.unshift({ from: fromId, fromName: from?.name ?? "", at: Date.now() })
+    invites.set(toId, held)
     return true
 }
 
-/** A live invite to this player from that player, if one is still standing. */
-export function inviteFrom(toOrId, fromOrId) {
-    const held = invites.get(idOf(toOrId))
-    if (!held) return undefined
-    if (Date.now() - held.at > INVITE_MS) { invites.delete(idOf(toOrId)); return undefined }
-    return held.from === idOf(fromOrId) ? held : undefined
+/** Unexpired invites for this player, newest first. Prunes as it reads. */
+function live(toId) {
+    const held = invites.get(toId) ?? []
+    const fresh = held.filter(i => Date.now() - i.at <= INVITE_MS)
+    if (fresh.length !== held.length) {
+        if (fresh.length) invites.set(toId, fresh)
+        else invites.delete(toId)
+    }
+    return fresh
 }
 
-/** Whatever invite is standing for this player, live only. */
-export function pendingInvite(toOrId) {
-    const held = invites.get(idOf(toOrId))
-    if (!held) return undefined
-    if (Date.now() - held.at > INVITE_MS) { invites.delete(idOf(toOrId)); return undefined }
+export function pendingInvites(toOrId) { return live(idOf(toOrId)) }
+
+/** A live invite to this player from that player, if one is standing. */
+export function inviteFrom(toOrId, fromOrId) {
+    return live(idOf(toOrId)).find(i => i.from === idOf(fromOrId))
+}
+
+/** The newest standing invite, for the common one-at-a-time case. */
+export function pendingInvite(toOrId) { return live(idOf(toOrId))[0] }
+
+/** Remove one and hand it back, so the caller can tell whoever sent it. */
+export function takeInvite(toOrId, fromOrId) {
+    const toId = idOf(toOrId)
+    const held = live(toId)
+    const found = held.find(i => i.from === idOf(fromOrId))
+    if (!found) return undefined
+    const rest = held.filter(i => i !== found)
+    if (rest.length) invites.set(toId, rest)
+    else invites.delete(toId)
+    return found
+}
+
+/** Drop them all. Returns what went, so each sender can be told. */
+export function clearInvites(toOrId) {
+    const toId = idOf(toOrId)
+    const held = live(toId)
+    invites.delete(toId)
     return held
 }
-
-export function clearInvite(toOrId) { invites.delete(idOf(toOrId)) }
 
 export const INVITE_SECONDS = INVITE_MS / 1000
 
@@ -136,8 +166,12 @@ export function forgetPlayer(playerOrId) {
     const partner = endPair(id)
     replyTo.delete(id)
     invites.delete(id)
+    // Invites this player SENT to other people go too, or the other side is
+    // left holding an offer from somebody who is not there any more.
     for (const [key, held] of invites.entries()) {
-        if (held.from === id) invites.delete(key)
+        const rest = held.filter(i => i.from !== id)
+        if (rest.length) invites.set(key, rest)
+        else invites.delete(key)
     }
     return partner
 }

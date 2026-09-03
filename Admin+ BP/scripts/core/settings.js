@@ -216,9 +216,12 @@ export const DEFAULTS = {
         help: "Tokens: {NAME} {MSG} · {NAME} is who sent it"
     },
     "format.prchat": {
-        value: "§8[§5private§8] §d{NAME}§7: §r{MSG}",
+        // Same shape as format.chatChannel: who the room is, then who spoke.
+        // {PAIR} names BOTH people, so a line scrolling past says which
+        // conversation it belongs to — the same job the channel label does.
+        value: "§8[§5{PAIR}§8]§r {TAG} {NAME}§7: §r{MSG}",
         label: "Private chat session line",
-        help: "Tokens: {NAME} {MSG} · what /prchat prints to both people"
+        help: "Tokens: {PAIR} {TAG} {RANK} {NAME} {MSG} · {PAIR} is both names, {NAME} is whoever spoke"
     },
     "format.spy": {
         value: "§8[spy · {KIND}] §7{FROM} §8» §7{TO}§8: {MSG}",

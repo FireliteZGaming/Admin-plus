@@ -4,7 +4,7 @@ import {
     setReplyTarget, replyTarget, rememberExchange, clearReplyTarget,
     isSpying, setSpying, toggleSpying, spyIds,
     pairedWith, inPair, startPair, endPair,
-    invite, inviteFrom, pendingInvite, clearInvite, forgetPlayer, INVITE_SECONDS
+    invite, inviteFrom, pendingInvites, takeInvite, clearInvites, forgetPlayer, INVITE_SECONDS
 } from "../Admin+ BP/scripts/core/privatechat.js"
 import { setting } from "../Admin+ BP/scripts/core/settings.js"
 
@@ -86,14 +86,30 @@ endPair(alex)
 
 console.log("\n— invites —")
 check("inviting works", invite(alex, sam), true)
-check("the invited player has one standing", pendingInvite(sam).from, alex.id)
+check("the invited player has one standing", pendingInvites(sam)[0].from, alex.id)
+check("with the sender's name, for the picker", pendingInvites(sam)[0].fromName, "Alex")
 check("pointing back at the inviter is how you accept",
     !!inviteFrom(sam, alex), true)
 check("an invite from someone else does not match",
     inviteFrom(sam, mod), undefined)
 check("you cannot invite yourself", invite(alex, alex), false)
-clearInvite(sam)
-check("declining clears it", pendingInvite(sam), undefined)
+
+// Two people asking at once. Held one-per-player, the second silently replaced
+// the first: the sender was told it went, the invited player never saw it, and
+// nobody could tell. The same fault the teleport requests had.
+check("a second asker does not erase the first", invite(mod, sam), true)
+check("both are waiting", pendingInvites(sam).length, 2)
+check("newest first", pendingInvites(sam).map(i => i.fromName), ["Mod", "Alex"])
+check("asking twice does not stack duplicates",
+    invite(mod, sam) && pendingInvites(sam).length, 2)
+
+check("one can be taken", takeInvite(sam, alex).from, alex.id)
+check("leaving the other", pendingInvites(sam).map(i => i.fromName), ["Mod"])
+check("taking it twice returns nothing", takeInvite(sam, alex), undefined)
+
+check("clearing hands back what went", clearInvites(sam).length, 1)
+check("and leaves none", pendingInvites(sam).length, 0)
+check("clearing an empty list is harmless", clearInvites(sam).length, 0)
 check("and the window is a real number", INVITE_SECONDS > 0, true)
 
 console.log("\n— leaving the world tidies up —")
@@ -102,7 +118,7 @@ invite(mod, alex)
 check("forgetting returns the stranded partner", forgetPlayer(alex), sam.id)
 check("the partner is released", inPair(sam), false)
 check("their reply target is gone", replyTarget(alex), undefined)
-check("and invites addressed to them go too", pendingInvite(alex), undefined)
+check("and invites addressed to them go too", pendingInvites(alex).length, 0)
 
 console.log("\n— the formats —")
 check("private messages ship on", setting("feature.pm"), "true")
@@ -115,6 +131,12 @@ for (const [key, token] of [
 }
 check("the spy line says which kind it was", setting("format.spy").includes("{KIND}"), true)
 check("and names both ends", setting("format.spy").includes("{TO}"), true)
+
+// A session line has to say WHOSE conversation it is, the way a channel line
+// carries its channel — otherwise two private chats scrolling past each other
+// are indistinguishable.
+check("the session line names both people", setting("format.prchat").includes("{PAIR}"), true)
+check("and carries the speaker's rank tag", setting("format.prchat").includes("{TAG}"), true)
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

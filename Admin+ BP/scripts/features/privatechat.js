@@ -2,20 +2,23 @@ import { world, CustomCommandParamType } from "@minecraft/server"
 import { command } from "../core/registry.js"
 import { CONFIG } from "../config.js"
 import { ok, err, info } from "../core/util.js"
-import { has } from "../core/ranks.js"
+import { has, primaryRank } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
 import { isMuted } from "../core/moderation.js"
-import { render, flag } from "../core/settings.js"
+import { render, renderTag, flag } from "../core/settings.js"
 import {
     rememberExchange, replyTarget, isSpying, toggleSpying, spyIds,
     pairedWith, inPair, startPair, endPair,
-    invite, inviteFrom, pendingInvite, clearInvite, INVITE_SECONDS, forgetPlayer
+    invite, inviteFrom, pendingInvites, takeInvite, clearInvites,
+    INVITE_SECONDS, forgetPlayer
 } from "../core/privatechat.js"
 
 // /pm <player> <message>   one message, to one person
 // /r <message>             answer whoever spoke to you last
 // /prchat <player>         ask to open a standing two-person session
-// /prchat                  leave the one you are in
+// /praccept [player]       take somebody up on it
+// /prdeny [player]         turn it down; bare turns down every request
+// /prchat                  leave the session you are in
 // /prexit                  leave it, spelled out
 // /socialspy               staff: read other people's private messages
 //
@@ -152,7 +155,7 @@ command({
         // Pointing it at somebody who has already asked YOU is how you accept.
         // No second command to remember, and it reads the same either way round.
         if (inviteFrom(player, target)) {
-            clearInvite(player)
+            takeInvite(player, target)
             open(player, target)
             return
         }
@@ -167,8 +170,7 @@ command({
             return err(player, `§f${displayName(target)}§c is already in a private chat.`)
         }
 
-        const standing = pendingInvite(target)
-        if (standing?.from === player.id) {
+        if (inviteFrom(target, player)) {
             return info(player, `§7Already asked — waiting on §f${displayName(target)}§7.`)
         }
 
@@ -176,7 +178,7 @@ command({
         ok(player, `Asked §f${displayName(target)}§a for a private chat. It lapses in §f${INVITE_SECONDS}s§a.`)
         target.sendMessage([
             `${CONFIG.brand.prefix}§d${displayName(player)}§7 wants a private chat.`,
-            `§8Type §f/prchat ${player.name}§8 to accept · §f/prexit§8 to decline · lapses in ${INVITE_SECONDS}s`
+            `§8§f/praccept ${player.name}§8 to accept · §f/prdeny§8 to turn it down · lapses in ${INVITE_SECONDS}s`
         ].join("\n"))
     }
 })
@@ -185,6 +187,75 @@ command({
     name: "prexit",
     description: "Leave a private chat — /prexit",
     run: (player) => leave(player)
+})
+
+/**
+ * Both names, in a fixed order, so the label reads identically for both people
+ * and matches what social spy and the log record. Sorted rather than
+ * "you and them" because a line that says something different depending on who
+ * is reading is impossible to quote back to somebody.
+ */
+function pairLabel(a, b) {
+    return [displayName(a), displayName(b)].sort((x, y) => x.localeCompare(y)).join(" §8⇄§5 ")
+}
+
+command({
+    name: "praccept",
+    description: "Accept a private chat request — /praccept [player]",
+    optional: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
+    run: (player, [selected]) => {
+        if (!flag("feature.pm")) return err(player, "Private chat is turned off on this server.")
+
+        const waiting = pendingInvites(player)
+        if (!waiting.length) return err(player, "Nobody has asked you for a private chat.")
+        if (inPair(player)) return err(player, "You're already in a private chat. Use /prexit to leave it first.")
+
+        const named = (selected ?? [])[0]
+        // With one request waiting a bare /praccept is unambiguous. With two it
+        // is a coin toss, and the person who loses never finds out — the same
+        // fault the teleport requests had.
+        if (!named && waiting.length > 1) {
+            return err(player, `${waiting.length} people are waiting. Say which: §f${waiting.map(i => i.fromName).join("§c, §f")}`)
+        }
+
+        const wanted = named ? named.id : waiting[0].from
+        const held = takeInvite(player, wanted)
+        if (!held) {
+            return err(player, `No request from that player. Waiting: §f${waiting.map(i => i.fromName).join("§c, §f")}`)
+        }
+
+        const asker = world.getAllPlayers().find(p => p.id === held.from)
+        if (!asker) return err(player, `§f${held.fromName}§c has gone offline.`)
+        if (inPair(asker)) return err(player, `§f${displayName(asker)}§c has already started one with somebody else.`)
+
+        open(player, asker)
+    }
+})
+
+command({
+    name: "prdeny",
+    description: "Turn down a private chat request — /prdeny [player]",
+    optional: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
+    run: (player, [selected]) => {
+        const waiting = pendingInvites(player)
+        if (!waiting.length) return err(player, "Nobody has asked you for a private chat.")
+
+        const named = (selected ?? [])[0]
+        // No argument turns down EVERYTHING, which is what someone spamming
+        // "no" at their screen actually wants. Naming one refuses only that.
+        const gone = named ? [takeInvite(player, named.id)].filter(Boolean) : clearInvites(player)
+        if (!gone.length) {
+            return err(player, `No request from that player. Waiting: §f${waiting.map(i => i.fromName).join("§c, §f")}`)
+        }
+
+        for (const held of gone) {
+            const asker = world.getAllPlayers().find(p => p.id === held.from)
+            if (asker) info(asker, `§7${displayName(player)} turned down your private chat request.`)
+        }
+        ok(player, gone.length === 1
+            ? `Turned down §f${gone[0].fromName}§a.`
+            : `Turned down §f${gone.length}§a requests.`)
+    }
 })
 
 function open(a, b) {
@@ -200,16 +271,15 @@ function open(a, b) {
 
 /** Leaving, declining and being logged out all land here. */
 function leave(player) {
-    const standing = pendingInvite(player)
-    if (standing && !inPair(player)) {
-        clearInvite(player)
-        const asker = world.getAllPlayers().find(p => p.id === standing.from)
-        if (asker) info(asker, `§7${displayName(player)} declined the private chat.`)
-        return info(player, "§7Declined.")
-    }
-
     const partnerId = endPair(player)
-    if (!partnerId) return info(player, "§7You are not in a private chat.")
+    if (!partnerId) {
+        // Not in one. If somebody is waiting on them, point at the commands
+        // rather than saying nothing useful.
+        const waiting = pendingInvites(player)
+        return info(player, waiting.length
+            ? `§7${waiting.length} private chat request${waiting.length === 1 ? " is" : "s are"} waiting — §f/praccept§7 or §f/prdeny§7.`
+            : "§7You are not in a private chat.")
+    }
 
     info(player, "§7Private chat closed.")
     const partner = world.getAllPlayers().find(p => p.id === partnerId)
@@ -233,7 +303,13 @@ export function routePrivate(player, message) {
         return true
     }
 
-    const line = render("format.prchat", { NAME: displayName(player), MSG: message })
+    const line = render("format.prchat", {
+        PAIR: pairLabel(player, partner),
+        TAG: renderTag(primaryRank(player)),
+        RANK: primaryRank(player)?.display ?? "",
+        NAME: displayName(player),
+        MSG: message
+    }).replace(/ {2,}/g, " ")
     player.sendMessage(line)
     partner.sendMessage(line)
     rememberExchange(player, partner)
