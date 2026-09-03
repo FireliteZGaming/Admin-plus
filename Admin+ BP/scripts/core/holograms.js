@@ -97,15 +97,55 @@ function basicTokens(text) {
  * leaderboard listing everyone who has ever joined at 0 points is noise, and
  * "not on the board yet" is the honest reading of no score.
  */
+/**
+ * Names for people who are not here.
+ *
+ * A scoreboard participant's displayName is only a name while that player is
+ * ONLINE. Log off and Bedrock hands back the raw untranslated string
+ * "commands.scoreboard.players.offlinePlayerName" instead, which is what a
+ * leaderboard was printing in place of the top player's name.
+ *
+ * There is no way to ask the scoreboard who that identity belongs to, so the
+ * name has to be remembered while they are here and looked up afterwards.
+ */
+const nameCache = new Table("scoreNames", {})
+
+/** Anything starting like this is a translation key, not somebody's name. */
+const UNTRANSLATED = "commands.scoreboard"
+
+function rememberOnlineNames() {
+    for (const player of world.getAllPlayers()) {
+        const id = safe(() => player.scoreboardIdentity?.id)
+        if (id === undefined || id === null) continue
+        const key = String(id)
+        // Guarded so a board refreshing on a timer is not writing every tick.
+        if (nameCache.get(key) === player.name) continue
+        nameCache.set(key, player.name)
+    }
+}
+
+function participantName(participant) {
+    const shown = safe(() => participant?.displayName)
+    if (shown && !shown.startsWith(UNTRANSLATED)) return shown
+
+    const id = safe(() => participant?.id)
+    const remembered = id === undefined ? undefined : nameCache.get(String(id))
+    // Grey, so a name Admin+ never saw reads as missing information rather
+    // than as a player called something strange.
+    return remembered ?? "§8(offline)"
+}
+
 export function board(holo) {
     const objective = safe(() => world.scoreboard?.getObjective(holo.objective))
     if (!objective) return [`§cNo objective "${holo.objective}"`]
+
+    rememberOnlineNames()
 
     const rows = safe(() => objective.getScores(), []) ?? []
     const ranked = rows
         .filter(row => Number.isFinite(row?.score))
         .map(row => ({
-            name: safe(() => row.participant?.displayName) ?? "?",
+            name: participantName(row.participant),
             score: row.score
         }))
         .sort((a, b) => holo.ascending ? a.score - b.score : b.score - a.score)

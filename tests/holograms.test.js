@@ -54,6 +54,36 @@ check("lowest first when asked", board(asc)[0], "1. Alex — 3")
 check("max caps the rows", board({ ...lb, max: 2 }).length, 2)
 check("max is clamped to something sane", board({ ...lb, max: 0 }).length, 3)
 
+console.log("\n— offline players on a leaderboard —")
+// A participant's displayName is only a name while they are ONLINE. Log off and
+// Bedrock returns the raw translation key instead, which a leaderboard was
+// printing verbatim: "1. commands.scoreboard.players.offlinePlayerName  86".
+const OFFLINE = "commands.scoreboard.players.offlinePlayerName"
+__test.objectives.set("wins", {
+    id: "wins",
+    getScores: () => [
+        { participant: { id: 7, displayName: OFFLINE }, score: 86 },
+        { participant: { id: 8, displayName: "FireliteZGaming" }, score: 80 }
+    ]
+})
+const wins = { ...lb, objective: "wins" }
+
+check("an unknown offline player is not shown as a translation key",
+    board(wins)[0].includes("commands.scoreboard"), false)
+check("it says they are offline instead", board(wins)[0].includes("(offline)"), true)
+check("the online player is unaffected", board(wins)[1], "2. FireliteZGaming — 80")
+
+// Once Admin+ has seen them online, it remembers the name for next time.
+__test.players.push({
+    id: "off1", name: "Midnight90791", nameTag: "Midnight90791",
+    scoreboardIdentity: { id: 7 },
+    getTags: () => [], addTag: () => true, removeTag: () => true
+})
+board(wins)                                   // a render while they are here
+__test.players.pop()                          // ...and they leave
+check("the remembered name is used once they log off",
+    board(wins)[0], "1. Midnight90791 — 86")
+
 console.log("\n— a leaderboard pointed at nothing says so —")
 check("it does not crash", board({ ...lb, objective: "nope" }).length, 1)
 check("it names the missing objective", /nope/.test(board({ ...lb, objective: "nope" })[0]), true)
