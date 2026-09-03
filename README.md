@@ -7,6 +7,8 @@ single `/admin` screen instead of a pile of commands nobody remembers.
 
 [**Download the latest version →**](https://github.com/FireliteZGaming/Admin-plus/releases/latest)
 
+Also on [CurseForge](https://www.curseforge.com/minecraft-bedrock/addons/adminplus).
+
 ---
 
 ## ⚠️ Read this first
