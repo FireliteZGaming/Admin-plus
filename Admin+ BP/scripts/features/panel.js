@@ -15,6 +15,7 @@ import { configurationScreen } from "./configUI.js"
 import { automodScreen } from "./automod.js"
 import { serverPresetsScreen } from "./serverPresets.js"
 import { hologramsScreen } from "./holograms.js"
+import { opBlocksScreen } from "./opblocks.js"
 import { creditsScreen } from "./credits.js"
 import { detectServerPreset } from "../core/serverPresets.js"
 
@@ -66,6 +67,13 @@ export async function openPanel(player) {
         buttons.push({
             text: hubButton("warps", "Holograms", "Floating text and score leaderboards"),
             run: () => hologramsScreen(player, () => openPanel(player))
+        })
+    }
+
+    if (has(player, "admin.opblocks")) {
+        buttons.push({
+            text: hubButton("settings", "Operator blocks", "Barriers, deny and allow zones, borders"),
+            run: () => opBlocksScreen(player, () => openPanel(player))
         })
     }
 

@@ -174,6 +174,9 @@ for (const file of scriptFiles("Admin+ BP/scripts")) {
 const NO_AUDIENCE = new Set([
     "automod.ore", "automod.breaks", "automod.spam", "automod.config",
     "admin.clearchat", "admin.lagclear", "chat.broadcast", "dev.banhammer",
+    // Taking a barrier out of the panel is done to the world, not to a person.
+    // It is logged so there is a record of who has them.
+    "admin.opblock",
     // Muting a channel is announced to EVERYONE, by name, from
     // features/chatcommands.js — the opposite of the audit line's audience, and
     // deliberately so: chat going quiet with no explanation reads as a broken
