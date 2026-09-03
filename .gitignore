@@ -16,3 +16,8 @@ Thumbs.db
 # packages — only four hand-written stand-ins for @minecraft/server and
 # @minecraft/server-ui, so the test suite can run the real scripts under plain
 # Node. They are source, not dependencies.
+
+# Design notes and half-finished specs. They stay on this machine: they are
+# thinking-out-loud, not documentation, and a public repo full of stale plans
+# reads worse than one without them.
+notes/
