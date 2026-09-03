@@ -35,7 +35,12 @@ const SILENT = new Set([
     "mod.invsee.take",          // the invsee OPEN is the event; per-item is spam
     "mod.invsee.destroy",
     "admin.vanish",             // vanish tells staff itself, in its own words
-    "admin.unvanish"
+    "admin.unvanish",
+    // Logged, not spoken. Staff walk to people constantly, and moving YOURSELF
+    // is not something done to the other player — mod.bring, which moves them,
+    // is announced. The distinction is the same one the audience rule makes:
+    // the line exists for the person it happened to.
+    "mod.tpTo"
 ])
 
 /** Actions whose stripped name would read badly. */
@@ -81,6 +86,7 @@ const PHRASES = {
     "mod.tpaOpen": t => `Opened ${t}'s TPA`,
     "mod.invsee": t => `Opened ${t}'s inventory`,
     "mod.gamemode": (t, d) => `Set ${t}'s game mode to ${d}`,
+    "mod.bring": t => `Brought ${t}`,
     "name.set": (t, d) => `Renamed ${t} to ${d}`,
     "name.clear": t => `Cleared ${t}'s display name`,
     "rank.grant": (t, d) => `Gave ${t} ${d}`,
@@ -92,9 +98,20 @@ const PHRASES = {
     "player.sudo": t => `Used sudo on ${t}`
 }
 
+/**
+ * Acting on yourself, where naming yourself twice would read badly.
+ *
+ * The game says "Set own game mode to Creative" for exactly this case, and a
+ * staff member flipping their own mode is the commonest line this system will
+ * ever print — worth the four lines it costs to have it read right.
+ */
+const SELF_PHRASES = {
+    "mod.gamemode": (_t, d) => `Set own game mode to ${d}`
+}
+
 /** The sentence, without the surrounding format. */
-export function phraseFor(action, targetName, detail) {
-    const build = PHRASES[action]
+export function phraseFor(action, targetName, detail, self) {
+    const build = (self && SELF_PHRASES[action]) || PHRASES[action]
     if (build) return build(targetName, String(detail ?? ""))
     return `Used ${verbOf(action)} on ${targetName}`
 }
@@ -128,9 +145,10 @@ export function audienceFor(actor, target, action) {
  */
 export function lineFor(actor, target, action, detail) {
     const name = displayName(target)
+    const self = !!(actor && target && actor.id && actor.id === target.id)
     return render("format.command", {
         NAME: displayName(actor),
-        ACTION: phraseFor(action, name, detail),
+        ACTION: phraseFor(action, name, detail, self),
         COMMAND: verbOf(action),
         TARGET: name,
         DETAIL: String(detail ?? "")
@@ -156,4 +174,4 @@ export function announce(actor, action, target, detail) {
     return audience.length
 }
 
-export { NARROW, SILENT }
+export { NARROW, SILENT, PHRASES }

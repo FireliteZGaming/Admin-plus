@@ -2,6 +2,7 @@ import { GameMode, CustomCommandParamType } from "@minecraft/server"
 import { command, defineEnum } from "../core/registry.js"
 import { ok, err, info } from "../core/util.js"
 import { canActOn } from "../core/ranks.js"
+import { record } from "../core/logs.js"
 
 // Gamemode, shaped the way people already type it.
 //
@@ -32,16 +33,21 @@ function applyMode(player, mode, selected) {
     const targets = selected?.length ? selected : [player]
     const changed = []
     const blocked = []
+    const label = MODE_LABEL[mode] ?? String(mode)
     for (const target of targets) {
         if (target.id !== player.id && !canActOn(player, target)) { blocked.push(target.name); continue }
         try {
             target.setGameMode(mode)
             changed.push(target.name)
+            // Logged HERE and not only in the panel. The command and the button
+            // are the same act, and for a while only the button said so — which
+            // meant the fastest way to change someone's mode unwatched was to
+            // type it. Capitalised because the audit line is a sentence.
+            record(player, "mod.gamemode", target, label[0].toUpperCase() + label.slice(1))
         } catch (e) {
             blocked.push(target.name)
         }
     }
-    const label = MODE_LABEL[mode] ?? String(mode)
     if (changed.length === 1 && changed[0] === player.name) ok(player, `You are now in §f${label}§a.`)
     else if (changed.length) ok(player, `Set §f${changed.join(", ")}§a to §f${label}§a.`)
     if (blocked.length) err(player, `Outranked you, skipped: §f${blocked.join(", ")}`)

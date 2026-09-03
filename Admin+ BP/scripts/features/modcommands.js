@@ -5,6 +5,7 @@ import { canActOn } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
 import { mute, unmute, isMuted, banList, unban } from "../core/moderation.js"
 import { chatAvailable } from "./chat.js"
+import { record } from "../core/logs.js"
 
 // /mute and /unmute — the command form of the panel's mute button.
 //
@@ -46,6 +47,8 @@ command({
                 continue
             }
             mute(target, ms, why, player)
+            record(player, "mod.mute", target,
+                `${why} · ${ms ? formatDuration(ms) : "permanent"}`, { kind: "mute" })
             muted.push(displayName(target))
             info(target, `§cYou were muted: ${why}${ms ? ` (${formatDuration(ms)})` : ""}`)
         }
@@ -80,6 +83,7 @@ command({
                 continue
             }
             unmute(target.id)
+            record(player, "mod.unmute", target, "lifted")
             cleared.push(displayName(target))
             info(target, "§aYou can speak again.")
         }
@@ -112,6 +116,7 @@ command({
                 : `No ban on "§f${name}§c" — nobody is banned.`)
         }
         unban(match.id)
+        record(player, "mod.unban", { id: match.id, name: match.name }, `was: ${match.reason}`)
         ok(player, `Unbanned §f${match.name}§a.`)
     }
 })

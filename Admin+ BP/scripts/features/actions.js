@@ -368,6 +368,9 @@ async function teleportScreen(player, target, back) {
                 text: "§bGo to them",
                 run: () => {
                     player.teleport(target.location, { dimension: target.dimension })
+                    // Logged but not announced — see the SILENT list in
+                    // core/audit.js. Walking to someone is not done TO them.
+                    record(player, "mod.tpTo", target, "went to them")
                     ok(player, `Teleported to §f${displayName(target)}§a.`)
                     return back()
                 }
@@ -376,6 +379,7 @@ async function teleportScreen(player, target, back) {
                 text: "§bBring them here",
                 run: () => {
                     target.teleport(player.location, { dimension: player.dimension })
+                    record(player, "mod.bring", target, "pulled to the staff member")
                     ok(player, `Brought §f${displayName(target)}§a to you.`)
                     info(target, `${player.name} teleported you to them.`)
                     return back()

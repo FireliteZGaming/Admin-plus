@@ -1,7 +1,8 @@
+import { readdirSync, readFileSync } from "node:fs"
 import { __test } from "@minecraft/server"
 import { onPlayerJoin, setRanks, has } from "../Admin+ BP/scripts/core/ranks.js"
 import { setting, setSetting, resetSetting } from "../Admin+ BP/scripts/core/settings.js"
-import { audienceFor, lineFor, phraseFor, verbOf, announce, SILENT } from "../Admin+ BP/scripts/core/audit.js"
+import { audienceFor, lineFor, phraseFor, verbOf, announce, SILENT, PHRASES } from "../Admin+ BP/scripts/core/audit.js"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -108,7 +109,8 @@ check("but opening the inventory does",
 // words, so announcing it here said the same event twice — the second time as
 // "used vanish on" somebody who had only hidden themselves.
 check("vanish is not announced twice", audienceFor(admin, member, "admin.vanish"), [])
-check("the silent list is exactly those six", SILENT.size, 6)
+check("walking to someone is silent too", audienceFor(admin, member, "mod.tpTo"), [])
+check("the silent list is exactly those seven", SILENT.size, 7)
 
 console.log("\n— actions with nobody on one end —")
 check("no actor, no line", audienceFor(undefined, member, "automod.ore"), [])
@@ -129,6 +131,86 @@ check("off means nobody", audienceFor(admin, member, "mod.kick"), [])
 resetSetting("audit.announce")
 check("back on again", names(audienceFor(admin, member, "mod.kick")).length, 3)
 check("it ships on", setting("audit.announce"), "true")
+
+console.log("\n— every recorded action has been given words —")
+// The inventory. record() is the only door into both the log and chat, so
+// scanning for its calls finds every staff action there is — including the ones
+// added by whoever reads this next. Each has to be accounted for: it either has
+// a sentence, is deliberately silent, or has nobody on one end for a sentence
+// to be about. A new action that is none of those fails here rather than
+// shipping as "Used thing on Steve".
+//
+// This is how the command forms of /mute, /unmute, /unban and /gm were found:
+// they changed a player and told the log nothing, so the panel button was
+// audited and the command that did the same thing was not.
+function scriptFiles(dir) {
+    const out = []
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = `${dir}/${entry.name}`
+        if (entry.isDirectory()) out.push(...scriptFiles(full))
+        else if (entry.name.endsWith(".js")) out.push(full)
+    }
+    return out
+}
+
+const RECORDED = new Set()
+for (const file of scriptFiles("Admin+ BP/scripts")) {
+    const src = readFileSync(file, "utf8")
+    // The action is the second argument, so read from each record( to the third
+    // comma. A ternary between two action names lives inside that window and is
+    // picked up by the string scan; a detail string never is.
+    // A fixed window rather than a match to the closing paren: the tpa call
+    // carries an options object, so the first ")" is well past the argument
+    // that matters and the lazy form gave up before reaching it.
+    for (const call of src.matchAll(/\brecord\(([\s\S]{0,200})/g)) {
+        const head = call[1].split(",").slice(0, 2).join(",")
+        for (const lit of head.matchAll(/"([a-z][a-z0-9]*\.[a-zA-Z][\w.]*)"/g)) RECORDED.add(lit[1])
+    }
+}
+
+// Actions with nobody on one end: audienceFor() returns [] for these whatever
+// they are called, because there is no actor (automod fires itself) or no
+// target (a warp is not a person). They are log entries only.
+const NO_AUDIENCE = new Set([
+    "automod.ore", "automod.breaks", "automod.spam", "automod.config",
+    "admin.clearchat", "admin.lagclear", "chat.broadcast", "dev.banhammer",
+    "config.edit", "config.preset", "config.presetSave", "config.reset",
+    "config.serverPreset",
+    "hologram.create", "hologram.edit", "hologram.move", "hologram.delete", "hologram.clear",
+    "rank.delete", "rank.preset",
+    "warp.create", "warp.move", "warp.delete", "warp.access", "warp.spawnSet", "warp.spawnEdit"
+])
+
+check("the scan actually found the actions", RECORDED.size > 25, true)
+// Asked of the map, not of the rendered string. Sudo's own sentence happens to
+// be spelled the same as the fallback, so comparing text would have called the
+// one deliberate "Used X on Y" a mistake.
+const unspoken = [...RECORDED].filter(a =>
+    !SILENT.has(a) && !NO_AUDIENCE.has(a) && !(a in PHRASES))
+check("nothing announced falls back to the generic sentence", unspoken, [])
+check("and no sentence was written for an action nobody records",
+    Object.keys(PHRASES).filter(a => !RECORDED.has(a)), [])
+
+// The op-style commands specifically. Each of these changes a player, and each
+// has both a panel button and a command; both go through record().
+for (const action of ["mod.kick", "mod.ban", "mod.unban", "mod.mute", "mod.unmute",
+    "mod.freeze", "mod.gamemode", "mod.bring", "mod.invsee", "player.sudo"]) {
+    check(`${action} is recorded somewhere`, RECORDED.has(action), true)
+}
+
+console.log("\n— acting on yourself —")
+// What the game itself prints: "Set own game mode to Creative".
+check("changing your own mode does not name you twice",
+    phraseFor("mod.gamemode", "Admin", "Creative", true), "Set own game mode to Creative")
+check("changing someone else's still names them",
+    phraseFor("mod.gamemode", "Member", "Creative", false), "Set Member's game mode to Creative")
+check("and lineFor works out which it is",
+    lineFor(admin, admin, "mod.gamemode", "Creative").replace(/§./g, ""),
+    "[Admin: Set own game mode to Creative]")
+check("walking to someone is logged but not spoken",
+    audienceFor(admin, member, "mod.tpTo"), [])
+check("dragging them to you is spoken",
+    names(audienceFor(admin, member, "mod.bring")).length > 0, true)
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)
