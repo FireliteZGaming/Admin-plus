@@ -21,9 +21,14 @@ Not a release. It is the ownership handshake for MCPEDL's CurseForge import:
 MCPEDL will only mirror a project that has an image **titled** `MCPEDL` on it,
 because only someone with write access to the project could have put it there.
 
-It is a copy of the pack icon. The filename matters only because CurseForge
-pre-fills an image's title from it — the thing being checked is the TITLE field,
-which has to read exactly `MCPEDL`.
+That same image is what MCPEDL shows as the listing thumbnail, so it is doing
+two jobs and the second one matters more: in a grid of cards next to VEIN ALL
+BLOCKS and POTIONS REIMAGINED, a dark logo on a dark card says nothing at all.
+`python tools/thumbnail.py` builds it — wordmark, one-line pitch, and the hook
+that separates this from every other essentials pack.
+
+The filename matters only because CurseForge pre-fills an image's title from it.
+The thing being checked is the TITLE field, which has to read exactly `MCPEDL`.
 
 ## The files themselves are not committed
 
