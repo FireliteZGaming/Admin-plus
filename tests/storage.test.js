@@ -47,5 +47,23 @@ check("keeps ordinary names", cleanId(" Spawn Point "), "Spawn Point")
 check("strips markup and punctuation", cleanId("§chome!<>"), "chome")
 check("caps the length", cleanId("y".repeat(80)).length, 24)
 
+console.log("\n— a table says where its contents came from —")
+// "The preset did not stick after a rejoin" was unanswerable from the log,
+// because nothing recorded whether the rank table was READ or SEEDED. It is
+// the single fact that separates "the world forgot" from "something reset it".
+const seeded = new Table("brandNewKey", { hello: "world" })
+check("a fresh table admits it seeded", seeded.fromStorage, false)
+seeded.set("hello", "changed")
+
+const reopened = new Table("brandNewKey", { hello: "world" })
+check("reopening it finds the stored copy", reopened.fromStorage, true)
+check("with the written value, not the seed", reopened.get("hello"), "changed")
+
+// The dangerous case: seeding when there IS data. The old constructor declined
+// to overwrite but kept running on the seed, so the next write flushed defaults
+// over the real table and the world lost its ladder for good.
+check("a seeded table never returns stale defaults once storage is found",
+    new Table("brandNewKey", { hello: "seed-should-lose" }).get("hello"), "changed")
+
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

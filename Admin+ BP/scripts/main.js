@@ -1,7 +1,8 @@
 import { world, system, CustomCommandParamType } from "@minecraft/server"
 import { CONFIG, NS, ADMINPLUS_VERSION } from "./config.js"
 import { command } from "./core/registry.js"
-import { onPlayerJoin, refreshNameTag, canActOn, has } from "./core/ranks.js"
+import { onPlayerJoin, refreshNameTag, canActOn, has, ladder, ranksTable } from "./core/ranks.js"
+import { detectServerPreset } from "./core/serverPresets.js"
 import { ok, err, msg } from "./core/util.js"
 import { openPanel } from "./features/panel.js"
 import "./features/gamemode.js"
@@ -113,4 +114,16 @@ installPrivateChat()
 
 world.afterEvents.worldLoad.subscribe(() => {
     console.log(`[Admin+] v${ADMINPLUS_VERSION} loaded — command namespace "${NS}:"`)
+
+    // Say what shape the world came up in. "The preset did not stick after a
+    // rejoin" was impossible to answer from the log before this: nothing
+    // recorded which ladder was live, or whether it came out of storage at all.
+    // FROM STORAGE means the world remembered. DEFAULTS means it did not, and
+    // that is the line to look for.
+    try {
+        const source = ranksTable.fromStorage ? "from world storage" : "DEFAULTS — nothing was stored"
+        console.log(`[Admin+] ranks: ${ladder().length} on the "${detectServerPreset().label}" shape, ${source}`)
+    } catch (e) {
+        console.warn(`[Admin+] could not report the rank state: ${e}`)
+    }
 })

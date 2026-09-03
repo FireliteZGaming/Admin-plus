@@ -79,11 +79,31 @@ export class Table {
         this.key = key
         const stored = load(key, null)
         this.data = stored ?? JSON.parse(JSON.stringify(seed))
-        if (stored === null) {
+
+        /** True when this table came out of world storage rather than the seed. */
+        this.fromStorage = stored !== null
+
+        if (!this.fromStorage) {
             // Tables are constructed while modules evaluate, which is a
             // READ-ONLY context — writing a dynamic property there throws. So
             // the seed lives in memory now and is persisted on the first tick.
-            system.run(() => { if (load(key, null) === null) this.flush() })
+            system.run(() => {
+                // ...but READ AGAIN first, and adopt whatever is really there.
+                // A read during module evaluation can come back empty on a
+                // world that does have data. The old code checked for that and
+                // correctly declined to overwrite — then carried on with the
+                // SEED in memory for the whole session. The next write of any
+                // kind flushed those defaults straight over the real table, so
+                // a world would silently revert to a default ladder and then
+                // lose the stored one for good.
+                const late = load(this.key, null)
+                if (late !== null) {
+                    this.data = late
+                    this.fromStorage = true
+                    return
+                }
+                this.flush()
+            })
         }
     }
     get(id) { return this.data[id] }
