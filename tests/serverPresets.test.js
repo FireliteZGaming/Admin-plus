@@ -150,7 +150,27 @@ check("Manager exists", !!sm.manager, true)
 check("Owner is purple", sm.owner.display.startsWith("\u00a75"), true)
 check("the staff ladder reads top down",
     Object.values(sm).filter(r => r.staff).map(r => r.id),
-    ["owner", "coowner", "manager", "developer", "headadmin", "admin", "moderator"])
+    ["owner", "coowner", "leaddev", "developer", "manager", "headadmin", "admin", "moderator"])
+
+console.log("\n— Spear Mace: development outranks management —")
+// Asked for explicitly: Lead Developer above Developer, Developer above
+// Manager, and the whole development branch under Co-Owner rather than over it.
+check("Lead Developer outranks Developer", sm.leaddev.weight > sm.developer.weight, true)
+check("Developer outranks Manager", sm.developer.weight > sm.manager.weight, true)
+check("Lead Developer does NOT outrank Co-Owner", sm.leaddev.weight < sm.coowner.weight, true)
+check("and sits directly under the owner tier",
+    Object.values(sm).filter(r => r.weight > sm.leaddev.weight).map(r => r.id),
+    ["owner", "coowner"])
+check("it counts as staff", sm.leaddev.staff, true)
+check("it carries the owner tier's grant, not Developer's", sm.leaddev.perms, ["*"])
+
+// The colour has to be unique or the rank does not read at a glance in chat.
+const colourOf = d => (String(d).match(/§[0-9a-f]/g) ?? [])[0]
+check("Lead is teal", colourOf(sm.leaddev.display), "§3")
+check("and no other rank on this ladder opens with it",
+    Object.values(sm).filter(r => r.id !== "leaddev" && colourOf(r.display) === "§3").length, 0)
+check("while the second half stays Developer's own colour",
+    sm.leaddev.display.includes("§d§lDeveloper"), true)
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

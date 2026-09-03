@@ -87,12 +87,19 @@ export const PRESETS = {
     },
     spearmace: {
         name: "Spear Mace",
-        description: "A strict PvP world. No TPA, ban sits above Admin, and the long tail of tags are Member with a different name on them.",
+        description: "A strict PvP world. No TPA, ban sits above Admin, development outranks management, and the long tail of tags are Member with a different name on them.",
         ranks: {
             owner:      { id: "owner",      display: "§5§lOwner",       weight: 100, inherits: [],            perms: ["*"], meta: {}, staff: true },
             coowner:    { id: "coowner",    display: "§4§lCo-Owner",    weight: 95,  inherits: [],            perms: ["*"], meta: {}, staff: true },
-            manager:    { id: "manager",    display: "§6§lManager",     weight: 90,  inherits: ["headadmin"], perms: ["admin.*", "ranks.*", "warp.manage", "spawn.set", "presets.apply", "chat.*"], meta: {}, staff: true },
-            developer:  { id: "developer",  display: "§d§lDeveloper",   weight: 85,  inherits: ["headadmin"], perms: ["admin.*", "ranks.*", "warp.manage", "spawn.set", "presets.apply", "chat.*"], meta: {}, staff: true },
+            // The development ladder outranks the management one here, and Lead
+            // Developer sits directly under the owner tier — so it carries the
+            // owner tier's grant rather than Developer's, which is the only
+            // thing that separates the two rows. Teal on "Lead" is the unique
+            // colour: nothing else on this ladder uses §3, and keeping
+            // "Developer" in §d says which rank it is senior to.
+            leaddev:    { id: "leaddev",    display: "§3§lLead §d§lDeveloper", weight: 92, inherits: [],     perms: ["*"], meta: {}, staff: true },
+            developer:  { id: "developer",  display: "§d§lDeveloper",   weight: 88,  inherits: ["headadmin"], perms: ["admin.*", "ranks.*", "warp.manage", "spawn.set", "presets.apply", "chat.*"], meta: {}, staff: true },
+            manager:    { id: "manager",    display: "§6§lManager",     weight: 85,  inherits: ["headadmin"], perms: ["admin.*", "ranks.*", "warp.manage", "spawn.set", "presets.apply", "chat.*"], meta: {}, staff: true },
             headadmin:  { id: "headadmin",  display: "§c§lHead Admin",  weight: 80,  inherits: ["admin"],     perms: ["admin.ban", "admin.settings", "admin.holograms", "ranks.grant", "warp.manage", "spawn.set", "chat.viewall", "chat.manage"], meta: {}, staff: true },
             admin:      { id: "admin",      display: "§cAdmin",         weight: 70,  inherits: ["moderator"], perms: ["admin.mute", "admin.tpatoggle", "admin.automod", "admin.logs", "admin.gamemode", "admin.nickname", "admin.tp", "admin.vanish", "admin.clearchat", "admin.lagclear", "admin.broadcast"], meta: {}, staff: true },
             moderator:  { id: "moderator",  display: "§b§lModerator",   weight: 50,  inherits: ["member"],    perms: ["admin.panel", "ranks.view", "chat.staff", "admin.kick", "admin.freeze", "admin.reports", "admin.invsee"], meta: {}, staff: true },
