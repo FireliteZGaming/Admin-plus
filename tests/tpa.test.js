@@ -3,7 +3,8 @@ import { onPlayerJoin, setRanks, saveRank, getRank } from "../Admin+ BP/scripts/
 import { setSetting, resetSetting } from "../Admin+ BP/scripts/core/settings.js"
 import { setTpaClosed } from "../Admin+ BP/scripts/core/moderation.js"
 import {
-    createRequest, cancelRequest, takeIncoming, incomingFor, outgoingFrom, secondsLeft
+    createRequest, cancelRequest, takeIncoming, takeIncomingById, clearIncoming,
+    incomingFor, outgoingFrom, secondsLeft
 } from "../Admin+ BP/scripts/core/tpa.js"
 
 let passed = 0, failed = 0
@@ -79,6 +80,50 @@ check("an expired request is not delivered", incomingFor(alex).length, 0)
 check("and is not accepted", takeIncoming(alex), undefined)
 check("the sender's slot is freed too", outgoingFrom(nova), undefined)
 resetSetting("tpa.expire")
+
+console.log("\n— two people asking at once —")
+// The bug this fixes: with two requests waiting, a bare /tpaccept took the
+// newest WITHOUT SAYING WHICH. You accepted somebody at random and the other
+// person sat there until their request lapsed, with no way to tell them apart.
+clearIncoming(alex)
+createRequest(nova, alex, "to")
+createRequest(sam, alex, "to")
+const both = incomingFor(alex)
+check("both are waiting", both.length, 2)
+check("newest first, so the order shown is stable",
+    both.map(r => r.fromName), ["Sam", "Nova"])
+
+// Picking by id is what the form does. Names are what a typed argument gives,
+// and two players whose names differ only by case would reintroduce the very
+// ambiguity the picker exists to settle.
+check("one can be taken by id, not by name",
+    takeIncomingById(alex, nova.id).fromName, "Nova")
+check("the other is untouched", incomingFor(alex).map(r => r.fromName), ["Sam"])
+check("and the accepted sender's slot is freed", outgoingFrom(nova), undefined)
+check("taking the same one twice returns nothing",
+    takeIncomingById(alex, nova.id), undefined)
+check("an id nobody sent from matches nothing",
+    takeIncomingById(alex, "not-a-real-id"), undefined)
+
+console.log("\n— refusing everything at once —")
+createRequest(nova, alex, "to")
+check("two are waiting again", incomingFor(alex).length, 2)
+const cleared = clearIncoming(alex)
+check("clearing returns them all", cleared.length, 2)
+check("and names them, so each sender can be told",
+    cleared.map(r => r.fromName).sort(), ["Nova", "Sam"])
+check("nothing is left waiting", incomingFor(alex).length, 0)
+check("both senders are freed to ask again",
+    [outgoingFrom(nova), outgoingFrom(sam)], [undefined, undefined])
+check("clearing an empty queue is harmless", clearIncoming(alex).length, 0)
+
+console.log("\n— naming one still works —")
+createRequest(nova, alex, "to")
+createRequest(sam, alex, "to")
+check("by exact name", takeIncoming(alex, "Nova").fromName, "Nova")
+check("leaving the other", incomingFor(alex).map(r => r.fromName), ["Sam"])
+check("a name nobody sent under matches nothing", takeIncoming(alex, "Nobody"), undefined)
+clearIncoming(alex)
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

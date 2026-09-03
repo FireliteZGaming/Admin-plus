@@ -100,3 +100,25 @@ export function secondsLeft(request) {
     const left = expirySeconds() * 1000 - (Date.now() - request.at)
     return Math.max(0, Math.ceil(left / 1000))
 }
+
+/**
+ * Take a specific request by the sender's id.
+ *
+ * takeIncoming() matches on a NAME, which is what a typed argument gives you.
+ * A picker already knows exactly which request was chosen, and going back
+ * through the name would reintroduce the ambiguity the picker just resolved —
+ * two players whose names differ only by case, or one containing the other.
+ */
+export function takeIncomingById(player, fromId) {
+    const match = incomingFor(player).find(r => r.from === fromId)
+    if (!match) return undefined
+    outgoing.delete(match.from)
+    return match
+}
+
+/** Clear every request aimed at this player. Returns how many went. */
+export function clearIncoming(player) {
+    const list = incomingFor(player)
+    for (const request of list) outgoing.delete(request.from)
+    return list
+}
