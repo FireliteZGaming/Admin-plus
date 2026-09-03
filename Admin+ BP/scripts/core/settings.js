@@ -205,6 +205,31 @@ export const DEFAULTS = {
         label: "Emotes (/emote)",
         help: "true / false · lets players describe an action instead of saying something"
     },
+    "format.pmOut": {
+        value: "§8[§dyou §8» §d{NAME}§8] §7{MSG}",
+        label: "Private message you sent",
+        help: "Tokens: {NAME} {MSG} · {NAME} is who you sent it to"
+    },
+    "format.pmIn": {
+        value: "§8[§d{NAME} §8» §dyou§8] §7{MSG}",
+        label: "Private message you received",
+        help: "Tokens: {NAME} {MSG} · {NAME} is who sent it"
+    },
+    "format.prchat": {
+        value: "§8[§5private§8] §d{NAME}§7: §r{MSG}",
+        label: "Private chat session line",
+        help: "Tokens: {NAME} {MSG} · what /prchat prints to both people"
+    },
+    "format.spy": {
+        value: "§8[spy · {KIND}] §7{FROM} §8» §7{TO}§8: {MSG}",
+        label: "Social spy line",
+        help: "Tokens: {FROM} {TO} {MSG} {KIND} · only holders of chat.spy who switched it on see this"
+    },
+    "feature.pm": {
+        value: "true",
+        label: "Private messages",
+        help: "true / false · /pm, /r and /prchat"
+    },
     "format.broadcast": {
         value: "§8[§c§lBroadcast§r§8]§r §e{MSG}",
         label: "Broadcast line",

@@ -6,6 +6,11 @@ import { render, renderTag } from "../core/settings.js"
 import { isMuted, muteRecord } from "../core/moderation.js"
 import { formatDuration } from "../core/util.js"
 import { activeChannel, visibleTo, audienceFor, isChannelMuted, channelMute } from "../core/channels.js"
+// The test comes from core, the delivery from the feature: asking core avoids
+// pulling the feature module in just to answer "is this player in a session",
+// and keeps the read-only event context free of anything that sends.
+import { inPair as inPrivate } from "../core/privatechat.js"
+import { routePrivate } from "./privatechat.js"
 
 // Chat: rank tag, display name, channels, and mute enforcement.
 //
@@ -86,6 +91,15 @@ export function installChat() {
         eventData.cancel = true
         const message = eventData.message
         const channel = activeChannel(player)
+
+        // A /prchat session swallows everything you type, which is what makes
+        // it a session rather than a prefix you have to remember. It sits ABOVE
+        // the channel mute on purpose: a mute closes a room, and two people
+        // talking privately are not in the room.
+        if (inPrivate(player)) {
+            system.run(() => routePrivate(player, message))
+            return
+        }
 
         // A muted channel stops everyone but staff. Staff keep talking on
         // purpose: chat is usually muted so that staff can be heard over an

@@ -61,7 +61,7 @@ export const PRESETS = {
             coowner:   { id: "coowner",   display: "§c§lCo-Owner",  weight: 90,  inherits: [],         perms: ["*"], meta: {}, staff: true },
             developer: { id: "developer", display: "§d§lDeveloper", weight: 80,  inherits: ["admin"],  perms: ["admin.*", "ranks.*", "warp.manage", "spawn.set", "presets.apply", "chat.*"], meta: {}, staff: true },
             admin:     { id: "admin",     display: "§6§lAdmin",     weight: 70,  inherits: ["mod"],    perms: ["admin.ban", "admin.nickname", "admin.sudo", "admin.gamemode", "admin.holograms", "ranks.grant", "warp.manage", "spawn.set", "chat.*"], meta: {}, staff: true },
-            mod:       { id: "mod",       display: "§aMod",         weight: 50,  inherits: ["member"], perms: [...STAFF_CORE, "admin.warn", "admin.kick", "admin.mute", "admin.freeze", "admin.tpatoggle", "admin.reports", "admin.automod", "admin.clearchat", "admin.lagclear", "admin.tp", "admin.vanish", "admin.invsee", "admin.logs", "admin.broadcast", "admin.settings"], meta: {}, staff: true },
+            mod:       { id: "mod",       display: "§aMod",         weight: 50,  inherits: ["member"], perms: [...STAFF_CORE, "admin.warn", "admin.kick", "admin.mute", "admin.freeze", "admin.tpatoggle", "admin.reports", "admin.automod", "admin.clearchat", "admin.lagclear", "admin.tp", "admin.vanish", "admin.invsee", "admin.logs", "admin.broadcast", "admin.settings", "chat.spy"], meta: {}, staff: true },
             member:    { id: "member",    display: "§bMember",      weight: 10,  inherits: [],         perms: [...BASIC_PERMS], meta: {}, staff: false, default: true }
         }
     },
@@ -72,7 +72,7 @@ export const PRESETS = {
             owner:   { id: "owner",   display: "§4§lOwner",   weight: 100, inherits: [],         perms: ["*"], meta: {}, staff: true },
             manager: { id: "manager", display: "§5§lManager", weight: 85,  inherits: ["admin"],  perms: ["admin.*", "ranks.*", "warp.manage", "spawn.set", "presets.apply", "chat.*"], meta: {}, staff: true },
             admin:   { id: "admin",   display: "§6§lAdmin",   weight: 70,  inherits: ["mod"],    perms: ["admin.ban", "admin.nickname", "admin.sudo", "admin.gamemode", "admin.settings", "admin.holograms", "ranks.grant", "warp.manage", "spawn.set", "chat.viewall"], meta: {}, staff: true },
-            mod:     { id: "mod",     display: "§aMod",       weight: 50,  inherits: ["member"], perms: [...STAFF_CORE, "admin.warn", "admin.kick", "admin.mute", "admin.freeze", "admin.tpatoggle", "admin.reports", "admin.automod", "admin.logs", "admin.invsee", "admin.tp", "admin.vanish", "admin.clearchat", "admin.lagclear", "admin.broadcast"], meta: {}, staff: true },
+            mod:     { id: "mod",     display: "§aMod",       weight: 50,  inherits: ["member"], perms: [...STAFF_CORE, "admin.warn", "admin.kick", "admin.mute", "admin.freeze", "admin.tpatoggle", "admin.reports", "admin.automod", "admin.logs", "admin.invsee", "admin.tp", "admin.vanish", "admin.clearchat", "admin.lagclear", "admin.broadcast", "chat.spy"], meta: {}, staff: true },
             member:  { id: "member",  display: "§bMember",    weight: 10,  inherits: [],         perms: [...BASIC_PERMS], meta: {}, staff: false, default: true }
         }
     },
@@ -81,7 +81,7 @@ export const PRESETS = {
         description: "Owner ▸ Staff ▸ Member. Nobody expects a hierarchy from an SMP.",
         ranks: {
             owner:  { id: "owner",  display: "§4§lOwner", weight: 100, inherits: [],         perms: ["*"], meta: {}, staff: true },
-            staff:  { id: "staff",  display: "§6§lStaff", weight: 60,  inherits: ["member"], perms: ["admin.*", "ranks.view", "ranks.grant", "warp.manage", "spawn.set", "chat.staff"], meta: {}, staff: true },
+            staff:  { id: "staff",  display: "§6§lStaff", weight: 60,  inherits: ["member"], perms: ["admin.*", "ranks.view", "ranks.grant", "warp.manage", "spawn.set", "chat.staff", "chat.spy"], meta: {}, staff: true },
             member: { id: "member", display: "§bMember",  weight: 10,  inherits: [],         perms: [...BASIC_PERMS], meta: {}, staff: false, default: true }
         }
     },
@@ -101,7 +101,7 @@ export const PRESETS = {
             developer:  { id: "developer",  display: "§d§lDeveloper",   weight: 88,  inherits: ["headadmin"], perms: ["admin.*", "ranks.*", "warp.manage", "spawn.set", "presets.apply", "chat.*"], meta: {}, staff: true },
             manager:    { id: "manager",    display: "§6§lManager",     weight: 85,  inherits: ["headadmin"], perms: ["admin.*", "ranks.*", "warp.manage", "spawn.set", "presets.apply", "chat.*"], meta: {}, staff: true },
             headadmin:  { id: "headadmin",  display: "§c§lHead Admin",  weight: 80,  inherits: ["admin"],     perms: ["admin.ban", "admin.settings", "admin.holograms", "ranks.grant", "warp.manage", "spawn.set", "chat.viewall", "chat.manage"], meta: {}, staff: true },
-            admin:      { id: "admin",      display: "§cAdmin",         weight: 70,  inherits: ["moderator"], perms: ["admin.mute", "admin.tpatoggle", "admin.automod", "admin.logs", "admin.gamemode", "admin.nickname", "admin.tp", "admin.vanish", "admin.clearchat", "admin.lagclear", "admin.broadcast"], meta: {}, staff: true },
+            admin:      { id: "admin",      display: "§cAdmin",         weight: 70,  inherits: ["moderator"], perms: ["admin.mute", "admin.tpatoggle", "admin.automod", "admin.logs", "admin.gamemode", "admin.nickname", "admin.tp", "admin.vanish", "admin.clearchat", "admin.lagclear", "admin.broadcast", "chat.spy"], meta: {}, staff: true },
             moderator:  { id: "moderator",  display: "§b§lModerator",   weight: 50,  inherits: ["member"],    perms: ["admin.panel", "ranks.view", "chat.staff", "admin.warn", "admin.kick", "admin.freeze", "admin.reports", "admin.invsee"], meta: {}, staff: true },
             ht2_elytra_mace:   { id: "ht2_elytra_mace",   display: "§dHt2 Elytra mace", weight: 15, inherits: ["member"], perms: [], meta: {}, staff: false },
             ht1_elytra_mace:   { id: "ht1_elytra_mace",   display: "§9Ht1 Elytra mace", weight: 15, inherits: ["member"], perms: [], meta: {}, staff: false },
@@ -132,7 +132,7 @@ export const PRESETS = {
         description: "Staff keep everything; members get spawn and warps only — no TPA.",
         ranks: {
             owner:  { id: "owner",  display: "§4§lOwner", weight: 100, inherits: [], perms: ["*"], meta: {}, staff: true },
-            staff:  { id: "staff",  display: "§c§lStaff", weight: 60,  inherits: [], perms: ["admin.*", "ranks.view", "warp.*", "spawn.use", "spawn.set", "tpa.use", "chat.staff"], meta: {}, staff: true },
+            staff:  { id: "staff",  display: "§c§lStaff", weight: 60,  inherits: [], perms: ["admin.*", "ranks.view", "warp.*", "spawn.use", "spawn.set", "tpa.use", "chat.staff", "chat.spy"], meta: {}, staff: true },
             member: { id: "member", display: "§7Member",  weight: 10,  inherits: [], perms: ["warp.use", "spawn.use", "report.use", "online.use", "warn.view", "-tpa.use"], meta: {}, staff: false, default: true }
         }
     },
@@ -185,7 +185,7 @@ export const PERMISSION_NODES = {
     "Panel & info": ["admin.panel", "admin.settings", "admin.logs", "ranks.view"],
     "Moderation": ["admin.kick", "admin.ban", "admin.mute", "admin.warn", "admin.freeze", "admin.invsee", "admin.tpatoggle", "admin.reports", "admin.automod"],
     "Staff tools": ["admin.tp", "admin.vanish", "admin.gamemode", "admin.nickname", "admin.sudo", "admin.holograms"],
-    "Chat": ["chat.staff", "chat.viewall", "chat.manage", "admin.broadcast"],
+    "Chat": ["chat.staff", "chat.viewall", "chat.manage", "chat.spy", "admin.broadcast"],
     "World upkeep": ["admin.clearchat", "admin.lagclear"],
     "Management": ["ranks.grant", "ranks.manage", "warp.manage", "spawn.set", "presets.apply"],
     "Player basics": ["warp.use", "spawn.use", "tpa.use", "report.use", "online.use", "warn.view"]
@@ -199,7 +199,7 @@ export const BUNDLES = {
     "holograms":   { label: "Floating text",      nodes: ["admin.holograms"] },
     "identity":    { label: "Names & voice",      nodes: ["admin.nickname", "admin.sudo"] },
     "chat":        { label: "Staff chat",         nodes: ["chat.staff"] },
-    "chat_all":    { label: "See every chat",     nodes: ["chat.staff", "chat.viewall"] },
+    "chat_all":    { label: "See every chat",     nodes: ["chat.staff", "chat.viewall", "chat.spy"] },
     "chat_manage": { label: "Run the chats",      nodes: ["chat.staff", "chat.manage", "admin.broadcast"] },
     "warps":       { label: "Warp management",    nodes: ["warp.manage", "spawn.set"] },
     "upkeep":      { label: "World upkeep",       nodes: ["admin.clearchat", "admin.lagclear"] },
