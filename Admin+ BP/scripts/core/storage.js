@@ -15,26 +15,48 @@ const cache = new Map()
 
 function chunkKey(key, i) { return `${PREFIX}${key}#${i}` }
 
-/** Read a stored value. Returns `fallback` when unset or corrupt. */
-export function load(key, fallback = null) {
-    if (cache.has(key)) return cache.get(key)
+/**
+ * A read that says WHY it came back empty.
+ *
+ * This distinction is the whole bug. "Nothing is stored" and "I could not read"
+ * looked identical to every caller — both just returned the fallback, and the
+ * failure was swallowed by a bare catch with nothing logged. So a table that
+ * failed to read seeded itself with defaults, and the next write put those
+ * defaults over a whole world's warps, ranks and settings. It reverted on every
+ * single rejoin and nothing anywhere said a word about it.
+ *
+ * @returns {{ok: true, value: any}|{ok: false}} ok:false means DO NOT WRITE.
+ */
+function readRaw(key) {
     let raw
     try {
         const count = world.getDynamicProperty(`${PREFIX}${key}`)
-        if (typeof count !== "number") return fallback
+        if (typeof count !== "number") return { ok: true, value: null }
         let out = ""
         for (let i = 0; i < count; i++) out += world.getDynamicProperty(chunkKey(key, i)) ?? ""
         raw = out
-    } catch { return fallback }
-    if (!raw) return fallback
-    try {
-        const value = JSON.parse(raw)
-        cache.set(key, value)
-        return value
     } catch (e) {
-        console.warn(`[Admin+] corrupt storage key "${key}": ${e}`)
-        return fallback
+        console.warn(`[Admin+] could not read storage key "${key}": ${e}`)
+        return { ok: false }
     }
+    if (!raw) return { ok: true, value: null }
+    try {
+        return { ok: true, value: JSON.parse(raw) }
+    } catch (e) {
+        // Already unreadable, so letting a seed replace it loses nothing more —
+        // but say so loudly, because it is not normal.
+        console.error(`[Admin+] corrupt storage key "${key}", starting it over: ${e}`)
+        return { ok: true, value: null }
+    }
+}
+
+/** Read a stored value. Returns `fallback` when unset, unreadable or corrupt. */
+export function load(key, fallback = null) {
+    if (cache.has(key)) return cache.get(key)
+    const read = readRaw(key)
+    if (!read.ok || read.value === null) return fallback
+    cache.set(key, read.value)
+    return read.value
 }
 
 /** Write a value. Objects/arrays are stored as chunked JSON. */
@@ -95,35 +117,51 @@ export function tableReport() {
 export class Table {
     constructor(key, seed = {}) {
         this.key = key
+        this.seed = seed
         tables.push(this)
-        const stored = load(key, null)
-        this.data = stored ?? JSON.parse(JSON.stringify(seed))
+
+        const read = readRaw(key)
 
         /** True when this table came out of world storage rather than the seed. */
-        this.fromStorage = stored !== null
+        this.fromStorage = read.ok && read.value !== null
 
-        if (!this.fromStorage) {
-            // Tables are constructed while modules evaluate, which is a
-            // READ-ONLY context — writing a dynamic property there throws. So
-            // the seed lives in memory now and is persisted on the first tick.
-            system.run(() => {
-                // ...but READ AGAIN first, and adopt whatever is really there.
-                // A read during module evaluation can come back empty on a
-                // world that does have data. The old code checked for that and
-                // correctly declined to overwrite — then carried on with the
-                // SEED in memory for the whole session. The next write of any
-                // kind flushed those defaults straight over the real table, so
-                // a world would silently revert to a default ladder and then
-                // lose the stored one for good.
-                const late = load(this.key, null)
-                if (late !== null) {
-                    this.data = late
-                    this.fromStorage = true
-                    return
-                }
-                this.flush()
-            })
+        if (this.fromStorage) {
+            this.data = read.value
+            cache.set(key, this.data)
+            return
         }
+
+        // Either genuinely empty, or unreadable — and at this point those still
+        // look the same from outside. Run on the seed for now, but DO NOT WRITE
+        // it: a table is built while modules evaluate, which is a restricted
+        // context, and guessing "empty" there is what put defaults over whole
+        // worlds. The seed is only committed once a read has actually SUCCEEDED
+        // and confirmed there is nothing to lose.
+        this.data = JSON.parse(JSON.stringify(seed))
+        this.pendingRead = true
+
+        system.run(() => this.adopt())
+        // ...and again once the world is properly up, in case a tick was still
+        // too early. Retrying costs nothing; writing too soon costs the world.
+        try { world.afterEvents?.worldLoad?.subscribe?.(() => this.adopt()) } catch { /* older runtime */ }
+    }
+
+    /**
+     * Retry the read somewhere safer, and only seed once one has succeeded.
+     * Called repeatedly on purpose; it does nothing after the first success.
+     */
+    adopt() {
+        if (!this.pendingRead) return
+        const read = readRaw(this.key)
+        if (!read.ok) return                       // still cannot read — wait, never write
+        this.pendingRead = false
+        if (read.value !== null) {
+            this.data = read.value
+            this.fromStorage = true
+            cache.set(this.key, read.value)
+            return
+        }
+        this.flush()                               // confirmed empty: safe to seed
     }
     get(id) { return this.data[id] }
     has(id) { return Object.prototype.hasOwnProperty.call(this.data, id) }

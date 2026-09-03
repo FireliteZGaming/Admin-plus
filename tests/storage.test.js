@@ -1,4 +1,4 @@
-import { __test } from "@minecraft/server"
+import { __test, world } from "@minecraft/server"
 import { load, save, drop, Table, cleanId } from "../Admin+ BP/scripts/core/storage.js"
 
 let passed = 0, failed = 0
@@ -64,6 +64,37 @@ check("with the written value, not the seed", reopened.get("hello"), "changed")
 // over the real table and the world lost its ladder for good.
 check("a seeded table never returns stale defaults once storage is found",
     new Table("brandNewKey", { hello: "seed-should-lose" }).get("hello"), "changed")
+
+console.log("\n— a table that CANNOT read never writes its defaults —")
+// The bug that wiped whole worlds. "Nothing is stored" and "I could not read"
+// returned the same thing, so a table that failed to read seeded itself and the
+// next write put defaults over every warp, rank and setting. It reverted on
+// every rejoin and nothing said a word.
+//
+// Simulated by making the read throw, which is what a restricted context does.
+const realGet = world.getDynamicProperty
+const survivor = new Table("worldWithData", {})
+survivor.set("warp_home", { x: 1, y: 2, z: 3 })
+check("the world has data", survivor.get("warp_home"), { x: 1, y: 2, z: 3 })
+
+world.getDynamicProperty = () => { throw new Error("read unavailable") }
+const blinded = new Table("worldWithData", { seeded: true })
+check("it falls back to the seed to keep running", blinded.get("seeded"), true)
+check("and admits it did not read", blinded.fromStorage, false)
+check("but it has NOT written anything yet", blinded.pendingRead, true)
+
+// A tick passes and the read still fails: it must STILL refuse to write.
+blinded.adopt()
+check("a failed retry does not commit the seed", blinded.pendingRead, true)
+
+// Reads come back. Now it adopts the real data instead of overwriting it.
+world.getDynamicProperty = realGet
+blinded.adopt()
+check("it picks up the stored data", blinded.get("warp_home"), { x: 1, y: 2, z: 3 })
+check("the seed is gone", blinded.get("seeded"), undefined)
+check("and it stops retrying", blinded.pendingRead, false)
+check("the world's data was never overwritten",
+    new Table("worldWithData", {}).get("warp_home"), { x: 1, y: 2, z: 3 })
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)
