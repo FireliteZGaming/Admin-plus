@@ -62,6 +62,18 @@ tells you, and you decide.
 Hang a sign in the air anywhere, or a live top-10 from any scoreboard. If
 something deletes it, it puts itself back.
 
+### Spotting the author
+One gamertag — **FireliteZGaming**, whoever made this — shows up with an
+**Admin+ Creator** badge in place of the usual starting rank. So if the person
+who made the addon joins your realm, you can tell instantly, rather than taking
+someone's word for it.
+
+It is a **name tag and nothing else**. It grants no permissions, no panel
+access, no authority over anyone, and it does not make them staff — an addon
+that handed its own author power inside your world would be a backdoor, however
+it was labelled. The moment you give them a rank of your own, that rank replaces
+the badge.
+
 ### Odds and ends
 See inside a player's inventory and take things out of it. Go invisible properly
 — armour and held items included. Clear the chat, clear laggy dropped items,
@@ -80,6 +92,11 @@ The panel adapts to whatever rank you hold.
 
 **Does it add an economy or shop?** No, and it won't. The `+` means the
 essentials — warps, teleports, ranks — not a whole server suite.
+
+**Does the author get special powers in my world?** No. There is a Creator badge
+on one gamertag so you can recognise them on sight, and that is the whole of it
+— no permissions, no panel, no authority. Your ranks decide what anybody can do,
+including them.
 
 **Something looks wrong.** Type `/function check` and it will tell you whether
 Admin+ is running.
