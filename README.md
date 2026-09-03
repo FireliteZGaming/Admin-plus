@@ -132,6 +132,12 @@ single character.
 
 Built by **FireliteZGaming**.
 
+Admin+ is MIT licensed. It also includes the **Chest-UI / ChestFormData**
+module by LeGend077, Herobrine64 and Aex66, used under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) and modified — that is
+what lets `/invsee` draw a real chest window. Full details, and what was
+changed, are in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
 Techniques learned from other packs and reimplemented here — no files or assets
 of theirs are included:
 
@@ -139,6 +145,5 @@ of theirs are included:
   data that still runs when a beta-gated script never starts.
 - **UltraVanish** — that invisibility doesn't hide armour, and a bone-scaling
   animation does.
-- **ChestFormData** (Herobrine64, LeGend077) — the format that turns a menu into
-  a chest grid. Admin+ speaks the same protocol on purpose, so its windows still
-  render correctly alongside another pack that implements it.
+(The chest-grid format above is the one exception — that is real code, used
+under its licence rather than reimplemented.)
