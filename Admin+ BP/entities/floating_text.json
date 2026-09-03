@@ -12,9 +12,6 @@
                 "always_show": true,
                 "allow_name_tag_renaming": false
             },
-            "minecraft:scale": {
-                "value": 0.0
-            },
             "minecraft:collision_box": {
                 "width": 1.0,
                 "height": 1.0

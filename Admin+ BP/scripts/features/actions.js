@@ -14,6 +14,7 @@ import {
 import { record } from "../core/logs.js"
 import { warningLine, warningCount } from "../core/warnings.js"
 import { warningsScreen } from "./warn.js"
+import { forceVisible, isVanished } from "./vanish.js"
 import { playerRankScreen } from "./ranksUI.js"
 import { chatAvailable } from "./chat.js"
 
@@ -176,6 +177,21 @@ async function playerActionsScreen(player, target, back) {
             // somebody above you.
             has(player, "admin.invsee")
                 ? { text: "§bInventory §8· see what they are carrying", run: () => invseeScreen(player, target, again) }
+                : null,
+            // forceVisible has always existed and its own comment said the
+            // Actions screen used it. Nothing did — so a vanished player was
+            // only reachable by typing /vanish at them, from a screen that
+            // could not even tell you they were hidden.
+            allowed && has(player, "admin.vanish") && isVanished(target)
+                ? {
+                    text: "§bMake visible §8· they are vanished",
+                    run: () => {
+                        forceVisible(player, target)
+                        ok(player, `${displayName(target)} is visible again.`)
+                        info(target, "§7Staff pulled you out of vanish.")
+                        return again()
+                    }
+                }
                 : null,
             has(player, "admin.warn") || warningCount(target)
                 ? {

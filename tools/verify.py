@@ -1,5 +1,5 @@
 """Full pre-release verification for Admin+. Reports problems, exits non-zero."""
-import io, json, os, re, subprocess, sys, zipfile, hashlib, pathlib
+import io, json, os, re, glob, subprocess, sys, zipfile, hashlib, pathlib
 
 os.chdir(pathlib.Path(__file__).resolve().parent.parent)
 BP, RP = pathlib.Path("Admin+ BP"), pathlib.Path("Admin+ RP")
@@ -150,6 +150,37 @@ for f in ui_files:
             note(f"{f.name} -> {m.group(1)} not in our pack (vanilla fallback assumed)")
 
 # ------------------------------------------------------------------ commands
+# A behaviour entity with no CLIENT entity in the resource pack spawns happily
+# and renders as absolutely nothing — no model, and no nametag either. The log
+# says "placed", the scripts report success, and the world shows empty air.
+# Holograms shipped that way from the day they were written: the whole feature
+# was invisible and nothing anywhere said so.
+bp_ids = set()
+for path in glob.glob("Admin+ BP/entities/*.json"):
+    try:
+        data = json.load(io.open(path, encoding="utf-8"))
+        ident = data.get("minecraft:entity", {}).get("description", {}).get("identifier")
+        if ident:
+            bp_ids.add(ident)
+    except Exception as e:
+        fail(f"{os.path.basename(path)} is not readable JSON: {e}")
+
+rp_ids = set()
+for path in glob.glob("Admin+ RP/entity/*.json"):
+    try:
+        data = json.load(io.open(path, encoding="utf-8"))
+        ident = data.get("minecraft:client_entity", {}).get("description", {}).get("identifier")
+        if ident:
+            rp_ids.add(ident)
+    except Exception as e:
+        fail(f"{os.path.basename(path)} is not readable JSON: {e}")
+
+unrendered = sorted(bp_ids - rp_ids)
+for ident in unrendered:
+    fail(f"{ident} has no client entity in the RP — it will spawn and render NOTHING")
+if bp_ids and not unrendered:
+    okline(f"all {len(bp_ids)} behaviour entities have a client entity to draw them")
+
 head("commands")
 LIMIT = 8
 cmds = []
@@ -197,6 +228,62 @@ else:
 # An install*() imported into main.js but never called is invisible: no syntax
 # error, no failed import, the feature simply never starts. installPrivateChat
 # shipped that way in 1.7.1 and the /prchat cleanup never ran.
+# Using a name another module exports WITHOUT importing it. This is a runtime
+# ReferenceError the moment that line runs, and nothing else here catches it:
+# `node --check` only parses, and a module no test imports is never executed.
+# chatUI.js called chatMuteLine() with no import for exactly one build.
+#
+# Precise on purpose: only names this project actually exports somewhere count,
+# so globals and locals cannot produce a false alarm.
+def import_names(body):
+    out = set()
+    for m in re.finditer(r"import\s*\{([\s\S]*?)\}\s*from", body):
+        for part in m.group(1).split(","):
+            name = part.strip().split(" as ")[-1].strip()
+            if name:
+                out.add(name)
+    return out
+
+
+exports = {}
+for f in js:
+    body = io.open(f, encoding="utf-8").read()
+    for m in re.finditer(r"export (?:async )?function (\w+)", body):
+        exports.setdefault(m.group(1), f)
+    for m in re.finditer(r"export const (\w+)", body):
+        exports.setdefault(m.group(1), f)
+
+def code_only(body):
+    """Strip comments and string literals — a name inside either is not a call."""
+    body = re.sub(r"/\*[\s\S]*?\*/", " ", body)
+    body = re.sub(r"(?m)//.*$", " ", body)
+    body = re.sub(r"`(?:[^`\\]|\\.)*`", "``", body)
+    body = re.sub(r'"(?:[^"\\]|\\.)*"', '""', body)
+    return body
+
+
+missing = []
+for f in js:
+    body = code_only(io.open(f, encoding="utf-8").read())
+    local = set(re.findall(r"(?:function|const|let|var|class)\s+(\w+)", body))
+    # Class and object methods are declarations, not calls: `get(id) { ... }`
+    # sitting at the start of a line defines get, it does not use one.
+    local |= set(re.findall(r"(?m)^\s*(\w+)\s*\([^)]*\)\s*\{", body))
+    brought = import_names(body)
+    for name, home in exports.items():
+        if home == f or name in local or name in brought:
+            continue
+        # NOT preceded by a dot or word character: table.get(...) and
+        # map.has(...) are method calls on an object, not this project's
+        # exported get() or has(). Without that guard this check reports every
+        # storage table in the pack.
+        if re.search(r"(?<![.\w])" + re.escape(name) + r"\s*\(", body):
+            missing.append(f"{os.path.basename(f)} calls {name}() but never imports it")
+for problem in missing:
+    fail(problem)
+if not missing:
+    okline("every project function called is imported where it is called")
+
 main = io.open("Admin+ BP/scripts/main.js", encoding="utf-8").read()
 imported = set()
 for m in re.finditer(r"import \{([^}]+)\} from", main):

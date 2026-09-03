@@ -5,6 +5,7 @@ import { hubTitle, hubEntry } from "../core/theme.js"
 import { ok, err, info } from "../core/util.js"
 import { has } from "../core/ranks.js"
 import { flag } from "../core/settings.js"
+import { chatMuteLine } from "./chatcommands.js"
 import {
     allChannels, getChannel, saveChannel, deleteChannel, moveChannel,
     availableTo, activeChannel, setActiveChannel, visibleTo, viewsAll
@@ -39,8 +40,11 @@ export async function chatScreen(player, back) {
             `§fTyping in: §r${current?.display ?? "§7none"}`,
             viewsAll(player)
                 ? `§fReading: §aall ${seeing.length} of your chats`
-                : "§fReading: §7only the chat you're typing in"
-        ].join("\n"),
+                : "§fReading: §7only the chat you're typing in",
+            // A muted channel used to be invisible here — you found out it was
+            // shut by typing into it and being refused.
+            chatMuteLine()
+        ].filter(Boolean).join("\n"),
         buttons: options.map(channel => ({
             text: channel.id === current?.id
                 ? `${channel.display}§r §8· you're here`
