@@ -34,10 +34,10 @@ command({
     run: (player, [action, selected]) => {
         const targets = selected ?? []
         if (!targets.length) return err(player, "No player matched that selector.")
-        if (targets.length > 1) return err(player, "One player at a time.")
+        if (targets.length > 1) return err(player, "Pick one player.")
 
         const target = targets[0]
-        if (target.id === player.id) return err(player, "Warn somebody else.")
+        if (target.id === player.id) return err(player, "You can't warn yourself.")
         if (!canActOn(player, target)) return err(player, `${displayName(target)} outranks you.`)
 
         // The command is the door; the form is the feature. core/registry.js
@@ -68,7 +68,7 @@ command({
         if (!has(player, "admin.warn")) {
             return err(player, "You can only read your own warnings.")
         }
-        if (targets.length > 1) return err(player, "One player at a time.")
+        if (targets.length > 1) return err(player, "Pick one player.")
         tellAbout(player, targets[0])
     }
 })
@@ -139,7 +139,7 @@ export async function addScreen(staff, target, back, error) {
     const detail = String(values.detail ?? "").trim()
     if (!detail) {
         // Re-open rather than dropping what they typed on the floor.
-        return addScreen(staff, target, back, "Say what they did — that box is required.")
+        return addScreen(staff, target, back, "Fill in what they did before sending.")
     }
 
     const label = WARN_REASONS[values.reason ?? 0] ?? "Other"
@@ -150,7 +150,7 @@ export async function addScreen(staff, target, back, error) {
     record(staff, "mod.warn", target, `${reason}${values.note ? ` · note: ${values.note}` : ""}`,
         { kind: "warning", warningId: result.entry.id })
 
-    ok(staff, `Warned §f${displayName(target)}§a. That is warning §f${result.total}§a.`)
+    ok(staff, `Warned §f${displayName(target)}§a. They now have §f${result.total}§a.`)
     if (values.tell !== false) notify(target, result.entry, result.total)
     return done()
 }
@@ -200,7 +200,7 @@ export async function removeScreen(staff, target, back) {
             if (!gone) { info(staff, "Already gone."); return removeScreen(staff, target, back) }
 
             record(staff, "mod.unwarn", target, gone.reason)
-            ok(staff, `Removed. §f${displayName(target)}§a is on §f${warningCount(target)}§a now.`)
+            ok(staff, `Removed. §f${displayName(target)}§a now has §f${warningCount(target)}§a.`)
             return removeScreen(staff, target, back)
         },
         back

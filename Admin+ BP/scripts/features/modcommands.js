@@ -103,7 +103,7 @@ command({
     mandatory: [{ name: "name", type: CustomCommandParamType.String }],
     run: (player, [name]) => {
         const wanted = String(name ?? "").trim().toLowerCase()
-        if (!wanted) return err(player, "Who?")
+        if (!wanted) return err(player, "Type the name of the player to unban.")
 
         const bans = banList()
         const match = bans.find(b => (b.name ?? "").toLowerCase() === wanted)

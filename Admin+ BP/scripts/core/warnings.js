@@ -62,7 +62,7 @@ export function getWarning(playerOrId, warningId) {
 export function addWarning(actor, target, reason, note = "") {
     const targetId = idOf(target)
     if (!targetId) return { ok: false, reason: "No such player." }
-    if (idOf(actor) === targetId) return { ok: false, reason: "Warn somebody else." }
+    if (idOf(actor) === targetId) return { ok: false, reason: "You can't warn yourself." }
 
     const text = String(reason ?? "").trim()
     if (!text) return { ok: false, reason: "A warning needs a reason." }

@@ -40,7 +40,7 @@ command({
         if (!targets.length) return err(player, "No player matched that selector.")
 
         const text = String(message ?? "").trim().slice(0, MAX_LENGTH)
-        if (!text) return err(player, "Give them something to say.")
+        if (!text) return err(player, "Type what they should say.")
 
         const asCommand = text.startsWith("/")
         const spoke = []

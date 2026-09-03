@@ -102,7 +102,7 @@ async function reportForm(player, preset, error) {
 
     const detail = String(values.detail ?? "").trim().slice(0, 200)
     if (!detail) {
-        return reportForm(player, others[values.who ?? 0], "Say what happened — that box is required.")
+        return reportForm(player, others[values.who ?? 0], "Fill in what happened before sending.")
     }
 
     const target = others[values.who ?? 0]

@@ -115,7 +115,7 @@ function sendEmote(player, action) {
     if (!flag("feature.emote")) return err(player, "Emotes are turned off on this server.")
 
     const text = String(action ?? "").trim().slice(0, 160)
-    if (!text) return err(player, "Do what?")
+    if (!text) return err(player, "Type what you're doing. For example: /emote waves.")
 
     // Every gate ordinary chat passes through, in the same order. An emote is a
     // chat message wearing a hat.

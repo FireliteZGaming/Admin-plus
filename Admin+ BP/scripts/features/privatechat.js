@@ -71,13 +71,13 @@ function sendPrivate(player, selected, message) {
 
     const targets = selected ?? []
     if (!targets.length) return err(player, "No player matched that selector.")
-    if (targets.length > 1) return err(player, "One person at a time — that is what makes it private.")
+    if (targets.length > 1) return err(player, "Pick one player.")
 
     const target = targets[0]
-    if (target.id === player.id) return err(player, "Talking to yourself is not a feature.")
+    if (target.id === player.id) return err(player, "You can't message yourself.")
 
     const text = String(message ?? "").trim().slice(0, 240)
-    if (!text) return err(player, "Say what?")
+    if (!text) return err(player, "Type a message to send.")
 
     // A muted player is muted everywhere. A mute that left private messages
     // open would be a mute in name only.
@@ -143,10 +143,10 @@ command({
 
         // No argument is the exit, exactly as asked for.
         if (!targets.length) return leave(player)
-        if (targets.length > 1) return err(player, "One person — that is the whole idea.")
+        if (targets.length > 1) return err(player, "Pick one player.")
 
         const target = targets[0]
-        if (target.id === player.id) return err(player, "You are already alone with yourself.")
+        if (target.id === player.id) return err(player, "You can't open a private chat with yourself.")
         if (isMuted(player)) return err(player, "You are muted.")
 
         // Pointing it at somebody who has already asked YOU is how you accept.
@@ -161,7 +161,7 @@ command({
             return info(player, `§7You are already in a private chat with §f${displayName(target)}§7.`)
         }
         if (inPair(player)) {
-            return err(player, "Leave the chat you are in first — /prexit.")
+            return err(player, "You're already in a private chat. Use /prexit to leave it first.")
         }
         if (inPair(target)) {
             return err(player, `§f${displayName(target)}§c is already in a private chat.`)
