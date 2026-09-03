@@ -63,10 +63,9 @@ Hang a sign in the air anywhere, or a live top-10 from any scoreboard. If
 something deletes it, it puts itself back.
 
 ### Spotting the author
-One gamertag — **FireliteZGaming**, whoever made this — shows up with an
-**Admin+ Creator** badge in place of the usual starting rank. So if the person
-who made the addon joins your realm, you can tell instantly, rather than taking
-someone's word for it.
+The account that made this addon shows up wearing an **Admin+ Creator** badge in
+place of the usual starting rank. So if the author joins your realm, you can
+tell instantly, rather than taking someone's word for it.
 
 It is a **name tag and nothing else**. It grants no permissions, no panel
 access, no authority over anyone, and it does not make them staff — an addon
