@@ -6,7 +6,7 @@ import { displayName } from "../core/identity.js"
 import { postToChannel } from "./chat.js"
 import { activeChannel } from "../core/channels.js"
 import { record } from "../core/logs.js"
-import { render } from "../core/settings.js"
+import { phraseFor } from "../core/audit.js"
 
 // /sudo <player> "message" — put words in someone's mouth, or a command in
 // their hands.
@@ -77,12 +77,9 @@ command({
         if (spoke.length) {
             // Senior staff hear about it through core/audit.js, off the log
             // entry above — this is only the confirmation to whoever ran it.
-            ok(player, render("format.command", {
-                NAME: displayName(player),
-                COMMAND: "sudo",
-                TARGET: spoke.join(", "),
-                DETAIL: text
-            }))
+            // Same sentence they get, from the same function, so the two read
+            // alike when someone lines them up.
+            ok(player, `§7${phraseFor("player.sudo", spoke.join(", "))}§8: ${text}`)
         }
         if (blocked.length) err(player, `Outranked you, skipped: §f${blocked.join(", ")}`)
     }

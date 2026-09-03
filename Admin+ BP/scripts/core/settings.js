@@ -176,9 +176,9 @@ export const DEFAULTS = {
         help: "Leave empty to show nothing."
     },
     "format.command": {
-        value: "§7{NAME} used {COMMAND} on {TARGET}",
+        value: "§o§7[{NAME}: {ACTION}]",
         label: "Staff action line",
-        help: "Tokens: {NAME} {COMMAND} {TARGET} {DETAIL} · shown in chat to staff above the target"
+        help: "Tokens: {NAME} {ACTION} {TARGET} {DETAIL} · shown in chat to staff above the target. {ACTION} is the whole sentence, e.g. Banned Steve."
     },
     "audit.announce": {
         value: "true",

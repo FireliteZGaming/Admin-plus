@@ -3,7 +3,7 @@ import { has, canActOn } from "./ranks.js"
 import { render, flag } from "./settings.js"
 import { displayName } from "./identity.js"
 
-// "Admin used kick on Member" — said in chat, to the people entitled to know.
+// "[Admin: Kicked Member]" — said in chat, to the people entitled to know.
 //
 // This hangs off record() in core/logs.js rather than off each command, which
 // means it cannot drift: every staff action already writes a log entry, so
@@ -33,7 +33,9 @@ const SILENT = new Set([
     "report.filed",             // reports already ping staff on their own
     "report.handled",
     "mod.invsee.take",          // the invsee OPEN is the event; per-item is spam
-    "mod.invsee.destroy"
+    "mod.invsee.destroy",
+    "admin.vanish",             // vanish tells staff itself, in its own words
+    "admin.unvanish"
 ])
 
 /** Actions whose stripped name would read badly. */
@@ -52,6 +54,49 @@ export function verbOf(action) {
     if (VERBS[action]) return VERBS[action]
     const parts = String(action ?? "").split(".")
     return parts.length > 1 ? parts.slice(1).join(".") : (parts[0] || "act")
+}
+
+/**
+ * What each action SAYS: one short past-tense sentence, written the way the
+ * game's own operator feedback reads — "Set Alex's game mode to Creative" —
+ * rather than a description of the machinery underneath.
+ *
+ * This replaced a single generic template, "X used <verb> on Y", filled in from
+ * the log's dotted action name. Building every sentence out of one shape made
+ * all of them longer than the fact they carried, and some of them false: vanish
+ * is something you do, not something you do TO a person, so a staff member
+ * hiding produced "Admin used vanish on Admin". The detail string is left out
+ * on purpose — reasons and durations belong in the log, which is where staff
+ * read them; anyone who wants them in chat can add {DETAIL} to format.command.
+ */
+const PHRASES = {
+    "mod.ban": t => `Banned ${t}`,
+    "mod.unban": t => `Unbanned ${t}`,
+    "mod.kick": t => `Kicked ${t}`,
+    "mod.mute": t => `Muted ${t}`,
+    "mod.unmute": t => `Unmuted ${t}`,
+    "mod.freeze": t => `Froze ${t}`,
+    "mod.unfreeze": t => `Unfroze ${t}`,
+    "mod.tpaClose": t => `Closed ${t}'s TPA`,
+    "mod.tpaOpen": t => `Opened ${t}'s TPA`,
+    "mod.invsee": t => `Opened ${t}'s inventory`,
+    "mod.gamemode": (t, d) => `Set ${t}'s game mode to ${d}`,
+    "name.set": (t, d) => `Renamed ${t} to ${d}`,
+    "name.clear": t => `Cleared ${t}'s display name`,
+    "rank.grant": (t, d) => `Gave ${t} ${d}`,
+    "rank.revoke": (t, d) => `Took ${d} from ${t}`,
+    "rank.set": (t, d) => `Set ${t} to ${d}`,
+    // The one line that names the tool rather than the effect. Sudo's whole
+    // point is that the room cannot tell it happened, so the sentence the few
+    // people cleared to read it get has to say outright what it was.
+    "player.sudo": t => `Used sudo on ${t}`
+}
+
+/** The sentence, without the surrounding format. */
+export function phraseFor(action, targetName, detail) {
+    const build = PHRASES[action]
+    if (build) return build(targetName, String(detail ?? ""))
+    return `Used ${verbOf(action)} on ${targetName}`
 }
 
 /**
@@ -74,12 +119,20 @@ export function audienceFor(actor, target, action) {
     return out
 }
 
-/** Build the line without sending it. */
+/**
+ * Build the line without sending it.
+ *
+ * {COMMAND} is still filled in even though the shipped format no longer uses
+ * it: a world that customised format.command before this change has that older
+ * string stored, and dropping the token would leave it printing "{COMMAND}".
+ */
 export function lineFor(actor, target, action, detail) {
+    const name = displayName(target)
     return render("format.command", {
         NAME: displayName(actor),
+        ACTION: phraseFor(action, name, detail),
         COMMAND: verbOf(action),
-        TARGET: displayName(target),
+        TARGET: name,
         DETAIL: String(detail ?? "")
     })
 }

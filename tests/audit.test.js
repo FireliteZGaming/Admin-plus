@@ -1,7 +1,7 @@
 import { __test } from "@minecraft/server"
 import { onPlayerJoin, setRanks, has } from "../Admin+ BP/scripts/core/ranks.js"
 import { setting, setSetting, resetSetting } from "../Admin+ BP/scripts/core/settings.js"
-import { audienceFor, lineFor, verbOf, announce, SILENT } from "../Admin+ BP/scripts/core/audit.js"
+import { audienceFor, lineFor, phraseFor, verbOf, announce, SILENT } from "../Admin+ BP/scripts/core/audit.js"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -35,16 +35,44 @@ const member = fakePlayer("Member"); setRanks(member.id, ["member"], member.name
 const names = list => list.map(p => p.name).sort()
 
 console.log("\n— the sentence —")
-check("it reads as an action, not an outcome",
-    lineFor(admin, member, "mod.kick", "spam").replace(/§./g, ""),
-    "Admin used kick on Member")
-check("sudo says sudo",
-    lineFor(admin, member, "player.sudo", "hi").replace(/§./g, ""),
-    "Admin used sudo on Member")
+// One short past-tense line, shaped like the game's own operator feedback. The
+// reason and the duration deliberately do not appear — those live in the log.
+const plain = (a, t, act, d) => lineFor(a, t, act, d).replace(/§./g, "")
+check("it reads the way op feedback reads",
+    plain(admin, member, "mod.kick", "spam"), "[Admin: Kicked Member]")
+check("the detail stays out of chat",
+    plain(admin, member, "mod.ban", "griefing").includes("griefing"), false)
+check("a game mode change names the mode",
+    plain(admin, member, "mod.gamemode", "Creative"),
+    "[Admin: Set Member's game mode to Creative]")
+check("sudo still says sudo outright",
+    plain(admin, member, "player.sudo", "hi"), "[Admin: Used sudo on Member]")
+check("a rank grant says what was given",
+    plain(admin, member, "rank.grant", "mod"), "[Admin: Gave Member mod]")
+
+// Nothing may quietly fall back to the generic shape this replaced. The only
+// sentence left containing "used" is sudo's, which is written that way on
+// purpose; every other one has to be a real verb with a real object.
+const ACTIONS = ["mod.ban", "mod.unban", "mod.kick", "mod.mute", "mod.unmute",
+    "mod.freeze", "mod.unfreeze", "mod.tpaClose", "mod.tpaOpen", "mod.invsee",
+    "mod.gamemode", "name.set", "name.clear", "rank.grant", "rank.revoke", "rank.set"]
+check("none of them fall back to the generic shape",
+    ACTIONS.filter(a => phraseFor(a, "Member", "d").includes("used")), [])
+check("every one of them names the target",
+    ACTIONS.filter(a => !phraseFor(a, "Member", "d").includes("Member")), [])
+check("an action nobody wrote a sentence for still says something",
+    phraseFor("weird.thing", "Member"), "Used thing on Member")
+
 check("the log branch prefix is not read out", verbOf("mod.ban"), "ban")
 check("awkward ones are spelled properly", verbOf("rank.grant"), "grant rank")
 check("and TPA reads as TPA", verbOf("mod.tpaClose"), "close TPA")
 check("an unknown action still says something", verbOf("weird.thing"), "thing")
+
+// A world that customised this line before the tokens changed keeps working.
+setSetting("format.command", "§7{NAME} used {COMMAND} on {TARGET}")
+check("an old stored format still renders",
+    plain(admin, member, "mod.kick", "spam"), "Admin used kick on Member")
+resetSetting("format.command")
 
 console.log("\n— who hears an ordinary action —")
 // Staff above the TARGET. Measured against the person it happened to, because
@@ -76,7 +104,11 @@ check("a report does not double-announce", audienceFor(member, mod, "report.file
 check("nor each item taken during an invsee", audienceFor(admin, member, "mod.invsee.take"), [])
 check("but opening the inventory does",
     names(audienceFor(admin, member, "mod.invsee")).length > 0, true)
-check("the silent list is exactly those four", SILENT.size, 4)
+// Vanish is on that list. features/vanish.js already tells staff in its own
+// words, so announcing it here said the same event twice — the second time as
+// "used vanish on" somebody who had only hidden themselves.
+check("vanish is not announced twice", audienceFor(admin, member, "admin.vanish"), [])
+check("the silent list is exactly those six", SILENT.size, 6)
 
 console.log("\n— actions with nobody on one end —")
 check("no actor, no line", audienceFor(undefined, member, "automod.ore"), [])

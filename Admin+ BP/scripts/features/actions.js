@@ -344,6 +344,7 @@ async function gamemodeScreen(player, target, back) {
             run: () => {
                 try {
                     target.setGameMode(mode)
+                    record(player, "mod.gamemode", target, label)
                     ok(player, `${displayName(target)} → §f${label.toLowerCase()}§a.`)
                     if (target.id !== player.id) info(target, `${player.name} set your gamemode to §f${label.toLowerCase()}§7.`)
                 } catch (e) {
