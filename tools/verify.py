@@ -174,6 +174,43 @@ if dupes:
     fail(f"duplicate command names: {dupes}")
 okline(f"{len(cmds)} commands, max {max(t for _, t in cmds)} parameters, no duplicates")
 
+# Names the GAME already owns. A custom command registers namespaced, and the
+# bare form only reaches the player if nothing else claims it — so /me and /msg
+# quietly resolve to vanilla's while ours sits unreachable at admin:me. Not a
+# failure: both are registered on purpose, with a reachable alias beside them.
+# It is a note so that the next one added by accident gets noticed.
+VANILLA = {
+    "me", "msg", "tell", "w", "say", "kick", "list", "tp", "teleport", "give",
+    "clear", "kill", "time", "weather", "gamemode", "gamerule", "effect", "xp",
+    "enchant", "difficulty", "spawnpoint", "setworldspawn", "summon", "particle",
+    "playsound", "stopsound", "title", "scoreboard", "tag", "function", "execute",
+    "fill", "clone", "setblock", "locate", "loot", "music", "recipe", "reload",
+    "ride", "damage", "camera", "dialogue", "structure", "event", "hud", "op",
+    "deop", "allowlist", "whitelist", "save", "schedule", "scriptevent", "daylock"
+}
+shadowed = sorted(n for n, _ in cmds if n in VANILLA)
+if shadowed:
+    note(f"vanilla owns these names, so the bare form runs the GAME's: {', '.join(shadowed)}")
+else:
+    okline("no command name collides with a vanilla one")
+
+# An install*() imported into main.js but never called is invisible: no syntax
+# error, no failed import, the feature simply never starts. installPrivateChat
+# shipped that way in 1.7.1 and the /prchat cleanup never ran.
+main = io.open("Admin+ BP/scripts/main.js", encoding="utf-8").read()
+imported = set()
+for m in re.finditer(r"import \{([^}]+)\} from", main):
+    for part in m.group(1).split(","):
+        nm = part.strip().split(" as ")[-1].strip()
+        if re.match(r"^install[A-Z]", nm):
+            imported.add(nm)
+called = set(re.findall(r"^(\w+)\(\)", main, re.M))
+dead = sorted(imported - called)
+if dead:
+    fail(f"imported into main.js but never called: {', '.join(dead)}")
+else:
+    okline(f"all {len(imported)} install functions are called")
+
 # ------------------------------------------------------------------ packaging
 head("packaging")
 subprocess.run([sys.executable, "mcpack.py"], capture_output=True)

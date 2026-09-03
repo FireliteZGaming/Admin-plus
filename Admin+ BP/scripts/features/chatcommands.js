@@ -90,7 +90,7 @@ export function chatMuteLine() {
 
 /**
  * /me is a VANILLA Bedrock command, so the bare name is already taken and the
- * game wins it — ours would only ever be reachable as /admin:me. Rather than
+ * game wins it — ours would only ever be reachable as /a:me. Rather than
  * ship a command that looks broken to anyone who types the obvious thing, the
  * feature is named /emote, which nothing else claims. Vanilla /me still works;
  * it just prints an unstyled line to everybody and ignores channels.
@@ -102,7 +102,7 @@ command({
     run: (player, [action]) => sendEmote(player, action)
 })
 
-// Registered too, so /admin:me exists for anyone who reaches for it out of
+// Registered too, so /a:me exists for anyone who reaches for it out of
 // habit. It cannot take the bare /me from vanilla, and does not try.
 command({
     name: "me",

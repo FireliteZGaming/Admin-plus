@@ -51,7 +51,11 @@ command({
 command({
     name: "warnings",
     description: "See your warnings — /warnings [player]",
-    perm: "warn.view",
+    // No node. Reading your OWN record is not a privilege, and gating it
+    // would have meant a member on an existing world being refused until
+    // somebody re-applied the ladder — a rank table is stored per world, so
+    // a node added in an update reaches nobody already running. Naming
+    // someone else still needs admin.warn, checked below.
     optional: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     run: (player, [selected]) => {
         const targets = selected ?? []

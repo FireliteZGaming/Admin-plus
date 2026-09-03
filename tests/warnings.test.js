@@ -82,12 +82,17 @@ console.log("\n— the nodes —")
 const nodes = Object.values(PERMISSION_NODES).flat()
 check("admin.warn is declared", nodes.includes("admin.warn"), true)
 check("and sits with moderation", PERMISSION_NODES.Moderation.includes("admin.warn"), true)
-check("warn.view is declared", nodes.includes("warn.view"), true)
-check("and sits with the player basics",
-    PERMISSION_NODES["Player basics"].includes("warn.view"), true)
 check("a Mod may warn", has(mod, "admin.warn"), true)
 check("a Member may not", has(member, "admin.warn"), false)
-check("but a Member can read their own", has(member, "warn.view"), true)
+
+// There is deliberately NO node for reading your own record. A world stores its
+// rank table, so a node added in an update reaches nobody already running until
+// somebody re-applies the ladder — which for the one command aimed at ordinary
+// players would mean /warnings refusing them on every existing world.
+check("no node gates reading your own warnings",
+    nodes.includes("warn.view"), false)
+check("and none is granted either",
+    JSON.stringify(PERMISSION_NODES).includes("warn."), false)
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

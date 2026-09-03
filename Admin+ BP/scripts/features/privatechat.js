@@ -22,7 +22,7 @@ import {
 // A NAMING NOTE, the same one /emote carries: /msg, /tell and /w are all
 // VANILLA Bedrock commands. Custom commands register namespaced and the bare
 // form only reaches you if nothing else claims it, so /msg would run vanilla's
-// and ours would be stranded at /admin:msg. /pm is the free name. admin:msg is
+// and ours would be stranded at /a:msg. /pm is the free name. a:msg is
 // registered too, for the fingers that type it anyway.
 //
 // What "private" means here, precisely: not the room, and not the channel. It
@@ -42,7 +42,7 @@ command({
     run: (player, [selected, message]) => sendPrivate(player, selected, message)
 })
 
-// Bare /msg belongs to vanilla; this exists so /admin:msg works.
+// Bare /msg belongs to vanilla; this exists so /a:msg works.
 command({
     name: "msg",
     description: "Send a private message — same as /pm (bare /msg is vanilla's)",
@@ -249,4 +249,6 @@ export function installPrivateChat() {
         const partner = world.getAllPlayers().find(p => p.id === partnerId)
         if (partner) info(partner, "§7They left the world — private chat closed.")
     })
+
+    console.log("[Admin+] private chat ready")
 }

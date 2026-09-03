@@ -31,7 +31,7 @@ const SNAPSHOT_KEY = "rankSnapshot"
  * Reporting and seeing who is online are basics, not privileges — a member who
  * cannot report has to go find a staff member in chat instead.
  */
-const BASIC_PERMS = ["warp.use", "spawn.use", "tpa.use", "report.use", "online.use", "warn.view"]
+const BASIC_PERMS = ["warp.use", "spawn.use", "tpa.use", "report.use", "online.use"]
 
 /** What any staff rank needs before it can do anything at all. */
 const STAFF_CORE = ["admin.panel", "ranks.view", "chat.staff"]
@@ -124,7 +124,7 @@ export const PRESETS = {
             head_builder:      { id: "head_builder",      display: "§dHead builder", weight: 15, inherits: ["member"], perms: [], meta: {}, staff: false },
             void:              { id: "void",              display: "§0Void", weight: 15, inherits: ["member"], perms: [], meta: {}, staff: false },
             dab_gf:            { id: "dab_gf",            display: "§adab gf :sob:", weight: 15, inherits: ["member"], perms: [], meta: {}, staff: false },
-            member:     { id: "member",     display: "§aMember",        weight: 10,  inherits: [],            perms: ["warp.use", "spawn.use", "report.use", "online.use", "warn.view", "-tpa.use"], meta: {}, staff: false, default: true }
+            member:     { id: "member",     display: "§aMember",        weight: 10,  inherits: [],            perms: ["warp.use", "spawn.use", "report.use", "online.use", "-tpa.use"], meta: {}, staff: false, default: true }
         }
     },
     lockdown: {
@@ -133,7 +133,7 @@ export const PRESETS = {
         ranks: {
             owner:  { id: "owner",  display: "§4§lOwner", weight: 100, inherits: [], perms: ["*"], meta: {}, staff: true },
             staff:  { id: "staff",  display: "§c§lStaff", weight: 60,  inherits: [], perms: ["admin.*", "ranks.view", "warp.*", "spawn.use", "spawn.set", "tpa.use", "chat.staff", "chat.spy"], meta: {}, staff: true },
-            member: { id: "member", display: "§7Member",  weight: 10,  inherits: [], perms: ["warp.use", "spawn.use", "report.use", "online.use", "warn.view", "-tpa.use"], meta: {}, staff: false, default: true }
+            member: { id: "member", display: "§7Member",  weight: 10,  inherits: [], perms: ["warp.use", "spawn.use", "report.use", "online.use", "-tpa.use"], meta: {}, staff: false, default: true }
         }
     },
     donor: {
@@ -188,7 +188,7 @@ export const PERMISSION_NODES = {
     "Chat": ["chat.staff", "chat.viewall", "chat.manage", "chat.spy", "admin.broadcast"],
     "World upkeep": ["admin.clearchat", "admin.lagclear"],
     "Management": ["ranks.grant", "ranks.manage", "warp.manage", "spawn.set", "presets.apply"],
-    "Player basics": ["warp.use", "spawn.use", "tpa.use", "report.use", "online.use", "warn.view"]
+    "Player basics": ["warp.use", "spawn.use", "tpa.use", "report.use", "online.use"]
 }
 
 /** Checkbox-sized groupings for the rank editor form. */

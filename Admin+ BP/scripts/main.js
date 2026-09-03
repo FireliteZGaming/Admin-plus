@@ -108,6 +108,7 @@ installScriptEvents()
 installHolograms()
 installHealthCheck()
 installChat()
+installPrivateChat()
 
 world.afterEvents.worldLoad.subscribe(() => {
     console.log(`[Admin+] v${ADMINPLUS_VERSION} loaded — command namespace "${NS}:"`)
