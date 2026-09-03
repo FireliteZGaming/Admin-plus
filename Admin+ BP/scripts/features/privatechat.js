@@ -196,7 +196,7 @@ command({
  * is reading is impossible to quote back to somebody.
  */
 function pairLabel(a, b) {
-    return [displayName(a), displayName(b)].sort((x, y) => x.localeCompare(y)).join(" §8⇄§5 ")
+    return [displayName(a), displayName(b)].sort((x, y) => x.localeCompare(y)).join(" §8·§5 ")
 }
 
 command({
@@ -308,8 +308,8 @@ export function routePrivate(player, message) {
         TAG: renderTag(primaryRank(player)),
         RANK: primaryRank(player)?.display ?? "",
         NAME: displayName(player),
-        MSG: message
-    }).replace(/ {2,}/g, " ")
+        MSG: " "
+    }).replace(/ {2,}/g, " ").replace(" ", message)
     player.sendMessage(line)
     partner.sendMessage(line)
     rememberExchange(player, partner)

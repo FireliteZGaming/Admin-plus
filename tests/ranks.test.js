@@ -73,8 +73,12 @@ console.log("\n— weight precedence across multiple ranks —")
 // Holding both member and admin: admin is heavier, so it decides.
 setRanks(steve.id, ["member", "admin"], steve.name)
 check("heaviest rank decides the node", has(steve, "admin.ban"), true)
-check("display order is what was set", displayRanks(steve).map(r => r.id), ["member", "admin"])
-check("tag = first in display order", primaryRank(steve).id, "member")
+// Held order was ["member", "admin"], but a STAFF rank is pulled to the front:
+// the one thing a player must be able to read off a name is whether the person
+// is staff, and held order is manual enough to hide that by accident.
+check("staff is pulled ahead of the non-staff rank",
+    displayRanks(steve).map(r => r.id), ["admin", "member"])
+check("so the tag is the staff one", primaryRank(steve).id, "admin")
 check("authority = heaviest, not tag", playerRanks(steve)[0].id, "admin")
 check("authority weight is admin's", topWeight(steve), getRank("admin").weight)
 
@@ -260,6 +264,34 @@ for (const [id, preset] of Object.entries(PRESETS)) {
         .filter(p => p !== "*" && !p.endsWith(".*") && !declared.includes(p))
     check(`${id} grants nothing invented`, bogus, [])
 }
+
+console.log("\n— a staff tag always wins the nametag —")
+// Held order is manual, so a moderator who collected a cosmetic tag was showing
+// the tag. Whatever else a tag is for, the one thing a player has to be able to
+// read off somebody's name is whether they are staff.
+applyPreset("server")
+saveR("vip", { display: "§aVip", weight: 15, staff: false, perms: [], inherits: [] })
+const collector = fakePlayer("Collector")
+setRanks(collector.id, ["vip", "mod"], collector.name)
+check("held order puts the cosmetic tag first",
+    heldRankIds(collector.id), ["vip", "mod"])
+check("but the staff rank is what shows", primaryRank(collector).id, "mod")
+check("and the cosmetic one is still held, just behind it",
+    displayRanks(collector.id).map(r => r.id), ["mod", "vip"])
+
+// Stable inside each group: two staff ranks keep the order their holder chose.
+setRanks(collector.id, ["mod", "admin"], collector.name)
+check("two staff ranks keep the manual order",
+    displayRanks(collector.id).map(r => r.id), ["mod", "admin"])
+setRanks(collector.id, ["admin", "mod"], collector.name)
+check("reversed, and it follows", displayRanks(collector.id).map(r => r.id), ["admin", "mod"])
+check("authority is unchanged either way — still the heaviest",
+    playerRanks(collector.id)[0].id, "admin")
+
+setRanks(collector.id, ["vip"], collector.name)
+check("someone with only a cosmetic tag still shows it",
+    primaryRank(collector).id, "vip")
+deleteRank("vip")
 
 console.log("\n— the author's badge —")
 // The tag is cosmetic and has to STAY cosmetic. These assertions are the point

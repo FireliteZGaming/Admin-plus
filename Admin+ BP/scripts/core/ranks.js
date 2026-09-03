@@ -431,13 +431,27 @@ function onlyDefaultRank(playerOrId) {
     return held.length === 1 && !!fallback && held[0] === fallback.id
 }
 
-/** Rank objects in the player's own display order — the cosmetic view. */
+/**
+ * Rank objects in the player's own display order — the cosmetic view.
+ *
+ * With one rule on top of that order: STAFF RANKS COME FIRST. A moderator who
+ * also collected a cosmetic tag was showing the tag, because held order is
+ * manual and the tag happened to be first in the list. Whatever else a tag is
+ * for, the one thing a player must be able to read off somebody's name is
+ * whether they are staff.
+ *
+ * The partition is STABLE, so the manual order still decides everything inside
+ * each group — a Builder+Admin can still choose which of those two shows, and
+ * the twenty cosmetic tags on a PvP ladder keep whatever order their holder put
+ * them in. It only guarantees that no cosmetic rank outranks a staff one.
+ */
 export function displayRanks(playerOrId) {
     const held = heldRankIds(playerOrId).map(id => ranksTable.get(id)).filter(Boolean)
+    const ordered = [...held.filter(r => r.staff), ...held.filter(r => !r.staff)]
     // In FRONT of what they hold, so it is the tag that shows — and gone the
     // moment a world hands them a rank of its own, which is the whole contract.
-    if (isCreator(playerOrId) && onlyDefaultRank(playerOrId)) return [CREATOR_RANK, ...held]
-    return held
+    if (isCreator(playerOrId) && onlyDefaultRank(playerOrId)) return [CREATOR_RANK, ...ordered]
+    return ordered
 }
 
 export { CREATOR_RANK, isCreator }
