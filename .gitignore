@@ -1,0 +1,18 @@
+# Build output. The .mcaddon is produced by mcpack.py and belongs on a release
+# page, not in the history — it changes wholesale on every build.
+Admin+.mcaddon
+*.mcpack
+
+# Generated while investigating; regenerate with tools/genicons.py.
+matrix.json
+dump_matrix.mjs
+
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+
+# NOTE: node_modules/ is deliberately NOT ignored. It holds no installed
+# packages — only four hand-written stand-ins for @minecraft/server and
+# @minecraft/server-ui, so the test suite can run the real scripts under plain
+# Node. They are source, not dependencies.

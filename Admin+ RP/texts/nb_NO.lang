@@ -1,0 +1,9 @@
+## Admin+ silences the vanilla join and leave lines so the addon can print
+## its own — which is what lets /vanish emit a convincing one. The value is
+## a single space on purpose: an empty value falls back to the built-in text.
+multiplayer.player.joined= 
+multiplayer.player.joined.renamed= 
+multiplayer.player.joined.realms= 
+multiplayer.player.joined.realms.renamed= 
+multiplayer.player.left= 
+multiplayer.player.left.realms= 

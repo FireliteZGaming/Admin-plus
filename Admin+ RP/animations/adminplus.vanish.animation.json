@@ -1,0 +1,47 @@
+{
+    "format_version": "1.8.0",
+    "animations": {
+        "animation.adminplus.vanish": {
+            "loop": true,
+            "bones": {
+                "root": { "position": [0, -1000, 0] },
+
+                "body": { "scale": [0, 0, 0] },
+                "head": { "scale": [0, 0, 0] },
+                "hat": { "scale": [0, 0, 0] },
+                "leftarm": { "scale": [0, 0, 0] },
+                "rightarm": { "scale": [0, 0, 0] },
+                "leftleg": { "scale": [0, 0, 0] },
+                "rightleg": { "scale": [0, 0, 0] },
+
+                "leftArm": { "scale": [0, 0, 0] },
+                "rightArm": { "scale": [0, 0, 0] },
+                "leftLeg": { "scale": [0, 0, 0] },
+                "rightLeg": { "scale": [0, 0, 0] },
+
+                "jacket": { "scale": [0, 0, 0] },
+                "leftsleeve": { "scale": [0, 0, 0] },
+                "rightsleeve": { "scale": [0, 0, 0] },
+                "leftSleeve": { "scale": [0, 0, 0] },
+                "rightSleeve": { "scale": [0, 0, 0] },
+                "leftpants": { "scale": [0, 0, 0] },
+                "rightpants": { "scale": [0, 0, 0] },
+                "leftPants": { "scale": [0, 0, 0] },
+                "rightPants": { "scale": [0, 0, 0] },
+                "cape": { "scale": [0, 0, 0] },
+
+                "leftitem": { "scale": [0, 0, 0] },
+                "rightitem": { "scale": [0, 0, 0] },
+                "leftItem": { "scale": [0, 0, 0] },
+                "rightItem": { "scale": [0, 0, 0] },
+
+                "armor": { "scale": [0, 0, 0] },
+                "armor_layer": { "scale": [0, 0, 0] },
+                "helmet": { "scale": [0, 0, 0] },
+                "chestplate": { "scale": [0, 0, 0] },
+                "leggings": { "scale": [0, 0, 0] },
+                "boots": { "scale": [0, 0, 0] }
+            }
+        }
+    }
+}
