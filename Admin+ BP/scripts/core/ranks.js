@@ -493,9 +493,27 @@ export function moveHeldRank(playerId, rankId, delta) {
 export function setRanks(playerId, ids, name) {
     const clean = [...new Set(ids.filter(id => ranksTable.has(id)))]
     const existing = record(playerId)
+
+    // DORMANT IDS. Applying a preset replaces the ladder, so a rank the player
+    // holds may simply not exist for a while — heldRankIds() filters those out
+    // at read time, which is right. What was wrong is that grantRank,
+    // revokeRank and moveHeldRank all read that FILTERED list and wrote it
+    // straight back, so one ordinary panel edit while a different preset was
+    // applied erased the rest permanently. Undo restored the ladder and the
+    // holder record no longer mentioned them.
+    //
+    // So ids the player already holds that the current ladder does not define
+    // are carried through untouched. They stay inert — nothing reads them for
+    // permissions or display — until their ladder comes back.
+    //
+    // Deleting a rank is the deliberate path and still strips it from every
+    // holder: see deleteRank. Switching shape is not deletion.
+    const dormant = (existing.ranks ?? [])
+        .filter(id => !ranksTable.has(id) && !clean.includes(id))
+
     holdersTable.set(playerId, {
         name: name ?? existing.name ?? "",
-        ranks: clean,
+        ranks: [...clean, ...dormant],
         since: existing.since ?? Date.now()
     })
     const online = world.getAllPlayers().find(p => p.id === playerId)

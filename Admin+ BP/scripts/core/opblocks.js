@@ -17,6 +17,17 @@ import { ItemStack } from "@minecraft/server"
 // UI you get when you tap them, and that UI is gated on operator status by the
 // game itself. Handing one to a non-op gives them a block they cannot open —
 // a feature that looks broken rather than one that works.
+//
+// AND ONE THING THIS CANNOT DO, which is worth knowing before you place a Deny
+// block. There is no way to exempt a staff rank from Deny. The engine checks
+// operator status, and a script has no lever on that: beforeEvents can only ADD
+// a restriction by setting cancel = true, never remove one, and nothing can
+// change a player's operator status. So a Deny block locks out non-op STAFF
+// exactly as hard as it locks out everyone else, permanently.
+//
+// If the goal is "protected area that staff can still build in", that is what
+// spawn protection in features/warps.js does — it is enforced in script, so it
+// decides who is exempt and lets staff through by rank. Vanilla Deny cannot.
 
 /**
  * @typedef {{ id: string, label: string, what: string }} OpBlock
@@ -32,12 +43,12 @@ export const OP_BLOCKS = [
     {
         id: "minecraft:deny",
         label: "Deny",
-        what: "Stops non-staff building anywhere above it in that chunk. The usual way to protect a spawn area."
+        what: "Stops building above it in that chunk. WARNING: it stops your staff too — only real operators get through. Use spawn protection if staff should still build."
     },
     {
         id: "minecraft:allow",
         label: "Allow",
-        what: "Cuts a hole in a Deny area — building works again above it. Place it inside a protected zone."
+        what: "Cuts a hole in a Deny area. The only way to reopen a spot, since nothing can exempt a person from Deny."
     },
     {
         id: "minecraft:border_block",

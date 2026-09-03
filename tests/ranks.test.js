@@ -7,7 +7,7 @@ import {
     BUNDLES,
     PERMISSION_NODES,
     setRanks, grantRank, revokeRank, heldRankIds, playerRanks, displayRanks, primaryRank,
-    moveHeldRank, onPlayerJoin, defaultRank, displacedBy, cooldownFor, saveRank as saveR,
+    moveHeldRank, onPlayerJoin, defaultRank, displacedBy, cooldownFor, saveRank as saveR, knownHolders,
     CREATOR_GAMERTAG, CREATOR_RANK, allRanks
 } from "../Admin+ BP/scripts/core/ranks.js"
 import { CONFIG } from "../Admin+ BP/scripts/config.js"
@@ -115,6 +115,30 @@ check("holder keeping a surviving id", heldRankIds(steve), ["member"])
 check("holder whose rank vanished falls back to default", heldRankIds(admin), ["member"])
 restoreSnapshot()
 check("undo restored previous ladder", ladder().map(r => r.id), ["owner", "coowner", "developer", "admin", "mod", "member"])
+
+// A rank the current ladder does not define is HIDDEN, not deleted — and it has
+// to survive somebody editing that player's ranks in the meantime. It did not:
+// grantRank, revokeRank and moveHeldRank all read the FILTERED list and wrote
+// it back, so one ordinary panel action while a preset was applied erased the
+// rest for good, and undo could not bring them back.
+const kept = fakePlayer("Kept"); onPlayerJoin(kept)
+setRanks(kept.id, ["coowner"], kept.name)
+applyPreset("smp")
+check("their rank is hidden while the ladder lacks it", heldRankIds(kept), ["member"])
+grantRank(kept.id, "staff", kept.name)
+check("and a promotion on the new ladder works", heldRankIds(kept), ["staff"])
+restoreSnapshot()
+check("the hidden rank comes back after undo", heldRankIds(kept).includes("coowner"), true)
+
+// Deleting a rank is deliberate and still strips it from everyone.
+applyPreset("server")
+saveRank("temp", { display: "Temp", staff: false, perms: [], inherits: [], meta: {} })
+grantRank(kept.id, "temp", kept.name)
+check("they hold the temporary rank", heldRankIds(kept).includes("temp"), true)
+deleteRank("temp")
+check("deleting really removes it, unlike a preset switch",
+    heldRankIds(kept).includes("temp"), false)
+setRanks(kept.id, ["member"], kept.name)
 
 console.log("\n— create / delete —")
 saveRank("builder", { display: "§9Builder", staff: false, perms: ["warp.use"], inherits: [], meta: {} })
@@ -264,6 +288,53 @@ for (const [id, preset] of Object.entries(PRESETS)) {
         .filter(p => p !== "*" && !p.endsWith(".*") && !declared.includes(p))
     check(`${id} grants nothing invented`, bogus, [])
 }
+
+console.log("\n— ranks survive leaving and rejoining —")
+// The one failure nobody would forgive. Ranks live in a world table keyed by
+// PLAYER ID; the "rank:<id>" tag on the player is only a mirror of it. So a
+// rejoin has to rebuild the tag from the table, not the other way round —
+// otherwise a player who logs out returns as a Member and the table is right
+// while the world is wrong.
+applyPreset("server")
+const returning = fakePlayer("Returning")
+setRanks(returning.id, ["admin"], returning.name)
+check("they have it before leaving", primaryRank(returning).id, "admin")
+const tagBefore = returning.getTags().filter(t => t.startsWith("rank:"))
+check("and the mirror tag is on them", tagBefore, ["rank:admin"])
+
+// Leaving and coming back = a BRAND NEW player object. Same id, no tags: the
+// engine does not hand back the object that left.
+const rejoined = {
+    id: returning.id, name: "Returning", nameTag: "Returning",
+    commandPermissionLevel: 0,
+    _tags: new Set(),
+    getTags() { return [...this._tags] },
+    addTag(t) { this._tags.add(t); return true },
+    removeTag(t) { return this._tags.delete(t) }
+}
+__test.players.push(rejoined)
+check("they come back with no tags at all", rejoined.getTags(), [])
+onPlayerJoin(rejoined)
+check("the rank is still theirs", primaryRank(rejoined).id, "admin")
+check("their permissions came back too", has(rejoined, "admin.ban"), true)
+check("and the mirror tag was re-stamped from the table",
+    rejoined.getTags().filter(t => t.startsWith("rank:")), ["rank:admin"])
+check("authority is intact", topWeight(rejoined), getRank("admin").weight)
+
+// A gamertag change has to follow them, or the offline player list goes stale.
+const renamed = {
+    id: returning.id, name: "RenamedNow", nameTag: "RenamedNow",
+    commandPermissionLevel: 0,
+    _tags: new Set(),
+    getTags() { return [...this._tags] },
+    addTag(t) { this._tags.add(t); return true },
+    removeTag(t) { return this._tags.delete(t) }
+}
+__test.players.push(renamed)
+onPlayerJoin(renamed)
+check("a changed gamertag is picked up",
+    knownHolders().find(h => h.id === returning.id).name, "RenamedNow")
+check("without losing the rank", primaryRank(renamed).id, "admin")
 
 console.log("\n— every staff rank can set a game mode —")
 // The pack exists so staff do not need operator. A moderator who cannot set a
