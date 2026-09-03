@@ -16,6 +16,23 @@ import { ADMINPLUS_VERSION } from "../config.js"
 
 const AUTHOR = "FireliteZGaming"
 
+/**
+ * Code actually included here, under someone else's licence.
+ *
+ * Kept apart from the list below on purpose. The two are different debts, and
+ * this screen used to blur them: it said nothing of anyone's shipped here,
+ * which stopped being true the day the chest grid arrived.
+ */
+const INCLUDED = [
+    {
+        pack: "Chest-UI / ChestFormData",
+        licence: "CC BY 4.0",
+        who: "LeGend077, Herobrine64, Aex66",
+        what: "The chest window /invsee opens in",
+        how: "Bedrock gives scripts no container UI. This module worked out that a form's title and its button icons are strings a resource pack can match on, so a sentinel in the title tells the pack to redraw the form as a 9-column grid. Admin+ includes its id table and its JSON-UI, both modified, and speaks the same wire format on purpose — two packs that implement it can then draw each other's windows, whichever one wins the resource-pack order."
+    }
+]
+
 /** Technique borrowed, file not. Each line has to stay true. */
 const LEARNED_FROM = [
     {
@@ -47,13 +64,16 @@ export async function creditsScreen(player, back) {
             "§7TPA, chat channels and automod. No economy, no shop —",
             "§7the §f+§7 means essentials, not a server suite.",
             "",
+            "§fIncludes code from",
+            ...INCLUDED.map(entry => `§8· §f${entry.pack} §8— ${entry.licence}`),
+            "",
             "§fTechniques learned from",
             ...LEARNED_FROM.map(entry => `§8· §f${entry.pack} §8— ${entry.what}`),
             "",
-            "§8No files, assets or code from those packs ship here.",
-            "§8Tap one to read what was actually taken from it."
+            "§8Nothing from that second list ships here — those are ideas,",
+            "§8rewritten. Tap any of them to read what was taken."
         ].join("\n"),
-        buttons: LEARNED_FROM.map(entry => ({
+        buttons: [...INCLUDED, ...LEARNED_FROM].map(entry => ({
             text: `§b${entry.pack}§r\n§8${entry.what}`,
             run: () => techniqueScreen(player, entry, () => creditsScreen(player, back))
         })),
@@ -69,8 +89,17 @@ async function techniqueScreen(player, entry, back) {
             "",
             `§7${entry.how}`,
             "",
-            `§8Written from scratch here. Nothing from ${entry.pack} is shipped`,
-            "§8in this pack — the idea is theirs, the code is ours."
+            ...(entry.licence
+                ? [
+                    `§fBy §r${entry.who}`,
+                    `§fUnder §r${entry.licence}§7, modified.`,
+                    "§8creativecommons.org/licenses/by/4.0",
+                    "§8Every file taken is named in THIRD-PARTY-NOTICES.md."
+                ]
+                : [
+                    `§8Written from scratch here. Nothing from ${entry.pack} is`,
+                    "§8shipped in this pack — the idea is theirs, the code is ours."
+                ])
         ].join("\n"),
         buttons: [],
         back

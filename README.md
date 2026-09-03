@@ -145,5 +145,6 @@ of theirs are included:
   data that still runs when a beta-gated script never starts.
 - **UltraVanish** — that invisibility doesn't hide armour, and a bone-scaling
   animation does.
-(The chest-grid format above is the one exception — that is real code, used
+
+(The chest-grid module above is the one exception — that is real code, used
 under its licence rather than reimplemented.)
