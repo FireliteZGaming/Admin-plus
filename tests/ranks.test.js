@@ -265,6 +265,41 @@ for (const [id, preset] of Object.entries(PRESETS)) {
     check(`${id} grants nothing invented`, bogus, [])
 }
 
+console.log("\n— every staff rank can set a game mode —")
+// The pack exists so staff do not need operator. A moderator who cannot set a
+// game mode gets opped instead, and opping them hands over everything — which
+// is the exact outcome this addon is for avoiding.
+//
+// It is not free: admin.gamemode covers CREATIVE, and creative is an item
+// duplication machine — spawn it, switch to survival, keep it. What makes that
+// acceptable is that every change is recorded as mod.gamemode and announced to
+// everyone above them the moment it happens.
+const GAMEMODE_EXEMPT = {
+    // Asked for as "very very strict... admin doesn't even get ban, and mod is
+    // really just trying out for admin". A trial rank with creative in a PvP
+    // world is the sharpest possible version of that conflict, so this ladder
+    // keeps game mode at Admin. Deliberate, not an oversight.
+    spearmace: ["moderator"]
+}
+for (const [key, preset] of Object.entries(PRESETS)) {
+    applyPreset(key)
+    const exempt = GAMEMODE_EXEMPT[key] ?? []
+    const missing = []
+    for (const rank of Object.values(preset.ranks)) {
+        if (!rank.staff || exempt.includes(rank.id)) continue
+        const p = fakePlayer(`gm_${key}_${rank.id}`)
+        setRanks(p.id, [rank.id], p.name)
+        if (!has(p, "admin.gamemode")) missing.push(rank.id)
+    }
+    check(`${key}: every staff rank can`, missing, [])
+}
+applyPreset("spearmace")
+const trial = fakePlayer("Trial"); setRanks(trial.id, ["moderator"], trial.name)
+check("except the PvP ladder's trial rank, on purpose",
+    has(trial, "admin.gamemode"), false)
+check("which still kicks", has(trial, "admin.kick"), true)
+applyPreset("server")
+
 console.log("\n— a staff tag always wins the nametag —")
 // Held order is manual, so a moderator who collected a cosmetic tag was showing
 // the tag. Whatever else a tag is for, the one thing a player has to be able to

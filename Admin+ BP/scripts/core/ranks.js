@@ -61,7 +61,7 @@ export const PRESETS = {
             coowner:   { id: "coowner",   display: "§c§lCo-Owner",  weight: 90,  inherits: [],         perms: ["*"], meta: {}, staff: true },
             developer: { id: "developer", display: "§d§lDeveloper", weight: 80,  inherits: ["admin"],  perms: ["admin.*", "ranks.*", "warp.manage", "spawn.set", "presets.apply", "chat.*"], meta: {}, staff: true },
             admin:     { id: "admin",     display: "§6§lAdmin",     weight: 70,  inherits: ["mod"],    perms: ["admin.ban", "admin.nickname", "admin.sudo", "admin.gamemode", "admin.holograms", "ranks.grant", "warp.manage", "spawn.set", "chat.*"], meta: {}, staff: true },
-            mod:       { id: "mod",       display: "§aMod",         weight: 50,  inherits: ["member"], perms: [...STAFF_CORE, "admin.warn", "admin.kick", "admin.mute", "admin.freeze", "admin.tpatoggle", "admin.reports", "admin.automod", "admin.clearchat", "admin.lagclear", "admin.tp", "admin.vanish", "admin.invsee", "admin.logs", "admin.broadcast", "admin.settings", "chat.spy"], meta: {}, staff: true },
+            mod:       { id: "mod",       display: "§aMod",         weight: 50,  inherits: ["member"], perms: [...STAFF_CORE, "admin.warn", "admin.kick", "admin.mute", "admin.freeze", "admin.tpatoggle", "admin.reports", "admin.automod", "admin.clearchat", "admin.lagclear", "admin.tp", "admin.vanish", "admin.gamemode", "admin.invsee", "admin.logs", "admin.broadcast", "admin.settings", "chat.spy"], meta: {}, staff: true },
             member:    { id: "member",    display: "§bMember",      weight: 10,  inherits: [],         perms: [...BASIC_PERMS], meta: {}, staff: false, default: true }
         }
     },
@@ -72,7 +72,7 @@ export const PRESETS = {
             owner:   { id: "owner",   display: "§4§lOwner",   weight: 100, inherits: [],         perms: ["*"], meta: {}, staff: true },
             manager: { id: "manager", display: "§5§lManager", weight: 85,  inherits: ["admin"],  perms: ["admin.*", "ranks.*", "warp.manage", "spawn.set", "presets.apply", "chat.*"], meta: {}, staff: true },
             admin:   { id: "admin",   display: "§6§lAdmin",   weight: 70,  inherits: ["mod"],    perms: ["admin.ban", "admin.nickname", "admin.sudo", "admin.gamemode", "admin.settings", "admin.holograms", "ranks.grant", "warp.manage", "spawn.set", "chat.viewall"], meta: {}, staff: true },
-            mod:     { id: "mod",     display: "§aMod",       weight: 50,  inherits: ["member"], perms: [...STAFF_CORE, "admin.warn", "admin.kick", "admin.mute", "admin.freeze", "admin.tpatoggle", "admin.reports", "admin.automod", "admin.logs", "admin.invsee", "admin.tp", "admin.vanish", "admin.clearchat", "admin.lagclear", "admin.broadcast", "chat.spy"], meta: {}, staff: true },
+            mod:     { id: "mod",     display: "§aMod",       weight: 50,  inherits: ["member"], perms: [...STAFF_CORE, "admin.warn", "admin.kick", "admin.mute", "admin.freeze", "admin.tpatoggle", "admin.reports", "admin.automod", "admin.logs", "admin.invsee", "admin.tp", "admin.vanish", "admin.gamemode", "admin.clearchat", "admin.lagclear", "admin.broadcast", "chat.spy"], meta: {}, staff: true },
             member:  { id: "member",  display: "§bMember",    weight: 10,  inherits: [],         perms: [...BASIC_PERMS], meta: {}, staff: false, default: true }
         }
     },
@@ -142,7 +142,7 @@ export const PRESETS = {
         ranks: {
             owner:   { id: "owner",   display: "§4§lOwner",  weight: 100, inherits: [],          perms: ["*"], meta: {}, staff: true },
             admin:   { id: "admin",   display: "§c§lAdmin",  weight: 80,  inherits: ["mod"],     perms: ["admin.*", "ranks.*", "warp.manage", "spawn.set", "presets.apply"], meta: {}, staff: true },
-            mod:     { id: "mod",     display: "§6Mod",      weight: 60,  inherits: ["member"],  perms: [...STAFF_CORE, "admin.kick", "admin.mute", "admin.freeze", "admin.tp", "admin.invsee", "admin.logs", "admin.reports"], meta: {}, staff: true },
+            mod:     { id: "mod",     display: "§6Mod",      weight: 60,  inherits: ["member"],  perms: [...STAFF_CORE, "admin.kick", "admin.mute", "admin.freeze", "admin.tp", "admin.gamemode", "admin.invsee", "admin.logs", "admin.reports"], meta: {}, staff: true },
             mvp:     { id: "mvp",     display: "§d§lMVP",    weight: 35,  inherits: ["vipplus"], perms: [], meta: {}, staff: false },
             vipplus: { id: "vipplus", display: "§e§lVIP§6+", weight: 30,  inherits: ["vip"],     perms: [], meta: {}, staff: false },
             vip:     { id: "vip",     display: "§eVIP",      weight: 25,  inherits: ["member"],  perms: [], meta: {}, staff: false },
