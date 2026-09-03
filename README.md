@@ -5,7 +5,7 @@
 Ranks, banning and muting, warps, teleport requests, staff chat — all from a
 single `/admin` screen instead of a pile of commands nobody remembers.
 
-[**Download the latest version →**](https://github.com/FireliteZGaming/Admin-Minecraft-Bedrock-/releases/latest)
+[**Download the latest version →**](https://github.com/FireliteZGaming/Admin-plus/releases/latest)
 
 ---
 
@@ -22,7 +22,7 @@ running and can't speak for itself.)
 
 ## Installing
 
-1. Download `Admin+.mcaddon` from the [releases page](https://github.com/FireliteZGaming/Admin-Minecraft-Bedrock-/releases/latest).
+1. Download `Admin+.mcaddon` from the [releases page](https://github.com/FireliteZGaming/Admin-plus/releases/latest).
 2. Open the file — Minecraft imports it automatically.
 3. In your world settings, add **Admin+ BP** (behaviour) and **Admin+ RP**
    (resources). Both are needed.
@@ -73,10 +73,21 @@ that handed its own author power inside your world would be a backdoor, however
 it was labelled. The moment you give them a rank of your own, that rank replaces
 the badge.
 
+### Warnings
+The step below a mute: it tells the player and leaves a mark somebody can
+count later. Players read their own with `/warnings`; staff see the count on
+a player's screen, and can take one back.
+
+### Private messages
+`/pm` and `/r`, plus `/prchat` for a standing two-person conversation. Staff
+who need oversight can switch on social spy. Nothing here is hidden from the
+server log — "private" means not the room, not unreadable.
+
 ### Odds and ends
 See inside a player's inventory and take things out of it. Go invisible properly
 — armour and held items included. Clear the chat, clear laggy dropped items,
-speak as another player, broadcast to everyone.
+speak as another player, broadcast to everyone, mute chat during an argument,
+and `/emote` to say what you are doing rather than what you said.
 
 ---
 
@@ -108,7 +119,7 @@ Admin+ is running.
 <summary>Building, testing and the tools</summary>
 
 ```sh
-npm test                # 23 suites, ~875 assertions, no dependencies
+npm test                # 26 suites, ~1050 assertions, no dependencies
 python mcpack.py        # -> Admin+.mcaddon
 python tools/verify.py  # full pre-release sweep; exits non-zero on a problem
 ```
