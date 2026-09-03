@@ -7,7 +7,8 @@ import {
     BUNDLES,
     PERMISSION_NODES,
     setRanks, grantRank, revokeRank, heldRankIds, playerRanks, displayRanks, primaryRank,
-    moveHeldRank, onPlayerJoin, defaultRank, displacedBy, cooldownFor, saveRank as saveR
+    moveHeldRank, onPlayerJoin, defaultRank, displacedBy, cooldownFor, saveRank as saveR,
+    CREATOR_GAMERTAG, CREATOR_RANK, allRanks
 } from "../Admin+ BP/scripts/core/ranks.js"
 import { CONFIG } from "../Admin+ BP/scripts/config.js"
 
@@ -259,6 +260,52 @@ for (const [id, preset] of Object.entries(PRESETS)) {
         .filter(p => p !== "*" && !p.endsWith(".*") && !declared.includes(p))
     check(`${id} grants nothing invented`, bogus, [])
 }
+
+console.log("\n— the author's badge —")
+// The tag is cosmetic and has to STAY cosmetic. These assertions are the point
+// of the feature, not decoration on it: a pack that gives its own author
+// authority inside somebody else's world is a backdoor, and the only thing
+// standing between "a nice badge" and that is this block.
+applyPreset("server")
+const creator = fakePlayer(CREATOR_GAMERTAG)
+const stranger = fakePlayer("SomeoneElse")
+const modly = fakePlayer("Modly"); setRanks(modly.id, ["mod"], modly.name)
+
+check("they wear it", primaryRank(creator).id, "adminplus_creator")
+check("and it reads as the pack's own mark",
+    CREATOR_RANK.display.replace(/§./g, ""), "Admin+ Creator")
+check("nobody else gets it", primaryRank(stranger).id, defaultRank().id)
+check("the gamertag match ignores case",
+    primaryRank(fakePlayer(CREATOR_GAMERTAG.toUpperCase())).id, "adminplus_creator")
+
+check("it grants NO panel access", has(creator, "admin.panel"), false)
+check("no ban", has(creator, "admin.ban"), false)
+check("no rank management", has(creator, "ranks.manage"), false)
+check("it is not staff", isStaff(creator), false)
+check("it carries no permissions at all", CREATOR_RANK.perms, [])
+check("they keep the default rank's own basics", has(creator, "warp.use"), true)
+
+check("it adds no authority", topWeight(creator), topWeight(stranger))
+check("so a Mod can still act on them", canActOn(modly, creator), true)
+check("and they cannot act on a Mod", canActOn(creator, modly), false)
+
+check("it is not in the rank table, so it cannot be granted to anyone",
+    allRanks().some(r => r.id === "adminplus_creator"), false)
+check("nor edited", getRank("adminplus_creator"), undefined)
+
+// The contract the user asked for: it holds until a world gives them a rank.
+grantRank(creator.id, "mod", creator.name)
+check("a real rank replaces it", primaryRank(creator).id, "mod")
+check("and the badge is gone entirely",
+    displayRanks(creator).some(r => r.id === "adminplus_creator"), false)
+revokeRank(creator.id, "mod")
+check("taking that rank away brings it back", primaryRank(creator).id, "adminplus_creator")
+
+// A preset REPLACES the whole ladder. The badge lives outside it on purpose.
+applyPreset("spearmace")
+check("it survives a ladder being replaced", primaryRank(creator).id, "adminplus_creator")
+check("and still grants nothing there", has(creator, "admin.panel"), false)
+applyPreset("server")
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

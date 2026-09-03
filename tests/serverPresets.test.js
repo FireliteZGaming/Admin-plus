@@ -150,17 +150,17 @@ check("Manager exists", !!sm.manager, true)
 check("Owner is purple", sm.owner.display.startsWith("\u00a75"), true)
 check("the staff ladder reads top down",
     Object.values(sm).filter(r => r.staff).map(r => r.id),
-    ["owner", "coowner", "leaddev", "developer", "manager", "headadmin", "admin", "moderator"])
+    ["owner", "leaddev", "coowner", "developer", "manager", "headadmin", "admin", "moderator"])
 
 console.log("\n— Spear Mace: development outranks management —")
-// Asked for explicitly: Lead Developer above Developer, Developer above
-// Manager, and the whole development branch under Co-Owner rather than over it.
+// Asked for explicitly: Lead Developer second on the ladder, above Co-Owner,
+// then Developer above Manager.
 check("Lead Developer outranks Developer", sm.leaddev.weight > sm.developer.weight, true)
 check("Developer outranks Manager", sm.developer.weight > sm.manager.weight, true)
-check("Lead Developer does NOT outrank Co-Owner", sm.leaddev.weight < sm.coowner.weight, true)
-check("and sits directly under the owner tier",
+check("Lead Developer outranks Co-Owner", sm.leaddev.weight > sm.coowner.weight, true)
+check("only Owner is above it",
     Object.values(sm).filter(r => r.weight > sm.leaddev.weight).map(r => r.id),
-    ["owner", "coowner"])
+    ["owner"])
 check("it counts as staff", sm.leaddev.staff, true)
 check("it carries the owner tier's grant, not Developer's", sm.leaddev.perms, ["*"])
 

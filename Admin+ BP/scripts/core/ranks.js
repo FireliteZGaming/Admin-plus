@@ -90,14 +90,14 @@ export const PRESETS = {
         description: "A strict PvP world. No TPA, ban sits above Admin, development outranks management, and the long tail of tags are Member with a different name on them.",
         ranks: {
             owner:      { id: "owner",      display: "§5§lOwner",       weight: 100, inherits: [],            perms: ["*"], meta: {}, staff: true },
+            // Second on the ladder, above Co-Owner: the development branch
+            // outranks both management and the co-owner seat here. It carries
+            // the owner tier's grant, which is the only thing separating it
+            // from Developer. Teal on "Lead" is the unique colour — nothing
+            // else on this ladder uses §3 — and keeping "Developer" in §d says
+            // which rank it is senior to.
+            leaddev:    { id: "leaddev",    display: "§3§lLead §d§lDeveloper", weight: 97, inherits: [],     perms: ["*"], meta: {}, staff: true },
             coowner:    { id: "coowner",    display: "§4§lCo-Owner",    weight: 95,  inherits: [],            perms: ["*"], meta: {}, staff: true },
-            // The development ladder outranks the management one here, and Lead
-            // Developer sits directly under the owner tier — so it carries the
-            // owner tier's grant rather than Developer's, which is the only
-            // thing that separates the two rows. Teal on "Lead" is the unique
-            // colour: nothing else on this ladder uses §3, and keeping
-            // "Developer" in §d says which rank it is senior to.
-            leaddev:    { id: "leaddev",    display: "§3§lLead §d§lDeveloper", weight: 92, inherits: [],     perms: ["*"], meta: {}, staff: true },
             developer:  { id: "developer",  display: "§d§lDeveloper",   weight: 88,  inherits: ["headadmin"], perms: ["admin.*", "ranks.*", "warp.manage", "spawn.set", "presets.apply", "chat.*"], meta: {}, staff: true },
             manager:    { id: "manager",    display: "§6§lManager",     weight: 85,  inherits: ["headadmin"], perms: ["admin.*", "ranks.*", "warp.manage", "spawn.set", "presets.apply", "chat.*"], meta: {}, staff: true },
             headadmin:  { id: "headadmin",  display: "§c§lHead Admin",  weight: 80,  inherits: ["admin"],     perms: ["admin.ban", "admin.settings", "admin.holograms", "ranks.grant", "warp.manage", "spawn.set", "chat.viewall", "chat.manage"], meta: {}, staff: true },
@@ -379,10 +379,68 @@ export function playerRanks(playerOrId) {
     return displayRanks(playerOrId).slice().sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0))
 }
 
+// ------------------------------------------------------------ author's badge
+
+/**
+ * One gamertag gets a tag of its own in any world running this pack.
+ *
+ * It is a BADGE AND NOTHING ELSE. No permissions, not staff, weight 0. An
+ * addon that handed its own author authority inside a stranger's world would be
+ * a backdoor whatever it was called, and would deserve to be pulled from every
+ * site that hosts it — so `has()` finds nothing to say about any node here and
+ * the answer comes from whatever real rank they hold, which for a visitor is
+ * the default one. Weight 0 keeps it under every ladder, so `topWeight` and
+ * `canActOn` never see it either.
+ *
+ * It also lives OUTSIDE ranksTable, which is what makes it survive a preset
+ * replacing the whole ladder — and what stops it being granted to anyone else,
+ * renamed, or edited in the rank screens.
+ */
+export const CREATOR_GAMERTAG = "FireliteZGaming"
+
+const CREATOR_RANK = Object.freeze({
+    id: "adminplus_creator",
+    // The pack's own two colours, then the title in a shade no ladder rank
+    // uses — so it reads as the pack's mark rather than as a rank in the world.
+    display: "§bAdmin§d+§r §e§lCreator",
+    weight: 0,
+    inherits: [],
+    perms: [],
+    meta: {},
+    staff: false
+})
+
+function isCreator(playerOrId) {
+    const name = typeof playerOrId === "string"
+        ? record(playerOrId).name
+        : playerOrId?.name
+    return String(name ?? "").toLowerCase() === CREATOR_GAMERTAG.toLowerCase()
+}
+
+/**
+ * True while they hold nothing but the rank everybody starts with.
+ *
+ * onPlayerJoin writes the default rank as a real assignment, so "has no rank"
+ * is never true for anyone who has actually joined — the question that matters
+ * is whether somebody has since given them one.
+ */
+function onlyDefaultRank(playerOrId) {
+    const held = heldRankIds(playerOrId)
+    if (!held.length) return true
+    const fallback = defaultRank()
+    return held.length === 1 && !!fallback && held[0] === fallback.id
+}
+
 /** Rank objects in the player's own display order — the cosmetic view. */
 export function displayRanks(playerOrId) {
-    return heldRankIds(playerOrId).map(id => ranksTable.get(id)).filter(Boolean)
+    const held = heldRankIds(playerOrId).map(id => ranksTable.get(id)).filter(Boolean)
+    // In FRONT of what they hold, so it is the tag that shows — and gone the
+    // moment a world hands them a rank of its own, which is the whole contract.
+    if (isCreator(playerOrId) && onlyDefaultRank(playerOrId)) return [CREATOR_RANK, ...held]
+    return held
 }
+
+export { CREATOR_RANK, isCreator }
 
 /** The rank that shows as their tag: first in their display order. */
 export function primaryRank(playerOrId) { return displayRanks(playerOrId)[0] }
