@@ -3,6 +3,7 @@ import { command, defineEnum } from "../core/registry.js"
 import { menu, pagedMenu, modal, subtitle } from "../core/ui.js"
 import { hubTitle, hubEntry } from "../core/theme.js"
 import { ok, err, info, formatDate, formatDuration } from "../core/util.js"
+import { displayName } from "../core/identity.js"
 import { has } from "../core/ranks.js"
 import { flag } from "../core/settings.js"
 import { statusLine } from "../core/moderation.js"
@@ -23,21 +24,24 @@ const categoryEnum = defineEnum("reportcategory", CATEGORIES)
 
 command({
     name: "report",
-    description: "Report a player to staff — /report <player> <reason>",
+    description: "Report a player to staff — /report, or /report <player> <reason>",
     perm: "report.use",
-    mandatory: [
+    // Everything optional, so bare /report opens the form. Someone who has just
+    // been griefed should not have to get a selector and a quoted string right
+    // before they can say so.
+    optional: [
         { name: "player", type: CustomCommandParamType.PlayerSelector },
-        { name: "reason", type: CustomCommandParamType.String }
+        { name: "reason", type: CustomCommandParamType.String },
+        { name: categoryEnum, type: CustomCommandParamType.Enum }
     ],
-    optional: [{ name: categoryEnum, type: CustomCommandParamType.Enum }],
     run: (player, [selected, reason, category]) => {
         if (!flag("feature.reports")) return err(player, "Reports are turned off on this server.")
         const targets = selected ?? []
-        if (!targets.length) return err(player, "No player matched that selector.")
+        if (!targets.length) return reportForm(player)
         if (targets.length > 1) return err(player, "Report one player at a time.")
 
         const text = String(reason ?? "").trim().slice(0, 200)
-        if (!text) return err(player, "Say what they did.")
+        if (!text) return reportForm(player, targets[0])
 
         const result = fileReport(player, targets[0], text, String(category ?? "other"))
         if (!result.ok) return err(player, result.reason)
@@ -49,6 +53,74 @@ command({
         alertStaff(result.report)
     }
 })
+
+/**
+ * The form behind a bare /report.
+ *
+ * A DROPDOWN of players rather than a scrolling list of buttons: a report names
+ * exactly one person, and picking from a closed list means a misspelt name
+ * cannot produce a report about nobody. The reason list works the same way, with
+ * Other last — and the box underneath is required whichever they pick, because
+ * a queue full of reports that say only "cheating" tells staff nothing.
+ *
+ * @param {object} player  who is filing
+ * @param {object} [preset]  a player already named on the command line
+ * @param {string} [error]  what was wrong with the last attempt
+ */
+async function reportForm(player, preset, error) {
+    const others = world.getAllPlayers().filter(p => p.id !== player.id)
+    if (!others.length) {
+        return err(player, "There is nobody else here to report.")
+    }
+
+    const names = others.map(p => displayName(p))
+    const startAt = Math.max(0, preset ? others.findIndex(p => p.id === preset.id) : 0)
+
+    const values = await modal(player, hubTitle("actions", "Report a player"), [
+        {
+            id: "who",
+            type: "dropdown",
+            label: `${error ? "§c" + error + "\n§r" : ""}Who`,
+            options: names,
+            default: startAt
+        },
+        {
+            id: "category",
+            type: "dropdown",
+            label: "What kind",
+            options: CATEGORY_LABELS,
+            default: 0
+        },
+        {
+            id: "detail",
+            type: "text",
+            label: "What happened §8· required",
+            placeholder: "broke into my base and took the enchanting table"
+        }
+    ])
+    if (!values) return
+
+    const detail = String(values.detail ?? "").trim().slice(0, 200)
+    if (!detail) {
+        return reportForm(player, others[values.who ?? 0], "Say what happened — that box is required.")
+    }
+
+    const target = others[values.who ?? 0]
+    if (!target) return err(player, "That player left before you sent it.")
+
+    const category = CATEGORIES[values.category ?? 0] ?? "other"
+    const result = fileReport(player, target, detail, category)
+    if (!result.ok) return err(player, result.reason)
+
+    ok(player, result.updated
+        ? "Updated your report — staff have been told again."
+        : "Report sent. Staff have been told.")
+    record(player, "report.filed", target, `${category}: ${detail}`)
+    alertStaff(result.report)
+}
+
+/** Sentence case for the picker; CATEGORIES stays the stored vocabulary. */
+const CATEGORY_LABELS = CATEGORIES.map(c => c[0].toUpperCase() + c.slice(1))
 
 function alertStaff(report) {
     const staff = reportStaff()

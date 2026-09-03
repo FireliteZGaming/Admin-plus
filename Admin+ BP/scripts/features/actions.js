@@ -12,6 +12,8 @@ import {
     banList, unban, isBanned, banRecord
 } from "../core/moderation.js"
 import { record } from "../core/logs.js"
+import { warningLine, warningCount } from "../core/warnings.js"
+import { warningsScreen } from "./warn.js"
 import { playerRankScreen } from "./ranksUI.js"
 import { chatAvailable } from "./chat.js"
 
@@ -147,6 +149,7 @@ async function playerActionsScreen(player, target, back) {
         "",
         `§fRanks: §r${ranks}`,
         `§fGamemode: §7${gameModeOf(target)}`,
+        `§fWarnings: ${warningLine(target)}`,
         `§fStatus: §r${statusLine(target)}`,
         allowed ? "" : "\n§cThey outrank you — actions are disabled."
     ].join("\n")
@@ -173,6 +176,12 @@ async function playerActionsScreen(player, target, back) {
             // somebody above you.
             has(player, "admin.invsee")
                 ? { text: "§bInventory §8· see what they are carrying", run: () => invseeScreen(player, target, again) }
+                : null,
+            has(player, "admin.warn") || warningCount(target)
+                ? {
+                    text: `§eWarnings §8· ${warningCount(target)} on record`,
+                    run: () => warningsScreen(player, target, again)
+                }
                 : null,
             allowed && has(player, "admin.freeze")
                 ? {
@@ -291,7 +300,7 @@ function gameModeOf(target) {
 
 // --------------------------------------------------------------- display name
 
-async function nicknameScreen(player, target, back) {
+export async function nicknameScreen(player, target, back) {
     const current = getNickname(target) ?? ""
     const values = await modal(player, title(`Display name · ${target.name}`), [
         {
