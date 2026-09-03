@@ -174,6 +174,11 @@ for (const file of scriptFiles("Admin+ BP/scripts")) {
 const NO_AUDIENCE = new Set([
     "automod.ore", "automod.breaks", "automod.spam", "automod.config",
     "admin.clearchat", "admin.lagclear", "chat.broadcast", "dev.banhammer",
+    // Muting a channel is announced to EVERYONE, by name, from
+    // features/chatcommands.js — the opposite of the audit line's audience, and
+    // deliberately so: chat going quiet with no explanation reads as a broken
+    // server. The log entry is the record; the announcement is the courtesy.
+    "chat.mute", "chat.unmute",
     "config.edit", "config.preset", "config.presetSave", "config.reset",
     "config.serverPreset",
     "hologram.create", "hologram.edit", "hologram.move", "hologram.delete", "hologram.clear",

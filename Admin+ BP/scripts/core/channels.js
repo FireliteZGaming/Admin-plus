@@ -139,3 +139,64 @@ export function visibleTo(player) {
 export function audienceFor(channel) {
     return world.getAllPlayers().filter(p => visibleTo(p).some(c => c.id === channel.id))
 }
+
+// ------------------------------------------------------------- chat lockdown
+
+/**
+ * Muting a CHANNEL, which is a different thing from muting a person.
+ *
+ * A player mute is a punishment aimed at one player and is nobody else's
+ * business. A chat mute is a room-wide measure — an argument to cool down, a
+ * raid, a staff announcement nobody should talk over — and hiding WHO did it
+ * would be worse than useless: players would think chat was broken. It is the
+ * one action in the pack announced to everybody, by name.
+ *
+ * Stored per channel rather than as one global flag, so muting General does not
+ * silence Staff — which is usually the entire reason for muting General.
+ */
+const CHATMUTE_KEY = "chatMutes"
+const chatMutes = new Table(CHATMUTE_KEY, {})
+
+export function isChannelMuted(channelId) {
+    return !!chatMutes.get(typeof channelId === "string" ? channelId : channelId?.id)
+}
+
+/** Who muted it and when, or undefined. */
+export function channelMute(channelId) {
+    return chatMutes.get(typeof channelId === "string" ? channelId : channelId?.id)
+}
+
+export function muteChannel(channelId, by) {
+    const id = typeof channelId === "string" ? channelId : channelId?.id
+    if (!channels.has(id)) return undefined
+    return chatMutes.set(id, { by: by?.name ?? "console", byId: idOf(by), at: Date.now() })
+}
+
+export function unmuteChannel(channelId) {
+    const id = typeof channelId === "string" ? channelId : channelId?.id
+    if (!chatMutes.has(id)) return false
+    chatMutes.delete(id)
+    return true
+}
+
+/** Every channel currently muted, as channel objects. */
+export function mutedChannels() {
+    return allChannels().filter(c => isChannelMuted(c.id))
+}
+
+/**
+ * Apply to every channel at once — what "all" means on the command.
+ *
+ * Deliberately NOT a global flag: a flag would silently swallow a channel made
+ * afterwards, and "why is my new channel muted" is a bug report nobody can
+ * answer. This mutes what exists, and what exists is what the panel lists.
+ * @returns {number} how many changed
+ */
+export function setAllChannelsMuted(muted, by) {
+    let changed = 0
+    for (const channel of allChannels()) {
+        if (muted && !isChannelMuted(channel.id)) { muteChannel(channel.id, by); changed++ }
+        else if (!muted && isChannelMuted(channel.id)) { unmuteChannel(channel.id); changed++ }
+    }
+    return changed
+}

@@ -1,11 +1,11 @@
 import { world, system } from "@minecraft/server"
 import { CONFIG } from "../config.js"
-import { primaryRank } from "../core/ranks.js"
+import { primaryRank, isStaff } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
 import { render, renderTag } from "../core/settings.js"
 import { isMuted, muteRecord } from "../core/moderation.js"
 import { formatDuration } from "../core/util.js"
-import { activeChannel, visibleTo, audienceFor } from "../core/channels.js"
+import { activeChannel, visibleTo, audienceFor, isChannelMuted, channelMute } from "../core/channels.js"
 
 // Chat: rank tag, display name, channels, and mute enforcement.
 //
@@ -86,6 +86,18 @@ export function installChat() {
         eventData.cancel = true
         const message = eventData.message
         const channel = activeChannel(player)
+
+        // A muted channel stops everyone but staff. Staff keep talking on
+        // purpose: chat is usually muted so that staff can be heard over an
+        // argument, and a mute that silenced them too would defeat itself.
+        if (isChannelMuted(channel?.id) && !isStaff(player)) {
+            const who = channelMute(channel.id)
+            system.run(() => {
+                player.sendMessage(
+                    `${CONFIG.brand.prefix}§c${stripCodes(channel.display)} chat is muted§7 — by ${who?.by ?? "staff"}.`)
+            })
+            return
+        }
 
         // Nothing is said back to the sender here, deliberately. An earlier
         // version noted when a channel had no other readers, which sounds

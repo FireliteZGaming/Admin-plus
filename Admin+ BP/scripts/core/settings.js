@@ -195,6 +195,16 @@ export const DEFAULTS = {
         label: "/invsee shows a chest grid",
         help: "true / false · the grid draws items from texture paths, which do not change between game versions. false gives a plain list that needs no resource pack at all."
     },
+    "format.emote": {
+        value: "§d* {NAME} §r§d§o{MSG}",
+        label: "Emote line",
+        help: "Tokens: {NAME} {MSG} {CHANNEL} · what /emote prints"
+    },
+    "feature.emote": {
+        value: "true",
+        label: "Emotes (/emote)",
+        help: "true / false · lets players describe an action instead of saying something"
+    },
     "format.broadcast": {
         value: "§8[§c§lBroadcast§r§8]§r §e{MSG}",
         label: "Broadcast line",
