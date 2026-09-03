@@ -21,3 +21,9 @@ Thumbs.db
 # thinking-out-loud, not documentation, and a public repo full of stale plans
 # reads worse than one without them.
 notes/
+
+# releases/ is the local drawer of finished builds and upload assets. The
+# .mcaddon files are half-megabyte zips that change wholesale every build and
+# git would keep every one of them forever; the public copies live on the
+# releases page. The README and the MCPEDL handshake image stay tracked.
+releases/*.mcaddon
