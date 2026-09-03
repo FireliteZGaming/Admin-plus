@@ -1,0 +1,4 @@
+# Bedrock reads these directly; keep one line ending everywhere so a checkout
+# on another machine does not rewrite every pack file.
+* text=auto eol=lf
+*.png binary
