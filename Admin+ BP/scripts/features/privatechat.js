@@ -308,8 +308,8 @@ export function routePrivate(player, message) {
         TAG: renderTag(primaryRank(player)),
         RANK: primaryRank(player)?.display ?? "",
         NAME: displayName(player),
-        MSG: " "
-    }).replace(/ {2,}/g, " ").replace(" ", message)
+        MSG: "\u0000"
+    }).replace(/ {2,}/g, " ").replace("\u0000", message)
     player.sendMessage(line)
     partner.sendMessage(line)
     rememberExchange(player, partner)

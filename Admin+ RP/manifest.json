@@ -1,13 +1,13 @@
 {
     "format_version": 2,
     "header": {
-        "name": "§bAdmin§d+§r §7v1.11.2 §8[RP]",
+        "name": "§bAdmin§d+§r §7v1.12.0 §8[RP]",
         "description": "§bAdmin§d+§r — admin toolkit, ranks, warps & TPA. Resource pack. §eREQUIRES §9Beta APIs§e enabled in world settings.",
         "uuid": "b0b8021d-a071-4803-8841-f46d6fd7a4d6",
         "version": [
             1,
-            11,
-            2
+            12,
+            0
         ],
         "min_engine_version": [
             1,
@@ -21,8 +21,8 @@
             "uuid": "b0abeaa5-1cda-4ab9-90af-32e8f646c1d6",
             "version": [
                 1,
-                11,
-                2
+                12,
+                0
             ]
         }
     ],

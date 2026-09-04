@@ -736,11 +736,15 @@ export function refreshNameTag(player) {
     if (!nameTagsEnabled()) return
     try {
         const rank = primaryRank(player)
-        player.nameTag = render("format.nameTag", {
+        const tag = render("format.nameTag", {
             TAG: renderTag(rank),
             RANK: rank?.display ?? "",
             NAME: displayName(player)
         })
+        // Only write when it actually changed. This runs for every player on a
+        // timer, and assigning a nametag is a native call whether the string is
+        // new or identical to the one already there.
+        if (player.nameTag !== tag) player.nameTag = tag
     } catch { /* player left */ }
 }
 

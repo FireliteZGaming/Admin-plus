@@ -123,6 +123,12 @@ export function installVanish() {
     })
 
     system.runInterval(() => {
+        // Nobody hidden is the normal state of a server, and this runs twenty
+        // times a second forever. Checking a count first turns the common case
+        // into one lookup instead of walking every player and reading their
+        // tags. The re-stamping below is unchanged — its timing is load-bearing
+        // and confirmed in play.
+        if (!vanishedCount()) return
         for (const player of world.getAllPlayers()) {
             if (!isVanished(player)) continue
             playVanishAnimation(player)

@@ -68,7 +68,11 @@ function startHeartbeat() {
         } catch { /* objectives arrive with the first tick of the function */ }
     }
     system.run(beat)
-    system.runInterval(beat, 20)
+    // Every two seconds, not every one. The countdown this feeds starts at
+    // 100 and drops by 1 a tick, so a 40-tick beat still leaves three
+    // seconds of slack before anything reads as dead - and it halves the
+    // number of commands this pack runs on an idle world.
+    system.runInterval(beat, 40)
 }
 
 export function installHealthCheck() {

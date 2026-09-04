@@ -274,7 +274,21 @@ const SYNC_TICKS = 40
 
 export function installHolograms() {
     system.run(() => safe(() => sync()))
-    system.runInterval(() => safe(() => sync()), SYNC_TICKS)
+    // sync() scans EVERY dimension for entities, which is the most expensive
+    // thing this pack does on a clock. On a world with no holograms that is a
+    // full entity query every two seconds to discover nothing, forever.
+    //
+    // So skip it once there is nothing to keep alive AND nothing was found last
+    // time. One pass still runs after load, which is what catches entities left
+    // behind by a hologram deleted while the world was shut.
+    let sawEntities = true
+    system.runInterval(() => {
+        if (!list().length && !sawEntities) return
+        safe(() => {
+            sync()
+            sawEntities = entities().length > 0
+        })
+    }, SYNC_TICKS)
     console.log("[Admin+] holograms ready")
     return true
 }
