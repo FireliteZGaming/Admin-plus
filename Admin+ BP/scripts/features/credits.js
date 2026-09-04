@@ -1,6 +1,12 @@
+import { world } from "@minecraft/server"
 import { menu } from "../core/ui.js"
 import { hubTitle } from "../core/theme.js"
-import { ADMINPLUS_VERSION } from "../config.js"
+import { command } from "../core/registry.js"
+import { info } from "../core/util.js"
+import { tableReport } from "../core/storage.js"
+import { ladder } from "../core/ranks.js"
+import { detectServerPreset } from "../core/serverPresets.js"
+import { ADMINPLUS_VERSION, CONFIG } from "../config.js"
 
 // /admin ▸ About ▸ Credits
 //
@@ -105,5 +111,65 @@ async function techniqueScreen(player, entry, back) {
         back
     })
 }
+
+// ------------------------------------------------------------ /version
+
+/**
+ * Is the Beta APIs experiment on?
+ *
+ * Asked of the engine rather than of our own chat module, on purpose — this is
+ * the one screen somebody opens when they think something is broken, and it
+ * should not be reporting a cached opinion. `chatSend` is the gate everything
+ * beta-only in this pack sits behind.
+ */
+function betaApis() {
+    try { return !!world.beforeEvents?.chatSend?.subscribe } catch { return false }
+}
+
+/** The same three states main.js prints at startup, in one line. */
+function storageLine() {
+    let report
+    try { report = tableReport() } catch (e) { return `§ccould not be read: ${e}` }
+    const loaded = report.filter(t => t.fromStorage).length
+    const stuck = report.filter(t => t.unreadable).length
+
+    if (stuck) return `§c${stuck} of ${report.length} tables cannot be read — nothing will save`
+    if (loaded === report.length) return `§aall ${report.length} tables read from this world`
+    if (!loaded) return `§e${report.length} tables read fine, but this world has no Admin+ data yet`
+    return `§a${loaded}§7/§a${report.length}§7 tables had saved data`
+}
+
+// /version — what am I running, and is it healthy.
+//
+// No permission node. Somebody who cannot open the panel can still be the
+// person standing in front of a bug, and "what version are you on" is the first
+// question anybody asks. Gating it would mean the answer is unavailable to
+// exactly the people most likely to need to give it.
+//
+// It reports STORAGE, which is the part worth having in game: whether this
+// world's data actually came back is otherwise only answerable by reading the
+// content log on the host's machine.
+command({
+    name: "version",
+    description: "What version of Admin+ this world is running",
+    run: (player) => {
+        info(player, `§l§bAdmin§d+§r §fv${ADMINPLUS_VERSION}`)
+        info(player, `§7Shape: §f${detectServerPreset().label}§7, ${ladder().length} ranks`)
+        info(player, `§7Storage: ${storageLine()}`)
+        info(player, `§7Beta APIs: ${betaApis() ? "§aon" : "§coff — chat formatting and mutes need it"}`)
+        info(player, `§8Type §7/${CONFIG.ns}:§8<name> when vanilla owns a command name. §7/credits§8 for who built it.`)
+    }
+})
+
+// /credits — the same screen as /admin ▸ About ▸ Credits.
+//
+// Also unGATED, and for a stronger reason than /version: this screen is where
+// the pack keeps its word about whose work is in it and whose ideas are. An
+// attribution nobody can reach is not an attribution.
+command({
+    name: "credits",
+    description: "Who built Admin+, and what was learned from whom",
+    run: (player) => creditsScreen(player, () => { })
+})
 
 export { AUTHOR }

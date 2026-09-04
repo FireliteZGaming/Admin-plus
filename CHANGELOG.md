@@ -22,6 +22,26 @@ tag, same file, only the claim about it changes.
 
 ---
 
+## 1.21.0 — 2026-09-04
+
+**`/version`** — what this world is running, and whether it is healthy. The pack
+version, the ladder shape and rank count, whether Beta APIs is on, and the one
+worth having in game: **whether storage actually came back**.
+
+That last line answers a question that was previously only answerable by opening
+the content log on the host's machine — `all 24 tables read from this world`,
+or `this world has no Admin+ data yet`, or a red line saying nothing will save.
+
+**`/credits`** — the same screen as `/admin ▸ About ▸ Credits`: who built it,
+what code is included and under which licence, and which techniques were learned
+from whom.
+
+Neither takes a permission node. For `/version`, the person standing in front of
+a bug is often not the person who can open the panel, and "what version are you
+on" is the first question anybody asks. For `/credits` the reason is stronger:
+that screen is where the pack keeps its word about whose work is in it, and an
+attribution nobody can reach is not an attribution.
+
 ## 1.20.0 — 2026-09-04
 
 **`/exec` is now `/cmd`.** "exec" was a programmer's word for it. The thing on
