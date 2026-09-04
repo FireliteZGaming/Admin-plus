@@ -22,6 +22,39 @@ tag, same file, only the claim about it changes.
 
 ---
 
+## 2.0.0 — 2026-09-04
+
+**The milestone. Everything since the last stable, consolidated.**
+
+Between 1.7.3 and here, nineteen versions of work went up as alphas and never as
+a stable release. 2.0.0 is that work, released — the first real stable in a long
+time — and the point where versioning changes: from now on, patches (`2.0.x`) are
+the day-to-day, a minor (`2.x.0`) is a whole new section, and a major (`x.0.0`)
+is reserved for a milestone like this one.
+
+What that body of work amounts to:
+
+- **Bans and kicking, rebuilt on what the engine actually does.** `Player.kick()`
+  turned out to be the `/kick` command underneath, reporting success it never
+  checked; kicking now tries three routes — the self-kick SafeGuard uses first —
+  and reports honestly which one worked. Bans match by id *or* name. Ban length
+  is one slider whose last notch is permanent, gated so temp is Admin-and-up and
+  permanent is Manager-and-up.
+- **Staff mode (`/mm`)** — stow your inventory, take a tool bar, vanish, with a
+  lossless restore and a snapshot fallback that admits when it rebuilt.
+- **`/items`** — a chest picker for the Ban Hammer, a teleport compass and a
+  knockback stick.
+- **The troll section** — `/smite` and `/sudo` behind a `feature.troll` switch
+  that ships off.
+- **`/cmd`** (was `/exec`) runs the full 56-command Bedrock whitelist without op;
+  **`/mode`**, **`/version`**, **`/credits`** round out the command set.
+- **Storage** stopped writing defaults over worlds — the early-execution read
+  failure that reset warps, ranks and bans on every rejoin for six versions.
+- **`tools/release.py`** with alpha/beta/stable channels, gated on the content
+  log so nothing ships stable that the engine has never run.
+
+The per-version detail for all of it is below, unchanged.
+
 ## 1.26.0 — 2026-09-04
 
 **`/items`** — grab an admin item without vanishing or opening `/admin`. It opens

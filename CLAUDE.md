@@ -23,6 +23,12 @@ python tools/release.py --alpha    # tag, GitHub pre-release, archived build
 
 - **Never hand-edit a version.** Six arrays plus `config.js` plus two pack names
   must agree; `setversion.py` is the only thing that gets that right.
+- **What each version position means** (revised 2026-09-04): patch `2.0.x` is the
+  day-to-day — a command, a fix, a tweak, most work. Minor `2.x.0` is a whole new
+  SECTION behind its own toggle (the troll section is the archetype), not one
+  feature. Major `x.0.0` is truly major or a milestone. This is orthogonal to the
+  release CHANNEL: the number says how BIG, alpha/beta/stable says how SURE.
+  **2.0.0** is the milestone consolidating everything since the last stable (1.7.3).
 - **Never deploy without asking** unless the user has just said to. They are
   often in the world. Building is always safe.
 - **Bump before deploying**, so the user can tell from the pack list what they
