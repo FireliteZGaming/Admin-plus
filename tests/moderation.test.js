@@ -213,6 +213,38 @@ normal.kick = () => true
 check("an ordinary ban reports the kick landed", (await ban(normal, 0, "x", staff)).kicked, true)
 unban(normal.id)
 
+console.log("\n— a ban matches by id OR by name —")
+// Admin+ keys bans by id; Essentials, SafeGuard and AdminUtils all key by name.
+// The id is documented only as "intended to be consistent across loads", and if
+// it ever is not, an id-only lookup misses on every rejoin and the ban quietly
+// does nothing. So the id is tried first and the name is the safety net.
+const renamed = fakePlayer("Rejoiner")
+await ban(renamed, 0, "Griefing", staff)
+check("the id match still works", isBanned(renamed), true)
+
+// The same person back with a NEW id — which is what an unstable id looks like.
+const sameNameNewId = { id: "totally-different-id", name: "Rejoiner" }
+check("the name catches them anyway", isBanned(sameNameNewId), true)
+check("and hands back the real record", banRecord(sameNameNewId).reason, "Griefing")
+
+const differentCase = { id: "another-id", name: "REJOINER" }
+check("matching ignores case", isBanned(differentCase), true)
+
+const stranger = { id: "stranger-id", name: "SomebodyElse" }
+check("somebody unrelated is untouched", isBanned(stranger), false)
+
+// An id string on its own cannot be name-matched, and must not throw.
+check("a bare unknown id is simply not banned", isBanned("no-such-id"), false)
+
+console.log("\n— unban clears both keys —")
+// If unban only cleared the id, a record stored under an OLD id would keep
+// matching on name forever, and the panel would show nothing to lift.
+check("unbanning by the new id still lifts it", unban(sameNameNewId), true)
+check("they are free", isBanned(sameNameNewId), false)
+check("and so is the original id", isBanned(renamed), false)
+check("the ban list is empty again", banList().filter(b => b.name === "Rejoiner").length, 0)
+check("unbanning nobody reports nothing lifted", unban("ghost-id"), false)
+
 console.log("\n— mutes —")
 mute(spammer, 0, "Caps", staff)
 check("muted", isMuted(spammer), true)

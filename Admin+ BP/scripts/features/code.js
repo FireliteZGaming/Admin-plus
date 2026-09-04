@@ -91,6 +91,7 @@ export const GROUPS = {
     cleanup: "Lag clear",
     automod: "Automod",
     ban: "Bans",
+    troll: "Troll commands",
     feature: "Features on and off",
     spawn: "Spawn protection",
     teleport: "Teleporting",

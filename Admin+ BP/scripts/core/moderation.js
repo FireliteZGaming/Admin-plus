@@ -102,10 +102,34 @@ export const BAN_REASONS = [
 
 // ---------------------------------------------------------------------- bans
 
+/**
+ * A live ban for this player, matched by ID **or by NAME**.
+ *
+ * Admin+ keys bans by player id. Every other pack read for this — Minecraft
+ * Essentials, SafeGuard, AdminUtils — keys them by name, and that difference is
+ * a silent failure waiting to happen: the id is documented only as "intended to
+ * be consistent across loads of a world instance", and if it ever is not, the
+ * id lookup misses on every rejoin and the ban quietly does nothing at all.
+ *
+ * So the id is tried first, because it is exact and survives a rename, and the
+ * name is the safety net. The known cost of a name match is the same one every
+ * other pack accepts: somebody who takes a banned player's name inherits their
+ * ban. That is the right way round — a ban that over-reaches is visible and
+ * appealable; a ban that silently stops working is neither.
+ */
 export function banRecord(playerOrId) {
-    const record = bans.get(idOf(playerOrId))
-    if (!active(record)) return undefined
-    return record
+    const byId = bans.get(idOf(playerOrId))
+    if (active(byId)) return byId
+
+    const name = typeof playerOrId === "string" ? "" : String(playerOrId?.name ?? "")
+    if (!name) return undefined
+
+    const wanted = name.toLowerCase()
+    for (const [, record] of bans.entries()) {
+        if (!active(record)) continue
+        if (String(record?.name ?? "").toLowerCase() === wanted) return record
+    }
+    return undefined
 }
 
 export function isBanned(playerOrId) { return !!banRecord(playerOrId) }
@@ -142,7 +166,33 @@ export async function ban(target, durationMs, reason, by) {
     return { ok: true, kicked, record }
 }
 
-export function unban(playerId) { bans.delete(playerId) }
+/**
+ * Lift a ban, by id and by name together.
+ *
+ * It has to clear BOTH or unbanning is unreliable in exactly the case that made
+ * name matching necessary: a record stored under an old id would keep matching
+ * on name after being "unbanned" by id, and the player would be turned away
+ * forever with the panel showing nothing. Clearing every record that shares the
+ * id or the name also tidies duplicates left by an id that changed.
+ *
+ * @returns {boolean} whether anything was actually lifted
+ */
+export function unban(playerOrId) {
+    const id = idOf(playerOrId)
+    const stored = bans.get(id)
+    const name = String(
+        stored?.name ?? (typeof playerOrId === "string" ? "" : playerOrId?.name ?? "")
+    ).toLowerCase()
+
+    let removed = false
+    for (const [key, record] of bans.entries()) {
+        const sameId = key === id
+        const sameName = !!name && String(record?.name ?? "").toLowerCase() === name
+        if (sameId || sameName) { delete bans.data[key]; removed = true }
+    }
+    if (removed) bans.flush()
+    return removed
+}
 
 export function banList() {
     return bans.entries()

@@ -22,6 +22,48 @@ tag, same file, only the claim about it changes.
 
 ---
 
+## 1.23.0 — 2026-09-04
+
+**A ban now matches by id OR by name.** Admin+ keyed bans by player id alone.
+Every other pack read for this — Minecraft Essentials, SafeGuard, AdminUtils —
+keys them by name, and that difference is a silent failure waiting to happen:
+the id is documented only as *"intended to be consistent across loads of a world
+instance"*, and if it ever is not, the id lookup misses on every rejoin and the
+ban quietly does nothing at all.
+
+The id is tried first, because it is exact and survives a rename. The name is
+the safety net. `unban` clears **both**, which matters more than it sounds — a
+record stored under an old id would otherwise keep matching on name after being
+"unbanned", turning somebody away forever with nothing in the panel to lift.
+
+The known cost is the one every other pack accepts: somebody who takes a banned
+player's name inherits their ban. That is the right way round — a ban that
+over-reaches is visible and appealable; one that silently stops working is
+neither.
+
+**`/mm` is down to three items.** The bar carried six, four of them finding
+their target by ray cast. Freeze, Examine, Punish and the block Inspector are
+gone: each already had a command and a panel button, and a tool that duplicates
+a button is one people have to learn twice. What is left has no equivalent
+elsewhere:
+
+- **Ban Hammer** — only for people allowed to ban permanently
+- **Leave** — get your things back without typing
+- **Teleport** — jump to somebody without picking them off a list
+
+**`/smite` — the first troll command.** Lightning on a player, and the most
+recognisable troll command there is.
+
+The whole section answers to `feature.troll`, and it **ships off**. A pack that
+arrives with troll commands live hands a new owner a way to annoy people before
+they have decided they want one.
+
+`troll.smiteFire` decides what a strike actually is. On, it spawns a real
+lightning bolt — which **sets fires**. Off, it is the sound, the flash and the
+damage with no bolt at all, so nothing burns and nobody's build is part of the
+joke. It ships on, because that is what smite means; turn it off on a world
+where the buildings matter.
+
 ## 1.22.0 — 2026-09-04
 
 **Kicking now tries three routes, and SafeGuard's goes first.**

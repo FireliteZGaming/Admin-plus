@@ -86,6 +86,7 @@ const PHRASES = {
     "mod.unmute": t => `Unmuted ${t}`,
     "mod.warn": t => `Warned ${t}`,
     "mod.unwarn": t => `Took a warning off ${t}`,
+    "troll.smite": t => `Smote ${t}`,
     "mod.freeze": t => `Froze ${t}`,
     "mod.unfreeze": t => `Unfroze ${t}`,
     "mod.tpaClose": t => `Closed ${t}'s TPA`,

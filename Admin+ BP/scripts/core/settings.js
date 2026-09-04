@@ -130,6 +130,16 @@ export const DEFAULTS = {
     "feature.chat": {
         value: "true", label: "Chat channels", help: "true / false · off means one plain chat for everyone"
     },
+    "feature.troll": {
+        value: "false",
+        label: "Troll commands",
+        help: "true / false · ships OFF. Turning it on is a deliberate act, not something a new world inherits."
+    },
+    "troll.smiteFire": {
+        value: "true",
+        label: "Smite sets fires",
+        help: "true / false · true spawns a real lightning bolt, which BURNS things. false is the flash and the damage only."
+    },
     "ban.allowPermanent": {
         value: "true",
         label: "Permanent bans",
