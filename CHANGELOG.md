@@ -22,6 +22,41 @@ tag, same file, only the claim about it changes.
 
 ---
 
+## 1.20.0 — 2026-09-04
+
+**`/exec` is now `/cmd`.** "exec" was a programmer's word for it. The thing on
+the other side is a *command*: the list is a list of commands, the setting is
+`commands.allowed`, the node is `admin.commands`. One word for one idea.
+
+**The allowlist is the real Bedrock command set now — 56 commands, up from 26.**
+Taken from the official command reference rather than from memory, which matters
+in both directions: Java has commands Bedrock does not (`advancement`, `data`,
+`bossbar`, `worldborder`, `team`, `item`), and a Java name sitting on this list
+would look like a working entry while being a word that can never match.
+
+Everything at Game Directors level is on it, including the ones you actually
+reach for — `kill`, `clear`, `give`, `effect`, `enchant`, `gamemode`, `summon`,
+`xp`, `tp` and `teleport` both, `fill`, `setblock`, `clone`, `structure`,
+`tickingarea`, `damage`, `loot`, `ride`, `hud`, `fog`, `camera`, `dialogue`,
+`spreadplayers`, `testfor` and the rest.
+
+**What is deliberately off it, because the gaps are the design:**
+
+- `kick` — the standing rule. It locks somebody out until the *host* restarts.
+- `op`, `deop` — the entire point of a whitelist.
+- `execute`, `function`, `scriptevent`, **`schedule`** — wrappers. Only the first
+  word of a line is checked, so each of these allows anything at all behind it.
+  `schedule` is new to that list: it takes a function name as an argument, which
+  makes it the same hole as `function` wearing a different hat.
+- `allowlist`, `changesetting`, `permission`, `reload`, `save`, `stop`,
+  `transfer`, `setmaxplayers`, `wsserver`, `script`, `gametest` — dedicated-server
+  administration and debug tooling.
+- `help`, `list`, `me`, `tell` — anybody can already run these, so routing them
+  through an operator-level door buys nothing.
+
+Those exclusions are pinned by tests now rather than remembered, along with
+"every entry is one lowercase word" and "no duplicates".
+
 ## 1.19.0 — 2026-09-04
 
 **Banning is two tiers now, and they sit a rung apart.** In server terms: a

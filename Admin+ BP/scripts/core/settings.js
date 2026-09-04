@@ -247,9 +247,29 @@ export const DEFAULTS = {
         // way: only the first word of a command is checked, so allowing either
         // allows everything after it. "function mypack:whatever" can contain
         // anything at all.
-        value: "give, effect, enchant, xp, time, weather, gamerule, difficulty, summon, clear, kill, particle, playsound, stopsound, title, camera, ride, damage, setblock, fill, clone, structure, spawnpoint, locate, tag, scoreboard",
+        // Every BEDROCK command at Game Directors level, plus `place`, taken
+        // from the official command reference rather than from memory — Java
+        // has commands Bedrock does not (advancement, data, bossbar, worldborder,
+        // team, item) and listing one would just be a name that never matches.
+        //
+        // What is missing, and why, since the gaps are the design:
+        //   kick                        the standing rule; it locks somebody out
+        //                               until the HOST restarts
+        //   op, deop                    the entire point of a whitelist
+        //   execute, function,          WRAPPERS. Only the first word is
+        //   scriptevent, schedule       checked, so each of these allows
+        //                               anything at all behind it
+        //   allowlist, changesetting,   dedicated-server and session admin
+        //   permission, reload*,
+        //   save, stop, transfer,
+        //   setmaxplayers, wsserver,
+        //   sendshowstoreoffer
+        //   script, gametest, project   debug and editor tooling
+        //   help, list, me, tell,       already runnable by anybody, so routing
+        //   packstack                   them through here buys nothing
+        value: "aimassist, camera, camerashake, clear, clearspawnpoint, clone, controlscheme, damage, daylock, dialogue, difficulty, effect, enchant, event, fill, fog, gamemode, gamerule, give, hud, inputpermission, kill, locate, loot, mobevent, music, particle, place, playanimation, playsound, recipe, replaceitem, ride, say, scoreboard, setblock, setworldspawn, spawnpoint, spreadplayers, stopsound, structure, summon, tag, teleport, tellraw, testfor, testforblock, testforblocks, tickingarea, time, title, titleraw, toggledownfall, tp, weather, xp",
         label: "Vanilla commands turned on",
-        help: "Comma separated · ONLY these run through /exec. Empty means none. Do not add execute or function: only the first word is checked, so either one allows everything."
+        help: "Comma separated · ONLY these run through /cmd. Empty means none. Never add execute, function, scriptevent or schedule: only the first word is checked, so each of them allows everything behind it."
     },
     "format.broadcast": {
         value: "§8[§c§lBroadcast§r§8]§r §e{MSG}",

@@ -180,10 +180,10 @@ const NO_AUDIENCE = new Set([
     // Taking a barrier out of the panel is done to the world, not to a person.
     // It is logged so there is a record of who has them.
     "admin.opblock",
-    // /exec has no target either — but it is the one entry here that MUST stay
+    // /cmd has no target either — but it is the one entry here that MUST stay
     // logged, because being able to run vanilla commands without op is exactly
     // the power an operator has invisibly. The log is the difference.
-    "admin.exec",
+    "admin.cmd",
     // Shutting the door is done to the WORLD, not to a person — everyone who
     // gets turned away is told why at the moment it happens, which is a better
     // channel than a staff line about somebody who is no longer here.

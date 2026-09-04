@@ -33,7 +33,7 @@ import { setting } from "./settings.js"
  * direction was silent.
  *
  * Empty means NOTHING runs. That is the safe reading of an empty list for a
- * feature that hands out operator-level power, and it makes turning /exec on
+ * feature that hands out operator-level power, and it makes turning /cmd on
  * a deliberate act rather than a default.
  */
 function allowed() {

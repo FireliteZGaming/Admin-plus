@@ -1,7 +1,7 @@
 import { __test } from "@minecraft/server"
 import { onPlayerJoin, setRanks, has, applyPreset, PERMISSION_NODES, saveRank } from "../Admin+ BP/scripts/core/ranks.js"
 import { checkCommand, commandName, runAsServer } from "../Admin+ BP/scripts/core/execute.js"
-import { setting, setSetting, resetSetting } from "../Admin+ BP/scripts/core/settings.js"
+import { setting, setSetting, resetSetting, DEFAULTS } from "../Admin+ BP/scripts/core/settings.js"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -95,6 +95,38 @@ check("nor a Mod", has(mod, "admin.commands"), false)
 saveRank("admin", { perms: [...PERMISSION_NODES.Management.slice(0, 0), "admin.commands"] })
 check("granting it works", has(admin, "admin.commands"), true)
 applyPreset("server")
+
+console.log("\n— what the shipped list must never contain —")
+// These are not opinions. Each one hands over more than the whitelist means to,
+// and the failure is silent, so they get pinned rather than remembered.
+const shipped = String(DEFAULTS["commands.allowed"].value)
+    .split(",").map(s => s.trim().toLowerCase()).filter(Boolean)
+
+check("kick is absent — it locks somebody out until the HOST restarts",
+    shipped.includes("kick"), false)
+check("op and deop are absent — that is the whole point of a whitelist",
+    shipped.filter(c => c === "op" || c === "deop"), [])
+// Only the FIRST WORD is checked, so any command that takes another command as
+// an argument defeats the list entirely.
+check("no command that runs another command is on it",
+    shipped.filter(c => ["execute", "function", "scriptevent", "schedule"].includes(c)), [])
+check("no dedicated-server admin commands",
+    shipped.filter(c => ["stop", "save", "allowlist", "permission", "changesetting",
+        "transfer", "setmaxplayers", "wsserver", "reload", "script"].includes(c)), [])
+
+// Bedrock, not Java. A Java-only name on this list is a word that can never
+// match anything, which reads as a working entry and is not one.
+check("no Java-only command names",
+    shipped.filter(c => ["advancement", "data", "bossbar", "worldborder", "team",
+        "item", "attribute", "datapack", "forceload", "trigger", "spectate"].includes(c)), [])
+
+check("the commands people actually reach for are on it",
+    ["kill", "clear", "give", "effect", "enchant", "gamemode", "tp", "teleport",
+        "summon", "xp", "time", "weather", "fill", "setblock", "kill"]
+        .filter(c => !shipped.includes(c)), [])
+check("every entry is a single lowercase word",
+    shipped.filter(c => !/^[a-z]+$/.test(c)), [])
+check("no duplicates", shipped.length, new Set(shipped).size)
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)
