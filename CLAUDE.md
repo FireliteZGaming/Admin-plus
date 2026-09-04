@@ -91,21 +91,35 @@ every tick. The 4th argument is a fade-OUT, not a fade-in — it is the only thi
 bridging the gap to the next application. 10 ticks flickered; blend 0 flickered
 worse. **Confirmed working; leave it alone.**
 
-**NEVER run the `/kick` command.** On a local world it locks somebody out until
-the HOST restarts. `kick` is off the `/cmd` whitelist and stays off.
+**There is exactly one way to remove a player, and it is `/kick`.** Established
+2026-09-04 by reading four shipped addons (Minecraft Essentials, its Soulbound
+edit, SafeGuard, AdminUtils) and all 46 installed packs that import
+`@minecraft/server`. Nobody uses anything else, because there is nothing else:
+`@minecraft/server-admin` holds the only real disconnect and exists on dedicated
+servers alone. `Player.kick()` is undocumented but returns a **CommandResult**,
+which gives away that it runs /kick underneath.
 
-**`Player.kick()` is NOT a safe alternative to it, and this file used to say it
-was.** The method is undocumented — absent from Microsoft's Player reference and
-from the community mirror — yet it exists at runtime (a logged ban hammer swing
-reached "banned and removed", which needs it to be callable). Nothing states it
-differs from the command, and a report from the world in September 2026 says a
-ban left somebody locked out until a relaunch: the /kick symptom exactly.
-**Treat them as the same disconnect until something proves otherwise.**
+So the old rule here — "never run the /kick command" — was unachievable, and
+worse, it steered this pack onto `Player.kick()`: the one route nobody else uses
+and the one confirmed to leave a player locked out after an unban.
 
-The deeper constraint: Bedrock's script API **cannot refuse a connection**. A
-Java ban list rejects the login, so a Java ban never kicks anybody. On Bedrock
-the player always joins first, so every ban is a kick-on-join and inherits
-whatever kicking does. Any real fix has to avoid disconnecting at all.
+**What replaced it: `core/moderation.js` tries three routes in order and logs
+which one worked.**
+
+1. `self` — `victim.runCommand("kick @s <reason>")`. SafeGuard's. The only route
+   where executor and target are the same person, so no operator removes anyone.
+   The candidate for why SafeGuard does not lock people out.
+2. `api` — `Player.kick()`. Confirmed to cause the lockout. Second on purpose.
+3. `server` — `dimension.runCommand('kick "<name>" …')`. AdminUtils'. Bluntest,
+   so it runs only after the other two have actually failed.
+
+A route counts as working only if it neither throws nor returns
+`successCount: 0`. `kick` stays off the `/cmd` whitelist regardless — that is
+about who may type it, not about how this pack removes somebody.
+
+The deeper constraint stands: Bedrock **cannot refuse a connection**. A Java ban
+list rejects the login; here the player always joins first, so every ban is a
+kick-on-join and inherits whatever kicking does.
 
 **`world.getDynamicProperty` throws during early execution**, which is when
 `Table` constructors run - so the first read of every table always fails. A

@@ -22,6 +22,44 @@ tag, same file, only the claim about it changes.
 
 ---
 
+## 1.22.0 — 2026-09-04
+
+**Kicking now tries three routes, and SafeGuard's goes first.**
+
+There is exactly one mechanism for removing a player on Bedrock — the `/kick`
+command. That was established by reading four shipped addons and all 46
+installed packs that import `@minecraft/server`: nobody uses anything else,
+because `@minecraft/server-admin` holds the only real disconnect and exists on
+dedicated servers alone. The only thing that varies between packs is **who
+issues the command**, and that turns out to matter.
+
+| | Route | Who removes whom |
+|---|---|---|
+| 1 | `victim.runCommand("kick @s …")` | **the player removes themselves** |
+| 2 | `Player.kick(reason)` | the API method → /kick underneath |
+| 3 | `dimension.runCommand('kick "name" …')` | the server removes them |
+
+**The self-kick is first because it is the only one that changes the
+relationship rather than the syntax.** As far as the command is concerned the
+executor and the target are the same person — no operator is removing anybody.
+That is what SafeGuard does, and it is the standing candidate for why an
+admin-issued kick can leave somebody locked out until the world is relaunched
+while SafeGuard's does not.
+
+`Player.kick()` is second: it is the route confirmed on this project to leave a
+player unable to rejoin *after being unbanned*. The dimension route is last
+because it is the bluntest — closest to somebody simply typing the command — so
+nothing reaches it until the other two have actually failed.
+
+A route counts as working only if it neither throws nor returns
+`successCount: 0`. Every attempt is logged with the route that worked and the
+ones that did not, so the next playtest says plainly which mechanism removed
+somebody instead of leaving it to be guessed at.
+
+This reverses a standing rule in this project. "Never run the /kick command" was
+unachievable — `Player.kick()` is that command — and it had steered the pack
+onto the single route nobody else uses.
+
 ## 1.21.1 — 2026-09-04
 
 **A ban said "removed" whether or not anybody moved.** `Player.kick()` returns a

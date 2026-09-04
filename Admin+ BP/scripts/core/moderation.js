@@ -16,17 +16,20 @@ import { isVanished } from "./vanish.js"
 // never arrives. Here they always arrive, so a ban is: record it, disconnect
 // them, and disconnect them again every time they come back.
 //
-// `Player.kick()` is what does the disconnecting, and what it IS was settled by
-// reading a shipped addon rather than the docs, which do not list the method at
-// all. It hands back a **CommandResult** — the same shape `runCommand` returns,
-// carrying `successCount`. That return type is the evidence: `Player.kick()`
-// runs the `/kick` COMMAND underneath. It is not a separate, gentler mechanism,
-// and it inherits everything /kick does, lockouts included.
+// Removing them is `kick()` below, which tries three routes in order and says
+// which one worked. What each route IS was settled by reading four shipped
+// addons rather than the documentation, which does not list `Player.kick()` at
+// all — every one of them reaches the same `/kick` command in the end, and the
+// only thing that varies is who issues it.
 //
-// Which means the honest thing to do is not to pretend otherwise, but to REPORT
-// truthfully. `successCount === 0` means the command ran and removed nobody.
-// This file used to return `kicked: true` on the strength of the method merely
-// existing and not throwing — a value it never measured. It measures it now.
+// `Player.kick()` hands back a **CommandResult** carrying `successCount`, the
+// same shape `runCommand` returns. That return type is the evidence that it is
+// /kick underneath, and it inherits everything /kick does, lockouts included.
+//
+// So the honest thing is not to pretend otherwise but to REPORT truthfully.
+// `successCount === 0` means the command ran and removed nobody. This file used
+// to return `kicked: true` on the strength of the method merely existing and
+// not throwing — a value it never measured. It measures it now.
 
 const bans = new Table("bans", {})
 const mutes = new Table("mutes", {})
@@ -195,32 +198,87 @@ export function banMessage(record) {
  * installModeration acts again on every rejoin. Kicking is only how the current
  * session ends, and `ban()` reports whether it worked rather than assuming.
  */
+/**
+ * The three ways a Bedrock addon can remove somebody, tried in order.
+ *
+ * There is no fourth. Four packs were read to establish that — Minecraft
+ * Essentials, its Soulbound edit, SafeGuard and AdminUtils — plus every one of
+ * the 46 installed packs that imports @minecraft/server. Not one of them uses
+ * anything but `kick`, and none of them can: `@minecraft/server-admin` is the
+ * only module with a real disconnect and it exists on dedicated servers alone.
+ * So the only variable left is WHO issues the command, and these are the three
+ * answers anybody ships.
+ *
+ * SELF is first because it is the only one that changes the relationship rather
+ * than the syntax. The player runs `kick @s` on themselves, so as far as the
+ * command is concerned the executor and the target are the same person — no
+ * operator is removing anybody. That is the shape SafeGuard uses, and it is the
+ * candidate for why an admin-issued kick locks somebody out until the world is
+ * relaunched while SafeGuard's does not.
+ *
+ * API is second: `Player.kick()`, undocumented, returning a CommandResult that
+ * gives away that it runs /kick underneath. It is what this pack used alone,
+ * and the route confirmed to leave a player locked out after an unban.
+ *
+ * SERVER is last and is the bluntest: the dimension runs the command at
+ * operator level against a name. Closest to somebody typing /kick, so most
+ * likely to carry whatever /kick does — which is why nothing tries it until
+ * the other two have actually failed.
+ */
+const KICK_ROUTES = [
+    {
+        id: "self",
+        available: t => typeof t?.runCommand === "function",
+        // No quotes around the reason: /kick takes the rest of the line as a
+        // message. SafeGuard passes real newlines through here and they render.
+        run: (t, text) => t.runCommand(`kick @s ${text}`)
+    },
+    {
+        id: "api",
+        available: t => typeof t?.kick === "function",
+        run: (t, text) => t.kick(text)
+    },
+    {
+        id: "server",
+        available: t => !!t?.name,
+        run: (t, text) => (t.dimension ?? world.getDimension("overworld"))
+            .runCommand(`kick "${t.name}" ${text}`)
+    }
+]
+
+/**
+ * Remove a player, and say honestly whether it happened.
+ *
+ * A route "worked" only if it did not throw AND did not come back with
+ * successCount 0 — that second case is how a refusal actually arrives: no
+ * throw, no rejection, just a count of nobody. Reporting success on the
+ * strength of a method merely existing is the bug this replaced.
+ */
 export async function kick(target, reason) {
     const text = String(reason ?? "Kicked")
+    if (!target) return false
 
-    if (typeof target?.kick !== "function") {
-        console.warn(`[Admin+] this runtime has no Player.kick — ${target?.name} was not removed`)
-        return false
-    }
-
-    try {
-        // AWAITED, which is the whole correction. The method returns a
-        // CommandResult, sometimes wrapped in a promise; the old code took the
-        // promise, attached a rejection logger, and returned true immediately.
-        // So every ban said "removed" whether or not anybody moved.
-        const result = await target.kick(text)
-
-        if (result && typeof result.successCount === "number" && result.successCount === 0) {
-            // The command ran and matched nobody. This is the shape a refusal
-            // takes — no throw, no rejection, just a count of zero.
-            console.warn(`[Admin+] kick ran but removed nobody (successCount 0): ${target.name}`)
-            return false
+    const tried = []
+    for (const route of KICK_ROUTES) {
+        if (!route.available(target)) { tried.push(`${route.id}: unavailable`); continue }
+        try {
+            const result = await route.run(target, text)
+            if (result && typeof result.successCount === "number" && result.successCount === 0) {
+                tried.push(`${route.id}: removed nobody`)
+                continue
+            }
+            // Which route did it is the whole point of the next playtest, so it
+            // is logged even on success.
+            console.log(`[Admin+] kick: ${target.name} removed via "${route.id}"`
+                + (tried.length ? ` — after ${tried.join(", ")}` : ""))
+            return true
+        } catch (e) {
+            tried.push(`${route.id}: ${String(e).replace(/^Error: /, "").slice(0, 70)}`)
         }
-        return true
-    } catch (e) {
-        console.error(`[Admin+] Player.kick failed for ${target.name}: ${e}`)
-        return false
     }
+
+    console.warn(`[Admin+] kick: ${target.name} was NOT removed. Tried — ${tried.join(" | ")}`)
+    return false
 }
 
 // --------------------------------------------------------------------- mutes

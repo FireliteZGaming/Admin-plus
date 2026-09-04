@@ -48,24 +48,25 @@ check("an elapsed ban stops counting", isBanned(spammer), false)
 pruneExpired()
 check("and prune clears the record", banList().length, 0)
 
-console.log("\n— no /kick command line is ever built —")
-// The pack never assembles a "kick <name> <reason>" string. That does not make
-// it safe — Player.kick reaches the same command underneath — but it does mean
-// a reason containing quotes or a newline cannot break out of a command line,
-// and there is no second, worse code path to maintain.
+console.log("\n— the ban survives however the removal goes —")
 __test.commands.length = 0
 await ban(griefer, 0, "Grief", staff)
-check("banning somebody with no Player.kick issues no command",
-    __test.commands.filter(c => String(c).startsWith("kick ")).length, 0)
-check("the ban itself still stands", isBanned(griefer), true)
-check("and the ban message is unaffected",
+check("the ban itself stands", isBanned(griefer), true)
+check("and the ban message keeps its line break",
     banMessage(banRecord(griefer)).includes("\n"), true)
 unban(griefer.id)
 
+console.log("\n— the last route is a real command, and it is LAST —")
+// A player with neither runCommand nor kick can still be removed by the server
+// route. This used to assert that no command was ever built; that changed on
+// purpose. Player.kick was the only route for a long time, it reaches /kick
+// anyway, and it is the one confirmed to leave somebody locked out.
 __test.commands.length = 0
-check("kick() reports the failure rather than falling back",
-    await kick(quiet, 'go "away" now'), false)
-check("still no command was run", __test.commands.length, 0)
+check("somebody with no other route still gets removed",
+    await kick(quiet, 'go "away" now'), true)
+const built = __test.commands.filter(c => String(c).startsWith("kick "))
+check("by a real kick command naming them", built.length, 1)
+check("with the name quoted", built[0].includes(`"${quiet.name}"`), true)
 
 
 console.log("\n— Player.kick IS /kick, and the report must say so —")
@@ -93,31 +94,71 @@ check("and is passed through untouched", modern.kicked[0], "Behave\nSee you")
 // zero. The old code returned true the moment the method existed and did not
 // throw synchronously, so this case reported a successful removal while the
 // player stood exactly where they were.
+// Whether a route is REJECTED is now observable: a rejected route falls
+// through and the next one builds a command. An accepted route builds none.
+// That contrast is the test — it cannot pass if successCount 0 is being read
+// as success, because then nothing further would ever run.
+const kickCommands = () => __test.commands.filter(c => String(c).startsWith("kick ")).length
+
 const refused = fakePlayer("Refused")
 refused.kick = () => ({ successCount: 0 })
-check("successCount 0 is a FAILURE, not a success", await kick(refused, "bye"), false)
+__test.commands.length = 0
+check("successCount 0 is not taken as success", await kick(refused, "bye"), true)
+check("it fell through to a route that built a command", kickCommands(), 1)
 
 const landed = fakePlayer("Landed")
 landed.kick = () => ({ successCount: 1 })
-check("successCount 1 is a success", await kick(landed, "bye"), true)
+__test.commands.length = 0
+check("successCount 1 IS taken as success", await kick(landed, "bye"), true)
+check("so nothing further ran", kickCommands(), 0)
 
-// A promise that rejects is a kick that did not happen. The old code took the
-// promise, attached a rejection logger and returned true immediately.
+// A promise that rejects is a route that did not work. The old code took the
+// promise, attached a rejection logger and returned true immediately, so this
+// case stopped the chain dead while reporting success.
 const asyncKick = fakePlayer("Async")
 asyncKick.kick = () => Promise.reject(new Error("gone"))
-check("a rejected kick reports FAILURE, not success", await kick(asyncKick, "bye"), false)
+__test.commands.length = 0
+check("a rejected kick does not end the chain", await kick(asyncKick, "bye"), true)
+check("the next route picked it up", kickCommands(), 1)
 
 // A promise that RESOLVES to a refusal is the same story one layer deeper.
 const asyncRefused = fakePlayer("AsyncRefused")
 asyncRefused.kick = () => Promise.resolve({ successCount: 0 })
-check("an awaited successCount 0 is caught too", await kick(asyncRefused, "bye"), false)
+__test.commands.length = 0
+check("an awaited successCount 0 is caught too", await kick(asyncRefused, "bye"), true)
+check("and also falls through", kickCommands(), 1)
 
 // A runtime where the method exists but throws reports the failure and stops.
 const brokenKick = fakePlayer("Broken")
 brokenKick.kick = () => { throw new Error("nope") }
 __test.commands.length = 0
-check("a throwing Player.kick reports failure", await kick(brokenKick, "bye"), false)
-check("and runs no command", __test.commands.length, 0)
+check("a throwing Player.kick falls through to the server route",
+    await kick(brokenKick, "bye"), true)
+check("which is a real command", __test.commands.filter(c => String(c).startsWith("kick ")).length, 1)
+
+console.log("\n— route order: SafeGuard's self-kick goes first —")
+// The order is the experiment. `kick @s` run BY the player is the only route
+// where nobody is removing anybody else, and it is the candidate for why an
+// admin-issued kick locks somebody out while SafeGuard's does not. It must be
+// reached before Player.kick, which is the route confirmed to lock people out.
+const both = fakePlayer("Both")
+both.ranSelf = []
+both.apiCalls = 0
+both.runCommand = (cmd) => { both.ranSelf.push(cmd); return { successCount: 1 } }
+both.kick = () => { both.apiCalls++; return true }
+check("a player with every route available is removed", await kick(both, "bye"), true)
+check("the self-kick was used", both.ranSelf.length, 1)
+check("and it targets @s, not a name", both.ranSelf[0].startsWith("kick @s "), true)
+check("Player.kick was never reached", both.apiCalls, 0)
+
+// ...and when the self-kick refuses, the next route picks it up.
+const selfRefuses = fakePlayer("SelfRefuses")
+selfRefuses.apiCalls = 0
+selfRefuses.runCommand = () => ({ successCount: 0 })
+selfRefuses.kick = () => { selfRefuses.apiCalls++; return true }
+check("a self-kick that removes nobody falls through",
+    await kick(selfRefuses, "bye"), true)
+check("and Player.kick is what caught it", selfRefuses.apiCalls, 1)
 
 console.log("\n— freezing uses the current input API —")
 // setEnabled was renamed setPermissionCategory. Calling the old name threw on
