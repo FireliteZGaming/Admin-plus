@@ -121,7 +121,14 @@ export function installBanHammer() {
             return
         }
         if (attacker.id === victim.id) return
-        system.run(() => swing(attacker, victim))
+        // swing() is async (it awaits the ban, which awaits the kick). A
+        // rejection here would otherwise be unhandled and invisible — and a
+        // silent failure on the moderation path is the thing this whole file
+        // already logs against, so it gets caught and traced like the rest.
+        system.run(() => {
+            swing(attacker, victim).catch(e =>
+                trace(attacker, victim, `swing threw: ${String(e).replace(/^Error: /, "")}`))
+        })
     })
 
     console.log("[Admin+] ban hammer armed")
