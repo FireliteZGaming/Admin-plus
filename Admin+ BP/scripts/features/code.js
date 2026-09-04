@@ -99,6 +99,7 @@ export const GROUPS = {
     spawn: "Spawn protection",
     teleport: "Teleporting",
     tpa: "TPA",
+    commands: "Vanilla commands without op",
     ranks: "Ranks",
     staff: "Staff"
 }

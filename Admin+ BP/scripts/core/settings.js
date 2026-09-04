@@ -233,6 +233,11 @@ export const DEFAULTS = {
         label: "Private messages",
         help: "true / false · /pm, /r and /prchat"
     },
+    "commands.denied": {
+        value: "op,deop",
+        label: "Blocked commands for /exec",
+        help: "Comma separated · op and deop are blocked by default, because somebody who can op themselves is no longer bound by their rank"
+    },
     "format.broadcast": {
         value: "§8[§c§lBroadcast§r§8]§r §e{MSG}",
         label: "Broadcast line",

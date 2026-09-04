@@ -187,7 +187,7 @@ export const PERMISSION_NODES = {
     "Staff tools": ["admin.tp", "admin.vanish", "admin.gamemode", "admin.nickname", "admin.sudo", "admin.holograms", "admin.opblocks"],
     "Chat": ["chat.staff", "chat.viewall", "chat.manage", "chat.spy", "admin.broadcast"],
     "World upkeep": ["admin.clearchat", "admin.lagclear"],
-    "Management": ["ranks.grant", "ranks.manage", "warp.manage", "spawn.set", "presets.apply"],
+    "Management": ["ranks.grant", "ranks.manage", "warp.manage", "spawn.set", "presets.apply", "admin.commands"],
     "Player basics": ["warp.use", "spawn.use", "tpa.use", "report.use", "online.use"]
 }
 

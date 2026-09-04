@@ -1,6 +1,6 @@
 import { world } from "@minecraft/server"
 import { Table, cleanId } from "./storage.js"
-import { has } from "./ranks.js"
+import { has, isStaff } from "./ranks.js"
 import { flag } from "./settings.js"
 
 // Chat channels.
@@ -89,6 +89,12 @@ export function moveChannel(id, delta) {
 export function canUse(player, channel) {
     if (!channel) return false
     if (channel.open) return true
+    // Being staff IS the qualification for the staff channel. A rank marked
+    // staff that somebody built by hand might never have been given chat.staff,
+    // and a staff member who cannot reach staff chat is a broken rank, not a
+    // deliberate one. Channels made LATER still gate on their own node, which
+    // is what lets a manager run a room most staff cannot read.
+    if (channel.id === "staff" && isStaff(player)) return true
     return has(player, channel.node)
 }
 
@@ -108,7 +114,22 @@ export function availableTo(player) {
 }
 
 /** Operators get this for free, same as every other node. */
-export function viewsAll(player) { return has(player, "chat.viewall") }
+/**
+ * Who reads more than one room at a time.
+ *
+ * STAFF ALWAYS DO. A moderator watching General had to leave it to read Staff
+ * and leave Staff to read General, which is not how anybody actually works —
+ * you want both in front of you. So staff receive every channel they have
+ * ACCESS to, and access is what does the limiting: a Mod holds General and
+ * Staff, so that is what they see. A channel a manager creates carries its own
+ * node, so it stays out of a Mod's view until they are given it.
+ *
+ * chat.viewall still exists for the same reason it always did — handing the
+ * whole picture to somebody who is not staff.
+ */
+export function viewsAll(player) {
+    return isStaff(player) || has(player, "chat.viewall")
+}
 
 /** The channel this player is currently typing in. */
 export function activeChannel(player) {

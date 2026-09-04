@@ -44,22 +44,32 @@ check("member cannot use Staff", canUse(nova, getChannel("staff")), false)
 
 console.log("\n— view all is a rank toggle, not a free-for-all —")
 check("member does not view all", viewsAll(nova), false)
-check("mod does not view all", viewsAll(vchris), false)
-check("admin views all (chat.*)", viewsAll(firelite), true)
+// STAFF ALWAYS read every room they have access to. Having to leave General to
+// read Staff, and Staff to read General, is not how anybody works. What limits a
+// moderator is ACCESS, not focus: they hold General and Staff, so that is what
+// they get. A channel a manager creates carries its own node and stays out of
+// their view until somebody grants it.
+check("staff read more than one room", viewsAll(vchris), true)
+check("admin does too", viewsAll(firelite), true)
+check("a member still reads only where they are", viewsAll(nova), false)
 check("member sees only General", visibleTo(nova).map(c => c.id), ["general"])
-check("mod sees only where they type", visibleTo(vchris).map(c => c.id), ["general"])
-check("admin sees both at once", visibleTo(firelite).map(c => c.id), ["general", "staff"])
+check("a mod sees General AND Staff together", visibleTo(vchris).map(c => c.id), ["general", "staff"])
+check("so does an admin", visibleTo(firelite).map(c => c.id), ["general", "staff"])
 
-console.log("\n— switching focus actually narrows what you read —")
+console.log("\n— switching changes where you TYPE, not what you read —")
 setActiveChannel(vchris, "staff")
 check("mod is now typing in Staff", activeChannel(vchris).id, "staff")
-check("mod stopped receiving General", visibleTo(vchris).map(c => c.id), ["staff"])
+check("but still receives General", visibleTo(vchris).map(c => c.id), ["general", "staff"])
 check("admin is unaffected by mod's switch", visibleTo(firelite).map(c => c.id), ["general", "staff"])
 check("a member cannot switch to Staff", setActiveChannel(nova, "staff"), undefined)
 check("and stays in General", activeChannel(nova).id, "general")
 
 console.log("\n— nothing leaks —")
-check("General audience is everyone", audienceFor(getChannel("general")).map(p => p.name).sort(), ["Firelite", "Nova"])
+// The mod is typing in Staff but still READS General, so a General line reaches
+// them. That is the point of the change: staff do not miss the main room while
+// they are talking to each other.
+check("General audience includes staff who are typing elsewhere",
+    audienceFor(getChannel("general")).map(p => p.name).sort(), ["Firelite", "Nova", "Vchris"])
 check("Staff audience excludes the member", audienceFor(getChannel("staff")).map(p => p.name).sort(), ["Firelite", "Vchris"])
 
 for (const p of __test.players) p.inbox.length = 0
@@ -76,7 +86,8 @@ check("single-channel reader still gets rank and name",
 check("multi-channel reader gets the channel prefix",
     clean(formatChatLine(vchris, "hi", getChannel("staff"), true)).startsWith("Staff |"), true)
 check("admin's copy of the staff line is labelled", clean(firelite.inbox[0]).startsWith("Staff |"), true)
-check("mod's own copy is not, since they read one chat", clean(vchris.inbox[0]).startsWith("Staff |"), false)
+check("and so is the mod's, now that staff read both rooms",
+    clean(vchris.inbox[0]).startsWith("Staff |"), true)
 
 // Nova with view-all granted still must not see Staff — the toggle widens to
 // channels you already hold, never past them.
@@ -149,7 +160,8 @@ for (const p of __test.players) p.inbox.length = 0
 __test.emitChat(nova, "hi")
 check("General still reaches the member", nova.inbox.length, 1)
 check("and the view-all admin", firelite.inbox.length, 1)
-check("but not the mod sitting in Staff", vchris.inbox.length, 0)
+// The mod is typing in Staff and still reads General, which is the whole point.
+check("and the mod who is typing in Staff", vchris.inbox.length, 1)
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)
