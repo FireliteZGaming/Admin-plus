@@ -43,42 +43,39 @@ check("and the command itself is intact", owner.ran[0].endsWith("give @s diamond
 check("a leading slash is accepted too",
     runAsServer(owner, "/time set day").ok, true)
 
-console.log("\n— what it refuses —")
+console.log("\n— ONE list, and it is a whitelist —")
+// There is no blocklist. /op does not run because it is not on the list, not
+// because something forbids it by name. Two lists meant an owner had to check
+// both to answer "can they run that", and a mistake either way was silent.
 check("nothing to run", runAsServer(owner, "   ").ok, false)
-check("op is blocked by default", runAsServer(owner, "op Steve").ok, false)
-check("and so is deop", runAsServer(owner, "deop Steve").ok, false)
-check("the refusal says where the switch is",
-    runAsServer(owner, "op Steve").reason.includes("Vanilla commands"), true)
-check("blocking is by command NAME, not a substring",
-    checkCommand("optimize something").ok, true)
-check("case does not matter", runAsServer(owner, "OP Steve").ok, false)
-
-console.log("\n— the blocked list is the owner's to set —")
-check("it ships blocking the ones that escape the rank system, plus /kick",
-    setting("commands.denied"), "op,deop,kick")
-check("/kick is refused, because it locks somebody out until the host restarts",
+check("a listed command runs", runAsServer(owner, "give @s diamond").ok, true)
+check("op is not on the list, so it does not run", runAsServer(owner, "op Steve").ok, false)
+check("nor deop", runAsServer(owner, "deop Steve").ok, false)
+check("nor kick, which locks people out until the host restarts",
     runAsServer(owner, "kick Steve").ok, false)
-setSetting("commands.denied", "give, kill")
-check("a newly blocked command is refused", runAsServer(owner, "give @s stone").ok, false)
-check("and one taken off the list is allowed again", runAsServer(owner, "op Steve").ok, true)
-resetSetting("commands.denied")
+check("the refusal names what IS on",
+    runAsServer(owner, "op Steve").reason.includes("give"), true)
+check("matching is by command NAME, not a substring",
+    checkCommand("giveaway something").ok, false)
+check("case does not matter", runAsServer(owner, "GIVE @s stone").ok, true)
 
-console.log("— an allowlist, for turning single commands on —")
-// A blocklist can never express "give but not summon" without naming every
-// command in the game, so an empty allowlist means "everything not blocked"
-// and a filled one means "only these".
-check("blank allows anything not blocked", runAsServer(owner, "time set day").ok, true)
+// execute and function are left off on purpose: only the first word is checked,
+// so either one would let anything at all through behind it.
+check("execute is not on the shipped list",
+    setting("commands.allowed").includes("execute"), false)
+check("nor function", setting("commands.allowed").includes("function"), false)
+
+console.log("\n— the list is the owner's to set —")
 setSetting("commands.allowed", "give, effect")
 check("give is on", runAsServer(owner, "give @s stone").ok, true)
 check("effect is on", runAsServer(owner, "effect @s speed 10").ok, true)
-check("summon is not", runAsServer(owner, "summon cow").ok, false)
-check("and the refusal lists what IS on",
-    runAsServer(owner, "summon cow").reason.includes("give"), true)
-check("blocked still beats the allowlist", runAsServer(owner, "op Steve").ok, false)
-setSetting("commands.allowed", "op")
-check("even when the allowlist names it", runAsServer(owner, "op Steve").ok, false)
+check("summon is now off", runAsServer(owner, "summon cow").ok, false)
+setSetting("commands.allowed", "")
+check("an empty list runs nothing at all", runAsServer(owner, "give @s stone").ok, false)
+check("and says so plainly",
+    runAsServer(owner, "give @s stone").reason.includes("No vanilla commands"), true)
 resetSetting("commands.allowed")
-check("cleared, everything not blocked works again", runAsServer(owner, "summon cow").ok, true)
+check("back to the shipped set", runAsServer(owner, "give @s stone").ok, true)
 
 console.log("\n— names —")
 check("plain", commandName("give @s stone"), "give")

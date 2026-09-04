@@ -234,14 +234,17 @@ export const DEFAULTS = {
         help: "true / false · /pm, /r and /prchat"
     },
     "commands.allowed": {
-        value: "",
+        // A useful starting set that leaves out anything which would hand the
+        // whole game over. op and deop are absent because they are not on the
+        // list, which is the entire point of it being a whitelist.
+        //
+        // execute and function are absent DELIBERATELY and should stay that
+        // way: only the first word of a command is checked, so allowing either
+        // allows everything after it. "function mypack:whatever" can contain
+        // anything at all.
+        value: "give, effect, enchant, xp, time, weather, gamerule, difficulty, summon, clear, kill, particle, playsound, stopsound, title, camera, ride, damage, setblock, fill, clone, structure, spawnpoint, locate, tag, scoreboard",
         label: "Vanilla commands turned on",
-        help: "Comma separated, e.g. give, effect, tp · LEAVE BLANK to allow everything except the blocked list. Fill it in to allow only these."
-    },
-    "commands.denied": {
-        value: "op,deop,kick",
-        label: "Blocked commands for /exec",
-        help: "Comma separated · op and deop, because somebody who can op themselves is no longer bound by their rank. kick, because the vanilla one locks a player out of a local world until the HOST restarts it — use the panel Kick instead"
+        help: "Comma separated · ONLY these run through /exec. Empty means none. Do not add execute or function: only the first word is checked, so either one allows everything."
     },
     "format.broadcast": {
         value: "§8[§c§lBroadcast§r§8]§r §e{MSG}",

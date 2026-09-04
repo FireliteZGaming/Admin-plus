@@ -29,6 +29,7 @@ import "./features/nick.js"
 import "./features/chatcommands.js"
 import "./features/opblocks.js"
 import "./features/execute.js"
+import { installAllowlist } from "./features/allowlist.js"
 import { installPrivateChat } from "./features/privatechat.js"
 import "./features/tpa.js"
 import { installModeration } from "./core/moderation.js"
@@ -113,6 +114,7 @@ installHolograms()
 installHealthCheck()
 installChat()
 installPrivateChat()
+installAllowlist()
 
 world.afterEvents.worldLoad.subscribe(() => {
     console.log(`[Admin+] v${ADMINPLUS_VERSION} loaded — command namespace "${NS}:"`)

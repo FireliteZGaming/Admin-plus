@@ -181,6 +181,11 @@ const NO_AUDIENCE = new Set([
     // logged, because being able to run vanilla commands without op is exactly
     // the power an operator has invisibly. The log is the difference.
     "admin.exec",
+    // Shutting the door is done to the WORLD, not to a person — everyone who
+    // gets turned away is told why at the moment it happens, which is a better
+    // channel than a staff line about somebody who is no longer here.
+    "admin.guestOn", "admin.guestOff", "admin.guestAdd", "admin.guestRemove",
+    "admin.maintenanceOn", "admin.maintenanceOff",
     // Muting a channel is announced to EVERYONE, by name, from
     // features/chatcommands.js — the opposite of the audit line's audience, and
     // deliberately so: chat going quiet with no explanation reads as a broken

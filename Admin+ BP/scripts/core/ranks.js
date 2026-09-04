@@ -183,7 +183,7 @@ export const DEFAULT_RANKS = JSON.parse(JSON.stringify(PRESETS.server.ranks))
  */
 export const PERMISSION_NODES = {
     "Panel & info": ["admin.panel", "admin.settings", "admin.logs", "ranks.view"],
-    "Moderation": ["admin.kick", "admin.ban", "admin.mute", "admin.warn", "admin.freeze", "admin.invsee", "admin.tpatoggle", "admin.reports", "admin.automod"],
+    "Moderation": ["admin.kick", "admin.ban", "admin.mute", "admin.warn", "admin.freeze", "admin.invsee", "admin.tpatoggle", "admin.reports", "admin.automod", "admin.allowlist"],
     "Staff tools": ["admin.tp", "admin.vanish", "admin.gamemode", "admin.nickname", "admin.sudo", "admin.holograms", "admin.opblocks"],
     "Chat": ["chat.staff", "chat.viewall", "chat.manage", "chat.spy", "admin.broadcast"],
     "World upkeep": ["admin.clearchat", "admin.lagclear"],

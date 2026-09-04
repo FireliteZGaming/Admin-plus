@@ -23,30 +23,27 @@ import { setting } from "./settings.js"
 // nothing can. Every command through here is logged and announced to the ranks
 // above the person who ran it. Same power, written down.
 
-function listSetting(key) {
-    return String(setting(key) ?? "")
+/**
+ * ONE list, and it is a whitelist.
+ *
+ * There is no blocklist any more, and there does not need to be: /op does not
+ * work because it is not on the list, not because something specifically
+ * forbids it. Two lists to reason about was one too many — an owner had to
+ * check both to answer "can this person run that", and a mistake in either
+ * direction was silent.
+ *
+ * Empty means NOTHING runs. That is the safe reading of an empty list for a
+ * feature that hands out operator-level power, and it makes turning /exec on
+ * a deliberate act rather than a default.
+ */
+function allowed() {
+    return String(setting("commands.allowed") ?? "")
         .split(",")
         .map(s => s.trim().toLowerCase())
         .filter(Boolean)
 }
 
-/** Commands that would let somebody step outside the rank system entirely. */
-function denied() { return listSetting("commands.denied") }
-
-/**
- * The allowlist, when there is one.
- *
- * Two models, and the setting picks between them by being empty or not:
- *
- *   BLANK    everything except the blocked list. Convenient, and what an owner
- *            who trusts the person holding the node actually wants.
- *   FILLED   only these. Turning on /give without turning on /summon is a real
- *            thing to want, and a blocklist can never express it — you would
- *            have to name every command in the game to get there.
- */
-function allowed() { return listSetting("commands.allowed") }
-
-/** What the command's tab-completion should offer, or [] when unrestricted. */
+/** What tab-completion should offer. */
 export function allowedCommands() { return allowed() }
 
 /** The first word, without a leading slash. */
@@ -62,23 +59,20 @@ export function checkCommand(line) {
     if (!text) return { ok: false, reason: "Type a command to run." }
 
     const name = commandName(text)
+    const list = allowed()
 
-    // Blocked always wins, so a command cannot be re-enabled by accident just
-    // by appearing on the allowlist.
-    if (denied().includes(name)) {
+    if (!list.length) {
         return {
             ok: false,
-            // Naming the setting matters: an owner who genuinely wants this
-            // allowed should be able to find the switch without guessing.
-            reason: `"${name}" is on the blocked list. An owner can change that in Settings ▸ Vanilla commands.`
+            reason: "No vanilla commands are turned on. An owner turns them on in Settings ▸ Vanilla commands."
         }
     }
-
-    const list = allowed()
-    if (list.length && !list.includes(name)) {
+    if (!list.includes(name)) {
         return {
             ok: false,
-            reason: `"${name}" is not one of the vanilla commands turned on here. Allowed: §f${list.join("§c, §f")}`
+            // Naming what IS on beats naming what is not: the person has a
+            // command in mind and wants to know what to use instead.
+            reason: `"${name}" is not turned on here. Allowed: §f${list.join("§c, §f")}`
         }
     }
     return { ok: true, command: text }
