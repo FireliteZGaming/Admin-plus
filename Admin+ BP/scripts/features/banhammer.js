@@ -1,22 +1,26 @@
 import { world, system, EquipmentSlot } from "@minecraft/server"
-import { menu, confirm } from "../core/ui.js"
-import { hubTitle } from "../core/theme.js"
-import { ok, err, info } from "../core/util.js"
-import { canUseCode } from "../core/devgate.js"
+import { err, info } from "../core/util.js"
+import { has } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
 import { ban, isBanned } from "../core/moderation.js"
 import { record } from "../core/logs.js"
-import { isBanHammer, makeBanHammer, worldToken, HAMMER_NAME } from "../core/banhammer.js"
+import { isBanHammer, worldToken } from "../core/banhammer.js"
 
 // Swing it at somebody and they are banned. That is the whole feature.
 //
 // Double-locked, both locks checked at the moment of the swing rather than only
 // when the hammer is handed out:
 //   1. The hammer itself must be the one this world issued (core/banhammer.js).
-//   2. The player swinging it must still hold the Dev tag AND operator.
+//   2. The player swinging it must still hold `admin.banperm`.
 //
 // Checking at swing time is the point. A hammer that stayed live after somebody
-// lost their Dev tag would be a permanent backdoor sitting in a chest.
+// lost the permission would be a permanent backdoor sitting in a chest.
+//
+// WHERE IT COMES FROM, since 1.18.0: staff mode. It used to be minted from the
+// Dev screen behind the Dev tag and operator, which meant the thing that bans
+// people forever answered to a different question than banning people forever
+// does. Now it rides in the /mm tool bar for anybody holding `admin.banperm`,
+// and the permission and the tool say the same thing.
 
 const REASON = "The Ban Hammer has spoken!"
 
@@ -47,20 +51,20 @@ function trace(attacker, victim, outcome) {
 }
 
 export function swing(attacker, victim) {
-    if (!canUseCode(attacker)) {
+    if (!has(attacker, "admin.banperm")) {
         // The hammer is inert in their hands, and silence would read as a bug.
         const last = warned.get(attacker.id) ?? 0
         if (Date.now() - last > WARN_GAP) {
             warned.set(attacker.id, Date.now())
-            info(attacker, "§8The Ban Hammer is inert — it answers to the Dev tag and operator, both.")
+            info(attacker, "§8The Ban Hammer is inert — it answers to permanent-ban permission.")
         }
-        trace(attacker, victim, "refused — the swinger lacks the Dev tag, operator, or both")
-        return { ok: false, reason: "not a dev" }
+        trace(attacker, victim, "refused — the swinger cannot ban permanently")
+        return { ok: false, reason: "not allowed to ban permanently" }
     }
 
-    if (canUseCode(victim)) {
-        err(attacker, `${displayName(victim)}§c also holds Dev and operator — the hammer will not fall on them.`)
-        trace(attacker, victim, "refused — the target also holds Dev and operator")
+    if (has(victim, "admin.banperm")) {
+        err(attacker, `${displayName(victim)}§c can ban permanently too — the hammer will not fall on them.`)
+        trace(attacker, victim, "refused — the target can also ban permanently")
         return { ok: false, reason: "mutual immunity" }
     }
 
@@ -122,58 +126,4 @@ export function installBanHammer() {
 
     console.log("[Admin+] ban hammer armed")
     return true
-}
-
-// -------------------------------------------------------------------- the UI
-
-export async function banHammerScreen(player, back) {
-    if (!canUseCode(player)) { err(player, "That needs the Dev tag and operator status."); return back() }
-
-    return menu(player, {
-        title: hubTitle("code", "Ban Hammer"),
-        body: [
-            `§r${HAMMER_NAME}§r`,
-            "",
-            "§7A real mace, issued by this world. Hit a player with it",
-            "§7and they are permanently banned, on the spot.",
-            "",
-            `§8Serial: §7#${worldToken()}`,
-            "§8A mace you rename yourself is just a mace — the signature",
-            "§8is in the lore, and Bedrock gives players no way to write it.",
-            "",
-            "§8Curse of Vanishing is what makes it shimmer, and it means",
-            "§8nobody can loot the hammer off you when you die.",
-            "",
-            "§cIt checks your Dev tag and op at the moment you swing,",
-            "§cnot when you were given it."
-        ].join("\n"),
-        buttons: [
-            {
-                text: "§4§lTake one§r\n§8Into your inventory",
-                run: async () => {
-                    const yes = await confirm(player, hubTitle("code", "Ban Hammer"),
-                        "Take a Ban Hammer?\n\n§8Anyone you hit with it is banned permanently.\n§8It does nothing in anyone else's hands.",
-                        "§4Take it")
-                    if (!yes) return back()
-
-                    const container = player.getComponent("minecraft:inventory")?.container
-                    if (!container) { err(player, "Couldn't reach your inventory."); return back() }
-
-                    let leftover
-                    try {
-                        leftover = container.addItem(makeBanHammer())
-                    } catch (e) {
-                        err(player, `Couldn't make the hammer: ${e}`)
-                        return back()
-                    }
-                    if (leftover) { err(player, "Your inventory is full."); return back() }
-
-                    record(player, "dev.banhammer", undefined, "issued one to themselves")
-                    ok(player, `${HAMMER_NAME}§a is in your inventory.`)
-                    return back()
-                }
-            }
-        ],
-        back
-    })
 }

@@ -1,7 +1,6 @@
 import { world, system } from "@minecraft/server"
 import { menu, modal, confirm } from "../core/ui.js"
 import { canUseCode, DEV_TAG } from "../core/devgate.js"
-import { banHammerScreen } from "./banhammer.js"
 import { hubTitle } from "../core/theme.js"
 import { ok, err, info } from "../core/util.js"
 import { refreshNameTag } from "../core/ranks.js"
@@ -49,10 +48,6 @@ export async function codeScreen(player, back) {
             {
                 text: `§e§lPresets§r\n§8Named baselines · currently ${detectPreset().label}`,
                 run: () => presetsScreen(player, again)
-            },
-            {
-                text: "§4§lBan §5§lHammer§r\n§8Take the mace that bans on contact",
-                run: () => banHammerScreen(player, again)
             },
             {
                 text: "§c§lFactory Reset§r\n§8Throw away every change, back to defaults",

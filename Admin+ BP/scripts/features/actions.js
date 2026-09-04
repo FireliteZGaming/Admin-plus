@@ -294,7 +294,13 @@ export async function banScreen(player, target, back) {
         return back()
     }
 
-    const permanent = flag("ban.allowPermanent")
+    // Two gates, and they answer different questions. The setting is the
+    // WORLD's policy — does this place hand out forever at all. The node is
+    // whether THIS person may. A Mod can ban for a week on a world that allows
+    // permanent bans; the last notch simply is not on their slider.
+    const worldAllows = flag("ban.allowPermanent")
+    const mayBanForever = has(player, "admin.banperm")
+    const permanent = worldAllows && mayBanForever
     const max = banSliderMax(permanent)
 
     const values = await modal(player, title(`Ban · ${displayName(target)}`), [
@@ -319,7 +325,9 @@ export async function banScreen(player, target, back) {
             // that means "permanent" has to be named up here or not at all.
             label: permanent
                 ? `Days §7(${PERMANENT_NOTCH} = permanent)`
-                : "Days §7(permanent bans are switched off)",
+                : worldAllows
+                    ? "Days §7(you can't ban permanently)"
+                    : "Days §7(permanent bans are switched off here)",
             min: 1,
             max,
             step: 1,

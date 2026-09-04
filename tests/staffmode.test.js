@@ -4,7 +4,9 @@ import {
     serializeStack, buildStack, snapshotOf, countItems, liveInventory,
     containerOf, __forgetLive
 } from "../Admin+ BP/scripts/core/staffmode.js"
-import { TOOLS, makeTool, toolFor } from "../Admin+ BP/scripts/features/staffmode.js"
+import {
+    TOOLS, makeTool, toolFor, toolBar, HAMMER_SLOT, HAMMER_NAME
+} from "../Admin+ BP/scripts/features/staffmode.js"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -165,10 +167,30 @@ check("no two tools share a hotbar slot",
     new Set(TOOLS.map(t => t.slot)).size, TOOLS.length)
 check("no two tools share an item type",
     new Set(TOOLS.map(t => t.id)).size, TOOLS.length)
-check("every tool declares which event it answers",
-    TOOLS.every(t => ["player", "block", "use"].includes(t.on)), true)
+check("every tool declares what it aims at",
+    TOOLS.every(t => ["player", "block", "none"].includes(t.aim)), true)
 check("every tool sits in the hotbar",
     TOOLS.every(t => t.slot >= 0 && t.slot < 9), true)
+
+console.log("\n— the Ban Hammer rides in the bar, for some people —")
+const plainBar = toolBar(false)
+const armedBar = toolBar(true)
+check("without permanent-ban permission the bar is just the tools",
+    plainBar.length, TOOLS.length)
+check("and holds no mace",
+    plainBar.some(entry => entry.stack.typeId === "minecraft:mace"), false)
+check("with it, one more thing is in the bar", armedBar.length, TOOLS.length + 1)
+const hammerEntry = armedBar.find(entry => entry.slot === HAMMER_SLOT)
+check("and that thing is the hammer", hammerEntry?.stack?.typeId, "minecraft:mace")
+check("named as the hammer", hammerEntry?.stack?.nameTag, HAMMER_NAME)
+check("the hammer's slot does not collide with a tool",
+    TOOLS.some(t => t.slot === HAMMER_SLOT), false)
+check("every bar entry sits in the hotbar",
+    armedBar.every(entry => entry.slot >= 0 && entry.slot < 9), true)
+// The hammer is not an itemUse tool and must never be mistaken for one, or a
+// right-click would run a tool action while holding the thing that bans people.
+check("the hammer is not recognised as an itemUse tool",
+    toolFor(hammerEntry.stack), undefined)
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

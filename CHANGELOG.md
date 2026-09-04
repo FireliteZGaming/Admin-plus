@@ -22,6 +22,42 @@ tag, same file, only the claim about it changes.
 
 ---
 
+## 1.18.0 — 2026-09-04
+
+**The staff tools work now.** In 1.17.0 four of the six did nothing. The compass
+and the clock — the two bound to `itemUse` — worked; the four bound to
+`playerInteractWithEntity` and `playerInteractWithBlock` never fired. Both of
+those events exist and both are stable, which is what the API reference says.
+Right-clicking a *player* simply does not raise one, because a player is not an
+interactable entity the way a villager is.
+
+So every tool now hangs off `itemUse`, the event that demonstrably fires, and
+finds its target by **ray cast** from where you are looking. That is better than
+the original: the tools work at range, so freezing somebody no longer means
+walking into them. Look at them and use it.
+
+The block inspector keeps a second path through `playerInteractWithBlock`,
+because a right-click a chest or a door swallows may never reach `itemUse` — and
+those are the blocks most worth reading. Whichever fires first wins.
+
+**The Ban Hammer moved out of the Dev screen and into staff mode.** It used to
+be minted behind the Dev tag plus operator, which meant the thing that bans
+people forever answered to a different question than banning people forever
+does. Now it appears in the `/mm` tool bar for anybody holding the new
+`admin.banperm` node, and the permission and the tool say the same thing. The
+swing checks the same node — at swing time, so a hammer left in a chest goes
+inert the moment the permission does.
+
+**New node: `admin.banperm` — permanent bans.** It gates two things:
+
+- The last notch on the ban slider. The world setting `ban.allowPermanent` is
+  the *place's* policy; this node is whether *this person* may. A Mod can ban for
+  a week on a world that allows permanent bans — the 8th notch just is not on
+  their slider, and the label says which of the two is stopping them.
+- Whether the Ban Hammer is in your bar at all.
+
+On Admin and up by default.
+
 ## 1.17.0 — 2026-09-04
 
 **`/mm` — staff mode.** One toggle: your inventory is put away, a tool bar takes
