@@ -40,6 +40,8 @@ const SILENT = new Set([
     // are the same person, so the audience rule leaves nobody to tell. It also
     // vanishes you, and that already speaks.
     "admin.staffmode",
+    // Same shape: you switch your OWN developer mode, nobody else's.
+    "dev.mode",
     // Logged, not spoken. Staff walk to people constantly, and moving YOURSELF
     // is not something done to the other player — mod.bring, which moves them,
     // is announced. The distinction is the same one the audience rule makes:

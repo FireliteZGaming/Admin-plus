@@ -22,6 +22,24 @@ tag, same file, only the claim about it changes.
 
 ---
 
+## 1.24.0 — 2026-09-04
+
+**`/mode <default|developer>`** — a door onto `< Code >` with a name on it.
+
+Developer mode was reachable only by typing `/tag @s add Dev`, which is a thing
+you have to be told once and remember forever. This is the same switch, with an
+enum the game tab-completes.
+
+It grants nothing new. Any operator could already give themselves that tag —
+`/tag` is vanilla and answers to operator — so `/mode` asks for operator and
+then writes the tag. The gate is still "operator, deliberately", exactly as it
+was: a non-op holding the Dev tag is still refused, because operator is the
+other half of the lock.
+
+It is a set, not a toggle: `/mode developer` twice leaves you in developer mode
+and says so, rather than quietly dropping you out. `/mode default` is the way
+back, and having an explicit word for off is why a toggle would be worse.
+
 ## 1.23.0 — 2026-09-04
 
 **A ban now matches by id OR by name.** Admin+ keyed bans by player id alone.

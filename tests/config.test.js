@@ -1,6 +1,8 @@
 import { setting, setSetting, resetSetting, overrides, replaceOverrides, flag, render, renderTag, DEFAULTS } from "../Admin+ BP/scripts/core/settings.js"
 import { toBlock, fromBlock, canUseCode, kindOf, groupOf, groupedKeys, GROUPS } from "../Admin+ BP/scripts/features/code.js"
 import { getNickname, setNickname, displayName, hasNickname, NICK_MAX } from "../Admin+ BP/scripts/core/identity.js"
+// canUseCode comes via features/code.js above, which re-exports it.
+import { hasOperator, inDeveloperMode, setDeveloperMode } from "../Admin+ BP/scripts/core/devgate.js"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -143,5 +145,35 @@ check("an unmapped prefix is capitalised, not dropped", groupOf("brandnew.thing"
 check("a key with no dot still groups", groupOf("loose"), "Loose")
 
 replaceOverrides({})
+
+console.log("\n— /mode is a door, not a second authority —")
+// The gate is "operator, deliberately". /mode grants nothing an op did not
+// already have, because /tag is vanilla and answers to op. These pin that.
+const devTags = new Set()
+const opPlayer = {
+    name: "Op", commandPermissionLevel: 1,
+    getTags: () => [...devTags], addTag: t => devTags.add(t), removeTag: t => devTags.delete(t)
+}
+check("an op is not in developer mode by default", inDeveloperMode(opPlayer), false)
+check("so < Code > is shut", canUseCode(opPlayer), false)
+
+setDeveloperMode(opPlayer, true)
+check("switching on writes the tag", inDeveloperMode(opPlayer), true)
+check("and an OP in developer mode gets in", canUseCode(opPlayer), true)
+
+setDeveloperMode(opPlayer, false)
+check("switching off takes it away", inDeveloperMode(opPlayer), false)
+check("and shuts the door again", canUseCode(opPlayer), false)
+
+// The half that matters: the tag ALONE is not the gate, which is why /mode
+// asking for operator does not weaken anything.
+const taggedNonOp = {
+    name: "NotOp", commandPermissionLevel: 0,
+    getTags: () => ["Dev"], addTag: () => true, removeTag: () => true
+}
+check("a non-op holding the tag is still refused", canUseCode(taggedNonOp), false)
+check("even though the tag is really there", inDeveloperMode(taggedNonOp), true)
+check("because operator is the other lock", hasOperator(taggedNonOp), false)
+
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

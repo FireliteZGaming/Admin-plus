@@ -12,11 +12,40 @@ import { CommandPermissionLevel } from "@minecraft/server"
 
 export const DEV_TAG = "Dev"
 
-export function canUseCode(player) {
+/** Operator, in the sense the gate means it. */
+export function hasOperator(player) {
     try {
-        const tagged = player.getTags().some(t => t.toLowerCase() === DEV_TAG.toLowerCase())
-        if (!tagged) return false
-        const level = player.commandPermissionLevel
+        const level = player?.commandPermissionLevel
         return typeof level === "number" && level >= (CommandPermissionLevel?.GameDirectors ?? 1)
     } catch { return false }
+}
+
+/** Holds the tag — half the gate on its own, which is the point of the other half. */
+export function inDeveloperMode(player) {
+    try {
+        return player.getTags().some(t => t.toLowerCase() === DEV_TAG.toLowerCase())
+    } catch { return false }
+}
+
+/**
+ * Put somebody in or out of developer mode.
+ *
+ * This grants nothing an operator did not already have: any op can type
+ * `/tag @s add Dev` and always could. `/mode` is a better door onto the same
+ * room, not a wider one — which is why it asks for operator and then simply
+ * writes the tag rather than pretending to be a second authority.
+ */
+export function setDeveloperMode(player, on) {
+    try {
+        if (on) player.addTag(DEV_TAG)
+        else player.removeTag(DEV_TAG)
+        return true
+    } catch (e) {
+        console.warn(`[Admin+] could not change developer mode for ${player?.name}: ${e}`)
+        return false
+    }
+}
+
+export function canUseCode(player) {
+    return inDeveloperMode(player) && hasOperator(player)
 }

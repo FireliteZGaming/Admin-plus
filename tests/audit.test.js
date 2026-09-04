@@ -113,7 +113,9 @@ check("walking to someone is silent too", audienceFor(admin, member, "mod.tpTo")
 // Staff mode is done to yourself. The actor and the target are one person, so
 // there is nobody the audience rule would tell even if it were not on the list.
 check("entering staff mode is silent", audienceFor(admin, admin, "admin.staffmode"), [])
-check("the silent list is exactly those eight", SILENT.size, 8)
+check("switching your own developer mode is silent",
+    audienceFor(admin, admin, "dev.mode"), [])
+check("the silent list is exactly those nine", SILENT.size, 9)
 
 console.log("\n— actions with nobody on one end —")
 check("no actor, no line", audienceFor(undefined, member, "automod.ore"), [])
