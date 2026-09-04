@@ -22,6 +22,45 @@ tag, same file, only the claim about it changes.
 
 ---
 
+## 1.19.0 — 2026-09-04
+
+**Banning is two tiers now, and they sit a rung apart.** In server terms: a
+**temp ban is Admin and up**, a **permanent ban is Manager and up**. An Admin can
+put somebody away for a week; ending an account for good belongs higher.
+
+`admin.banperm` was on Admin in 1.18.0 — one rung too low. It is now reached only
+through the `admin.*` that manager-tier ranks carry, so on every ladder it lands
+exactly on Manager and above. `admin.ban` did not move.
+
+A test walks all six ladders and asks the real permission resolver, because
+these grants are mostly implicit — a Manager gets permanent bans through a
+wildcard, not by naming the node. It checks the rules rather than a list of rank
+ids, so a ladder added later is covered the day it is added: nobody may ban
+forever without also being allowed a week, permanent ban's floor never sits
+below temp ban's, and no non-staff rank has either.
+
+**Removed: the Lockdown *ladder*.** It sat in the list of server shapes — Server,
+Realm, SMP — and a lockdown is a mode a server goes into, not a shape it has.
+
+The **Locked down server preset stays**; it now borrows the SMP ladder, which is
+the same owner/staff/member shape it always installed. The old ladder expressed
+"members cannot TPA" as a permission denial buried in a rank; the preset now
+sets `feature.tpa` to false instead, which says it out loud and says it for
+everybody — what a lockdown should mean anyway.
+
+Worlds already running that ladder keep every rank and every holder; storage
+holds the rank table itself, not a preset name. The panel will simply call it
+Custom.
+
+**Removed: `/function spear-mace`.** Applying a preset had two names for one
+thing, and the function was the worse of them — one line that fired the event
+anyway, and a `.mcfunction` with a single unparseable line is dropped whole and
+silently. The event is the interface:
+
+```
+/scriptevent adminplus:preset <id>
+```
+
 ## 1.18.0 — 2026-09-04
 
 **The staff tools work now.** In 1.17.0 four of the six did nothing. The compass

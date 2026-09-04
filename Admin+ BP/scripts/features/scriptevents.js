@@ -4,17 +4,23 @@ import { allServerPresets, getServerPreset, applyServerPreset, detectServerPrese
 import { record } from "../core/logs.js"
 import { typeIdToDataId, typeIdToID } from "../core/typeIds.js"
 
-// The bridge from .mcfunction files into the script.
+// The bridge from commands into the script.
 //
-// A function cannot call script — the only door between them is /scriptevent,
-// so anything a function needs to trigger has to come through here. That is why
-// /function spear-mace is a single line that fires an event rather than doing
-// the work itself.
+// A .mcfunction cannot call script — /scriptevent is the only door between the
+// two — so anything a command needs to trigger comes through here.
 //
-// No permission check, deliberately: running ANY /function already requires
-// cheats or operator, which is a higher bar than most of the panel's own nodes.
-// Adding a rank check on top would only mean an operator being told no by their
-// own addon.
+// Applying a preset used to have a function wrapper as well as this event, and
+// the wrapper was one line that fired the event. Two names for one thing, and
+// the function was the worse of them: a .mcfunction with a single unparseable
+// line is dropped WHOLE and silently, so the wrapper could vanish without
+// anybody being told. The event is the interface now:
+//
+//     /scriptevent adminplus:preset <id>
+//
+// No permission check, deliberately: running /scriptevent at all already
+// requires cheats or operator, which is a higher bar than most of the panel's
+// own nodes. Adding a rank check on top would only mean an operator being told
+// no by their own addon.
 
 const NAMESPACE = "adminplus"
 const PRESET_EVENT = `${NAMESPACE}:preset`

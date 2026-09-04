@@ -110,8 +110,15 @@ export const SERVER_PRESETS = {
         id: "lockdown",
         label: "Locked down",
         description: "Long warmups, wide protection, staff not exempt.",
-        ladder: "lockdown",
+        // Lockdown is a MODE a server goes into, not a shape a server has, so
+        // it no longer carries a ladder of its own — it borrows the SMP one,
+        // which is the same owner/staff/member shape it always installed. The
+        // old ladder expressed "members cannot TPA" as a permission denial
+        // buried in a rank; `feature.tpa` says it out loud, and says it for
+        // everybody, which is what a lockdown should mean anyway.
+        ladder: "smp",
         config: {
+            "feature.tpa": "false",
             "spawn.protect": "true",
             "spawn.radius": "64",
             "teleport.warmup": "5",
