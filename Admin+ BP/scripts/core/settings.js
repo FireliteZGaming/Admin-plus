@@ -233,6 +233,11 @@ export const DEFAULTS = {
         label: "Private messages",
         help: "true / false · /pm, /r and /prchat"
     },
+    "commands.allowed": {
+        value: "",
+        label: "Vanilla commands turned on",
+        help: "Comma separated, e.g. give, effect, tp · LEAVE BLANK to allow everything except the blocked list. Fill it in to allow only these."
+    },
     "commands.denied": {
         value: "op,deop,kick",
         label: "Blocked commands for /exec",
