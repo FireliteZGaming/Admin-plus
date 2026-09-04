@@ -353,7 +353,7 @@ export async function banScreen(player, target, back) {
         "§cBan")
     if (!confirmed) return back()
 
-    ban(target, durationMs, reason, player)
+    await ban(target, durationMs, reason, player)
     record(player, "mod.ban", target, `${reason} · ${length}`, { kind: "ban" })
     ok(player, `Banned §f${target.name}§a (${length}).`)
     return back()
@@ -370,7 +370,7 @@ async function reasonScreen(player, target, action, back, durationMs = 0) {
     if (action === "kick") {
         const confirmed = await confirm(player, title("Kick"), `Kick §f${displayName(target)}§r?\n\n§7Reason: ${reason}`, "§6Kick")
         if (!confirmed) return back()
-        kick(target, reason)
+        await kick(target, reason)
         record(player, "mod.kick", target, reason)
         ok(player, `Kicked §f${target.name}§a.`)
         return back()

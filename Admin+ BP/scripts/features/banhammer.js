@@ -50,7 +50,7 @@ function trace(attacker, victim, outcome) {
     console.log(`[Admin+] ban hammer: ${attacker?.name} -> ${victim?.name}: ${outcome}`)
 }
 
-export function swing(attacker, victim) {
+export async function swing(attacker, victim) {
     if (!has(attacker, "admin.banperm")) {
         // The hammer is inert in their hands, and silence would read as a bug.
         const last = warned.get(attacker.id) ?? 0
@@ -75,7 +75,7 @@ export function swing(attacker, victim) {
     }
 
     const name = displayName(victim)
-    const result = ban(victim, 0, REASON, attacker)
+    const result = await ban(victim, 0, REASON, attacker)
     record(attacker, "mod.ban", victim, "ban hammer · permanent")
 
     if (result.kicked) {

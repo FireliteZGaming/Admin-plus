@@ -92,9 +92,20 @@ bridging the gap to the next application. 10 ticks flickered; blend 0 flickered
 worse. **Confirmed working; leave it alone.**
 
 **NEVER run the `/kick` command.** On a local world it locks somebody out until
-the HOST restarts. `core/moderation.js` uses `Player.kick()` with NO fallback,
-and `kick` is off the `/exec` whitelist. A kick that quietly fails is the
-smaller problem.
+the HOST restarts. `kick` is off the `/cmd` whitelist and stays off.
+
+**`Player.kick()` is NOT a safe alternative to it, and this file used to say it
+was.** The method is undocumented — absent from Microsoft's Player reference and
+from the community mirror — yet it exists at runtime (a logged ban hammer swing
+reached "banned and removed", which needs it to be callable). Nothing states it
+differs from the command, and a report from the world in September 2026 says a
+ban left somebody locked out until a relaunch: the /kick symptom exactly.
+**Treat them as the same disconnect until something proves otherwise.**
+
+The deeper constraint: Bedrock's script API **cannot refuse a connection**. A
+Java ban list rejects the login, so a Java ban never kicks anybody. On Bedrock
+the player always joins first, so every ban is a kick-on-join and inherits
+whatever kicking does. Any real fix has to avoid disconnecting at all.
 
 **`world.getDynamicProperty` throws during early execution**, which is when
 `Table` constructors run - so the first read of every table always fails. A

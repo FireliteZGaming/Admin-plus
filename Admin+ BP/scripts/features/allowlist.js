@@ -96,12 +96,12 @@ command({
 })
 
 /** Turn away anyone already here who the door no longer admits. */
-function removeUninvited(actor) {
+async function removeUninvited(actor) {
     for (const other of world.getAllPlayers()) {
         if (other.id === actor.id) continue
         const door = doorCheck(other, { staff: isStaff(other), owner: isOwner(other) })
         if (door.ok) continue
-        kick(other, door.reason)
+        await kick(other, door.reason)
         info(actor, `§7Turned away §f${other.name}§7 — ${door.reason}`)
     }
 }
@@ -117,7 +117,11 @@ export function installAllowlist() {
         if (!initialSpawn) return
         const door = doorCheck(player, { staff: isStaff(player), owner: isOwner(player) })
         if (door.ok) return
-        kick(player, door.reason)
-        console.log(`[Admin+] turned away ${player.name}: ${door.reason}`)
+        // kick() is async now — it awaits the CommandResult so it can report
+        // whether anybody actually moved, rather than assuming.
+        kick(player, door.reason).then(removed => {
+            console.log(`[Admin+] turned away ${player.name}: ${door.reason}`
+                + (removed ? "" : " — BUT THEY WERE NOT REMOVED"))
+        })
     })
 }

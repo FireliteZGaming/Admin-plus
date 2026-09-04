@@ -22,6 +22,31 @@ tag, same file, only the claim about it changes.
 
 ---
 
+## 1.21.1 — 2026-09-04
+
+**A ban said "removed" whether or not anybody moved.** `Player.kick()` returns a
+`CommandResult` — sometimes wrapped in a promise — and the old code took that
+value, attached a rejection logger, and returned `true` immediately. It never
+looked at what came back. So `kicked: true` was a value the pack reported
+without ever measuring it, and "banned and removed" in the log proved only that
+the method existed and had not thrown.
+
+`kick()` and `ban()` await the result now and read `successCount`. Zero means
+the command ran and removed nobody, which is how a refusal actually arrives —
+no throw, no rejection, just a count. A rejected promise is a failure too,
+where it used to be reported as success.
+
+**And the mechanism is now named correctly.** `Player.kick()` is undocumented —
+absent from Microsoft's reference and the community mirror — so this pack had
+been asserting it was a gentler, separate thing from the `/kick` command. That
+was an assumption written up as a finding, and it was wrong: the CommandResult
+return type says plainly that `/kick` is what runs underneath. It inherits
+everything `/kick` does, lockouts included. Every comment claiming otherwise is
+corrected, in `moderation.js`, `CLAUDE.md` and the tests.
+
+Nothing here makes a kick work where it did not before. What changes is that
+the pack stops claiming it did.
+
 ## 1.21.0 — 2026-09-04
 
 **`/version`** — what this world is running, and whether it is healthy. The pack

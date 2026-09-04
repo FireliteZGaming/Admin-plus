@@ -1,14 +1,32 @@
 import { world, system, InputPermissionCategory } from "@minecraft/server"
 import { Table } from "./storage.js"
+import { setting } from "./settings.js"
 import { formatDuration } from "./util.js"
 import { isVanished } from "./vanish.js"
 
 // Moderation state: bans, mutes, and per-player flags (frozen, TPA closed).
 //
 // All of it is keyed by player id and stored in world tables, so a ban survives
-// a rejoin, a name change, and a world reload. Bans are ENFORCED ON JOIN — there
-// is no way to refuse a connection outright from script, so the player joins and
-// is kicked immediately with the reason.
+// a rejoin, a name change, and a world reload.
+//
+// HOW A BAN IS ENFORCED.
+//
+// Bedrock's script API cannot refuse a connection. A Java ban list rejects the
+// login, which is why a Java ban never has to kick anybody — the player simply
+// never arrives. Here they always arrive, so a ban is: record it, disconnect
+// them, and disconnect them again every time they come back.
+//
+// `Player.kick()` is what does the disconnecting, and what it IS was settled by
+// reading a shipped addon rather than the docs, which do not list the method at
+// all. It hands back a **CommandResult** — the same shape `runCommand` returns,
+// carrying `successCount`. That return type is the evidence: `Player.kick()`
+// runs the `/kick` COMMAND underneath. It is not a separate, gentler mechanism,
+// and it inherits everything /kick does, lockouts included.
+//
+// Which means the honest thing to do is not to pretend otherwise, but to REPORT
+// truthfully. `successCount === 0` means the command ran and removed nobody.
+// This file used to return `kicked: true` on the strength of the method merely
+// existing and not throwing — a value it never measured. It measures it now.
 
 const bans = new Table("bans", {})
 const mutes = new Table("mutes", {})
@@ -102,7 +120,10 @@ export function isBanned(playerOrId) { return !!banRecord(playerOrId) }
  * @param {number} durationMs 0 for permanent
  * @returns {{ok: boolean, kicked: boolean, record: object}}
  */
-export function ban(target, durationMs, reason, by) {
+export async function ban(target, durationMs, reason, by) {
+    // The RECORD lands first and synchronously. It is the ban; the disconnect
+    // is only how this session ends, and installModeration acts again on every
+    // rejoin whether or not the kick worked.
     bans.set(target.id, {
         name: target.name,
         reason: reason || "No reason given",
@@ -111,9 +132,9 @@ export function ban(target, durationMs, reason, by) {
         until: durationMs > 0 ? Date.now() + durationMs : 0
     })
     const record = bans.get(target.id)
-    const kicked = kick(target, banMessage(record))
+    const kicked = await kick(target, banMessage(record))
     if (!kicked) {
-        console.warn(`[Admin+] ${target.name} is banned but could not be removed from the world (the host cannot be kicked)`)
+        console.warn(`[Admin+] ${target.name} is banned but was not removed from the world`)
     }
     return { ok: true, kicked, record }
 }
@@ -146,50 +167,60 @@ export function banMessage(record) {
 
 // --------------------------------------------------------------------- kicks
 
-/** Kick by running the vanilla command — script has no direct kick API. */
 /**
  * Disconnect a player with a message.
  *
- * Player.kick() FIRST, and the vanilla /kick command only as a fallback. The
- * two are not equivalent:
+ * WHAT IS ACTUALLY KNOWN, corrected 2026-09-04 after a report from the world:
  *
- *   * /kick is the operator command. On a local or LAN world it can leave the
- *     player unable to rejoin until the world is relaunched, and it flatly
- *     refuses to touch the host. Neither is what "kick" is supposed to mean —
- *     a kick is "leave and come back", a ban is the one that lasts.
- *   * /kick is also a command LINE, so the reason has to survive quoting, and a
- *     line break in it truncates the command. The script method takes a plain
- *     string, so ban messages keep their formatting instead of being mangled
- *     into one line.
+ *   * `Player.kick()` is NOT in the scripting reference. Neither Microsoft's
+ *     Player page nor the community mirror lists it among the class methods.
+ *   * It nevertheless EXISTS at runtime — the content log has a ban hammer
+ *     swing recorded as "banned and removed", and that branch is only reached
+ *     when `target.kick` was callable and did not throw.
+ *   * Nothing anywhere says it behaves differently from the `/kick` COMMAND.
  *
- * Bans do not rely on this either way: the ban list is ours, and a banned
- * player is kicked again by installModeration the moment they rejoin. Kicking
- * is only how the session ends.
+ * That last line used to read the other way round. This file claimed the two
+ * were "not equivalent" and that the script method avoided the local-world
+ * lockout. That was an ASSUMPTION written up as a finding, and the world says
+ * otherwise: a ban left somebody unable to get back in until the world was
+ * relaunched, which is the /kick symptom exactly. Undocumented almost
+ * certainly means it is the same disconnect with a script-shaped door.
+ *
+ * There is no third option. Bedrock's script API cannot refuse a connection —
+ * that is the thing a Java ban list does and the reason a Java ban never has
+ * to kick anybody. On Bedrock the player always joins first, so every ban is a
+ * kick-on-join, and every ban therefore inherits whatever /kick does.
+ *
+ * Bans do not depend on the disconnect landing: the ban list is ours, and
+ * installModeration acts again on every rejoin. Kicking is only how the current
+ * session ends, and `ban()` reports whether it worked rather than assuming.
  */
-export function kick(target, reason) {
+export async function kick(target, reason) {
     const text = String(reason ?? "Kicked")
 
-    if (typeof target?.kick === "function") {
-        try {
-            const result = target.kick(text)
-            // It may hand back a promise; a rejection there would otherwise be
-            // an unhandled one rather than a log line.
-            if (result && typeof result.then === "function") {
-                result.then(undefined, e => console.error(`[Admin+] kick failed for ${target.name}: ${e}`))
-            }
-            return true
-        } catch (e) {
-            console.error(`[Admin+] Player.kick failed for ${target.name}: ${e}`)
-        }
+    if (typeof target?.kick !== "function") {
+        console.warn(`[Admin+] this runtime has no Player.kick — ${target?.name} was not removed`)
+        return false
     }
 
-    // There is NO fallback to the /kick command, on purpose. On a local world
-    // /kick does not merely disconnect somebody — it locks them out until the
-    // HOST restarts the world, which is a punishment nobody chose and the
-    // person who ran it cannot undo. A kick that quietly failed is a smaller
-    // problem than a kick that bans somebody from their friend's world for the
-    // evening, so this reports the failure and stops.
-    return false
+    try {
+        // AWAITED, which is the whole correction. The method returns a
+        // CommandResult, sometimes wrapped in a promise; the old code took the
+        // promise, attached a rejection logger, and returned true immediately.
+        // So every ban said "removed" whether or not anybody moved.
+        const result = await target.kick(text)
+
+        if (result && typeof result.successCount === "number" && result.successCount === 0) {
+            // The command ran and matched nobody. This is the shape a refusal
+            // takes — no throw, no rejection, just a count of zero.
+            console.warn(`[Admin+] kick ran but removed nobody (successCount 0): ${target.name}`)
+            return false
+        }
+        return true
+    } catch (e) {
+        console.error(`[Admin+] Player.kick failed for ${target.name}: ${e}`)
+        return false
+    }
 }
 
 // --------------------------------------------------------------------- mutes
@@ -292,11 +323,17 @@ export function setTpaClosed(playerOrId, closed) { return setFlag(playerOrId, "t
 export function installModeration() {
     world.afterEvents.playerSpawn.subscribe(({ player, initialSpawn }) => {
         if (!initialSpawn) return
-        system.run(() => {
+        system.run(async () => {
             pruneExpired()
             const record = banRecord(player)
             if (record) {
-                kick(player, banMessage(record))
+                const removed = await kick(player, banMessage(record))
+                // A banned player still standing here is worth a log line, not
+                // silence — it is the difference between "the ban works" and
+                // "the ban is recorded and doing nothing visible".
+                if (!removed) {
+                    console.warn(`[Admin+] ${player.name} rejoined while banned and could not be removed`)
+                }
                 return
             }
             applyFrozen(player)
