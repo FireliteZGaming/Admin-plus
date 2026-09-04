@@ -284,6 +284,28 @@ def release_title(version, channel):
     return f"Admin+ v{version}" + (f" ({label})" if label else "")
 
 
+MEANS = {
+    "alpha": "**Alpha.** The tests pass and the verifier is clean; the engine has "
+             "never run this build. Expect to find things.",
+    "beta": "**Beta.** This ran in a world and did what it should, but it has not "
+            "been played by anyone else yet.",
+    "stable": "",
+}
+
+
+def body_for(version, notes, channel, slug):
+    """Release notes: the changelog section, what the channel claims, and where
+    the rest of the history is. A releases page that skips versions should at
+    least say where they went."""
+    parts = [notes]
+    if MEANS[channel]:
+        parts.append(MEANS[channel])
+    if slug:
+        parts.append(f"Every version: "
+                     f"[CHANGELOG.md](https://github.com/{slug}/blob/v{version}/CHANGELOG.md)")
+    return "\n\n---\n\n".join(p for p in parts if p)
+
+
 def publish(version, tag, notes, channel):
     slug, tok = repo_slug(), token()
     if not slug or not tok:
@@ -298,7 +320,7 @@ def publish(version, tag, notes, channel):
         rel = api(f"https://api.github.com/repos/{slug}/releases", tok, {
             "tag_name": tag,
             "name": release_title(version, channel),
-            "body": notes,
+            "body": body_for(version, notes, channel, slug),
             "draft": False,
             "prerelease": CHANNELS[channel]["prerelease"],
         })
@@ -332,7 +354,7 @@ def promote(version, tag, notes):
         return
     api(f"https://api.github.com/repos/{slug}/releases/{rel['id']}", tok, {
         "name": release_title(version, "stable"),
-        "body": notes,
+        "body": body_for(version, notes, "stable", slug),
         "prerelease": False,
         "make_latest": "true",
     }, method="PATCH")
