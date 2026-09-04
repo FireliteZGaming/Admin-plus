@@ -42,6 +42,12 @@ const SILENT = new Set([
     "admin.staffmode",
     // Same shape: you switch your OWN developer mode, nobody else's.
     "dev.mode",
+    // Taking an item from /items is done to yourself. Logged so there is a
+    // record of who armed themselves; nobody else needs a chat line about it.
+    "admin.items",
+    // The Knockback stick is a repeatable physical prank — announcing every hit
+    // would flood staff chat. Logged, not spoken.
+    "admin.knockback",
     // Logged, not spoken. Staff walk to people constantly, and moving YOURSELF
     // is not something done to the other player — mod.bring, which moves them,
     // is announced. The distinction is the same one the audience rule makes:

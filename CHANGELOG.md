@@ -22,6 +22,29 @@ tag, same file, only the claim about it changes.
 
 ---
 
+## 1.26.0 — 2026-09-04
+
+**`/items`** — grab an admin item without vanishing or opening `/admin`. It opens
+the same chest-grid window `/invsee` uses, but as a picker: click a slot and the
+item lands in your inventory. Three items, each shown only to a rank that may
+take it:
+
+- **Ban Hammer** — for permanent-ban holders, same as the `/mm` bar.
+- **Teleport compass** — jump to a random player. Works on its own, without
+  entering staff mode.
+- **Knockback stick** — hit somebody and send them flying the way you're facing.
+
+Everything is signed with the per-world serial the Ban Hammer uses, so a compass
+or stick renamed on an anvil is inert. The sigil differs from the staff-mode
+tools', so a `/mm` compass and an `/items` compass never trigger each other.
+
+The knockback is *very strong*, not literally infinite — infinite throws
+somebody into unloaded chunks and loses them. It applies through whichever of
+three shapes the runtime supports: `applyKnockback(VectorXZ, vertical)`, the
+older four-argument `applyKnockback`, or `applyImpulse` as the fallback. The
+stick checks permission and rank at the moment of the hit, like the hammer, so
+it goes inert if the holder loses the node.
+
 ## 1.25.0 — 2026-09-04
 
 **`/sudo` is a troll command now, and answers to `feature.troll`.** Putting words

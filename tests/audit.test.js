@@ -115,7 +115,9 @@ check("walking to someone is silent too", audienceFor(admin, member, "mod.tpTo")
 check("entering staff mode is silent", audienceFor(admin, admin, "admin.staffmode"), [])
 check("switching your own developer mode is silent",
     audienceFor(admin, admin, "dev.mode"), [])
-check("the silent list is exactly those nine", SILENT.size, 9)
+check("taking an admin item is silent", audienceFor(admin, admin, "admin.items"), [])
+check("a knockback hit is silent", audienceFor(admin, member, "admin.knockback"), [])
+check("the silent list is exactly those eleven", SILENT.size, 11)
 
 console.log("\n— actions with nobody on one end —")
 check("no actor, no line", audienceFor(undefined, member, "automod.ore"), [])

@@ -13,6 +13,7 @@ import "./features/invsee.js"
 import "./features/broadcast.js"
 import { installBanHammer } from "./features/banhammer.js"
 import { installStaffMode } from "./features/staffmode.js"
+import { installAdminItems } from "./features/adminitems.js"
 import { installScriptEvents } from "./features/scriptevents.js"
 import "./features/holograms.js"
 import { installHolograms } from "./core/holograms.js"
@@ -113,6 +114,7 @@ installVanish()
 installPresence()
 installBanHammer()
 installStaffMode()
+installAdminItems()
 installScriptEvents()
 installHolograms()
 installHealthCheck()
