@@ -5,11 +5,12 @@ import { ok, err, info, formatDuration } from "../core/util.js"
 import { primaryRank, playerRanks, canActOn, has, refreshNameTag, knownHolders, getRank, heldRankIds } from "../core/ranks.js"
 import { invseeScreen } from "./invsee.js"
 import { displayName, getNickname, setNickname, NICK_MAX } from "../core/identity.js"
-import { renderTag } from "../core/settings.js"
+import { renderTag, flag } from "../core/settings.js"
 import {
     kick, ban, mute, unmute, isMuted, isFrozen, setFrozen,
     tpaClosed, setTpaClosed, statusLine,
-    banList, unban, isBanned, banRecord
+    banList, unban, isBanned, banRecord,
+    BAN_REASONS, banSliderMax, banLengthMs, banLengthLabel, PERMANENT_NOTCH
 } from "../core/moderation.js"
 import { record } from "../core/logs.js"
 import { warningLine, warningCount } from "../core/warnings.js"
@@ -238,7 +239,7 @@ async function playerActionsScreen(player, target, back) {
                 ? { text: "§6Kick", run: () => reasonScreen(player, target, "kick", back) }
                 : null,
             allowed && has(player, "admin.ban")
-                ? { text: "§cBan", run: () => durationScreen(player, target, "ban", back) }
+                ? { text: "§cBan", run: () => banScreen(player, target, back) }
                 : null
         ].filter(Boolean),
         back
@@ -256,9 +257,12 @@ const DURATIONS = [
     ["Permanent", 0]
 ]
 
+// Mutes still pick from a list of preset lengths. A mute is cheap and easily
+// lifted, so the extra screen costs less than it does on a ban — and the useful
+// mute lengths (30 minutes, an hour) are shorter than a day-slider can express.
 async function durationScreen(player, target, action, back) {
     return menu(player, {
-        title: title(`${action === "ban" ? "Ban" : "Mute"} · ${displayName(target)}`),
+        title: title(`Mute · ${displayName(target)}`),
         body: subtitle("How long?"),
         buttons: DURATIONS.map(([label, ms]) => ({
             text: ms === 0 ? `§c${label}` : label,
@@ -266,6 +270,85 @@ async function durationScreen(player, target, action, back) {
         })),
         back
     })
+}
+
+/**
+ * The ban screen. One form: why, what happened, how long.
+ *
+ * Bans used to take two screens — a menu of six preset lengths, then a box for
+ * the reason. This is one, and the length is a slider whose last notch is
+ * permanent (see banLengthMs in core/moderation.js for why it is one control
+ * and not two).
+ *
+ * The field ORDER is load-bearing. `modal()` maps answers back by index, so
+ * these three entries and the three reads below have to stay in step; a label
+ * or divider slipped in between would silently shift every value one place.
+ */
+export async function banScreen(player, target, back) {
+    if (!has(player, "admin.ban")) return err(player, "You can't ban.")
+    if (!canActOn(player, target)) {
+        return err(player, `${displayName(target)}§c outranks you.`)
+    }
+    if (isBanned(target)) {
+        info(player, `${displayName(target)}§7 is already banned.`)
+        return back()
+    }
+
+    const permanent = flag("ban.allowPermanent")
+    const max = banSliderMax(permanent)
+
+    const values = await modal(player, title(`Ban · ${displayName(target)}`), [
+        {
+            id: "reason",
+            type: "dropdown",
+            label: "Reason",
+            options: BAN_REASONS,
+            default: 0
+        },
+        {
+            id: "detail",
+            type: "text",
+            label: "What happened §7(required if you picked Other)",
+            placeholder: "They tore up spawn",
+            default: ""
+        },
+        {
+            id: "length",
+            type: "slider",
+            // A Bedrock slider draws the number and nothing else, so the notch
+            // that means "permanent" has to be named up here or not at all.
+            label: permanent
+                ? `Days §7(${PERMANENT_NOTCH} = permanent)`
+                : "Days §7(permanent bans are switched off)",
+            min: 1,
+            max,
+            step: 1,
+            default: 1
+        }
+    ])
+    if (!values) return back()
+
+    const picked = BAN_REASONS[values.reason ?? 0] ?? "Other"
+    const detail = String(values.detail ?? "").trim()
+    if (picked === "Other" && !detail) {
+        err(player, "Say what they did.")
+        return banScreen(player, target, back)
+    }
+    const reason = picked === "Other" ? detail : (detail ? `${picked}: ${detail}` : picked)
+
+    const notch = values.length ?? 1
+    const durationMs = banLengthMs(notch, permanent)
+    const length = banLengthLabel(notch, permanent)
+
+    const confirmed = await confirm(player, title("Ban"),
+        `Ban §f${displayName(target)}§r?\n\n§7Reason: ${reason}\n§7Length: ${length}`,
+        "§cBan")
+    if (!confirmed) return back()
+
+    ban(target, durationMs, reason, player)
+    record(player, "mod.ban", target, `${reason} · ${length}`, { kind: "ban" })
+    ok(player, `Banned §f${target.name}§a (${length}).`)
+    return back()
 }
 
 async function reasonScreen(player, target, action, back, durationMs = 0) {
@@ -299,14 +382,8 @@ async function reasonScreen(player, target, action, back, durationMs = 0) {
         return back()
     }
 
-    const confirmed = await confirm(player, title("Ban"),
-        `Ban §f${displayName(target)}§r?\n\n§7Reason: ${reason}\n§7Length: ${durationMs ? formatDuration(durationMs) : "permanent"}`,
-        "§cBan")
-    if (!confirmed) return back()
-    ban(target, durationMs, reason, player)
-    record(player, "mod.ban", target,
-        `${reason} · ${durationMs ? formatDuration(durationMs) : "permanent"}`, { kind: "ban" })
-    ok(player, `Banned §f${target.name}§a (${durationMs ? formatDuration(durationMs) : "permanent"}).`)
+    // Bans do not come through here — they have their own single screen, with
+    // the slider. See banScreen above.
     return back()
 }
 

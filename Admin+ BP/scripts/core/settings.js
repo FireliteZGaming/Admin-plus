@@ -130,6 +130,11 @@ export const DEFAULTS = {
     "feature.chat": {
         value: "true", label: "Chat channels", help: "true / false · off means one plain chat for everyone"
     },
+    "ban.allowPermanent": {
+        value: "true",
+        label: "Permanent bans",
+        help: "true / false · off caps the ban slider at 7 days, so nobody can end somebody for good in a temper"
+    },
     "spawn.protect": {
         value: "false",
         label: "Spawn protection",

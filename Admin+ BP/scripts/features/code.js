@@ -95,6 +95,7 @@ export const GROUPS = {
     audit: "Staff action announcements",
     cleanup: "Lag clear",
     automod: "Automod",
+    ban: "Bans",
     feature: "Features on and off",
     spawn: "Spawn protection",
     teleport: "Teleporting",

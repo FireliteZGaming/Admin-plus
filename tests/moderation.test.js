@@ -2,7 +2,9 @@ import { __test, world } from "@minecraft/server"
 import {
     ban, banRecord, isBanned, unban, banList, banMessage, pruneExpired,
     mute, isMuted, unmute, muteRecord,
-    kick, setFrozen, isFrozen, tpaClosed, setTpaClosed, statusLine
+    kick, setFrozen, isFrozen, tpaClosed, setTpaClosed, statusLine,
+    BAN_REASONS, BAN_MAX_DAYS, PERMANENT_NOTCH,
+    banSliderMax, banLengthMs, banLengthLabel
 } from "../Admin+ BP/scripts/core/moderation.js"
 
 let passed = 0, failed = 0
@@ -174,6 +176,38 @@ mute(quiet, 0, "x", staff)
 setFrozen(quiet, true)
 const s = statusLine(quiet)
 check("status names every live state", [s.includes("muted"), s.includes("frozen"), s.includes("TPA")], [true, true, true])
+
+console.log("\n— the ban slider —")
+const DAY = 864e5
+check("notch 1 is one day", banLengthMs(1), DAY)
+check("notch 7 is a week", banLengthMs(BAN_MAX_DAYS), 7 * DAY)
+check("the last notch is permanent, which ban() spells 0", banLengthMs(PERMANENT_NOTCH), 0)
+check("permanent sits one past the day range", PERMANENT_NOTCH, BAN_MAX_DAYS + 1)
+
+check("the slider offers 8 notches when permanent is allowed", banSliderMax(true), PERMANENT_NOTCH)
+check("and stops at 7 when it is not", banSliderMax(false), BAN_MAX_DAYS)
+
+// The whole point of the toggle: with permanent bans off there must be no way
+// to reach a permanent ban, including by sending the notch that used to mean it.
+check("notch 8 is 7 days when permanent is off, NOT forever",
+    banLengthMs(PERMANENT_NOTCH, false), 7 * DAY)
+check("and so is anything past it", banLengthMs(99, false), 7 * DAY)
+check("out-of-range low still lands on a real length", banLengthMs(0), DAY)
+check("a junk value does not become permanent", banLengthMs(undefined), DAY)
+
+check("permanent is called permanent", banLengthLabel(PERMANENT_NOTCH), "permanent")
+check("a length is never called permanent by accident",
+    banLengthLabel(PERMANENT_NOTCH, false) === "permanent", false)
+
+check("Other is the last reason, so the dropdown ends with the free-text one",
+    BAN_REASONS[BAN_REASONS.length - 1], "Other")
+
+// A ban built the way banScreen builds one has to survive the round trip.
+const slid = fakePlayer("Slid")
+ban(slid, banLengthMs(3), "Griefing: tore up spawn", staff)
+check("a 3-day ban is live", isBanned(slid), true)
+check("and carries an expiry rather than 0", banRecord(slid).until > Date.now(), true)
+unban(slid.id)
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

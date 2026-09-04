@@ -22,6 +22,28 @@ tag, same file, only the claim about it changes.
 
 ---
 
+## 1.16.0 — 2026-09-04
+
+**Banning is one screen, and the length is a slider.** It used to be two: a menu
+of six preset lengths, then a box for the reason. Now it asks the three
+questions together — a dropdown of reasons, a box for what actually happened,
+and a single slider for how long.
+
+The slider runs 1 to 7 days, and the 8th notch is **permanent** — the longest
+length rather than a separate switch, so you cannot set "3 days" and "forever"
+at the same time and leave the code to pick a winner. Bedrock draws a slider as
+a bare number with no way to label a notch, so the field label names the last
+one.
+
+**Added**
+
+- **`/ban <player>`** — opens the same screen, and tab-completes the name, which
+  the panel's player list cannot. It deliberately takes no length argument:
+  "/ban Steve 30" is thirty of something.
+- **Permanent bans toggle** (`ban.allowPermanent`, in Code ▸ Bans). Switched off,
+  the slider stops at 7 days and no value sent to it can produce a permanent ban
+  — not the 8th notch, not a number past it.
+
 ## 1.15.0 — 2026-09-03
 
 **Vanilla commands are a whitelist now.** `commands.allowed` is the single list;

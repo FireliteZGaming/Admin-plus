@@ -23,6 +23,62 @@ function active(record) {
     return record.until > Date.now()
 }
 
+// ------------------------------------------------------------- ban length
+
+/**
+ * The ban screen's length control is ONE slider, and the last notch is
+ * permanent.
+ *
+ * Three text boxes for minutes/hours/days is the obvious design and it is the
+ * wrong one: it asks for arithmetic at the exact moment somebody is annoyed,
+ * and it lets you type 999 in a box meant for hours. A slider cannot express a
+ * length that does not exist, so the only lengths are the ones we chose.
+ *
+ * Permanent lives at the far end of the same slider rather than in a separate
+ * control, because it IS the longest length — a second widget would let you set
+ * "3 days" and "permanent" at the same time and then have to pick a winner.
+ *
+ * Bedrock sliders render the raw number and nothing else. There is no way to
+ * label the last notch, so the FIELD label carries it and every place that
+ * shows a chosen length uses banLengthLabel().
+ */
+export const BAN_MAX_DAYS = 7
+export const PERMANENT_NOTCH = BAN_MAX_DAYS + 1
+
+/** Highest notch the slider offers: 8 when permanent bans are allowed, else 7. */
+export function banSliderMax(allowPermanent) {
+    return allowPermanent ? PERMANENT_NOTCH : BAN_MAX_DAYS
+}
+
+/**
+ * Slider notch -> milliseconds, in the same units `ban()` takes.
+ * The permanent notch returns 0, which is what ban() already means by forever.
+ */
+export function banLengthMs(notch, allowPermanent = true) {
+    const max = banSliderMax(allowPermanent)
+    const value = Math.min(Math.max(Math.round(Number(notch) || 1), 1), max)
+    if (allowPermanent && value === PERMANENT_NOTCH) return 0
+    return value * 864e5
+}
+
+/** What to call that length in a confirmation, a log line or a chat message. */
+export function banLengthLabel(notch, allowPermanent = true) {
+    const ms = banLengthMs(notch, allowPermanent)
+    if (ms === 0) return "permanent"
+    return formatDuration(ms)
+}
+
+/** The dropdown, in the order a ban screen should offer them. Other is last. */
+export const BAN_REASONS = [
+    "Griefing",
+    "Cheating",
+    "Harassment",
+    "Chat behaviour",
+    "Advertising",
+    "Ban evasion",
+    "Other"
+]
+
 // ---------------------------------------------------------------------- bans
 
 export function banRecord(playerOrId) {

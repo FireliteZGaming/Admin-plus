@@ -5,6 +5,7 @@ import { canActOn } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
 import { mute, unmute, isMuted, banList, unban } from "../core/moderation.js"
 import { chatAvailable } from "./chat.js"
+import { banScreen } from "./actions.js"
 import { record } from "../core/logs.js"
 
 // /mute and /unmute — the command form of the panel's mute button.
@@ -62,6 +63,35 @@ command({
             }
         }
         if (blocked.length) err(player, `Outranked you, skipped: §f${blocked.join(", ")}`)
+    }
+})
+
+// /ban opens the ban screen rather than taking a length as an argument.
+//
+// A ban is the one act here with no undo the person on the end of it can see,
+// and a typed length is exactly where that goes wrong: "/ban Steve 30" is
+// thirty of something. The screen asks the three questions in one form and
+// makes the length a slider, so an impossible ban cannot be expressed.
+//
+// The command is still worth having — it tab-completes the name, which the
+// panel's player list does not.
+command({
+    name: "ban",
+    description: "Ban a player — /ban <player> opens the ban screen",
+    perm: "admin.ban",
+    mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
+    run: (player, [selected]) => {
+        const targets = selected ?? []
+        if (!targets.length) return err(player, "No player matched that selector.")
+        if (targets.length > 1) return err(player, "Pick one player.")
+
+        const target = targets[0]
+        if (target.id === player.id) return err(player, "You can't ban yourself.")
+        if (!canActOn(player, target)) return err(player, `${displayName(target)} outranks you.`)
+
+        // registry.js defers every run handler a tick, which is what makes it
+        // legal to show a form from here.
+        return banScreen(player, target, () => { })
     }
 })
 
