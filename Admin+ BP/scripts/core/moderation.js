@@ -123,19 +123,17 @@ export function kick(target, reason) {
             }
             return true
         } catch (e) {
-            console.warn(`[Admin+] Player.kick unavailable for ${target.name} (${e}) — falling back to /kick`)
+            console.error(`[Admin+] Player.kick failed for ${target.name}: ${e}`)
         }
     }
 
-    // Fallback only. Quotes and line breaks have to go or the command breaks.
-    const flat = text.replace(/"/g, "'").replace(/[\r\n]+/g, " · ")
-    try {
-        world.getDimension("overworld").runCommand(`kick "${target.name}" ${flat}`)
-        return true
-    } catch (e) {
-        console.error(`[Admin+] kick failed for ${target.name}: ${e}`)
-        return false
-    }
+    // There is NO fallback to the /kick command, on purpose. On a local world
+    // /kick does not merely disconnect somebody — it locks them out until the
+    // HOST restarts the world, which is a punishment nobody chose and the
+    // person who ran it cannot undo. A kick that quietly failed is a smaller
+    // problem than a kick that bans somebody from their friend's world for the
+    // evening, so this reports the failure and stops.
+    return false
 }
 
 // --------------------------------------------------------------------- mutes

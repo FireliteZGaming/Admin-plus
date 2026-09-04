@@ -54,8 +54,10 @@ check("blocking is by command NAME, not a substring",
 check("case does not matter", runAsServer(owner, "OP Steve").ok, false)
 
 console.log("\n— the blocked list is the owner's to set —")
-check("it ships blocking the two that escape the rank system",
-    setting("commands.denied"), "op,deop")
+check("it ships blocking the ones that escape the rank system, plus /kick",
+    setting("commands.denied"), "op,deop,kick")
+check("/kick is refused, because it locks somebody out until the host restarts",
+    runAsServer(owner, "kick Steve").ok, false)
 setSetting("commands.denied", "give, kill")
 check("a newly blocked command is refused", runAsServer(owner, "give @s stone").ok, false)
 check("and one taken off the list is allowed again", runAsServer(owner, "op Steve").ok, true)

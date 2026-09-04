@@ -234,9 +234,9 @@ export const DEFAULTS = {
         help: "true / false · /pm, /r and /prchat"
     },
     "commands.denied": {
-        value: "op,deop",
+        value: "op,deop,kick",
         label: "Blocked commands for /exec",
-        help: "Comma separated · op and deop are blocked by default, because somebody who can op themselves is no longer bound by their rank"
+        help: "Comma separated · op and deop, because somebody who can op themselves is no longer bound by their rank. kick, because the vanilla one locks a player out of a local world until the HOST restarts it — use the panel Kick instead"
     },
     "format.broadcast": {
         value: "§8[§c§lBroadcast§r§8]§r §e{MSG}",

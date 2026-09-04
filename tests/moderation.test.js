@@ -46,20 +46,24 @@ check("an elapsed ban stops counting", isBanned(spammer), false)
 pruneExpired()
 check("and prune clears the record", banList().length, 0)
 
-console.log("\n— the /kick FALLBACK, for runtimes without Player.kick —")
+console.log("\n— there is NO /kick fallback, on purpose —")
+// /kick does not merely disconnect somebody on a local world: it locks them out
+// until the HOST restarts it. That is a punishment nobody chose and the person
+// who ran it cannot undo, so a kick that quietly fails is the smaller problem.
+// Nothing in the pack may reach for the command.
 __test.commands.length = 0
 ban(griefer, 0, "Grief", staff)
-const line = __test.commands.at(-1)
-check("a kick command was issued", line.startsWith('kick "Griefer"'), true)
-check("no raw newline can truncate it", line.includes("\n"), false)
-check("the ban message itself does have one", banMessage(banRecord(griefer)).includes("\n"), true)
-check("so it was flattened, not dropped", line.includes("·"), true)
+check("banning somebody with no Player.kick issues no command",
+    __test.commands.filter(c => String(c).startsWith("kick ")).length, 0)
+check("the ban itself still stands", isBanned(griefer), true)
+check("and the ban message is unaffected",
+    banMessage(banRecord(griefer)).includes("\n"), true)
 unban(griefer.id)
 
-console.log("\n— quotes cannot break out of the fallback command —")
 __test.commands.length = 0
-kick(quiet, 'go "away" now')
-check("double quotes are neutralised", __test.commands.at(-1).includes('"away"'), false)
+check("kick() reports the failure rather than falling back",
+    kick(quiet, 'go "away" now'), false)
+check("still no command was run", __test.commands.length, 0)
 
 
 console.log("\n— kicking uses Player.kick, not the operator command —")
@@ -86,12 +90,14 @@ const asyncKick = fakePlayer("Async")
 asyncKick.kick = () => Promise.reject(new Error("gone"))
 check("a rejected promise is caught, not thrown", kick(asyncKick, "bye"), true)
 
-// A runtime where the method exists but throws still gets somebody kicked.
+// A runtime where the method exists but throws reports the failure and stops.
+// It does NOT reach for /kick: locking somebody out of a friend's world until
+// the host restarts it is worse than a kick that did not happen.
 const brokenKick = fakePlayer("Broken")
 brokenKick.kick = () => { throw new Error("nope") }
 __test.commands.length = 0
-check("it falls back to the command", kick(brokenKick, "bye"), true)
-check("and the command really ran", __test.commands.at(-1).startsWith('kick "Broken"'), true)
+check("a throwing Player.kick reports failure", kick(brokenKick, "bye"), false)
+check("and runs no command", __test.commands.length, 0)
 
 console.log("\n— freezing uses the current input API —")
 // setEnabled was renamed setPermissionCategory. Calling the old name threw on
