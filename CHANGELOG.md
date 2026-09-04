@@ -22,6 +22,23 @@ tag, same file, only the claim about it changes.
 
 ---
 
+## 1.25.0 — 2026-09-04
+
+**`/sudo` is a troll command now, and answers to `feature.troll`.** Putting words
+in somebody's mouth is a prank by definition, so it sits behind the same switch
+as `/smite` — which ships **off**. It keeps its own `admin.sudo` node, so once
+the troll section is on an owner still chooses who may use it.
+
+Note for anyone updating: on a world that used `/sudo` before, it will stop
+working until troll commands are turned on in Settings ▸ Troll commands. The
+node did not change — the master switch over it did.
+
+**Fixed:** a ban-hammer swing could reject silently. `swing()` became async when
+`ban()` and `kick()` did, and the `system.run` that fires it was not catching
+the promise — a silent failure on the one path built to log every outcome. Now
+caught and traced. An audit confirmed every other `ban()`/`kick()` call site was
+already awaited correctly; this was the only gap.
+
 ## 1.24.0 — 2026-09-04
 
 **`/mode <default|developer>`** — a door onto `< Code >` with a name on it.

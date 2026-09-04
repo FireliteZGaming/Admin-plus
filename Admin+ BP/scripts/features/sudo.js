@@ -5,6 +5,7 @@ import { canActOn } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
 import { postToChannel } from "./chat.js"
 import { activeChannel } from "../core/channels.js"
+import { flag } from "../core/settings.js"
 import { record } from "../core/logs.js"
 import { phraseFor } from "../core/audit.js"
 
@@ -13,6 +14,11 @@ import { phraseFor } from "../core/audit.js"
 //
 //   /sudo Nova "hi everyone"     they say it, indistinguishable from typing it
 //   /sudo Nova "/kill @s"        they RUN it, at their own permission level
+//
+// It is a TROLL command, and answers to `feature.troll` like the rest of that
+// section — off by default. The speak form is a prank by definition, so the
+// switch that gates the pranks gates this too; keeping its own admin.sudo node
+// means an owner still chooses WHO may use it once the section is on.
 //
 // Two things keep this honest rather than dangerous:
 //   * rank protection — you cannot sudo anyone at or above your own ladder row,
@@ -36,6 +42,10 @@ command({
         { name: "message", type: CustomCommandParamType.String }
     ],
     run: (player, [selected, message]) => {
+        if (!flag("feature.troll")) {
+            return err(player, "Troll commands are switched off. An owner turns them on in Settings ▸ Troll commands.")
+        }
+
         const targets = selected ?? []
         if (!targets.length) return err(player, "No player matched that selector.")
 
