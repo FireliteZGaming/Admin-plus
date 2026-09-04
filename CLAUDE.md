@@ -69,6 +69,20 @@ every tick. The 4th argument is a fade-OUT, not a fade-in — it is the only thi
 bridging the gap to the next application. 10 ticks flickered; blend 0 flickered
 worse. **Confirmed working; leave it alone.**
 
+**NEVER run the `/kick` command.** On a local world it locks somebody out until
+the HOST restarts. `core/moderation.js` uses `Player.kick()` with NO fallback,
+and `kick` is off the `/exec` whitelist. A kick that quietly fails is the
+smaller problem.
+
+**`world.getDynamicProperty` throws during early execution**, which is when
+`Table` constructors run - so the first read of every table always fails. A
+failed read is NOT an empty world; treating it as one wrote defaults over whole
+worlds for six versions. Retry on the first tick, and never seed on a guess.
+
+**A behaviour entity with no CLIENT entity in the RP renders nothing at all** -
+no model, no nametag - while every script call reports success. Holograms were
+invisible from the day they were written for exactly this.
+
 **Nothing can kick the world host.** They are the server. `ban()` returns
 `{ok, kicked}` so callers can say so honestly instead of looking broken.
 
@@ -92,7 +106,11 @@ value in the wrong key.
 - **A node exists only if the code checks it.** A switch that does nothing is
   worse than no switch; a test enforces this.
 - **Never punish automatically.** Automod alerts staff and they decide.
-- **Anti-grief:** nothing in the pack breaks world blocks.
+- **Anti-grief is UNSETTLED, and was never the user's rule.** This line used to
+  read as a standing decision. It was carried over from the sibling Soulbound
+  project by me, not stated by them - and it had already been used twice to talk
+  them out of features. Ask before citing it. Do not import a sibling project's
+  philosophy again just because the folders sit next to each other.
 - MIT licensed. Chest-UI is included under CC BY 4.0 — see
   `THIRD-PARTY-NOTICES.md`. Techniques from SafeGuard and UltraVanish were
   reimplemented; no files of theirs ship.
