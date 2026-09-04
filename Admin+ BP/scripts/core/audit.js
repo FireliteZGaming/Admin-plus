@@ -36,6 +36,10 @@ const SILENT = new Set([
     "mod.invsee.destroy",
     "admin.vanish",             // vanish tells staff itself, in its own words
     "admin.unvanish",
+    // Staff mode is done to yourself, not to anybody — the actor and the target
+    // are the same person, so the audience rule leaves nobody to tell. It also
+    // vanishes you, and that already speaks.
+    "admin.staffmode",
     // Logged, not spoken. Staff walk to people constantly, and moving YOURSELF
     // is not something done to the other player — mod.bring, which moves them,
     // is announced. The distinction is the same one the audience rule makes:

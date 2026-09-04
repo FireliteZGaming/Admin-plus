@@ -12,6 +12,7 @@ import "./features/sudo.js"
 import "./features/invsee.js"
 import "./features/broadcast.js"
 import { installBanHammer } from "./features/banhammer.js"
+import { installStaffMode } from "./features/staffmode.js"
 import { installScriptEvents } from "./features/scriptevents.js"
 import "./features/holograms.js"
 import { installHolograms } from "./core/holograms.js"
@@ -109,6 +110,7 @@ installAutomod()
 installVanish()
 installPresence()
 installBanHammer()
+installStaffMode()
 installScriptEvents()
 installHolograms()
 installHealthCheck()

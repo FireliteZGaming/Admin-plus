@@ -110,7 +110,10 @@ check("but opening the inventory does",
 // "used vanish on" somebody who had only hidden themselves.
 check("vanish is not announced twice", audienceFor(admin, member, "admin.vanish"), [])
 check("walking to someone is silent too", audienceFor(admin, member, "mod.tpTo"), [])
-check("the silent list is exactly those seven", SILENT.size, 7)
+// Staff mode is done to yourself. The actor and the target are one person, so
+// there is nobody the audience rule would tell even if it were not on the list.
+check("entering staff mode is silent", audienceFor(admin, admin, "admin.staffmode"), [])
+check("the silent list is exactly those eight", SILENT.size, 8)
 
 console.log("\n— actions with nobody on one end —")
 check("no actor, no line", audienceFor(undefined, member, "automod.ore"), [])

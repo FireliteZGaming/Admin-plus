@@ -22,6 +22,50 @@ tag, same file, only the claim about it changes.
 
 ---
 
+## 1.17.0 — 2026-09-04
+
+**`/mm` — staff mode.** One toggle: your inventory is put away, a tool bar takes
+its place, and you vanish. `/mm` again gives everything back.
+
+The tools, and what each one is pointed at:
+
+| Slot | Tool | Does |
+|---|---|---|
+| 1 | Compass | jump to a random non-staff player |
+| 2 | Packed ice | right-click a player to freeze or release them |
+| 3 | Book | right-click a player to read their inventory |
+| 4 | Blaze rod | right-click a player for everything you can do to them |
+| 5 | Stick | right-click a block to read its type and every block state |
+| 9 | Clock | leave staff mode |
+
+They are signed the way the Ban Hammer is — vanilla items carrying this world's
+serial in their lore, which players cannot set. A renamed stick does nothing.
+
+**On not losing anybody's items.** Entering staff mode empties an inventory, so
+two copies are kept and they are not the same kind of thing. The real
+`ItemStack` objects are held in memory, and putting those back is lossless —
+shulker contents, book pages and map data all survive because it is the same
+object. A serialised description also goes into world storage as a safety net.
+The snapshot is written and confirmed **before a single slot is cleared**: if
+the inventory cannot be read or the copy cannot be saved, `/mm` refuses and
+touches nothing.
+
+If the world reloads while somebody is in staff mode the originals are gone, so
+the fallback rebuilds from the snapshot — and it **says so** rather than handing
+back a reconstruction quietly. Coming back after leaving mid-staff-mode restores
+automatically on spawn.
+
+`/mm <player>` takes somebody else *out* of staff mode — a rescue. It will not
+put them in; their items would be stowed under their own name with no way for
+them to know.
+
+**Also**
+
+- New node `admin.staffmode`, on Mod and up.
+- The block inspector reads states but does not change them. Cycling them — a
+  real debug stick — is possible on Bedrock via `BlockPermutation.resolve` and
+  is not built yet.
+
 ## 1.16.0 — 2026-09-04
 
 **Banning is one screen, and the length is a slider.** It used to be two: a menu
