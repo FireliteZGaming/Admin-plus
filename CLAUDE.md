@@ -13,10 +13,12 @@ This file holds the STABLE facts. Anything changing lives in memory
 
 ```
 python tools/setversion.py X.Y.Z   # config.js + every manifest array + both pack names
-npm test                           # must be green, 23 suites
+# write the CHANGELOG.md section NOW, not afterwards
+npm test                           # must be green
 python tools/verify.py             # must be 0 problems
 python mcpack.py                   # -> Admin+.mcaddon
 python tools/deploy.py             # into com.mojang, for the user to test
+python tools/release.py --alpha    # tag, GitHub pre-release, archived build
 ```
 
 - **Never hand-edit a version.** Six arrays plus `config.js` plus two pack names
@@ -27,6 +29,26 @@ python tools/deploy.py             # into com.mojang, for the user to test
   are running.
 - After a Minecraft update, run `python tools/genicons.py` — item icons come
   from texture paths read out of the installed game.
+
+## Releases have a channel, and it means how SURE, not how big
+
+`tools/release.py` is the only way to ship. It refuses on a version mismatch, a
+missing CHANGELOG section, a red test, a verifier problem, a dirty tree, or an
+existing tag — and for anything above alpha it greps the content logs for
+`[Admin+] vX.Y.Z loaded` and refuses if the engine has never run this build.
+That last gate is the one that matters: a half-fixed storage build reached the
+storefront because nobody could tell shipped from played.
+
+- `--alpha` — tests pass, never run in game. GitHub pre-release; keep it OFF
+  CurseForge, because MCPEDL mirrors CurseForge and that is the widest audience,
+  not the narrowest.
+- `--beta` — ran in a world here. CurseForge file type Beta.
+- (no flag) — stable. Played by somebody who did not write it.
+- `--promote` — an alpha/beta that survived becomes stable. Same tag, same file,
+  prerelease flag flipped. **Never renumber to change a claim.**
+
+A Bedrock manifest version is three integers, so the channel lives in the release
+metadata, never in the number.
 
 ## Who publishes what
 
