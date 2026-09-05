@@ -57,6 +57,36 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.0.2 — 2026-09-05
+
+**The vanilla commands complete their own arguments now.**
+
+`/cmd` could offer you a command name and nothing after it. Type
+`/cmd:kill @e[` and the game opens its own selector completion — every filter it
+supports, because it is the engine doing the parsing rather than anything here.
+Item and block names complete the same way, and a bad argument is refused before
+the pack sees it.
+
+Each of the 56 allowed commands is its own command now, under `cmd:`, carrying
+the parameters it really takes: `kill` an entity selector, `give` a player, an
+item and a count, `setblock` a position and a block, `summon` an entity type.
+
+The reason it is 56 commands rather than one is worth stating, because it is not
+a style choice: a command can only declare **one** set of parameters. A single
+`/cmd` could never be an entity selector for `kill` and a position-and-block for
+`setblock` at the same time. `/cmd` itself is gone; `/cmd:` replaces it.
+
+This was previously called impossible here. It was not — the parameter types had
+simply never been looked up. There are eleven of them, and this project's own
+test stand-in declared four, which is what the claim had been resting on.
+
+**Removed: Operator blocks.** `/give` already does it. Its permission node went
+with it, because a permission that nothing checks is worse than none at all.
+
+**The About screen writes its own command list.** The hand-typed one had drifted
+to naming 19 of 51 commands and still advertised two that had been renamed. A
+list of what exists should be read from what exists.
+
 ## 2.0.1 — 2026-09-05
 
 **The first version anybody actually played, and what that found.**
