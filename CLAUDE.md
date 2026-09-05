@@ -105,6 +105,14 @@ edit, SafeGuard, AdminUtils) and all 46 installed packs that import
 servers alone. `Player.kick()` is undocumented but returns a **CommandResult**,
 which gives away that it runs /kick underneath.
 
+**UPDATE 2026-09-05, from a content log: `Player.kick` DOES NOT EXIST on
+1.26.45.** A real kick attempt logged `api: unavailable`, which is this pack's
+own words for `typeof target.kick !== "function"`. So on the game actually being
+played the chain is two routes, not three, and the lockout that route was blamed
+for cannot even be reproduced there. Leave the route in — it costs an
+availability check and the API has moved before — but do not reason as though it
+runs.
+
 So the old rule here — "never run the /kick command" — was unachievable, and
 worse, it steered this pack onto `Player.kick()`: the one route nobody else uses
 and the one confirmed to leave a player locked out after an unban.
