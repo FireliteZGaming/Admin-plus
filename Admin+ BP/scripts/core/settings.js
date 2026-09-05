@@ -130,6 +130,11 @@ export const DEFAULTS = {
     "feature.chat": {
         value: "true", label: "Chat channels", help: "true / false · off means one plain chat for everyone"
     },
+    "creator.console": {
+        value: "true",
+        label: "Creator & Dev console",
+        help: "true / false · lets the pack's Creator and anyone with the Dev tag open a command console in /menu. Bounded by the vanilla-command whitelist below, cannot /op, and every use is logged to the owner. On by default; turn it off to close it."
+    },
     "feature.troll": {
         value: "false",
         label: "Troll commands",

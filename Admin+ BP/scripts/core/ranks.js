@@ -387,15 +387,27 @@ export function playerRanks(playerOrId) {
 /**
  * One gamertag gets a tag of its own in any world running this pack.
  *
- * It is a BADGE AND NOTHING ELSE. No permissions, not staff, weight 0. An
- * addon that handed its own author authority inside a stranger's world would be
- * a backdoor whatever it was called, and would deserve to be pulled from every
- * site that hosts it — so `has()` finds nothing to say about any node here and
- * the answer comes from whatever real rank they hold, which for a visitor is
- * the default one. Weight 0 keeps it under every ladder, so `topWeight` and
- * `canActOn` never see it either.
+ * It carries NO PERMISSIONS. No node, not staff, weight 0 — `has()` finds
+ * nothing to say about any node here, so a visitor's authority comes from
+ * whatever real rank they hold, and weight 0 keeps them under every ladder so
+ * `topWeight` and `canActOn` never see them either.
  *
- * It also lives OUTSIDE ranksTable, which is what makes it survive a preset
+ * ONE THING SITS BESIDE THE BADGE, and it is not a permission: the Creator &
+ * Dev console (`features/console.js`). It matters that it is not hidden and not
+ * unbounded, because "an addon that handed its author authority inside a
+ * stranger's world would be a backdoor" is still true and still the rule. What
+ * keeps the console the right side of that line:
+ *   - it is an OPT-OUT setting (`creator.console`), visible in the config, so
+ *     nothing about it is concealed from an owner who looks;
+ *   - it can only run the owner's OWN vanilla whitelist (`commands.allowed`),
+ *     so it grants no command the owner has not already exposed, and cannot
+ *     `/op` because op is never on that list;
+ *   - every command through it is logged AND announced to online owners, so it
+ *     is a power an owner can watch, not one that acts unseen.
+ * A regular member never reaches it — that is the whole point. If any of those
+ * three ever stops being true, this is a backdoor again; do not let it.
+ *
+ * The badge lives OUTSIDE ranksTable, which is what makes it survive a preset
  * replacing the whole ladder — and what stops it being granted to anyone else,
  * renamed, or edited in the rank screens.
  */

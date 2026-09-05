@@ -188,6 +188,10 @@ const NO_AUDIENCE = new Set([
     // logged, because being able to run vanilla commands without op is exactly
     // the power an operator has invisibly. The log is the difference.
     "admin.cmd",
+    // The Creator/Dev console tells online owners itself, by name and with the
+    // command, at the moment it runs — a second audit announcement would be the
+    // same news twice. The log entry stays as the durable record.
+    "creator.console",
     // Shutting the door is done to the WORLD, not to a person — everyone who
     // gets turned away is told why at the moment it happens, which is a better
     // channel than a staff line about somebody who is no longer here.

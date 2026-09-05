@@ -15,6 +15,7 @@ import { requestTo, requestHere } from "./tpa.js"
 import { askPrivateChat } from "./privatechat.js"
 import { reportForm } from "./reports.js"
 import { warpListScreen } from "./warps.js"
+import { canUseConsole, consoleScreen } from "./console.js"
 
 // /menu — the other half of panel-first.
 //
@@ -105,6 +106,16 @@ export async function openMenu(player) {
             changed ? `Yours alone · ${changed} changed` : "Yours alone · teleports, messages"),
         run: () => settingsScreen(player, again)
     })
+
+    // The Creator/Dev console, when the world allows it. Last, and coloured as
+    // the dev escape hatch so it reads as apart from the member-facing rows
+    // above it — because it is.
+    if (canUseConsole(player)) {
+        buttons.push({
+            text: hubButton("code", "Console", "Run a server command"),
+            run: () => consoleScreen(player, again)
+        })
+    }
 
     return menu(player, {
         title: hubTitle("ranks", "Menu"),
