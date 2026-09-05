@@ -135,6 +135,19 @@ The deeper constraint stands: Bedrock **cannot refuse a connection**. A Java ban
 list rejects the login; here the player always joins first, so every ban is a
 kick-on-join and inherits whatever kicking does.
 
+**Scripts have NO network access here.** `@minecraft/server-net` is the only
+HTTP API and the docs are explicit: it "can only be used on Bedrock Dedicated
+Server" and does "not function within the Minecraft game client or within
+Minecraft Realms." So anything needing a service — translating what a player
+typed, a webhook, fetching anything — cannot work on a realm or a local world.
+Checked 2026-09-05 against the API reference, not assumed.
+
+What IS possible for language: `rawtext` + `translate` keys render in EACH
+CLIENT'S own language, and `Admin+ RP/texts/` already ships 29 `.lang` files
+carrying only the six join/leave silencing lines. Localising the pack's own
+strings is therefore a real option (~400 message calls, ~250 form strings) and
+needs no network at all. Raised and shelved 2026-09-05.
+
 **`world.getDynamicProperty` throws during early execution**, which is when
 `Table` constructors run - so the first read of every table always fails. A
 failed read is NOT an empty world; treating it as one wrote defaults over whole
