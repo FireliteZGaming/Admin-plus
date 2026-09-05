@@ -52,9 +52,19 @@ What that body of work amounts to:
   failure that reset warps, ranks and bans on every rejoin for six versions.
 - **`tools/release.py`** with alpha/beta/stable channels, gated on the content
   log so nothing ships stable that the engine has never run.
-- **`< Code >` is a text editor now**, which is what the name always promised.
 
 The per-version detail for all of it is below, unchanged.
+
+---
+
+## 2.0.1 — 2026-09-05
+
+**The first version anybody actually played, and what that found.**
+
+2.0.0 was the milestone; this is the one that survived contact. Eighteen
+versions had passed their tests and none had ever run in a world. One
+playthrough found two real faults, and neither was reachable by any test that
+could have been written for it.
 
 ### `< Code >` opens the config, not a menu
 
@@ -86,10 +96,6 @@ question. A real editor makes that a single mis-stroke, so it is refused. A
 back to its default.
 
 ### Fixed by playing it
-
-Eighteen versions had passed their tests and none had been played. The first
-playthrough found two real faults, and both were things no test could have
-reached.
 
 - **Staff mode left you invisible after a world reload.** "Staff mode is what
   vanished you" was remembered in memory, and a reload forgets. Coming back, the
