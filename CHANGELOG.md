@@ -57,6 +57,34 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.0.5 — 2026-09-05
+
+**`/grant` — a rank that gives itself back.**
+
+Ranks could always be handed out. They could never be handed *back* on their
+own, so "Mod for the weekend" was something a person had to remember to undo.
+Now the rank remembers.
+
+`/grant <player>` opens one screen with the two questions: which rank, and for
+how long. The length is a dropdown — permanent, an hour, six, twelve, a day,
+three, seven, fourteen, thirty — because "how long" has about eight sensible
+answers and typing 259200 is not one of them.
+
+**Permanent is the first option and means no timer at all**, so the default
+answer leaves ranks behaving exactly as they always have. A clock is something
+you opt into, and re-granting a timed rank permanently really does stop the
+clock rather than leaving one behind to fire later.
+
+Expired ranks are taken back on a timer *and* when their holder joins, because
+neither alone is enough: a world can run for a week without reloading, and a
+grant that runs out while nobody is online has to be gone by the time its holder
+walks back in.
+
+Two things it is careful about. If a timed rank replaces lower ones, it says so
+before it does it — **and warns that those do not come back** when the timer
+ends. And a grant whose rank was later revoked by hand leaves a record pointing
+at nothing; that is cleaned up quietly rather than resurrecting the rank.
+
 ## 2.0.4 — 2026-09-05
 
 **The 56 vanilla commands actually exist now.** They are `/a:zkill`,

@@ -492,7 +492,7 @@ async function moveHeldScreen(player, targetId, targetName, rankId, back) {
 }
 
 /** Ranks the actor may hand out: strictly below their own row. */
-function grantableRanks(player) {
+export function grantableRanks(player) {
     return ladder().filter(rank => canEditRank(player, rank))
 }
 
@@ -572,7 +572,7 @@ async function setRankScreen(player, targetId, targetName, back) {
     })
 }
 
-function notify(targetId, text) {
+export function notify(targetId, text) {
     const target = world.getAllPlayers().find(p => p.id === targetId)
     if (target) info(target, text)
 }

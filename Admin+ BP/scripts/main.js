@@ -30,6 +30,7 @@ import "./features/warn.js"
 import "./features/nick.js"
 import "./features/chatcommands.js"
 import "./features/vanillacmds.js"
+import { installGrants } from "./features/grant.js"
 import "./features/troll.js"
 import "./features/mode.js"
 import { installAllowlist } from "./features/allowlist.js"
@@ -119,6 +120,7 @@ installHolograms()
 installHealthCheck()
 installChat()
 installPrivateChat()
+installGrants()
 installAllowlist()
 
 world.afterEvents.worldLoad.subscribe(() => {
