@@ -142,8 +142,38 @@ invisible from the day they were written for exactly this.
 **`PlayerInputPermissions.setEnabled` was renamed `setPermissionCategory`.**
 The old name threw into a catch, so freeze silently did nothing for weeks.
 
-**Forms have no multi-line text field**, no drag slots, and no hook for the
-vanilla anvil. The chest-grid inventory is a resource-pack trick, not an API.
+**Forms have no drag slots and no hook for the vanilla anvil.** The chest-grid
+inventory is a resource-pack trick, not an API.
+
+**CORRECTED 2026-09-04 — forms CAN have a multi-line text field, and Admin+ has
+shipped the ability to draw one since v1.1.0 without ever using it.** This file
+used to say they could not, and that was wrong for months: it is why `< Code >`
+was unrolled into ~55 one-line fields.
+
+The SCRIPT API has no multiline option. A resource pack overriding
+`ui/server_form.json` switches one on anyway, by pointing the custom form's
+input control at `npc_interact.multiline_text_edit_control` — a control vanilla
+already has for the NPC dialogue editor.
+
+**`Admin+ RP/ui/server_form.json` already contains that whole chain**, because
+it came from Chest-UI (CC BY 4.0, see `THIRD-PARTY-NOTICES.md`) and upstream
+carries it: `custom_form_switch` → `custom_multiline_form` →
+`custom_multiline_input` → `option_multiline_text_edit` →
+`multiline_dialog_text_edit`, with `$max_text_edit_length: 32767`.
+
+**How it triggers:** `custom_form_switch` reads `$flag_form_title` (currently
+the upstream default, the literal string `JavaScript REPL`). If the form TITLE
+contains it, every text field in that form is drawn multi-line; otherwise the
+ordinary form renders. So no new file and no new global override is needed — the
+override is already shipped and the risk already taken. What is needed is a
+sentinel that does not print, in the style the chest UI already uses (`§m§c§e`,
+`§t§r§a§d§e` — a `§` before each letter, which the renderer eats).
+
+Unverified in game. See memory `bedrock-multiline-forms`.
+
+The general lesson: **"the API cannot do X" is not "X is impossible."** The
+resource-pack layer has been the answer three times now — the chest grid,
+vanish hiding armour, and this.
 
 **`ModalFormData` label/header/divider elements shift `formValues` indices.**
 Avoided deliberately in the config screen — a mis-indexed write would put every
