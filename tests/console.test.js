@@ -1,6 +1,9 @@
-import { readFileSync } from "node:fs"
+import { readFileSync, readdirSync } from "node:fs"
 import { __test } from "@minecraft/server"
-import { onPlayerJoin, setRanks, applyPreset, CREATOR_GAMERTAG } from "../Admin+ BP/scripts/core/ranks.js"
+import {
+    onPlayerJoin, setRanks, applyPreset, CREATOR_GAMERTAG,
+    developerGamertags, __setTeamDevelopers
+} from "../Admin+ BP/scripts/core/ranks.js"
 import { canUseConsole } from "../Admin+ BP/scripts/features/console.js"
 import { setSetting, resetSetting } from "../Admin+ BP/scripts/core/settings.js"
 import { checkCommand } from "../Admin+ BP/scripts/core/execute.js"
@@ -42,9 +45,45 @@ console.log("\n— who can open the console —")
 // The whole safety of this feature is here. A regular member reaching it turns
 // a bounded creator convenience into a backdoor for everyone.
 check("the Creator can", canUseConsole(creator), true)
-check("somebody with the Dev tag can", canUseConsole(devOp), true)
+check("a world's own dev — Dev tag AND operator — can", canUseConsole(devOp), true)
 check("a plain member CANNOT", canUseConsole(member), false)
 check("nor can an Admin who is not the creator and has no Dev tag", canUseConsole(admin), false)
+
+// BOTH locks. The tag on its own is something any staff member with /tag can
+// hand out, so a tag-only gate would have let a moderator promote a member into
+// a command line. It required only the tag until 2.1.1; this is that hole.
+const devNoOp = fakePlayer("TaggedMember", { op: false, dev: true })
+check("the Dev tag WITHOUT operator is refused", canUseConsole(devNoOp), false)
+check("and operator without the tag is refused too",
+    canUseConsole(fakePlayer("PlainOp", { op: true })), false)
+
+console.log("\n— the Admin+ team —")
+// [Admin+ Creator] and [Admin+ Dev] are the two badges that travel with the
+// pack, and they are the only identities that reach the console without being
+// anything in the world at all.
+__setTeamDevelopers(["EmployedDev"])
+const teamDev = fakePlayer("EmployedDev")
+check("a team developer can, holding no rank and no op", canUseConsole(teamDev), true)
+check("the match ignores case",
+    canUseConsole(fakePlayer("employeddev")), true)
+check("somebody merely NAMED like one cannot",
+    canUseConsole(fakePlayer("EmployedDev2")), false)
+check("and the owner's off switch still closes it for them", (() => {
+    setSetting("creator.console", "false")
+    const shut = canUseConsole(teamDev)
+    resetSetting("creator.console")
+    return shut
+})(), false)
+__setTeamDevelopers([])
+check("taking them off the team takes the console with it", canUseConsole(teamDev), false)
+
+// Vacuous while the shipped list is empty, and that is the point: it arms
+// itself the day a real gamertag is added, so nobody ships a team member who
+// silently does not work.
+for (const tag of developerGamertags()) {
+    check(`the shipped team member ${tag} really gets in`,
+        canUseConsole(fakePlayer(tag)), true)
+}
 
 console.log("\n— the owner's off switch closes it for everyone —")
 setSetting("creator.console", "false")
@@ -86,6 +125,25 @@ check("and it announces to online owners", src.includes("onlineOwners") && src.i
 // the owner could revoke while it sits open.
 check("the screen re-checks the gate on entry",
     src.includes("if (!canUseConsole(player))"), true)
+
+// The team list lives in the source so that adding somebody is a release an
+// owner can read in the changelog. A `let` plus a test hook is the only reason
+// that could stop being true, so nothing in the pack may call the hook.
+console.log("\n— nothing in the pack can rewrite the team list —")
+const bp = new URL("../Admin+ BP/scripts/", import.meta.url)
+function scripts(dir, out = []) {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const child = new URL(`${entry.name}${entry.isDirectory() ? "/" : ""}`, dir)
+        if (entry.isDirectory()) scripts(child, out)
+        else if (entry.name.endsWith(".js")) out.push([entry.name, readFileSync(child, "utf8")])
+    }
+    return out
+}
+const mentions = scripts(bp).filter(([, text]) => text.includes("__setTeamDevelopers"))
+check("only the file that defines it mentions it at all",
+    mentions.map(([name]) => name), ["ranks.js"])
+check("and that file only defines it, never calls it",
+    (mentions[0]?.[1].match(/__setTeamDevelopers/g) ?? []).length, 1)
 
 console.log("\n— it never appears for a member in /menu —")
 const menuSrc = readFileSync(new URL("../Admin+ BP/scripts/features/menu.js", import.meta.url), "utf8")

@@ -4,8 +4,8 @@ import { hubTitle } from "../core/theme.js"
 import { ok, err } from "../core/util.js"
 import { flag } from "../core/settings.js"
 import { displayName } from "../core/identity.js"
-import { isCreator, isOwner } from "../core/ranks.js"
-import { inDeveloperMode } from "../core/devgate.js"
+import { isCreator, isTeamDeveloper, isOwner } from "../core/ranks.js"
+import { canUseCode } from "../core/devgate.js"
 import { runAsServer } from "../core/execute.js"
 import { record } from "../core/logs.js"
 
@@ -34,13 +34,28 @@ import { record } from "../core/logs.js"
  * May this player open the console here?
  *
  * The setting first, so an owner who turns it off closes it for everyone,
- * creator included. Then identity: the pack's Creator, or somebody carrying the
- * Dev tag — which only an operator can have set on themselves, and which an
- * owner hands out deliberately.
+ * creator included. Then one of two quite different claims:
+ *
+ *   THE PACK'S TEAM — `[Admin+ Creator]` or `[Admin+ Dev]`. Recognised by
+ *   gamertag from a list in the source, so it travels with the pack into any
+ *   world. This is the part the badge rule is about, and the part the three
+ *   fences above exist to bound.
+ *
+ *   THE WORLD'S OWN DEV — `canUseCode`: the Dev tag AND operator, the same gate
+ *   `< Code >` sits behind. Both locks, not just the tag: a tag alone is
+ *   something any staff member with /tag can hand out, and gating a command
+ *   line on it would mean a moderator could quietly promote a member into one.
+ *   With operator required this grants nothing — an op can already type any
+ *   command — so it is a nicer door onto a room they were standing in.
+ *
+ * Identity, not badge display: the creator's badge hides itself the moment a
+ * world gives them a real rank, and losing the console for accepting a rank
+ * would be a very odd rule.
  */
 export function canUseConsole(player) {
     if (!flag("creator.console")) return false
-    return isCreator(player) || inDeveloperMode(player)
+    if (isCreator(player) || isTeamDeveloper(player)) return true
+    return canUseCode(player)
 }
 
 /** Owners who are online, to be told what just ran. */
@@ -93,6 +108,17 @@ export async function consoleScreen(player, back = () => {}, last = "") {
         owner.sendMessage(`§8[§bAdmin§d+§8] §7${displayName(player)} ran §f/${result.command}§7 from the console.`)
     }
 
+    // The game answers with how many times the command actually took effect,
+    // and a console that prints ✓ over a zero is lying about the useful half:
+    // `/kill @e[type=cow]` in a world with no cows parses perfectly and does
+    // nothing. Say the number rather than judge it — a few commands report 0 on
+    // a real success, and "0 matched" is still true for those.
+    const matched = Number(result.output ?? 0)
+    if (!matched) {
+        ok(player, `Ran §f/${result.command}§a — §e0 matched§a.`)
+        return consoleScreen(player, back, `§e• /${result.command} §8— ran, 0 matched`)
+    }
+
     ok(player, `Ran §f/${result.command}§a.`)
-    return consoleScreen(player, back, `§a✓ /${result.command}`)
+    return consoleScreen(player, back, `§a✓ /${result.command}§8 — ${matched} matched`)
 }

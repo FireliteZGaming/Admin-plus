@@ -382,12 +382,13 @@ export function playerRanks(playerOrId) {
     return displayRanks(playerOrId).slice().sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0))
 }
 
-// ------------------------------------------------------------ author's badge
+// ------------------------------------------------------- the pack's own badges
 
 /**
- * One gamertag gets a tag of its own in any world running this pack.
+ * A short list of gamertags gets a tag of its own in any world running this
+ * pack: the creator, and the developers on the Admin+ team.
  *
- * It carries NO PERMISSIONS. No node, not staff, weight 0 — `has()` finds
+ * Neither carries ANY PERMISSIONS. No node, not staff, weight 0 — `has()` finds
  * nothing to say about any node here, so a visitor's authority comes from
  * whatever real rank they hold, and weight 0 keeps them under every ladder so
  * `topWeight` and `canActOn` never see them either.
@@ -413,23 +414,91 @@ export function playerRanks(playerOrId) {
  */
 export const CREATOR_GAMERTAG = "FireliteZGaming"
 
-const CREATOR_RANK = Object.freeze({
-    id: "adminplus_creator",
-    // The pack's own two colours, then the title in a shade no ladder rank
-    // uses — so it reads as the pack's mark rather than as a rank in the world.
-    display: "§bAdmin§d+§r §e§lCreator",
-    weight: 0,
-    inherits: [],
-    perms: [],
-    meta: {},
-    staff: false
-})
+/**
+ * Gamertags on the Admin+ TEAM — people the creator has taken on to work on
+ * this pack. They wear `[Admin+ Dev]` and, like the creator, they reach the
+ * console. Everything written above about the creator's badge applies to this
+ * one unchanged: no permissions, weight 0, outside the rank table.
+ *
+ * IT IS A LIST IN THE SOURCE ON PURPOSE. Adding somebody is a pack release —
+ * which means it goes through the changelog, the tag and the diff, where an
+ * owner can see who was added and when. If a world could grant this, the badge
+ * would stop being a claim about the team and the console would stop being
+ * bounded to people the creator actually vouches for.
+ *
+ * NOT the same thing as the per-world "Dev" TAG (core/devgate.js), which any
+ * operator can give themselves and which means "developer in THIS world".
+ * Nor the same as a ladder's own Developer rank, which is a job in one world.
+ * Three different ideas; only this one travels with the pack.
+ *
+ * EMPTY TODAY. Add a gamertag as a string below, ship it in a patch, and say so
+ * in the changelog — an owner is entitled to read who they just let in.
+ */
+let TEAM_DEVELOPERS = Object.freeze([
+    // "TheirGamertag",
+])
 
-function isCreator(playerOrId) {
+/** The team list as it stands. */
+export function developerGamertags() { return TEAM_DEVELOPERS }
+
+/**
+ * TEST HOOK — the only reason the list above is a `let`.
+ *
+ * The badge and the console are the two things in this pack that a stranger's
+ * world has to take on trust, so the branch that grants them cannot be the one
+ * branch no test can reach. Nothing in the pack calls this; `console.test.js`
+ * greps the whole BP for a caller and fails if one appears, which is what keeps
+ * "the list lives in the source" true rather than merely intended.
+ */
+export function __setTeamDevelopers(names) {
+    TEAM_DEVELOPERS = Object.freeze([...names].map(String))
+}
+
+/** The two badges are the same object with one word changed — deliberately, so
+ *  they read as one family and neither can drift into looking like a rank. */
+function teamBadge(id, word) {
+    return Object.freeze({
+        id,
+        // The pack's own two colours, then the title in a shade no ladder rank
+        // uses — so it reads as the pack's mark rather than as a rank in the
+        // world.
+        display: `§bAdmin§d+§r §e§l${word}`,
+        weight: 0,
+        inherits: [],
+        perms: [],
+        meta: {},
+        staff: false
+    })
+}
+
+const CREATOR_RANK = teamBadge("adminplus_creator", "Creator")
+const DEVELOPER_RANK = teamBadge("adminplus_dev", "Dev")
+
+/** The gamertag behind either kind of argument these helpers accept. */
+function nameOf(playerOrId) {
     const name = typeof playerOrId === "string"
         ? record(playerOrId).name
         : playerOrId?.name
-    return String(name ?? "").toLowerCase() === CREATOR_GAMERTAG.toLowerCase()
+    return String(name ?? "").toLowerCase()
+}
+
+function isCreator(playerOrId) {
+    const name = nameOf(playerOrId)
+    return !!name && name === CREATOR_GAMERTAG.toLowerCase()
+}
+
+/** On the Admin+ team — the pack's own developers, not a world's. */
+function isTeamDeveloper(playerOrId) {
+    const name = nameOf(playerOrId)
+    if (!name) return false
+    return TEAM_DEVELOPERS.some(tag => String(tag).toLowerCase() === name)
+}
+
+/** The pack badge this player wears, if any. Creator wins over Dev. */
+function packBadge(playerOrId) {
+    if (isCreator(playerOrId)) return CREATOR_RANK
+    if (isTeamDeveloper(playerOrId)) return DEVELOPER_RANK
+    return undefined
 }
 
 /**
@@ -465,11 +534,12 @@ export function displayRanks(playerOrId) {
     const ordered = [...held.filter(r => r.staff), ...held.filter(r => !r.staff)]
     // In FRONT of what they hold, so it is the tag that shows — and gone the
     // moment a world hands them a rank of its own, which is the whole contract.
-    if (isCreator(playerOrId) && onlyDefaultRank(playerOrId)) return [CREATOR_RANK, ...ordered]
+    const badge = packBadge(playerOrId)
+    if (badge && onlyDefaultRank(playerOrId)) return [badge, ...ordered]
     return ordered
 }
 
-export { CREATOR_RANK, isCreator }
+export { CREATOR_RANK, DEVELOPER_RANK, isCreator, isTeamDeveloper, packBadge }
 
 /** The rank that shows as their tag: first in their display order. */
 export function primaryRank(playerOrId) { return displayRanks(playerOrId)[0] }

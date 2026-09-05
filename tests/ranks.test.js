@@ -8,7 +8,8 @@ import {
     PERMISSION_NODES,
     setRanks, grantRank, revokeRank, heldRankIds, playerRanks, displayRanks, primaryRank,
     moveHeldRank, onPlayerJoin, defaultRank, displacedBy, cooldownFor, saveRank as saveR, knownHolders,
-    CREATOR_GAMERTAG, CREATOR_RANK, allRanks
+    CREATOR_GAMERTAG, CREATOR_RANK, allRanks,
+    DEVELOPER_RANK, isTeamDeveloper, __setTeamDevelopers
 } from "../Admin+ BP/scripts/core/ranks.js"
 import { CONFIG } from "../Admin+ BP/scripts/config.js"
 
@@ -444,6 +445,45 @@ applyPreset("spearmace")
 check("it survives a ladder being replaced", primaryRank(creator).id, "adminplus_creator")
 check("and still grants nothing there", has(creator, "admin.panel"), false)
 applyPreset("server")
+
+console.log("\n— the team developer's badge —")
+// [Admin+ Dev], for developers the creator takes on. Same badge, one word
+// changed — so every promise the block above makes has to hold here too, or the
+// team list becomes the way round the creator badge's own rules.
+__setTeamDevelopers(["HiredDev"])
+const hired = fakePlayer("HiredDev")
+
+check("they wear it", primaryRank(hired).id, "adminplus_dev")
+check("and it reads as the pack's own mark",
+    DEVELOPER_RANK.display.replace(/§./g, ""), "Admin+ Dev")
+check("in the same colours as the Creator's",
+    DEVELOPER_RANK.display.replace("Dev", "X"),
+    CREATOR_RANK.display.replace("Creator", "X"))
+check("nobody off the list gets it", isTeamDeveloper(fakePlayer("Nobody")), false)
+
+check("it grants NO panel access", has(hired, "admin.panel"), false)
+check("no ban", has(hired, "admin.ban"), false)
+check("no rank management", has(hired, "ranks.manage"), false)
+check("it is not staff", isStaff(hired), false)
+check("it carries no permissions at all", DEVELOPER_RANK.perms, [])
+check("it adds no authority", topWeight(hired), topWeight(stranger))
+check("so a Mod can still act on them", canActOn(modly, hired), true)
+check("it is not in the rank table either",
+    allRanks().some(r => r.id === "adminplus_dev"), false)
+
+// Same contract, same disappearing act.
+grantRank(hired.id, "mod", hired.name)
+check("a real rank replaces it", primaryRank(hired).id, "mod")
+revokeRank(hired.id, "mod")
+check("and giving it up brings the badge back", primaryRank(hired).id, "adminplus_dev")
+
+// If the creator were ever also on the developer list, one badge has to win, or
+// the tag they wear would depend on array order.
+__setTeamDevelopers(["HiredDev", CREATOR_GAMERTAG])
+check("Creator outranks Dev when somebody is both",
+    primaryRank(creator).id, "adminplus_creator")
+__setTeamDevelopers([])
+check("off the list, the badge goes with it", primaryRank(hired).id, defaultRank().id)
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)
