@@ -24,7 +24,17 @@ JSON-UI resource pack to redraw the form as a 9-column grid.
 |---|---|
 | `Admin+ BP/scripts/core/typeIds.js` | Used as-is. A data table of Minecraft item ids; only a header comment was added. |
 | `Admin+ RP/ui/adminplus_ui.json` | Modified. Renamed from `mce_ui.json`; the UI namespace was renamed to `adminplus_ui` so two installed packs cannot collide on it; `chest_panel` was given explicit centre anchors. |
-| `Admin+ RP/ui/server_form.json` | Modified. A dead `trade_form` control was removed (it inherited a vanilla namespace with no such member and logged an error every time any form opened), and `$dialog_text_color` is now defined locally rather than through a global variables file. |
+| `Admin+ RP/ui/server_form.json` | Modified. A dead `trade_form` control was removed (it inherited a vanilla namespace with no such member and logged an error every time any form opened); `$dialog_text_color` is now defined locally rather than through a global variables file; and the multi-line trigger was changed — see below. |
+
+That file also carries a **multi-line form field** — a chain of controls ending
+at Minecraft's own `npc_interact.multiline_text_edit_control`, the one the NPC
+dialogue editor uses. Admin+ inherited it here and used it for the first time in
+2.0.0, to make `/admin ▸ < Code >` an editable config file rather than a
+one-line box. The upstream trigger is the *printable* title `JavaScript REPL`;
+Admin+ uses a sentinel that renders as nothing (`§c§o§d§e`, the same style as
+this project's own `§m§c§e`) and keeps the original working alongside it, so a
+pack speaking the older protocol still renders correctly whichever one wins the
+resource-pack order. The idea, and the working example, are theirs.
 
 `Admin+ BP/scripts/core/chestUI.js` is **our own** implementation of the script
 side. It deliberately speaks the same wire format — the same title sentinels,

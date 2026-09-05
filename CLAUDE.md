@@ -161,13 +161,25 @@ carries it: `custom_form_switch` → `custom_multiline_form` →
 `custom_multiline_input` → `option_multiline_text_edit` →
 `multiline_dialog_text_edit`, with `$max_text_edit_length: 32767`.
 
-**How it triggers:** `custom_form_switch` reads `$flag_form_title` (currently
-the upstream default, the literal string `JavaScript REPL`). If the form TITLE
-contains it, every text field in that form is drawn multi-line; otherwise the
-ordinary form renders. So no new file and no new global override is needed — the
-override is already shipped and the risk already taken. What is needed is a
-sentinel that does not print, in the style the chest UI already uses (`§m§c§e`,
-`§t§r§a§d§e` — a `§` before each letter, which the renderer eats).
+**How it triggers:** `custom_form_switch` matches the form TITLE against
+`$flag_form_title`. Since 2.0.0 that is `§c§o§d§e` — a `§` before each letter,
+which the renderer eats, in the style the chest UI already uses. Upstream's
+printable `JavaScript REPL` is kept as `$flag_form_title_alt` and both bindings
+consult the pair, so a pack speaking the older protocol still renders. Scripts
+get it from `core/theme.js`: `MULTILINE` and `multilineTitle(hub, text)`. It
+goes at the END of a title — a prefix restyles the words after it.
+
+**Never hardcode that sentinel.** It lives in two files, in two languages, and a
+disagreement does not throw — the form quietly opens a one-line box again, which
+is exactly the state this replaced. `tests/multiline.test.js` pins them equal,
+along with the control chain, the two bindings being exact complements, and the
+config block fitting `$max_text_edit_length` (past the cap a truncated document
+parses FINE and reverts every key after the cut).
+
+**Anything editing a whole config as text needs an empty-document guard.**
+Submitting `< Code >` replaces the override table with what came back, so an
+empty field is an unconfirmed factory reset. `blockHasNoConfig()` refuses it; a
+shrunken document still saves, because deleting a line is how you default a key.
 
 Unverified in game. See memory `bedrock-multiline-forms`.
 
