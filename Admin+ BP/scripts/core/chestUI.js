@@ -42,13 +42,17 @@ import { textureFor } from "./itemTextures.js"
  * `small` and `large` carry the COMMUNITY module's sentinels, for the
  * compatibility reason above — those two must never change.
  *
- * `big` is ours alone: 9x9, laid out the way a real chest screen is — a
- * container on top, the player's pack, and the hotbar on its own row, each
- * separated by a break exactly as the game separates them. That is 27 + 27 + 9
- * of content in 81 cells; the two spare rows are the breaks. Their cells are
- * never filled and the background behind them is flat panel with no slot
- * squares, so they read as the gaps vanilla draws rather than as empty slots.
- * Neither community size can hold this.
+ * `big` is ours alone: 72 buttons laid out the way a real chest screen is —
+ * container, break, the player's pack, a thin break, then the hotbar. Neither
+ * community size can hold that.
+ *
+ * IT IS NOT ONE GRID, and that is the whole trick. A grid spaces every row
+ * equally, so a break can only be a whole 18px row — but the game separates the
+ * hotbar by about the thickness of the panel's own bottom edge, not by a row.
+ * So the first 63 buttons are a 9x7 grid (chest, a full-row break, pack) and
+ * the last nine are placed individually with an explicit `collection_index`,
+ * six pixels lower. A grid cannot start at an index other than zero, which is
+ * why it is the hotbar that leaves the grid and not the chest.
  *
  * Adding it costs nothing on the compatibility side
  * precisely BECAUSE the string is ours: a foreign pack whose UI loads above
@@ -65,28 +69,29 @@ import { textureFor } from "./itemTextures.js"
 const SIZES = new Map([
     ["small", ["§c§h§e§s§t§s§m§a§l§l§r", 27]],
     ["large", ["§s§h§o§p§c§h§e§s§t§r", 54]],
-    ["big", ["§b§i§g§c§h§e§s§t§r", 81]]
+    ["big", ["§b§i§g§c§h§e§s§t§r", 72]]
 ])
 
 /**
  * Where things sit in a `big` grid, so the layout is stated once rather than
  * recomputed by every screen that draws one.
  *
- * Rows, top to bottom: three of container, a break, three of pack, a break,
- * then the hotbar on its own — the shape of the screen the game itself draws.
+ * Rows, top to bottom: three of container, a break, three of pack, then the
+ * hotbar on its own — the shape of the screen the game itself draws.
  */
 export const BIG = Object.freeze({
     container: 0,       // 0..26   the chest half
     divider: 27,        // 27..35  never filled — the break under the chest
     pack: 36,           // 36..62  inventory slots 9..35
-    gap: 63,            // 63..71  never filled — the break above the hotbar
-    hotbar: 72,         // 72..80  inventory slots 0..8
-    total: 81
+    hotbar: 63,         // 63..71  inventory slots 0..8, drawn 6px lower
+    total: 72,
+    /** Where the grid stops and the hand-placed hotbar begins. */
+    gridCells: 63
 })
 
-/** The two rows that are the breaks, not slots. */
+/** The one row that is a break rather than slots. */
 export function isBigDivider(slot) {
-    return (slot >= BIG.divider && slot < BIG.pack) || (slot >= BIG.gap && slot < BIG.hotbar)
+    return slot >= BIG.divider && slot < BIG.pack
 }
 
 /**

@@ -96,17 +96,17 @@ check("it destroys", gone.ok, true)
 check("the slot is empty", suspect.__ender[5], undefined)
 
 console.log("\n— the big grid is laid out like a real chest screen —")
-check("81 cells", BIG.total, 81)
+check("72 buttons", BIG.total, 72)
 check("chest half starts at the top", BIG.container, 0)
-check("the first break is the fourth row", [BIG.divider, BIG.pack], [27, 36])
-check("the second break sits above the hotbar", [BIG.gap, BIG.hotbar], [63, 72])
-check("hotbar is the last row", BIG.total - BIG.hotbar, 9)
-check("each break is exactly one row", [BIG.pack - BIG.divider, BIG.hotbar - BIG.gap], [9, 9])
+check("the break is the fourth row", [BIG.divider, BIG.pack], [27, 36])
+check("hotbar is the last nine", [BIG.hotbar, BIG.total - BIG.hotbar], [63, 9])
+check("the break is exactly one row", BIG.pack - BIG.divider, 9)
+check("the grid stops where the hotbar begins", BIG.gridCells, BIG.hotbar)
 
 // Hotbar is 0..8 in the container but the BOTTOM row on screen — get this
 // backwards and every item is drawn three rows from where it lives.
-check("hotbar slot 0 draws bottom-left", bigSlotFor(0), 72)
-check("hotbar slot 8 draws bottom-right", bigSlotFor(8), 80)
+check("hotbar slot 0 draws bottom-left", bigSlotFor(0), 63)
+check("hotbar slot 8 draws bottom-right", bigSlotFor(8), 71)
 check("the pack starts under the gap", bigSlotFor(9), 36)
 check("and ends above the hotbar", bigSlotFor(35), 62)
 check("nothing outside a real inventory", [bigSlotFor(-1), bigSlotFor(36)], [undefined, undefined])
@@ -114,8 +114,8 @@ check("nothing outside a real inventory", [bigSlotFor(-1), bigSlotFor(36)], [und
 const drawn = [...Array(36).keys()].map(bigSlotFor)
 check("all 36 map to distinct cells", new Set(drawn).size, 36)
 check("none of them lands in either break", drawn.some(isBigDivider), false)
-check("the breaks are the only cells nothing can reach",
-    [...Array(BIG.total).keys()].filter(isBigDivider).length, 18)
+check("the break is the only run of cells nothing can reach",
+    [...Array(BIG.total).keys()].filter(isBigDivider).length, 9)
 
 console.log("\n— the sentinels cannot be confused for one another —")
 // The JSON-UI picks a layout with a SUBSTRING test, so one sentinel containing
@@ -128,7 +128,7 @@ for (const [a, { sentinel: sa }] of sizes) {
     }
 }
 check("big announces itself", new ChestForm("big").preview().title.startsWith("§b§i§g§c§h§e§s§t§r"), true)
-check("and is 81 slots", new ChestForm("big").size, 81)
+check("and is 72 slots", new ChestForm("big").size, 72)
 
 console.log("\n— the resource pack draws what the script sends —")
 // Same drift hazard as the multiline sentinel: these live in two files in two
@@ -150,16 +150,38 @@ for (const [name, { sentinel, count }] of sizes) {
     check(`${name} has a panel in the resource pack`, !!panel, true)
     if (!panel) continue
 
-    const grid = panel.controls.map(c => Object.values(c)[0]).find(c => c?.type === "grid")
+    const kids = panel.controls.map(c => [Object.keys(c)[0], Object.values(c)[0]])
+    const grid = kids.map(([, c]) => c).find(c => c?.type === "grid")
     const [cols, rows] = grid?.grid_dimensions ?? []
-    check(`${name} draws ${count} cells`, cols * rows, count)
     check(`${name} is nine wide`, cols, 9)
 
-    // The panel image has to be tall enough for its own grid, or the bottom
+    // `big` is the one that is not all grid: the last row is placed by hand so
+    // its gap can be thinner than a row. Everything below pins that row,
+    // because a wrong index there draws the wrong nine items and nothing throws.
+    const loose = kids.filter(([k]) => k.startsWith(`${name}_hotbar_`)).map(([, c]) => c)
+    check(`${name} draws ${count} cells`, cols * rows + loose.length, count)
+
+    let bottom = HEADER + rows * ROW
+    if (loose.length) {
+        check(`${name}'s grid covers everything above the hand-placed row`, cols * rows, BIG.gridCells)
+        check(`${name}'s loose row is nine wide`, loose.length, 9)
+        check(`${name}'s loose row reads the right nine buttons`,
+            loose.map(c => c.collection_index), [...Array(9).keys()].map(i => BIG.hotbar + i))
+        check(`${name}'s loose row is on one line`,
+            new Set(loose.map(c => c.offset[1])).size, 1)
+        check(`${name}'s loose row is evenly spaced across the panel`,
+            loose.map(c => c.offset[0]), [...Array(9).keys()].map(i => 7 + i * 18))
+
+        const gap = loose[0].offset[1] - (HEADER + rows * ROW)
+        check(`${name}'s hotbar gap is the bottom edge, not a whole row`, gap, FOOTER)
+        check(`${name}'s grid is sized to its own rows`, grid.size[1], rows * ROW)
+        bottom = loose[0].offset[1] + ROW
+    }
+
+    // The panel image has to be tall enough for everything in it, or the last
     // row hangs off the frame.
     const png = pngSize(`../Admin+ RP/${panel.texture}.png`)
-    check(`${name}'s background is sized for ${rows} rows`,
-        panel.size[1], HEADER + rows * ROW + FOOTER)
+    check(`${name}'s background is tall enough`, panel.size[1], bottom + FOOTER)
     check(`${name}'s texture matches the size it is drawn at`, [png.width, png.height], panel.size)
 }
 
