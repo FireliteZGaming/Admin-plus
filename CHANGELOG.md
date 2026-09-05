@@ -52,8 +52,38 @@ What that body of work amounts to:
   failure that reset warps, ranks and bans on every rejoin for six versions.
 - **`tools/release.py`** with alpha/beta/stable channels, gated on the content
   log so nothing ships stable that the engine has never run.
+- **`< Code >` is a text editor now**, which is what the name always promised.
 
 The per-version detail for all of it is below, unchanged.
+
+### `< Code >` opens the config, not a menu
+
+The section used to be four buttons standing between you and the file. It opens
+the file: the whole config, multi-line, scrolled and edited like any `.txt`.
+
+Multi-line form fields were believed impossible here — that belief is why the
+config had been unrolled into some forty single-line boxes. It was wrong, and
+the proof had shipped in this pack since v1.1.0: the resource pack's
+`server_form.json` carries a control chain ending at Minecraft's own
+`multiline_text_edit_control`, the one the NPC dialogue editor uses. Nothing had
+ever triggered it, because the trigger was a *printable* string. It is now an
+invisible sentinel, and the original is kept working alongside it so packs
+speaking the older protocol still render.
+
+The other three buttons moved to **Settings** rather than disappearing:
+
+- **All values** — the field-at-a-time editor. Built as a workaround for the
+  belief above, kept because typed controls validate and explain in a way raw
+  text does not. Both doors write the same store.
+- **Config presets** — named baselines, unchanged.
+- **Factory Reset** — now **operator-only**, and it checks on the way in rather
+  than trusting the button that opened it.
+
+Submitting the text replaces the whole config with what you typed, so an empty
+box would quietly discard every changed value — a factory reset without the
+question. A real editor makes that a single mis-stroke, so it is refused. A
+*shorter* config still saves normally: deleting a line is how you set that key
+back to its default.
 
 ## 1.26.0 — 2026-09-04
 
