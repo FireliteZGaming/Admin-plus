@@ -33,6 +33,7 @@ import "./features/chatcommands.js"
 import "./features/menu.js"
 import "./features/vanillacmds.js"
 import { installGrants } from "./features/grant.js"
+import { installEnderView } from "./core/enderview.js"
 import "./features/troll.js"
 import "./features/mode.js"
 import { installAllowlist } from "./features/allowlist.js"
@@ -123,6 +124,7 @@ installHealthCheck()
 installChat()
 installPrivateChat()
 installGrants()
+installEnderView()
 installAllowlist()
 
 world.afterEvents.worldLoad.subscribe(() => {

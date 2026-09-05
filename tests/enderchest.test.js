@@ -3,6 +3,7 @@ import {
     slotLabel, snapshot, enderSnapshot, itemAt, deposit, transfer, confiscate
 } from "../Admin+ BP/scripts/core/inventory.js"
 import { ChestForm, sizeSentinels, BIG, bigSlotFor, isBigDivider } from "../Admin+ BP/scripts/core/chestUI.js"
+import { signature, reconcile } from "../Admin+ BP/scripts/core/enderview.js"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -183,6 +184,85 @@ for (const [name, { sentinel, count }] of sizes) {
     const png = pngSize(`../Admin+ RP/${panel.texture}.png`)
     check(`${name}'s background is tall enough`, panel.size[1], bottom + FOOTER)
     check(`${name}'s texture matches the size it is drawn at`, [png.width, png.height], panel.size)
+}
+
+console.log("\n— the drag view reconciles instead of mirroring —")
+// A real container screen onto an ender chest holds a COPY, and writing that
+// copy back every tick duplicates items. These are the cases that prove it
+// does not.
+function box(items = {}, size = 27) {
+    const store = { ...items }
+    return {
+        size,
+        getItem: i => store[i],
+        setItem: (i, v) => { if (v === undefined) delete store[i]; else store[i] = v }
+    }
+}
+const contents = c => [...Array(c.size).keys()].map(i => c.getItem(i)?.typeId ?? null)
+
+check("a signature notices a stack appearing",
+    signature(box({ 0: item("minecraft:diamond") })) === signature(box()), false)
+check("and a count changing",
+    signature(box({ 0: item("minecraft:diamond", 1) })) === signature(box({ 0: item("minecraft:diamond", 2) })), false)
+check("but not a container being read twice",
+    signature(box({ 0: item("minecraft:diamond") })), signature(box({ 0: item("minecraft:diamond") })))
+
+// THE DUPE. The player is at their own ender chest while an admin looks in.
+// They drag the diamond into their pack, so the chest empties. A blind write
+// would put it back and they would have two.
+{
+    const chest = box({ 0: item("minecraft:diamond") })
+    const seen = box({ 0: item("minecraft:diamond") })
+    const view = { chestSig: signature(chest), viewSig: signature(seen) }
+
+    chest.setItem(0, undefined)
+    check("the real chest wins", reconcile(view, chest, seen), "chest-wins")
+    check("THE DIAMOND IS NOT PUT BACK", contents(chest)[0], null)
+    check("and the admin watches it leave, live", contents(seen)[0], null)
+    check("nothing is left disagreeing", signature(chest), signature(seen))
+}
+
+// The other direction: the admin takes something, the player sees it go.
+{
+    const chest = box({ 0: item("minecraft:netherite_ingot") })
+    const seen = box({ 0: item("minecraft:netherite_ingot") })
+    const view = { chestSig: signature(chest), viewSig: signature(seen) }
+
+    seen.setItem(0, undefined)
+    check("the view wins when only it moved", reconcile(view, chest, seen), "view-wins")
+    check("and the chest loses the stack", contents(chest)[0], null)
+}
+
+// Both at once is the dangerous one, and the owner still wins.
+{
+    const chest = box({ 0: item("minecraft:diamond") })
+    const seen = box({ 0: item("minecraft:diamond") })
+    const view = { chestSig: signature(chest), viewSig: signature(seen) }
+
+    chest.setItem(0, undefined)
+    seen.setItem(5, item("minecraft:dirt"))
+    check("the owner wins a tie", reconcile(view, chest, seen), "chest-wins")
+    check("so nothing the owner removed comes back", contents(chest)[0], null)
+    check("and the admin's edit is discarded rather than duplicated", contents(chest)[5], null)
+}
+
+{
+    const chest = box({ 0: item("minecraft:stone") })
+    const seen = box({ 0: item("minecraft:stone") })
+    const view = { chestSig: signature(chest), viewSig: signature(seen) }
+    check("an untouched view does nothing at all", reconcile(view, chest, seen), "idle")
+}
+
+// Putting something in has to survive the round trip too.
+{
+    const chest = box()
+    const seen = box()
+    const view = { chestSig: signature(chest), viewSig: signature(seen) }
+    seen.setItem(3, item("minecraft:emerald", 7))
+    reconcile(view, chest, seen)
+    check("an item dragged in reaches the real chest", contents(chest)[3], "minecraft:emerald")
+    check("with its count", chest.getItem(3).amount, 7)
+    check("and the next tick is quiet", reconcile(view, chest, seen), "idle")
 }
 
 console.log(`\n${passed} passed, ${failed} failed\n`)

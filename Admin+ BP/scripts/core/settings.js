@@ -127,6 +127,11 @@ export const DEFAULTS = {
     "feature.enderchest": {
         value: "true", label: "Ender chest", help: "true / false · /ec, and /enderchest <player> for staff"
     },
+    "enderchest.dragUI": {
+        value: "true",
+        label: "Ender chest drag view",
+        help: "true / false · a real container you can drag in; false uses the tap grid"
+    },
     "feature.reports": {
         value: "true", label: "Reports", help: "true / false · /report and the panel queue"
     },

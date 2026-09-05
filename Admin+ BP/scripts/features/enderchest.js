@@ -5,6 +5,7 @@ import { has, canActOn } from "../core/ranks.js"
 import { flag } from "../core/settings.js"
 import { displayName } from "../core/identity.js"
 import { record } from "../core/logs.js"
+import { openEnderView } from "../core/enderview.js"
 import { ChestForm, chestUIAvailable, BIG, bigSlotFor, isBigDivider } from "../core/chestUI.js"
 import {
     snapshot, enderSnapshot, slotLabel, itemLine, transfer, deposit
@@ -146,13 +147,13 @@ function openFor(viewer, selected) {
     }
 
     const targets = selected ?? []
-    if (!targets.length) return enderScreen(viewer, viewer, undefined)
+    if (!targets.length) return open(viewer, viewer)
     if (targets.length > 1) {
         return err(viewer, "That selector matched more than one player — this opens one chest at a time.")
     }
 
     const target = targets[0]
-    if (target.id === viewer.id) return enderScreen(viewer, viewer, undefined)
+    if (target.id === viewer.id) return open(viewer, viewer)
 
     // Looking in somebody else's is the invsee permission, deliberately rather
     // than a node of its own: a new node would be absent from every rank table
@@ -168,6 +169,28 @@ function openFor(viewer, selected) {
         // for the reason invsee gives — a search that announces itself is not
         // a search.
         info(target, `§7${displayName(viewer)}§7 looked in your ender chest.`)
+    }
+    return open(viewer, target)
+}
+
+/**
+ * The drag view if the world allows it, the tap grid otherwise.
+ *
+ * The fallback is not a nicety. The container-entity technique has never run in
+ * this pack, and the failure it is most likely to have is a quiet one — a
+ * marker that spawns and opens nothing. If the spawn itself fails we say so and
+ * still show a working screen; if it spawns but does not open, an owner turns
+ * `enderchest.dragUI` off and everything keeps working.
+ */
+function open(viewer, target) {
+    if (flag("enderchest.dragUI")) {
+        const view = openEnderView(viewer, target)
+        if (view.ok) {
+            return info(viewer, target.id === viewer.id
+                ? "§7Tap the marker in front of you — drag and shift-click work in there."
+                : `§7Tap the marker in front of you — that is ${displayName(target)}§7's ender chest, live.`)
+        }
+        info(viewer, `§8${view.reason} Showing the tap view instead.`)
     }
     return enderScreen(viewer, target, undefined)
 }
