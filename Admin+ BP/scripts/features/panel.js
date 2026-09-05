@@ -16,9 +16,9 @@ import { configurationScreen } from "./configUI.js"
 import { automodScreen } from "./automod.js"
 import { serverPresetsScreen } from "./serverPresets.js"
 import { hologramsScreen } from "./holograms.js"
-import { opBlocksScreen } from "./opblocks.js"
 import { creditsScreen } from "./credits.js"
 import { detectServerPreset } from "../core/serverPresets.js"
+import { registeredCommands } from "../core/registry.js"
 
 // /admin — the panel root.
 //
@@ -71,12 +71,6 @@ export async function openPanel(player) {
         })
     }
 
-    if (has(player, "admin.opblocks")) {
-        buttons.push({
-            text: hubButton("settings", "Operator blocks", "Barriers, deny and allow zones, borders"),
-            run: () => opBlocksScreen(player, () => openPanel(player))
-        })
-    }
 
     if (has(player, "admin.settings")) {
         buttons.push({
@@ -153,6 +147,8 @@ async function settingsScreen(player, back) {
 }
 
 async function aboutScreen(player, back) {
+    const ours = registeredCommands()
+    const vanilla = registeredCommands("cmd")
     const ranks = playerRanks(player).map(r => r.display).join("§7, ") || "§7none"
     const authority = topWeight(player) === Infinity
         ? "§dunrestricted §8(owner or operator)"
@@ -175,7 +171,12 @@ async function aboutScreen(player, back) {
             "",
             "§8Not working? §f/function check",
             "",
-            "§7Commands: §f/admin §f/chat §f/gm §f/a:tp §f/warp §f/warps §f/spawn §f/tpa §f/report §f/mute §f/unmute §f/unban §f/sudo §f/vanish §f/invsee §f/online §f/broadcast §f/clearchat §f/lagclear"
+            // Generated, because the hand-written version went stale: it named
+            // 19 of 51 and still advertised commands that had been renamed.
+            `§7Commands §8(${ours.length}): §f/${ours.join(" §f/")}`,
+            "",
+            `§7Vanilla, without op §8(${vanilla.length}): §f/cmd:<command>`,
+            "§8Type /cmd: and the game completes the rest, arguments included."
         ].join("\n"),
         buttons: [
             { text: "§7Credits§r\n§8Who built it, and what was learned from whom", run: () => creditsScreen(player, () => aboutScreen(player, back)) }

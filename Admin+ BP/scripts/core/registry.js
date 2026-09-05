@@ -20,13 +20,34 @@ const enums = []
 
 /**
  * @param {{
- *   name: string, description?: string, perm?: string,
+ *   name: string, description?: string, perm?: string, ns?: string,
  *   mandatory?: {name: string, type: any}[],
  *   optional?: {name: string, type: any}[],
  *   run: (player: Player, args: any[]) => string | void
  * }} spec
+ *
+ * `ns` overrides the pack namespace for one command. The vanilla passthroughs
+ * use it to land under `cmd:` — `/cmd:kill` reads as "the /cmd version of kill"
+ * and keeps all 56 of them grouped together in the command list instead of
+ * scattered through the pack's own commands.
  */
 export function command(spec) { pending.push(spec) }
+
+/**
+ * Every command this pack declares, for screens that list them.
+ *
+ * Generated rather than written out, because the hand-typed list on the About
+ * screen had gone stale: it named 19 of 51 and still advertised commands that
+ * had been renamed. A list of what exists should be derived from what exists.
+ *
+ * @param {string} [ns] only commands in this namespace; omit for the pack's own
+ */
+export function registeredCommands(ns) {
+    return pending
+        .filter(spec => (spec.ns ?? NS) === (ns ?? NS))
+        .map(spec => spec.name)
+        .sort()
+}
 
 /**
  * Declare a value set for an Enum parameter. Enums are what give a command
@@ -64,7 +85,7 @@ system.beforeEvents.startup.subscribe(({ customCommandRegistry }) => {
     // letting the game drop the command on the floor.
     const PARAM_LIMIT = 8
     for (const spec of pending) {
-        const fullName = `${NS}:${spec.name}`
+        const fullName = `${spec.ns ?? NS}:${spec.name}`
         const paramCount = (spec.mandatory?.length ?? 0) + (spec.optional?.length ?? 0)
         if (paramCount > PARAM_LIMIT) {
             console.error(`[Admin+] /${fullName} asks for ${paramCount} parameters; Bedrock allows ${PARAM_LIMIT}. It has NOT been registered - shorten it.`)
