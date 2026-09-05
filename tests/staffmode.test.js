@@ -2,7 +2,7 @@ import { __test, ItemStack } from "@minecraft/server"
 import {
     enter, exit, inStaffMode, needsRebuild, staffModeList,
     serializeStack, buildStack, snapshotOf, countItems, liveInventory,
-    containerOf, __forgetLive
+    containerOf, __forgetLive, markVanished, vanishedByStaffMode
 } from "../Admin+ BP/scripts/core/staffmode.js"
 import {
     TOOLS, makeTool, toolFor, toolBar, HAMMER_SLOT, HAMMER_NAME
@@ -191,6 +191,39 @@ check("every bar entry sits in the hotbar",
 // right-click would run a tool action while holding the thing that bans people.
 check("the hammer is not recognised as an itemUse tool",
     toolFor(hammerEntry.stack), undefined)
+
+console.log("\n— who vanished you, remembered across a reload —")
+// Found by playtest, 2.0.0: reload the world while in staff mode and you came
+// back with infinite invisibility, night vision, and still flagged vanished.
+// The "staff mode is what vanished them" fact was a Set in memory, so the
+// reload emptied it and the restore never un-vanished anybody. Only /vanish
+// twice got you out. The fix is that it rides in the stored record instead —
+// the same record the inventory snapshot already uses, for the same reason.
+const ghost = fakePlayer("Ghost")
+ghost._slots[0] = stack("minecraft:bread", 3)
+enter(ghost, tools)
+
+check("nothing claims to have vanished them yet", vanishedByStaffMode(ghost), false)
+check("marking works once the record exists", markVanished(ghost, true), true)
+check("and it reads back", vanishedByStaffMode(ghost), true)
+
+__forgetLive(ghost)                       // the reload: memory goes, storage stays
+check("the reload does NOT forget who vanished them", vanishedByStaffMode(ghost), true)
+
+exit(ghost)
+check("leaving staff mode clears it with the record", vanishedByStaffMode(ghost), false)
+
+// Somebody already vanished when they entered is never marked, so they stay
+// vanished on the way out — the behaviour the old Set was there to protect.
+const own = fakePlayer("OwnVanish")
+enter(own, tools)
+check("an unmarked session leaves vanish alone", vanishedByStaffMode(own), false)
+exit(own)
+
+// Marking cannot invent a record for somebody who is not in staff mode.
+const nobody = fakePlayer("Nobody")
+check("marking somebody who never entered fails", markVanished(nobody, true), false)
+check("and asking about them is false, not a throw", vanishedByStaffMode(nobody), false)
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

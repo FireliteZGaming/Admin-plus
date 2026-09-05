@@ -4,7 +4,7 @@ import { ok, err, info } from "../core/util.js"
 import { has, isStaff, canActOn, refreshNameTag } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
 import { record } from "../core/logs.js"
-import { enter, exit, inStaffMode, needsRebuild, staffModeList } from "../core/staffmode.js"
+import { enter, exit, inStaffMode, needsRebuild, staffModeList, markVanished, vanishedByStaffMode } from "../core/staffmode.js"
 import { isVanished, vanish, unvanish } from "../core/vanish.js"
 import { worldToken, makeBanHammer, HAMMER_NAME } from "../core/banhammer.js"
 import { announceJoin, announceLeave } from "./presence.js"
@@ -50,9 +50,14 @@ const TOOLS = [
  *  core/banhammer.js mints it with its own signature that its own check reads. */
 const HAMMER_SLOT = 4
 
-/** We vanished them, so we un-vanish them. Somebody who was ALREADY vanished
- *  when they entered stays vanished on the way out. */
-const vanishedByUs = new Set()
+/* We vanished them, so we un-vanish them; somebody who was ALREADY vanished
+ * when they entered stays vanished on the way out.
+ *
+ * That fact used to live in a Set here. A world reload emptied it, so the
+ * restore on the way back never un-vanished anybody -- you came back invisible,
+ * on night vision, and still flagged. It lives in the staff-mode record now,
+ * which is storage, which is the only thing a reload does not take with it.
+ * See markVanished() in core/staffmode.js. */
 
 function makeTool(def) {
     const stack = new ItemStack(def.id, 1)
@@ -104,7 +109,7 @@ function startStaffMode(player) {
     if (!isVanished(player)) {
         const vanished = vanish(player)
         if (vanished?.ok !== false) {
-            vanishedByUs.add(player.id)
+            markVanished(player, true)
             // The same line a real disconnect prints, from the same helper,
             // which is what makes vanishing read as leaving.
             announceLeave(displayName(player))
@@ -118,11 +123,13 @@ function startStaffMode(player) {
 
 function stopStaffMode(player) {
     const rebuilt = needsRebuild(player)
+    // Both of these read the stored record, so both have to be asked BEFORE
+    // exit() deletes it.
+    const weVanished = vanishedByStaffMode(player)
     const result = exit(player)
     if (!result.ok) return err(player, result.reason)
 
-    if (vanishedByUs.has(player.id)) {
-        vanishedByUs.delete(player.id)
+    if (weVanished) {
         unvanish(player)
         refreshNameTag(player)
         announceJoin(player)

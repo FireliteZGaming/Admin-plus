@@ -1,6 +1,7 @@
 import { __test } from "@minecraft/server"
 import { onPlayerJoin, setRanks, has, applyPreset, PERMISSION_NODES, saveRank } from "../Admin+ BP/scripts/core/ranks.js"
 import { checkCommand, commandName, runAsServer } from "../Admin+ BP/scripts/core/execute.js"
+import { commandLine, CATALOGUE } from "../Admin+ BP/scripts/features/execute.js"
 import { setting, setSetting, resetSetting, DEFAULTS } from "../Admin+ BP/scripts/core/settings.js"
 
 let passed = 0, failed = 0
@@ -127,6 +128,44 @@ check("the commands people actually reach for are on it",
 check("every entry is a single lowercase word",
     shipped.filter(c => !/^[a-z]+$/.test(c)), [])
 check("no duplicates", shipped.length, new Set(shipped).size)
+
+console.log("\n— the argument grammar, which /cmd got wrong until it was played —")
+// A Bedrock String parameter is ONE TOKEN: it stops at the first space. /cmd
+// took a single String, so `/cmd kill @e[type=cow]` handed the game an
+// unexpected second argument and came back a syntax error. Nothing caught it
+// because nothing had ever assembled a multi-word line.
+check("a bare command is itself", commandLine("clear", []), "clear")
+check("a command and one argument rejoin",
+    commandLine("kill", ["@e[type=cow]"]), "kill @e[type=cow]")
+check("and several do",
+    commandLine("give", ["@s", "diamond", "1"]), "give @s diamond 1")
+check("unfilled optional slots are dropped, not turned into spaces",
+    commandLine("clear", [undefined, undefined, undefined]), "clear")
+check("a filled slot before empty ones still lands",
+    commandLine("time", ["set", "day", undefined]), "time set day")
+check("an empty string does not leave a trailing space",
+    commandLine("clear", [""]), "clear")
+check("no arguments at all is the same as an empty list", commandLine("daylock"), "daylock")
+check("the rebuilt line is what the checker sees",
+    checkCommand(commandLine("kill", ["@e[type=cow]"])).ok, true)
+check("and it survives the round trip intact",
+    checkCommand(commandLine("give", ["@s", "diamond", "1"])).command, "give @s diamond 1")
+
+console.log("\n— the completion list is now also the limit on what can be typed —")
+// Switching the first parameter to an Enum is what gives /cmd tab-completion,
+// but an Enum accepts nothing outside its values. So this list is no longer
+// only a suggestion: anything off it cannot be typed at all, which makes the
+// deliberate exclusions load-bearing twice over.
+check("every shipped command is offered", CATALOGUE.length, shipped.length)
+for (const banned of ["op", "deop", "kick", "execute", "function", "scriptevent", "schedule", "reload", "stop", "allowlist"]) {
+    check(`${banned} cannot even be typed`, CATALOGUE.includes(banned), false)
+}
+for (const wanted of ["kill", "clear", "give", "effect", "gamemode", "summon", "tp", "teleport", "xp"]) {
+    check(`${wanted} is offered`, CATALOGUE.includes(wanted), true)
+}
+check("every offered entry is one lowercase word",
+    CATALOGUE.every(c => /^[a-z]+$/.test(c)), true)
+check("and there are no duplicates to pick between", new Set(CATALOGUE).size, CATALOGUE.length)
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

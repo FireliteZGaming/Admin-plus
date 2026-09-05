@@ -265,6 +265,39 @@ export function exit(player) {
     return { ok: true, lossless, restored }
 }
 
+/**
+ * Remember that STAFF MODE is what vanished this person.
+ *
+ * This lived in a `Set` in features/staffmode.js, and a world reload emptied it.
+ * The consequence was reported from a playtest: reload while in staff mode, and
+ * on the way back the restore never un-vanished you — infinite invisibility,
+ * night vision, and still flagged vanished, with nothing saying why. Only
+ * `/vanish` twice got you out.
+ *
+ * It belongs in the same record as the inventory snapshot, for exactly the
+ * reason that snapshot exists: staff mode has to survive the world going away,
+ * and memory does not. Anything that must outlive a reload goes in storage —
+ * `vanished` itself was already a Table, which is why toggling did work.
+ *
+ * Call it AFTER `enter()`, which is what creates the record to write into.
+ */
+export function markVanished(playerOrId, on) {
+    const id = idOf(playerOrId)
+    const flag = flags.get(id)
+    if (!flag) return false
+    flags.set(id, { ...flag, vanished: !!on })
+    return true
+}
+
+/**
+ * Did staff mode vanish them?
+ *
+ * Read this BEFORE `exit()` — exit deletes the record this answer lives in.
+ */
+export function vanishedByStaffMode(playerOrId) {
+    return !!flags.get(idOf(playerOrId))?.vanished
+}
+
 /** Testing seam: forget the in-memory half without touching storage, which is
  *  exactly what a world reload does. */
 export function __forgetLive(playerOrId) { live.delete(idOf(playerOrId)) }
