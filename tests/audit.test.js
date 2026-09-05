@@ -117,7 +117,11 @@ check("switching your own developer mode is silent",
     audienceFor(admin, admin, "dev.mode"), [])
 check("taking an admin item is silent", audienceFor(admin, admin, "admin.items"), [])
 check("a knockback hit is silent", audienceFor(admin, member, "admin.knockback"), [])
-check("the silent list is exactly those eleven", SILENT.size, 11)
+check("nor each item taken out of an ender chest",
+    audienceFor(admin, member, "mod.enderchest.take"), [])
+check("but opening someone's ender chest IS announced",
+    names(audienceFor(admin, member, "mod.enderchest")).length > 0, true)
+check("the silent list is exactly those twelve", SILENT.size, 12)
 
 console.log("\n— actions with nobody on one end —")
 check("no actor, no line", audienceFor(undefined, member, "automod.ore"), [])

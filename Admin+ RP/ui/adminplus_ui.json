@@ -28,7 +28,7 @@
 					"type": "image",
 					"size": [
 						176,
-						82
+						81
 					],
 					"texture": "textures/ui/small_ui",
 					"$small_chest_flag": "§c§h§e§s§t§s§m§a§l§l",
@@ -135,6 +135,63 @@
 							"target_property_name": "#visible"
 						}
 					]
+				}
+			},
+			{
+				"big_chest_grid_image": {
+					"type": "image",
+					"size": [
+						176,
+						189
+					],
+					"texture": "textures/ui/big_ui",
+					"layer": 0,
+					"controls": [
+						{
+							"chest_label@adminplus_ui.chest_label": {}
+						},
+						{
+							"close_button@common.close_button": {
+								"$close_button_offset": [
+									-2,
+									2
+								]
+							}
+						},
+						{
+							"big_chest_grid": {
+								"type": "grid",
+								"grid_dimensions": [
+									9,
+									9
+								],
+								"size": [
+									"100% - 14px",
+									"100% - 27px"
+								],
+								"offset": [
+									7,
+									21
+								],
+								"anchor_from": "top_left",
+								"anchor_to": "top_left",
+								"grid_item_template": "adminplus_ui.inventory_item",
+								"collection_name": "form_buttons",
+								"layer": 1
+							}
+						}
+					],
+					"bindings": [
+						{
+							"binding_name": "#title_text"
+						},
+						{
+							"binding_type": "view",
+							"source_property_name": "(not ((#title_text - $big_chest_flag) = #title_text))",
+							"target_property_name": "#visible"
+						}
+					],
+					"$big_chest_flag": "§b§i§g§c§h§e§s§t"
 				}
 			}
 		],

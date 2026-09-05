@@ -124,6 +124,9 @@ export const DEFAULTS = {
     "feature.tpa": {
         value: "true", label: "Teleport requests", help: "true / false · /tpa and friends"
     },
+    "feature.enderchest": {
+        value: "true", label: "Ender chest", help: "true / false · /ec, and /enderchest <player> for staff"
+    },
     "feature.reports": {
         value: "true", label: "Reports", help: "true / false · /report and the panel queue"
     },

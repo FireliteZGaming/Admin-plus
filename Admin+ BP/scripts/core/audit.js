@@ -34,6 +34,7 @@ const SILENT = new Set([
     "report.handled",
     "mod.invsee.take",          // the invsee OPEN is the event; per-item is spam
     "mod.invsee.destroy",
+    "mod.enderchest.take",      // same rule for the ender chest screen
     "admin.vanish",             // vanish tells staff itself, in its own words
     "admin.unvanish",
     // Staff mode is done to yourself, not to anybody — the actor and the target
@@ -63,6 +64,7 @@ const VERBS = {
     "mod.tpaClose": "close TPA",
     "mod.tpaOpen": "open TPA",
     "mod.invsee": "invsee",
+    "mod.enderchest": "enderchest",
     "player.sudo": "sudo"
 }
 
@@ -100,6 +102,7 @@ const PHRASES = {
     "mod.tpaClose": t => `Closed ${t}'s TPA`,
     "mod.tpaOpen": t => `Opened ${t}'s TPA`,
     "mod.invsee": t => `Opened ${t}'s inventory`,
+    "mod.enderchest": t => `Opened ${t}'s ender chest`,
     "mod.gamemode": (t, d) => `Set ${t}'s game mode to ${d}`,
     "mod.bring": t => `Brought ${t}`,
     "name.set": (t, d) => `Renamed ${t} to ${d}`,

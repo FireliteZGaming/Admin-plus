@@ -36,10 +36,73 @@ import { textureFor } from "./itemTextures.js"
 // an inventory. The JSON-UI in our resource pack and this file are our own; the
 // wire format is theirs, and has to match exactly to be worth anything.
 
+/**
+ * The three grid shapes, and the sentinel that selects each.
+ *
+ * `small` and `large` carry the COMMUNITY module's sentinels, for the
+ * compatibility reason above — those two must never change.
+ *
+ * `big` is ours alone: 9x9, laid out the way a real chest screen is — a
+ * container on top, the player's pack, and the hotbar on its own row, each
+ * separated by a break exactly as the game separates them. That is 27 + 27 + 9
+ * of content in 81 cells; the two spare rows are the breaks. Their cells are
+ * never filled and the background behind them is flat panel with no slot
+ * squares, so they read as the gaps vanilla draws rather than as empty slots.
+ * Neither community size can hold this.
+ *
+ * Adding it costs nothing on the compatibility side
+ * precisely BECAUSE the string is ours: a foreign pack whose UI loads above
+ * ours does not recognise it, so a `big` form degrades to a plain button list —
+ * the same fallback `invsee.chestUI = false` already produces, and every screen
+ * that uses this has one. The shared sizes keep rendering under a foreign UI
+ * exactly as before.
+ *
+ * The three strings are deliberately non-overlapping. The JSON-UI picks a
+ * layout with a SUBSTRING test, so a sentinel containing another would draw two
+ * chests on top of each other; `tests/chestui.test.js` pins that they stay
+ * mutually exclusive.
+ */
 const SIZES = new Map([
     ["small", ["§c§h§e§s§t§s§m§a§l§l§r", 27]],
-    ["large", ["§s§h§o§p§c§h§e§s§t§r", 54]]
+    ["large", ["§s§h§o§p§c§h§e§s§t§r", 54]],
+    ["big", ["§b§i§g§c§h§e§s§t§r", 81]]
 ])
+
+/**
+ * Where things sit in a `big` grid, so the layout is stated once rather than
+ * recomputed by every screen that draws one.
+ *
+ * Rows, top to bottom: three of container, a break, three of pack, a break,
+ * then the hotbar on its own — the shape of the screen the game itself draws.
+ */
+export const BIG = Object.freeze({
+    container: 0,       // 0..26   the chest half
+    divider: 27,        // 27..35  never filled — the break under the chest
+    pack: 36,           // 36..62  inventory slots 9..35
+    gap: 63,            // 63..71  never filled — the break above the hotbar
+    hotbar: 72,         // 72..80  inventory slots 0..8
+    total: 81
+})
+
+/** The two rows that are the breaks, not slots. */
+export function isBigDivider(slot) {
+    return (slot >= BIG.divider && slot < BIG.pack) || (slot >= BIG.gap && slot < BIG.hotbar)
+}
+
+/**
+ * A player inventory index (0..35) -> its cell in a `big` grid.
+ * Hotbar is 0..8 in the container but the BOTTOM row on screen, exactly as the
+ * real inventory screen shows it.
+ */
+export function bigSlotFor(index) {
+    if (index < 0 || index > 35) return undefined
+    return index < 9 ? BIG.hotbar + index : BIG.pack + (index - 9)
+}
+
+/** The sentinel each size sends, for tests and for the UI to be checked against. */
+export function sizeSentinels() {
+    return new Map([...SIZES].map(([name, [sentinel, count]]) => [name, { sentinel, count }]))
+}
 
 const TITLE_SPLIT = "§m§c§e§r"
 

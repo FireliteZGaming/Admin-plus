@@ -27,6 +27,8 @@ export const EQUIPMENT = [
 /** A player's first nine container slots are the hotbar. */
 const HOTBAR = 9
 const DEFAULT_SIZE = 36
+/** A vanilla ender chest, single-block: three rows of nine. */
+const ENDER_SIZE = 27
 
 /**
  * Never let a missing component take the whole screen down. An item that
@@ -91,11 +93,37 @@ export function slotLabel(ref) {
     if (ref.kind === "equipment") {
         return EQUIPMENT.find(e => e.slot === ref.slot)?.label ?? "Equipment"
     }
+    if (ref.kind === "ender") return `Ender ${ref.index + 1}`
     return ref.index < HOTBAR ? `Hotbar ${ref.index + 1}` : `Slot ${ref.index + 1}`
 }
 
 function containerOf(player) {
     return safe(() => player.getComponent("minecraft:inventory")?.container)
+}
+
+/**
+ * The ender chest, which turns out to be an ordinary Container after all.
+ *
+ * This file used to say a player's ender chest was out of reach, and the whole
+ * pack believed it — the API reference lists no ender component under Player,
+ * and no addon installed on this machine reads one, Minecraft Essentials
+ * included. `minecraft:ender_inventory` is nevertheless real, and gives back a
+ * Container like any other: 27 slots, getItem, setItem.
+ *
+ * BOTH SPELLINGS ARE TRIED. Vanilla component ids work with or without the
+ * namespace and the pack writes the prefixed form everywhere else, but this one
+ * is load-bearing and undocumented enough that being wrong about the spelling
+ * would look exactly like "the player has an empty ender chest" — a silent
+ * wrong answer in a moderation tool, which is the worst kind.
+ */
+function enderOf(player) {
+    return safe(() => player.getComponent("minecraft:ender_inventory")?.container)
+        ?? safe(() => player.getComponent("ender_inventory")?.container)
+}
+
+/** The container a ref points into. */
+function containerFor(player, ref) {
+    return ref?.kind === "ender" ? enderOf(player) : containerOf(player)
 }
 
 function equippableOf(player) {
@@ -138,11 +166,70 @@ export function snapshot(player) {
     }
 }
 
+/**
+ * What is in their ender chest.
+ *
+ * Separate from snapshot() rather than folded into it because the two are read
+ * in different situations and one can fail while the other works — and, again,
+ * "empty" and "could not look" have to stay tellable apart.
+ */
+export function enderSnapshot(player) {
+    const container = enderOf(player)
+    const slots = []
+    const size = container?.size ?? ENDER_SIZE
+    if (container) {
+        for (let index = 0; index < size; index++) {
+            const item = describeItem(safe(() => container.getItem(index)), { kind: "ender", index })
+            if (item) slots.push(item)
+        }
+    }
+    return {
+        readable: !!container,
+        size,
+        slots,
+        stacks: slots.length,
+        items: slots.reduce((total, item) => total + item.amount, 0)
+    }
+}
+
+/**
+ * Move one of a player's own slots into their own ender chest.
+ *
+ * The other half of a usable /ec. Forms have no drag slots, so depositing has
+ * to be a tap on the item you want moved rather than a drag into a grid — but
+ * the result is the same and it is the real ender chest on the other end.
+ *
+ * Same ordering as transfer(), and for the same reason: it lands in the ender
+ * chest FIRST and the original slot is only cleared once that worked, so a full
+ * ender chest costs you nothing instead of eating the stack.
+ */
+export function deposit(player, ref) {
+    const stack = itemAt(player, ref)
+    if (!stack) return { ok: false, reason: "That slot is empty now." }
+    const item = describeItem(stack, ref)
+
+    const ender = enderOf(player)
+    if (!ender) return { ok: false, reason: "Couldn't reach your ender chest." }
+
+    let leftover
+    try {
+        leftover = ender.addItem(stack)
+    } catch {
+        return { ok: false, reason: "Couldn't put that in your ender chest." }
+    }
+    if (leftover) return { ok: false, reason: "Your ender chest is full — nothing was moved." }
+
+    if (!clearSlot(player, ref)) {
+        return { ok: false, reason: "Stored a copy but couldn't clear your slot — remove it by hand." }
+    }
+    return { ok: true, item }
+}
+
 /** The live ItemStack behind a ref, or undefined if the slot is empty now. */
 export function itemAt(player, ref) {
     if (!ref) return undefined
     if (ref.kind === "equipment") return safe(() => equippableOf(player)?.getEquipment(ref.slot))
-    return safe(() => containerOf(player)?.getItem(ref.index))
+    return safe(() => containerFor(player, ref)?.getItem(ref.index))
 }
 
 function clearSlot(player, ref) {
@@ -151,7 +238,7 @@ function clearSlot(player, ref) {
         if (!equippable) return false
         return safe(() => { equippable.setEquipment(ref.slot, undefined); return true }, false)
     }
-    const container = containerOf(player)
+    const container = containerFor(player, ref)
     if (!container) return false
     return safe(() => { container.setItem(ref.index, undefined); return true }, false)
 }
