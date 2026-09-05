@@ -347,6 +347,18 @@ function record(playerId) {
     return holdersTable.get(playerId) ?? { name: "", ranks: [], since: Date.now() }
 }
 
+/**
+ * When this player was first seen, as a timestamp.
+ *
+ * Already written on every join; nothing had ever read it back. /menu shows it
+ * to the player as "here since", which is the one genuinely nice thing this
+ * pack knows about somebody who has never been in trouble.
+ */
+export function memberSince(playerOrId) {
+    const id = typeof playerOrId === "string" ? playerOrId : playerOrId?.id
+    return record(id).since
+}
+
 /** Rank ids a player holds (works offline — reads the table, not tags). */
 export function heldRankIds(playerOrId) {
     const id = typeof playerOrId === "string" ? playerOrId : playerOrId?.id

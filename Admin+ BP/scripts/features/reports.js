@@ -67,7 +67,7 @@ command({
  * @param {object} [preset]  a player already named on the command line
  * @param {string} [error]  what was wrong with the last attempt
  */
-async function reportForm(player, preset, error) {
+export async function reportForm(player, preset, error) {
     const others = world.getAllPlayers().filter(p => p.id !== player.id)
     if (!others.length) {
         return err(player, "There is nobody else here to report.")

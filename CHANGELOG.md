@@ -57,6 +57,43 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.1.0 — 2026-09-05
+
+**`/menu` — the other half of panel-first.**
+
+`/admin` exists so staff never have to memorise commands. Members had no such
+thing: everything they were allowed to do was a command somebody had to tell
+them about once, and they had to remember forever. `/menu` is the same idea
+pointed the other way, and anybody can open it.
+
+It is not a small `/admin`. The verbs are different — staff *act on* players,
+members *reach* them — so the section is called **People**, and nothing in it
+does anything to anybody without their say-so.
+
+**Your stats sit above the buttons**, and they are answers rather than
+statistics. Your name and rank, when you first joined, and then only what
+applies: how many warnings you have, and — the one that earns its place —
+**whether you are muted, why, and how long is left.** A muted player used to
+type, watch nothing happen, and have to find a moderator to ask.
+
+**Settings, which are yours alone.** Three switches to start:
+
+- **Teleport requests** — turn them off and nobody can `/tpa` to you.
+- **Private chat invites** — turn them off and nobody can open one with you.
+- **Private messages** — turn them off and nobody can `/pm` you. **Staff always
+  get through**, deliberately: a setting that let a player mute the moderators
+  would be a hole rather than a preference. Teleports have no such exception,
+  because staff who genuinely need you have `/a:tp`, which does not ask.
+
+All three ship **on**, so anyone who never opens the menu is reachable exactly
+as they are today. Turning something off is an act, not a starting state — and
+only your differences from the default are stored, so changing a default later
+still reaches everybody who never disagreed with it.
+
+Vanished staff do not appear in the People list. A member seeing a hidden
+moderator there would undo vanish entirely, and it would be this screen that
+gave them away.
+
 ## 2.0.5 — 2026-09-05
 
 **`/grant` — a rank that gives itself back.**

@@ -3,6 +3,7 @@ import { command } from "../core/registry.js"
 import { ok, err, info } from "../core/util.js"
 import { flag } from "../core/settings.js"
 import { displayName } from "../core/identity.js"
+import { pref, PREFS } from "../core/prefs.js"
 import { queueTeleport } from "../core/teleport.js"
 import { menu, subtitle } from "../core/ui.js"
 import { hubTitle } from "../core/theme.js"
@@ -41,6 +42,15 @@ function send(player, selected, kind) {
     if (targets.length > 1) return err(player, "Ask one player at a time.")
 
     const target = targets[0]
+
+    // The target's own choice, from /menu ▸ Settings. Not bypassed for staff:
+    // a moderator who genuinely needs to reach somebody has /a:tp, which does
+    // not ask permission — so there is no reason for this to be overridable and
+    // every reason for "I turned it off" to mean it.
+    if (!pref(target, "tpa.accept")) {
+        return err(player, `${displayName(target)} ${PREFS["tpa.accept"].off}`)
+    }
+
     const result = createRequest(player, target, kind)
     if (!result.ok) return err(player, result.reason)
 
@@ -65,6 +75,16 @@ function send(player, selected, kind) {
             : ""
     ].filter(Boolean).join("\n"))
 }
+
+/**
+ * The two requests, for callers holding a Player rather than a selector.
+ *
+ * Wrappers rather than a second implementation: /menu and /tpa must agree about
+ * every rule -- the feature switch, the preference, the replace-your-last-one
+ * behaviour -- and the only way to guarantee that is one function.
+ */
+export function requestTo(player, target) { return send(player, [target], "to") }
+export function requestHere(player, target) { return send(player, [target], "here") }
 
 command({
     name: "tpaccept",

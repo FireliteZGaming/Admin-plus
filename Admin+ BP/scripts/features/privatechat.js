@@ -2,9 +2,10 @@ import { world, CustomCommandParamType } from "@minecraft/server"
 import { command } from "../core/registry.js"
 import { CONFIG } from "../config.js"
 import { ok, err, info } from "../core/util.js"
-import { has, primaryRank } from "../core/ranks.js"
+import { has, primaryRank, isStaff } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
 import { isMuted } from "../core/moderation.js"
+import { pref, PREFS } from "../core/prefs.js"
 import { render, renderTag, flag } from "../core/settings.js"
 import {
     rememberExchange, replyTarget, isSpying, toggleSpying, spyIds,
@@ -79,6 +80,14 @@ function sendPrivate(player, selected, message) {
     const target = targets[0]
     if (target.id === player.id) return err(player, "You can't message yourself.")
 
+    // Their choice, from /menu > Settings -- but STAFF ALWAYS GET THROUGH.
+    // Staff need to be able to ask somebody a question without pulling them
+    // into a public channel, and a preference that let a player mute the
+    // moderators would be a hole rather than a setting.
+    if (!pref(target, "pm.accept") && !isStaff(player)) {
+        return err(player, `${displayName(target)} ${PREFS["pm.accept"].off}`)
+    }
+
     const text = String(message ?? "").trim().slice(0, 240)
     if (!text) return err(player, "Type a message to send.")
 
@@ -148,40 +157,58 @@ command({
         if (!targets.length) return leave(player)
         if (targets.length > 1) return err(player, "Pick one player.")
 
-        const target = targets[0]
-        if (target.id === player.id) return err(player, "You can't open a private chat with yourself.")
-        if (isMuted(player)) return err(player, "You are muted.")
-
-        // Pointing it at somebody who has already asked YOU is how you accept.
-        // No second command to remember, and it reads the same either way round.
-        if (inviteFrom(player, target)) {
-            takeInvite(player, target)
-            open(player, target)
-            return
-        }
-
-        if (pairedWith(player) === target.id) {
-            return info(player, `§7You are already in a private chat with §f${displayName(target)}§7.`)
-        }
-        if (inPair(player)) {
-            return err(player, "You're already in a private chat. Use /prexit to leave it first.")
-        }
-        if (inPair(target)) {
-            return err(player, `§f${displayName(target)}§c is already in a private chat.`)
-        }
-
-        if (inviteFrom(target, player)) {
-            return info(player, `§7Already asked — waiting on §f${displayName(target)}§7.`)
-        }
-
-        invite(player, target)
-        ok(player, `Asked §f${displayName(target)}§a for a private chat. It lapses in §f${INVITE_SECONDS}s§a.`)
-        target.sendMessage([
-            `${CONFIG.brand.prefix}§d${displayName(player)}§7 wants a private chat.`,
-            `§8§f/praccept ${player.name}§8 to accept · §f/prdeny§8 to turn it down · lapses in ${INVITE_SECONDS}s`
-        ].join("\n"))
+        return askPrivateChat(player, targets[0])
     }
 })
+
+/**
+ * Ask somebody for a private chat -- or accept theirs, since pointing it at a
+ * person who already asked YOU is how you say yes.
+ *
+ * Lifted out of the command so /menu can offer the same thing without becoming
+ * a second copy of these rules. There are seven of them and they disagree in
+ * seven different ways if duplicated.
+ */
+export function askPrivateChat(player, target) {
+    if (target.id === player.id) return err(player, "You can't open a private chat with yourself.")
+
+    // Their choice. No staff bypass here, unlike /pm: a private chat is a
+    // CONVERSATION and needs two willing people. Staff who must reach
+    // somebody use /pm, which always gets through.
+    if (!pref(target, "prchat.accept")) {
+        return err(player, `${displayName(target)} ${PREFS["prchat.accept"].off}`)
+    }
+    if (isMuted(player)) return err(player, "You are muted.")
+
+    // Pointing it at somebody who has already asked YOU is how you accept.
+    // No second command to remember, and it reads the same either way round.
+    if (inviteFrom(player, target)) {
+        takeInvite(player, target)
+        open(player, target)
+        return
+    }
+
+    if (pairedWith(player) === target.id) {
+        return info(player, `§7You are already in a private chat with §f${displayName(target)}§7.`)
+    }
+    if (inPair(player)) {
+        return err(player, "You're already in a private chat. Use /prexit to leave it first.")
+    }
+    if (inPair(target)) {
+        return err(player, `§f${displayName(target)}§c is already in a private chat.`)
+    }
+
+    if (inviteFrom(target, player)) {
+        return info(player, `§7Already asked — waiting on §f${displayName(target)}§7.`)
+    }
+
+    invite(player, target)
+    ok(player, `Asked §f${displayName(target)}§a for a private chat. It lapses in §f${INVITE_SECONDS}s§a.`)
+    target.sendMessage([
+        `${CONFIG.brand.prefix}§d${displayName(player)}§7 wants a private chat.`,
+        `§8§f/praccept ${player.name}§8 to accept · §f/prdeny§8 to turn it down · lapses in ${INVITE_SECONDS}s`
+    ].join("\n"))
+}
 
 command({
     name: "prexit",
