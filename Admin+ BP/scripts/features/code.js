@@ -1,7 +1,7 @@
 import { world, system } from "@minecraft/server"
 import { menu, modal, confirm } from "../core/ui.js"
-import { canUseCode, DEV_TAG } from "../core/devgate.js"
-import { hubTitle } from "../core/theme.js"
+import { canUseCode, hasOperator, DEV_TAG } from "../core/devgate.js"
+import { hubTitle, multilineTitle } from "../core/theme.js"
 import { ok, err, info } from "../core/util.js"
 import { refreshNameTag } from "../core/ranks.js"
 import { DEFAULTS, setting, overrides, replaceOverrides } from "../core/settings.js"
@@ -10,8 +10,18 @@ import { record } from "../core/logs.js"
 
 // /admin ▸ < Code >
 //
-// The command-block treatment: the whole config in front of you, and you change
-// the parts you want to change.
+// The config as a text file you edit. Not a menu that leads to a text file —
+// the file itself, opened the moment you press the button.
+//
+// It was always supposed to be this. It became a hub of four buttons only
+// because a form text field was believed to be single-line, so the block was
+// unrolled into one control per key to stay usable. That belief was wrong: the
+// resource pack draws a real multi-line box (see `MULTILINE` in core/theme.js),
+// so the section can finally be the thing it was named after.
+//
+// The other three buttons moved rather than died — the field editor, the config
+// presets and Factory Reset all live under /admin ▸ Settings now, which is where
+// somebody looking for a setting would have looked first anyway.
 //
 // Gated by BOTH a "Dev" tag and operator status, deliberately: the tag alone is
 // something any staff member with /tag could give themselves, and op alone is
@@ -21,41 +31,7 @@ import { record } from "../core/logs.js"
 
 export async function codeScreen(player, back) {
     if (!canUseCode(player)) { err(player, "That section needs the Dev tag and operator status."); return back() }
-
-    const changed = Object.keys(overrides()).length
-    const again = () => codeScreen(player, back)
-    return menu(player, {
-        title: hubTitle("code", "< Code >"),
-        body: [
-            "§8The live config. Every value, in one place.",
-            "",
-            `§fPreview: §r${previewLine()}`,
-            "",
-            `§fPreset: §r${presetColour()}${detectPreset().label}`,
-            changed
-                ? `§e${changed} value${changed === 1 ? "" : "s"} changed from default`
-                : "§8Everything is at its default"
-        ].join("\n"),
-        buttons: [
-            {
-                text: `§d§lEdit Config§r\n§8All ${Object.keys(DEFAULTS).length} values · change what you like, submit to save`,
-                run: () => configScreen(player, again)
-            },
-            {
-                text: "§d§lEdit as text§r\n§8The same config as one key = value block · paste a whole config in",
-                run: () => blockScreen(player, again)
-            },
-            {
-                text: `§e§lPresets§r\n§8Named baselines · currently ${detectPreset().label}`,
-                run: () => presetsScreen(player, again)
-            },
-            {
-                text: "§c§lFactory Reset§r\n§8Throw away every change, back to defaults",
-                run: () => resetScreen(player, again)
-            }
-        ],
-        back
-    })
+    return blockScreen(player, back)
 }
 
 /** Custom is worth noticing, so it is the only one that is not grey. */
@@ -65,20 +41,19 @@ function presetColour() {
 
 // ------------------------------------------------------------ the whole config
 //
-// The command-block feeling the text block was reaching for, done the way
-// Bedrock can actually do it. A ModalFormData text field is SINGLE LINE — there
-// is no multi-line control in server-ui — so putting three thousand characters
-// of config into one of them gave you a letterbox you had to scroll sideways
-// through to find the one value you came to change. That is what made the old
-// screen weird.
+// /admin ▸ Settings ▸ All values. The same config as < Code >, one typed control
+// per key: grouped, labelled, already filled in, toggles for the booleans.
 //
-// So the block is unrolled into one control per key instead: the entire config
-// is in front of you, in order, grouped, each value already filled in. You only
-// touch the parts you want. Nothing is hidden behind another screen, which was
-// the point of < Code > in the first place.
+// This screen was BUILT as a workaround. The belief was that a form text field
+// could only ever be one line, which made the config block a letterbox you
+// scrolled sideways through, so it was unrolled into ~39 separate controls to
+// stay usable. The belief was wrong — the resource pack draws a real multi-line
+// box — and < Code > is now the text file it was always meant to be.
 //
-// The text block is still there, one button over, because pasting a whole
-// config in — or taking one out — is the one thing a field list cannot do.
+// It is kept anyway, because it turns out not to have been only a workaround:
+// typed controls validate, group and explain in a way raw text cannot, and not
+// everybody wants to edit a config by typing into it. Two doors, one store —
+// so the two screens had better agree about everything, and they do.
 
 /** Pretty names for the key prefixes. Anything unlisted is capitalised. */
 export const GROUPS = {
@@ -143,7 +118,7 @@ function isNumeric(text) {
     return text !== "" && Number.isFinite(Number(text))
 }
 
-async function configScreen(player, back) {
+export async function allValuesScreen(player, back) {
     const keys = []
     const fields = []
 
@@ -164,7 +139,7 @@ async function configScreen(player, back) {
         })
     }
 
-    const values = await modal(player, hubTitle("code", "Edit Config"), fields)
+    const values = await modal(player, hubTitle("settings", "All values"), fields)
     if (!values) return back()
 
     // Anything that will not parse keeps the value it had. The edit does not
@@ -207,13 +182,13 @@ async function configScreen(player, back) {
 
 // ------------------------------------------------------------------ presets
 
-async function presetsScreen(player, back) {
+export async function configPresetsScreen(player, back) {
     const presets = allPresets()
     const current = detectPreset()
-    const again = () => presetsScreen(player, back)
+    const again = () => configPresetsScreen(player, back)
 
     return menu(player, {
-        title: hubTitle("code", "Config presets"),
+        title: hubTitle("presets", "Config presets"),
         body: [
             `§fCurrently: §r${presetColour()}${current.label}`,
             current.id === "custom"
@@ -242,7 +217,7 @@ async function applyScreen(player, id, back) {
         ? keys.slice(0, 8).map(k => `§8· ${k} = ${preset.values[k]}`).join("\n")
         : "§8· clears every override, back to shipped defaults"
 
-    const yes = await confirm(player, hubTitle("code", preset.label),
+    const yes = await confirm(player, hubTitle("presets", preset.label),
         `${preset.description}\n\n${summary}${keys.length > 8 ? `\n§8· …and ${keys.length - 8} more` : ""}`,
         "§eApply")
     if (!yes) return back()
@@ -255,7 +230,7 @@ async function applyScreen(player, id, back) {
 }
 
 async function saveScreen(player, back) {
-    const values = await modal(player, hubTitle("code", "Save preset"), [
+    const values = await modal(player, hubTitle("presets", "Save preset"), [
         { id: "id", type: "text", label: "Preset id §8· lowercase, no spaces", placeholder: "myrealm" },
         { id: "label", type: "text", label: "Name §8· how it shows in the list", placeholder: "My Realm" },
         { id: "description", type: "text", label: "One line about it §8· optional", placeholder: "" }
@@ -273,8 +248,15 @@ async function saveScreen(player, back) {
     return back()
 }
 
-/** What a rank tag and chat line look like with the current values. */
-function previewLine() {
+/**
+ * What a rank tag and chat line look like with the current values.
+ *
+ * It sat on the old < Code > hub. That hub is gone, so it moved to the Settings
+ * screen — which is the better home anyway: the formatting keys are the ones
+ * you cannot picture from their value alone, and this is the only place that
+ * shows you the answer before you commit to it.
+ */
+export function previewLine() {
     const tag = setting("format.tag")
         .replaceAll("{OPEN}", setting("bracket.open"))
         .replaceAll("{CLOSE}", setting("bracket.close"))
@@ -290,8 +272,8 @@ function previewLine() {
 //
 // "key = value", one per line, with # comments — a config file, not JSON. On a
 // controller or a phone keyboard, unbalanced braces and quotes are a trap, and
-// this format has neither. It is the export/import path now that Edit Config
-// handles day-to-day editing: paste a config in, or copy one out.
+// this format has neither. It reads and writes like any .txt: scroll it, change
+// the lines you came to change, paste a whole config in, or copy one out.
 
 export function toBlock() {
     const current = detectPreset()
@@ -334,12 +316,38 @@ export function fromBlock(text) {
     return { values, unknown }
 }
 
+/**
+ * Does this document contain no config at all?
+ *
+ * Submitting the block REPLACES the override table with whatever came back, so
+ * an empty field discards every changed value — a factory reset with no
+ * confirmation, from a screen that is not Factory Reset. Cheap to do by
+ * accident now that the box is a real multi-line editor you can select-all and
+ * type over, and not yet ruled out as something the new control might do on its
+ * own, since nothing has run it in game.
+ *
+ * "No recognised keys at all" is the test, deliberately, rather than "fewer keys
+ * than before": deleting a line is how you say "put this one back to default",
+ * and that has to keep working. Only a document with nothing left in it is
+ * treated as the accident it almost certainly is.
+ */
+export function blockHasNoConfig(text) {
+    const parsed = fromBlock(text)
+    if (parsed.error) return false                    // a parse error is its own message
+    return !Object.keys(parsed.values).some(key => key !== "preset" && key in DEFAULTS)
+}
+
 async function blockScreen(player, back) {
-    const values = await modal(player, hubTitle("code", "Edit as text"), [
+    const changed = Object.keys(overrides()).length
+    const values = await modal(player, multilineTitle("code", "< Code >"), [
         {
             id: "block",
             type: "text",
-            label: "§8The whole config as text. Submit to save; closing keeps the old values.\n§8Bedrock text fields are one line — use Edit Config for ordinary changes.",
+            label: [
+                `§8The live config — ${Object.keys(DEFAULTS).length} values, ${detectPreset().label}${changed ? `, ${changed} changed from default` : ""}.`,
+                "§8Edit the lines you want. Submit saves; closing changes nothing.",
+                "§8Settings ▸ All values does the same job one field at a time."
+            ].join("\n"),
             placeholder: "key = value",
             default: toBlock()
         }
@@ -349,6 +357,12 @@ async function blockScreen(player, back) {
     const parsed = fromBlock(values.block)
     if (parsed.error) {
         err(player, `${parsed.error}\n§8Nothing was saved.`)
+        return back()
+    }
+
+    if (blockHasNoConfig(values.block)) {
+        err(player, "That came back with no config in it — nothing was saved.")
+        info(player, "§7To clear every change on purpose: §fSettings ▸ Factory Reset§7.")
         return back()
     }
 
@@ -404,11 +418,22 @@ async function blockScreen(player, back) {
     return back()
 }
 
-async function resetScreen(player, back) {
+/**
+ * /admin ▸ Settings ▸ Factory Reset. OPERATOR ONLY.
+ *
+ * It moved here out of < Code > because it is a setting, and it kept a gate on
+ * the way: `admin.settings` opens the Settings screen, but throwing away every
+ * changed value in one press is not the same size of act as editing one of
+ * them. The check is here rather than only on the button, because a screen that
+ * trusts its caller is one refactor away from trusting the wrong one.
+ */
+export async function factoryResetScreen(player, back) {
+    if (!hasOperator(player)) { err(player, "Factory Reset is operator-only."); return back() }
+
     const count = Object.keys(overrides()).length
     if (!count) { ok(player, "Already at factory defaults."); return back() }
 
-    const yes = await confirm(player, hubTitle("code", "Factory Reset"),
+    const yes = await confirm(player, hubTitle("settings", "Factory Reset"),
         `Throw away all §f${count}§r changed value${count === 1 ? "" : "s"} and restore the shipped config?\n\n§8Ranks, players and bans are untouched — this is only the config block.`,
         "§cFactory Reset")
     if (!yes) return back()

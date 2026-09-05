@@ -19,6 +19,29 @@ export function hubTitle(hub, text) {
     return `§l§bAdmin§d+§r §8| ${HUB[hub] ?? "§r"}${text}`
 }
 
+/**
+ * The sentinel that turns a form's text fields multi-line.
+ *
+ * There is no script API for this. `Admin+ RP/ui/server_form.json` watches every
+ * form title, and when it contains this string it draws the form's inputs with
+ * `npc_interact.multiline_text_edit_control` — the control vanilla already uses
+ * for the NPC dialogue editor — instead of the one-line box. Same shape of trick
+ * as the chest grid, and the same sentinel style as its `§m§c§e`: `§` before
+ * each letter, so the renderer eats the lot and nothing prints.
+ *
+ * It goes at the END of a title. A prefix would restyle the words after it.
+ *
+ * WITHOUT THE RESOURCE PACK this is simply an invisible suffix and the field
+ * renders one line, exactly as it did before. Every screen using it must still
+ * be usable that way — degrade, never depend.
+ */
+export const MULTILINE = "§c§o§d§e"
+
+/** A screen title that asks for multi-line text fields. See MULTILINE. */
+export function multilineTitle(hub, text) {
+    return hubTitle(hub, text) + MULTILINE
+}
+
 /** A hub-coloured root button: bold label over a grey one-line description. */
 export function hubButton(hub, label, description) {
     const colour = HUB[hub] ?? "§r"

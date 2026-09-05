@@ -5,7 +5,8 @@ import { displayName } from "../core/identity.js"
 import { hubTitle, hubButton, HUB } from "../core/theme.js"
 import { ranksScreen } from "./ranksUI.js"
 import { actionsScreen } from "./actions.js"
-import { codeScreen, canUseCode } from "./code.js"
+import { codeScreen, canUseCode, allValuesScreen, configPresetsScreen, factoryResetScreen, previewLine } from "./code.js"
+import { hasOperator } from "../core/devgate.js"
 import { channelsScreen } from "./chatUI.js"
 import { warpsScreen } from "./warps.js"
 import { reportsScreen, reportsBadge } from "./reports.js"
@@ -97,7 +98,7 @@ export async function openPanel(player) {
     // Dev tag + operator only. Absent for everyone else, not disabled.
     if (canUseCode(player)) {
         buttons.push({
-            text: hubButton("code", "< Code >", "Brackets, name and chat layouts"),
+            text: hubButton("code", "< Code >", "The whole config as one editable text file"),
             run: () => codeScreen(player, () => openPanel(player))
         })
     }
@@ -114,11 +115,24 @@ export async function openPanel(player) {
     })
 }
 
+// Settings is where the config lives now.
+//
+// The bottom three moved out of < Code > when that section became the text
+// editor it was named after. They were never dev-only in spirit — a preset and
+// a reset are settings, and this is where somebody would look for them.
+//
+// Factory Reset additionally wants OPERATOR, because discarding every changed
+// value at once is a different size of act from editing one. The screen checks
+// again on entry; this only keeps the button from appearing.
 async function settingsScreen(player, back) {
     const again = () => settingsScreen(player, back)
     return menu(player, {
         title: hubTitle("settings", "Settings"),
-        body: subtitle("Pack-wide configuration."),
+        body: [
+            subtitle("Pack-wide configuration."),
+            "",
+            `§8Chat now reads: §r${previewLine()}`
+        ].join("\n"),
         buttons: [
             has(player, "admin.automod")
                 ? { text: hubButton("settings", "Automod", "Ore alerts, break rate, chat flooding"), run: () => automodScreen(player, again) }
@@ -127,7 +141,12 @@ async function settingsScreen(player, back) {
             has(player, "chat.manage")
                 ? { text: hubButton("settings", "Chat channels", "Create, gate and order the chats"), run: () => channelsScreen(player, again) }
                 : null,
-            { text: hubButton("settings", "Teleport tuning", "Warmup, cooldown, TPA expiry"), run: () => teleportTuningScreen(player, again) }
+            { text: hubButton("settings", "Teleport tuning", "Warmup, cooldown, TPA expiry"), run: () => teleportTuningScreen(player, again) },
+            { text: hubButton("settings", "All values", "Every config value, one field at a time"), run: () => allValuesScreen(player, again) },
+            { text: hubButton("presets", "Config presets", "Named baselines for the values above"), run: () => configPresetsScreen(player, again) },
+            hasOperator(player)
+                ? { text: hubButton("actions", "Factory Reset", "Throw away every change, back to defaults"), run: () => factoryResetScreen(player, again) }
+                : null
         ].filter(Boolean),
         back
     })

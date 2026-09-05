@@ -64,7 +64,8 @@
 			"100%",
 			"100%"
 		],
-		"$flag_form_title": "JavaScript REPL",
+		"$flag_form_title": "§c§o§d§e",
+		"$flag_form_title_alt": "JavaScript REPL",
 		"controls": [
 			{
 				"custom_form@server_form.custom_form": {
@@ -75,7 +76,7 @@
 						},
 						{
 							"binding_type": "view",
-							"source_property_name": "(#title_text - $flag_form_title = #title_text)",
+							"source_property_name": "((#title_text - $flag_form_title = #title_text) and (#title_text - $flag_form_title_alt = #title_text))",
 							"target_property_name": "#visible"
 						}
 					]
@@ -90,7 +91,7 @@
 						},
 						{
 							"binding_type": "view",
-							"source_property_name": "(not (#title_text - $flag_form_title = #title_text))",
+							"source_property_name": "(not ((#title_text - $flag_form_title = #title_text) and (#title_text - $flag_form_title_alt = #title_text)))",
 							"target_property_name": "#visible"
 						}
 					]
