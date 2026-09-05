@@ -57,6 +57,24 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.0.3 — 2026-09-05
+
+**Fixes 2.0.2, where none of the 56 vanilla commands existed.** Every one of
+them was refused at startup, silently as far as the game was concerned:
+
+```
+Custom Command Enum namespaces must match.
+Namespace 'cmd' does not match existing namespace 'a'.
+```
+
+The commands were registered under `cmd:` while their value lists were
+registered under the pack's own namespace, and Bedrock requires those to agree.
+The value lists move to `cmd:` to match.
+
+Worth recording because the message understates it: commands with **no
+parameters at all** were refused for the same reason, so the rule is about the
+pack's namespace rather than about any individual command's arguments.
+
 ## 2.0.2 — 2026-09-05
 
 **The vanilla commands complete their own arguments now.**

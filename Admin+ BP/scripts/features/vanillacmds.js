@@ -25,10 +25,21 @@ import { COMMANDS, ENUMS, SELECTOR_TYPES } from "../core/vanillaparams.js"
 const P = CustomCommandParamType
 const CMD_NS = "cmd"
 
-/** Registered enum names, keyed by the short name used in the table. */
+/**
+ * Registered enum names, keyed by the short name used in the table.
+ *
+ * These are registered in the `cmd` namespace, NOT the pack's own. Bedrock
+ * refuses a command whose namespace does not match its enums':
+ *
+ *   CustomCommandError: Custom Command Enum namespaces must match.
+ *   Namespace 'cmd' does not match existing namespace 'a'.
+ *
+ * All 56 registrations failed on that the first time, including ones with no
+ * enum parameter at all, so the rule reaches further than the message suggests.
+ */
 const enumName = {}
 for (const [key, values] of Object.entries(ENUMS)) {
-    enumName[key] = defineEnum(`v_${key}`, values)
+    enumName[key] = defineEnum(key, values, CMD_NS)
 }
 
 /**

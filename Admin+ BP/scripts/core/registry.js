@@ -58,8 +58,8 @@ export function registeredCommands(ns) {
  * that name in the parameter's `name` field with type Enum.
  * @returns {string} the namespaced enum name, ready to use as a parameter name
  */
-export function defineEnum(shortName, values) {
-    const name = `${NS}:${shortName}`
+export function defineEnum(shortName, values, ns) {
+    const name = `${ns ?? NS}:${shortName}`
     enums.push({ name, values })
     return name
 }
