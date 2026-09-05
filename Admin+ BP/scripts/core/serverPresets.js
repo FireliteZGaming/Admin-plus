@@ -106,33 +106,18 @@ export const SERVER_PRESETS = {
         channels: ["general", "staff"],
         notes: "A spear-and-mace PvP world, run tight. Teleport requests are off entirely — you walk, or you fight. Banning sits above Admin on purpose: Moderator is a trial rank, Admin runs the day, and the irreversible button belongs to Head Admin and up. Most of the ladder is cosmetic: tags that are Member with a different name, so awarding one replaces the Member tag rather than stacking on it."
     },
-    lockdown: {
-        id: "lockdown",
-        label: "Locked down",
-        description: "Long warmups, wide protection, staff not exempt.",
-        // Lockdown is a MODE a server goes into, not a shape a server has, so
-        // it no longer carries a ladder of its own — it borrows the SMP one,
-        // which is the same owner/staff/member shape it always installed. The
-        // old ladder expressed "members cannot TPA" as a permission denial
-        // buried in a rank; `feature.tpa` says it out loud, and says it for
-        // everybody, which is what a lockdown should mean anyway.
-        ladder: "smp",
-        config: {
-            "feature.tpa": "false",
-            "spawn.protect": "true",
-            "spawn.radius": "64",
-            "teleport.warmup": "5",
-            "teleport.cooldown": "15",
-            "staff.exemptCooldowns": "false",
-            "automod.ores": "true",
-            "automod.breaks": "true",
-            "automod.spam": "true",
-            "presence.announce": "true",
-            "feature.chat": "true"
-        },
-        channels: ["general", "staff"],
-        notes: "Something went wrong and you are tightening up. Staff wait the same cooldowns as everyone else, deliberately — during an incident the rules should visibly apply to the people enforcing them."
-    },
+    // REMOVED: the "Locked down" preset. Its ladder went in 1.19.0 because a
+    // lockdown is a MODE a server goes into rather than a shape it has; the
+    // preset went the same way after the 2.0.0 playtest, for the same reason.
+    // A server shape is what a world IS — Server, Realm, SMP, Spear-mace,
+    // Donor, Roleplay all answer "what kind of place is this". "We are having
+    // an incident" is not an answer to that question, and picking it as your
+    // shape meant losing the one you actually had.
+    //
+    // Nothing is lost: every value it set is an ordinary config key. Tightening
+    // up during an incident is turning `feature.tpa` off and raising
+    // `teleport.warmup`, which Settings does directly and reversibly, without
+    // renaming what your server is.
     quiet: {
         id: "quiet",
         label: "Quiet survival",

@@ -85,6 +85,48 @@ question. A real editor makes that a single mis-stroke, so it is refused. A
 *shorter* config still saves normally: deleting a line is how you set that key
 back to its default.
 
+### Fixed by playing it
+
+Eighteen versions had passed their tests and none had been played. The first
+playthrough found two real faults, and both were things no test could have
+reached.
+
+- **Staff mode left you invisible after a world reload.** "Staff mode is what
+  vanished you" was remembered in memory, and a reload forgets. Coming back, the
+  restore never un-vanished you: infinite invisibility, night vision, still
+  hidden, with only `/vanish` twice to get out. It is stored with the inventory
+  snapshot now, for the same reason that snapshot exists — staff mode has to
+  survive the world going away.
+- **`/cmd` did not work with arguments — at all.** A Bedrock command's text
+  parameter stops at the first space, so `/cmd kill @e[type=cow]` was read as a
+  command plus an argument nobody asked for, and came back a syntax error. Only
+  a bare one-word command ever ran.
+
+  The command name is now a proper list the game completes for you, the way a
+  vanilla command does, and arguments follow it as separate words. One
+  consequence worth knowing: the list is what can be *typed* now, so the
+  deliberate omissions — `op`, `kick`, `execute`, `function`, `schedule` — are
+  no longer merely refused, they cannot be entered.
+
+**Also from that session**
+
+- **The config box types faster.** Two thirds of what you were editing was
+  comments explaining each key — 7,467 characters to hold 2,065 of config. One
+  heading per group is kept; the rest moved out, and Settings ▸ All values shows
+  each key's explanation beside its field anyway.
+- **The knockback stick is at full scale**, and is two config values rather than
+  a number in the source, so you can tune it by feel. Turn it far enough and you
+  will throw somebody into unloaded chunks; that is your call to make now.
+- **The Locked down preset is gone.** Its ladder went in 1.19.0 because a
+  lockdown is a mode a server enters, not a shape it has — the preset goes for
+  the same reason. Everything it set is ordinary config, so tightening up during
+  an incident is a few settings, reversibly, without renaming what your server
+  is.
+- **Credits lists where the pack officially lives** — CurseForge, MCPEDL and
+  GitHub. The person who needs that is standing in a world somebody else
+  installed this into, and a reuploaded copy cannot answer "where do updates
+  come from".
+
 ## 1.26.0 — 2026-09-04
 
 **`/items`** — grab an admin item without vanishing or opening `/admin`. It opens

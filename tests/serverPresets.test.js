@@ -83,12 +83,18 @@ check("channelsMatch on a bad id is false", channelsMatch("nope"), false)
 check("getServerPreset on a bad id is undefined", getServerPreset("nope"), undefined)
 check("applying a bad id does nothing", applyServerPreset("nope"), undefined)
 
-console.log("\n— lockdown means staff wait too —")
-applyServerPreset("lockdown")
-check("staff are not exempt", setting("staff.exemptCooldowns"), "false")
-check("warmup is long", setting("teleport.warmup"), "5")
-check("protection is wide", setting("spawn.radius"), "64")
-check("and it detects", detectServerPreset().id, "lockdown")
+console.log("\n— lockdown is gone, and stays gone —")
+// The ladder went in 1.19.0, the preset after the 2.0.0 playtest. A preset
+// answers "what kind of place is this"; an incident is not an answer to that,
+// and choosing it meant losing the shape you actually had.
+check("it is not a preset any more", "lockdown" in SERVER_PRESETS, false)
+check("nothing can apply it", applyServerPreset("lockdown"), undefined)
+check("and it cannot be looked up", getServerPreset("lockdown"), undefined)
+check("no surviving preset points a ladder at it",
+    Object.values(SERVER_PRESETS).every(p => p.ladder !== "lockdown"), true)
+// What it used to do is still doable — as ordinary settings, reversibly.
+check("its keys are all still real config", ["feature.tpa", "spawn.protect", "spawn.radius",
+    "teleport.warmup", "teleport.cooldown", "staff.exemptCooldowns"].every(k => k in DEFAULTS), true)
 
 console.log("\n— Spear Mace: the strictness is the point —")
 applyServerPreset("spearmace")

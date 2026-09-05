@@ -140,6 +140,16 @@ export const DEFAULTS = {
         label: "Smite sets fires",
         help: "true / false · true spawns a real lightning bolt, which BURNS things. false is the flash and the damage only."
     },
+    "items.knockback": {
+        value: "12",
+        label: "Knockback stick force",
+        help: "How hard the stick throws somebody, horizontally. 4 was the old cautious value; 12 is full scale. Very high numbers can launch a player into unloaded chunks."
+    },
+    "items.knockbackLift": {
+        value: "1",
+        label: "Knockback stick lift",
+        help: "How much of the throw goes upward. Higher sends them up rather than away."
+    },
     "ban.allowPermanent": {
         value: "true",
         label: "Permanent bans",

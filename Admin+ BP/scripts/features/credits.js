@@ -40,6 +40,20 @@ const INCLUDED = [
 ]
 
 /** Technique borrowed, file not. Each line has to stay true. */
+/**
+ * Where the pack officially lives.
+ *
+ * On the credits screen rather than only in the README, because the person who
+ * needs it is standing in a world somebody else installed this into: "is this
+ * the real thing, and where do updates come from" is a question you ask from
+ * inside the game. A reuploaded copy cannot answer it; this can.
+ */
+const HOMES = [
+    { where: "CurseForge", url: "curseforge.com/minecraft-bedrock/addons/adminplus" },
+    { where: "MCPEDL",     url: "mcpedl.com/adminplus/" },
+    { where: "GitHub",     url: "github.com/FireliteZGaming/Admin-plus" }
+]
+
 const LEARNED_FROM = [
     {
         pack: "SafeGuard",
@@ -77,7 +91,10 @@ export async function creditsScreen(player, back) {
             ...LEARNED_FROM.map(entry => `§8· §f${entry.pack} §8— ${entry.what}`),
             "",
             "§8Nothing from that second list ships here — those are ideas,",
-            "§8rewritten. Tap any of them to read what was taken."
+            "§8rewritten. Tap any of them to read what was taken.",
+            "",
+            "§fWhere it lives",
+            ...HOMES.map(home => `§8· ${home.where}\n  §7${home.url}`)
         ].join("\n"),
         buttons: [...INCLUDED, ...LEARNED_FROM].map(entry => ({
             text: `§b${entry.pack}§r\n§8${entry.what}`,

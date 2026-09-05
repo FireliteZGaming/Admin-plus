@@ -67,6 +67,7 @@ export const GROUPS = {
     automod: "Automod",
     ban: "Bans",
     troll: "Troll commands",
+    items: "Admin items",
     feature: "Features on and off",
     spawn: "Spawn protection",
     teleport: "Teleporting",
@@ -275,20 +276,33 @@ export function previewLine() {
 // this format has neither. It reads and writes like any .txt: scroll it, change
 // the lines you came to change, paste a whole config in, or copy one out.
 
+/**
+ * The config as text.
+ *
+ * SHORTENED after the 2.0.0 playtest, which reported the box typing slowly —
+ * noticeably laggy per keystroke. Every key used to carry its own two-line
+ * comment, and that was 72% of the document: 7467 characters to hold 2065
+ * characters of actual config. The box is a JSON-UI control re-evaluating a
+ * binding as you type, so the cheapest lever available is to give it less to
+ * hold. One heading per GROUP keeps the document navigable; the per-key prose
+ * is gone, because Settings ▸ All values already shows each key's label and
+ * help beside the field, which is the better place to read it anyway.
+ *
+ * This cannot be verified from here — whether the lag was length or the control
+ * itself is a question only the next playtest answers.
+ */
 export function toBlock() {
     const current = detectPreset()
     const lines = [
-        "# Admin+ config — key = value, one per line. # lines are ignored.",
-        "#",
-        "# preset names the baseline this config matches. Type another preset's",
-        "# name here and submit to apply it. It reads Custom whenever the values",
-        "# differ from every preset, which is the honest answer.",
+        "# Admin+ config. key = value, one per line. # lines are ignored.",
+        "# preset: type another preset's name to apply it. Custom means the",
+        "# values match no preset, which is the honest answer.",
         `preset = ${current.id}`
     ]
-    for (const [key, spec] of Object.entries(DEFAULTS)) {
+    for (const [group, keys] of groupedKeys()) {
         lines.push("")
-        lines.push(`# ${spec.label} — ${spec.help}`)
-        lines.push(`${key} = ${setting(key)}`)
+        lines.push(`# ${group}`)
+        for (const key of keys) lines.push(`${key} = ${setting(key)}`)
     }
     return lines.join("\n")
 }

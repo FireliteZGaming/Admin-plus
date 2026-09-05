@@ -6,6 +6,7 @@ import { displayName } from "../core/identity.js"
 import { record } from "../core/logs.js"
 import { ChestForm, chestUIAvailable } from "../core/chestUI.js"
 import { worldToken, makeBanHammer, HAMMER_NAME } from "../core/banhammer.js"
+import { setting } from "../core/settings.js"
 
 // /items — grab an admin item without vanishing or opening /admin.
 //
@@ -146,17 +147,33 @@ function give(player, key) {
 /**
  * Send a player flying the way the attacker is facing.
  *
- * "Infinite" would throw them into unloaded chunks and lose them, so this is
- * "very strong" instead — dramatic, recoverable. Three ways to apply it, tried
- * in order, because the signature changed across runtimes:
+ * FULL SCALE since the 2.0.0 playtest. 4 was the cautious number; having felt
+ * it in the world, the call was to stop being cautious. It reads from config
+ * rather than a constant now, because "how hard is fun" is tuned by feel in the
+ * world, not argued about in a source file.
+ *
+ * The old warning stands, and is why there is no ceiling in code: a big enough
+ * number throws somebody into unloaded chunks and loses them. This is a knob you
+ * are allowed to turn too far, and the help text says so.
+ *
+ * Three ways to apply it, tried in order, because the signature changed across
+ * runtimes:
  *   * applyKnockback(VectorXZ, vertical)      the current shape
  *   * applyKnockback(x, z, horizontal, vertical)  the older four-argument one
  *   * applyImpulse(Vector3)                    the fallback that always exists
  */
-const KB_STRENGTH = 4
-const KB_LIFT = 0.7
+const KB_FALLBACK = 12
+const LIFT_FALLBACK = 1
+
+/** A number from config, or the shipped one if somebody typed nonsense in. */
+function tuning(key, fallback) {
+    const value = Number(setting(key))
+    return Number.isFinite(value) ? value : fallback
+}
 
 function knockback(attacker, victim) {
+    const KB_STRENGTH = tuning("items.knockback", KB_FALLBACK)
+    const KB_LIFT = tuning("items.knockbackLift", LIFT_FALLBACK)
     const dir = safe(() => attacker.getViewDirection(), { x: 0, y: 0, z: 0 })
     let x = dir.x ?? 0, z = dir.z ?? 0
     const len = Math.hypot(x, z) || 1

@@ -1,4 +1,5 @@
 import { ItemStack } from "@minecraft/server"
+import { setting, setSetting, resetSetting, DEFAULTS } from "../Admin+ BP/scripts/core/settings.js"
 import { ITEMS, signItem, itemKey, knockback, SIGIL } from "../Admin+ BP/scripts/features/adminitems.js"
 
 let passed = 0, failed = 0
@@ -43,9 +44,39 @@ console.log("\n— knockback picks a working signature and normalises direction 
     const victim = { applyKnockback: (h, v) => calls.push(["new", h, v]) }
     check("it reports success", knockback(attacker, victim), true)
     check("it used the new VectorXZ form", calls[0][0], "new")
-    // 3-4-5 triangle: normalised x=0.6, z=0.8, times strength 4 -> 2.4, 3.2
-    check("horizontal is normalised then scaled", [calls[0][1].x, calls[0][1].z], [2.4, 3.2])
+    // 3-4-5 triangle: normalised to x=0.6, z=0.8, then scaled by the configured
+    // force. Read that from config rather than pinning the number here — it is
+    // tunable now, and a test that hardcodes it only ever proves it was not
+    // changed.
+    const force = Number(setting("items.knockback"))
+    check("horizontal is normalised then scaled",
+        [calls[0][1].x, calls[0][1].z], [0.6 * force, 0.8 * force])
+    check("direction is a unit vector before scaling",
+        Math.round(Math.hypot(calls[0][1].x, calls[0][1].z) * 1e6) / 1e6, force)
     check("with a vertical lift", calls[0][2] > 0, true)
+    check("and the lift is the configured one", calls[0][2], Number(setting("items.knockbackLift")))
+}
+
+// Tunable means tunable: change the setting, the throw changes. Full scale was
+// the 2.0.0 playtest's call after feeling 4 in the world, but the number is the
+// owner's now, so what is pinned here is that config REACHES it.
+{
+    const shove = (force) => {
+        setSetting("items.knockback", String(force))
+        const calls = []
+        knockback({ getViewDirection: () => ({ x: 1, y: 0, z: 0 }) },
+                  { applyKnockback: (h) => calls.push(h) })
+        return calls[0].x
+    }
+    check("a small force throws gently", shove(2), 2)
+    check("a large one throws hard", shove(40), 40)
+    check("the shipped default is full scale, not the old cautious 4",
+        Number(DEFAULTS["items.knockback"].value) > 4, true)
+    setSetting("items.knockback", "not a number")
+    check("nonsense falls back to the shipped value rather than NaN",
+        shove(DEFAULTS["items.knockback"].value) > 0, true)
+    resetSetting("items.knockback")
+    resetSetting("items.knockbackLift")
 }
 
 // Old four-argument form, when the new one throws.
