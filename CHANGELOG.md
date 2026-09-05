@@ -94,6 +94,82 @@ Vanished staff do not appear in the People list. A member seeing a hidden
 moderator there would undo vanish entirely, and it would be this screen that
 gave them away.
 
+---
+
+**`/enderchest` and `/ec` — and yes, you can drag in it.**
+
+`/enderchest` opens your ender chest from anywhere. `/ec` is the same command
+with less typing. `/enderchest <player>` opens somebody else's, for staff who
+hold `admin.invsee` — taking anything out of it also needs you to outrank them,
+and both looking and taking are written to the log.
+
+This is worth having because **the ender chest is where contraband actually
+sits.** It is the one container a search could never reach, and it survives
+death. A player empties their pack before they get caught; they do not empty
+this.
+
+**It is a real container screen, not a menu.** Drag works. Shift-click works.
+You are looking at the game's own container UI, so everything you already know
+how to do in a chest works without anybody having implemented it.
+
+When staff open somebody's chest while that player is standing at their own,
+**the owner wins every disagreement.** The alternative was worse than untidy: a
+view that wrote itself back each tick would put a diamond straight back after
+the owner had taken it out, and now there would be two. So the owner takes
+something and the watching admin sees it leave, live, rather than the two
+screens fighting. Nothing is ever emptied to make this work, which is also why
+a marker left behind by a crash can simply be deleted — it holds a copy and
+never the only one.
+
+Under it sits a chest screen laid out the way the game lays one out: the chest
+on top, your pack below, the hotbar on its own row under a thin gap. It is the
+fallback if the drag view cannot open, and it is what `enderchest.dragUI false`
+gives you deliberately.
+
+**This was twice written off as impossible here.** The script API documents no
+ender chest on a player, and of every add-on installed on this machine — a full
+essentials pack among them — not one touches it. All true, and the conclusion
+was still wrong: `minecraft:ender_inventory` gives back an ordinary container.
+The way that was settled was reading a pack that already did it, rather than
+reasoning about documentation. Same for dragging, which forms genuinely cannot
+do and a container entity genuinely can.
+
+---
+
+**A console, for the pack's own creator and developers.**
+
+`/menu` shows a **Console** to the pack's Creator and to anyone wearing the new
+`[Admin+ Dev]` badge — a command line that runs at operator level. A regular
+member never sees it, and that is the entire point.
+
+An add-on that handed its author authority inside a stranger's world would be a
+backdoor. This is not one, and it is worth being specific about why:
+
+- **It is a setting you can see.** `creator.console` ships on and sits in the
+  config with everything else. Turn it off and it is shut, creator included.
+- **It can only run your own whitelist.** It goes through the same gate `/cmd`
+  does, so it can do nothing you have not already allowed — and it cannot `/op`,
+  because op is not on that list and never can be.
+- **It is watched.** Every command is logged *and* announced to online owners by
+  name as it runs.
+
+**`[Admin+ Dev]`** is the second badge, alongside `[Admin+ Creator]`, for
+developers working on the pack. Same colours, same rules: no permissions, no
+weight, not staff, outside the rank table, and gone the moment a world gives
+that person a rank of its own. Who holds it is a list in the source, so adding
+somebody is a release you can read in this file rather than something a running
+world can do.
+
+**A fix worth naming**, because it went the wrong way: the console originally
+asked only for the `Dev` tag. Any staff member with `/tag` can hand that out, so
+the gate between a member and a command line was one command wide. It now asks
+for the tag **and** operator — the same gate `< Code >` has always used, which
+grants an operator nothing they could not already type.
+
+Also: the small chest screen has been drawn one pixel taller than its own
+texture since the day it shipped. A new test that pins the resource pack and the
+script to the same numbers found it immediately.
+
 ## 2.0.5 — 2026-09-05
 
 **`/grant` — a rank that gives itself back.**
