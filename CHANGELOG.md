@@ -57,23 +57,28 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
-## 2.0.3 — 2026-09-05
+## 2.0.4 — 2026-09-05
 
-**Fixes 2.0.2, where none of the 56 vanilla commands existed.** Every one of
-them was refused at startup, silently as far as the game was concerned:
+**The 56 vanilla commands actually exist now.** They are `/a:zkill`,
+`/a:zgive`, `/a:zsetblock` — z-prefixed, at the bottom of the list.
 
-```
-Custom Command Enum namespaces must match.
-Namespace 'cmd' does not match existing namespace 'a'.
-```
+2.0.2 and 2.0.3 both shipped them broken, and neither said so in game: every
+registration was refused at startup and the commands simply were not there.
 
-The commands were registered under `cmd:` while their value lists were
-registered under the pack's own namespace, and Bedrock requires those to agree.
-The value lists move to `cmd:` to match.
+The cause, which took both attempts to pin down: **an add-on gets exactly one
+command namespace.** They were meant to be `/cmd:kill`, and that is not
+reachable. Registering the value lists under a second namespace is refused
+outright, and commands carrying no arguments at all are refused with the same
+complaint — so it is not about any one command, it is the whole pack.
 
-Worth recording because the message understates it: commands with **no
-parameters at all** were refused for the same reason, so the rule is about the
-pack's namespace rather than about any individual command's arguments.
+Which leaves them sharing one alphabetical list with the pack's own 49
+commands. The `z` is what keeps that list usable: our commands run from `admin`
+to `warps`, so a `z` puts all 56 below every one of them in one block rather
+than scattered between them. It settles a collision too — this pack already has
+its own `/a:tp`, and vanilla's is now `/a:ztp`.
+
+The command you type after the prefix is the real one: `/a:zkill @e[` opens the
+game's own selector completion, with every filter it supports.
 
 ## 2.0.2 — 2026-09-05
 

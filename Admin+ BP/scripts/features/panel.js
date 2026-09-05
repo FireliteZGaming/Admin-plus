@@ -148,7 +148,7 @@ async function settingsScreen(player, back) {
 
 async function aboutScreen(player, back) {
     const ours = registeredCommands()
-    const vanilla = registeredCommands("cmd")
+    const vanilla = registeredCommands("vanilla")
     const ranks = playerRanks(player).map(r => r.display).join("§7, ") || "§7none"
     const authority = topWeight(player) === Infinity
         ? "§dunrestricted §8(owner or operator)"
@@ -175,8 +175,8 @@ async function aboutScreen(player, back) {
             // 19 of 51 and still advertised commands that had been renamed.
             `§7Commands §8(${ours.length}): §f/${ours.join(" §f/")}`,
             "",
-            `§7Vanilla, without op §8(${vanilla.length}): §f/cmd:<command>`,
-            "§8Type /cmd: and the game completes the rest, arguments included."
+            `§7Vanilla, without op §8(${vanilla.length}): §f/${vanilla[0] ?? "z…"}§7 … §f/${vanilla[vanilla.length - 1] ?? "z…"}`,
+            "§8All z-prefixed, so they sort below these. The game completes the arguments."
         ].join("\n"),
         buttons: [
             { text: "§7Credits§r\n§8Who built it, and what was learned from whom", run: () => creditsScreen(player, () => aboutScreen(player, back)) }

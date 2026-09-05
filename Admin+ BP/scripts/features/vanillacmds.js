@@ -5,14 +5,14 @@ import { record } from "../core/logs.js"
 import { runAsServer, checkCommand } from "../core/execute.js"
 import { COMMANDS, ENUMS, SELECTOR_TYPES } from "../core/vanillaparams.js"
 
-// /cmd:<command> — the vanilla command set, typed, without operator.
+// /a:z<command> — the vanilla command set, typed, without operator.
 //
 // One registration per command, because a registration has one fixed parameter
-// list and `/cmd` therefore could never be `EntitySelector` for kill and
+// list and a single /cmd could therefore never be `EntitySelector` for kill and
 // `Location BlockType` for setblock at the same time. See core/vanillaparams.js
 // for the table and the reasoning.
 //
-// The gain is that the GAME does the parsing: `/cmd:kill @e[` opens the engine's
+// The gain is that the GAME does the parsing: `/a:zkill @e[` opens the engine's
 // own selector completion with every filter it supports, item and block names
 // complete, and a bad argument is refused before any of this code runs.
 //
@@ -23,23 +23,32 @@ import { COMMANDS, ENUMS, SELECTOR_TYPES } from "../core/vanillaparams.js"
 // down.
 
 const P = CustomCommandParamType
-const CMD_NS = "cmd"
+/**
+ * The prefix every vanilla passthrough carries: `/a:zkill`, `/a:zgive`.
+ *
+ * It is a "z" because the in-game command list is sorted ALPHABETICALLY and
+ * there is nowhere else to put these. A pack gets one namespace, so all 56 sit
+ * in the same list as the pack's own 49; "z" is the only prefix that puts every
+ * one of them below every one of ours, whose names run from admin to warps.
+ *
+ * It also sidesteps a collision for free: this pack already owns /a:tp, and
+ * vanilla has a tp of its own. /a:ztp is nobody else's.
+ */
+const PREFIX = "z"
 
 /**
  * Registered enum names, keyed by the short name used in the table.
  *
- * These are registered in the `cmd` namespace, NOT the pack's own. Bedrock
- * refuses a command whose namespace does not match its enums':
- *
- *   CustomCommandError: Custom Command Enum namespaces must match.
- *   Namespace 'cmd' does not match existing namespace 'a'.
- *
- * All 56 registrations failed on that the first time, including ones with no
- * enum parameter at all, so the rule reaches further than the message suggests.
+ * In the pack's own namespace, because there is no other one to be in. Giving
+ * these their own `cmd:` was tried and refused twice over: registerEnum itself
+ * would not take a second namespace, and commands carrying no enums at all were
+ * refused with the same error. A pack gets one namespace.
  */
 const enumName = {}
 for (const [key, values] of Object.entries(ENUMS)) {
-    enumName[key] = defineEnum(key, values, CMD_NS)
+    // z_ prefixed for the same reason the commands are, and because the pack
+    // already defines an enum called "gamemode" for /gm.
+    enumName[key] = defineEnum(`z_${key}`, values)
 }
 
 /**
@@ -128,8 +137,8 @@ for (const spec of COMMANDS) {
     }
 
     command({
-        name: spec.name,
-        ns: CMD_NS,
+        name: `${PREFIX}${spec.name}`,
+        group: "vanilla",
         description: `${spec.help} — operator-level, logged`,
         perm: "admin.commands",
         mandatory,
@@ -138,7 +147,7 @@ for (const spec of COMMANDS) {
             // The live allowlist is still the authority. The command exists as a
             // registration either way, so this is what keeps `commands.allowed`
             // meaningful — an owner who removes `summon` from the list stops it
-            // running even though /cmd:summon is still a word the game knows.
+            // running even though /a:zsummon is still a word the game knows.
             const gate = checkCommand(spec.name)
             if (!gate.ok) return err(player, gate.reason)
 

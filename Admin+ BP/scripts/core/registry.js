@@ -20,16 +20,23 @@ const enums = []
 
 /**
  * @param {{
- *   name: string, description?: string, perm?: string, ns?: string,
+ *   name: string, description?: string, perm?: string, group?: string,
  *   mandatory?: {name: string, type: any}[],
  *   optional?: {name: string, type: any}[],
  *   run: (player: Player, args: any[]) => string | void
  * }} spec
  *
- * `ns` overrides the pack namespace for one command. The vanilla passthroughs
- * use it to land under `cmd:` — `/cmd:kill` reads as "the /cmd version of kill"
- * and keeps all 56 of them grouped together in the command list instead of
- * scattered through the pack's own commands.
+ * `group` only labels a command for screens that list them. It is NOT a
+ * namespace: **a pack gets exactly one**, and trying to give the vanilla
+ * passthroughs their own `cmd:` cost two releases to disprove. Bedrock refuses
+ * `registerEnum` outright for a second namespace —
+ *
+ *     Custom Command depends on one or more unknown enums [cmd:musicop]
+ *     Custom Command Enum namespaces must match. Namespace 'cmd' does not
+ *     match existing namespace 'a'.
+ *
+ * — and refuses commands carrying no enums at all for the same reason. So
+ * everything lives under one namespace and grouping is done by NAME.
  */
 export function command(spec) { pending.push(spec) }
 
@@ -40,11 +47,11 @@ export function command(spec) { pending.push(spec) }
  * screen had gone stale: it named 19 of 51 and still advertised commands that
  * had been renamed. A list of what exists should be derived from what exists.
  *
- * @param {string} [ns] only commands in this namespace; omit for the pack's own
+ * @param {string} [group] only commands in this group; omit for ungrouped
  */
-export function registeredCommands(ns) {
+export function registeredCommands(group) {
     return pending
-        .filter(spec => (spec.ns ?? NS) === (ns ?? NS))
+        .filter(spec => (spec.group ?? undefined) === group)
         .map(spec => spec.name)
         .sort()
 }
@@ -58,8 +65,8 @@ export function registeredCommands(ns) {
  * that name in the parameter's `name` field with type Enum.
  * @returns {string} the namespaced enum name, ready to use as a parameter name
  */
-export function defineEnum(shortName, values, ns) {
-    const name = `${ns ?? NS}:${shortName}`
+export function defineEnum(shortName, values) {
+    const name = `${NS}:${shortName}`
     enums.push({ name, values })
     return name
 }
@@ -85,7 +92,7 @@ system.beforeEvents.startup.subscribe(({ customCommandRegistry }) => {
     // letting the game drop the command on the floor.
     const PARAM_LIMIT = 8
     for (const spec of pending) {
-        const fullName = `${spec.ns ?? NS}:${spec.name}`
+        const fullName = `${NS}:${spec.name}`
         const paramCount = (spec.mandatory?.length ?? 0) + (spec.optional?.length ?? 0)
         if (paramCount > PARAM_LIMIT) {
             console.error(`[Admin+] /${fullName} asks for ${paramCount} parameters; Bedrock allows ${PARAM_LIMIT}. It has NOT been registered - shorten it.`)

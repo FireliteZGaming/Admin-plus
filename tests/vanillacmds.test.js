@@ -2,6 +2,7 @@ import { CustomCommandParamType } from "@minecraft/server"
 import { COMMANDS, ENUMS, SELECTOR_TYPES } from "../Admin+ BP/scripts/core/vanillaparams.js"
 import { buildLine, tempTag } from "../Admin+ BP/scripts/features/vanillacmds.js"
 import { DEFAULTS } from "../Admin+ BP/scripts/core/settings.js"
+import { readFileSync, readdirSync } from "node:fs"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -133,6 +134,37 @@ check("so is a missing optional", buildLine(spec, [undefined], "T3", []), "kill"
     check("building stops at the first absent argument",
         buildLine(s, [[e], "speed", undefined, 3], "T", []), "effect @e[tag=T] speed")
 }
+
+console.log("\n— one namespace, so the grouping is in the name —")
+// A pack gets exactly ONE command namespace. Registering these under `cmd:` was
+// tried and refused twice: registerEnum would not take a second namespace, and
+// commands carrying no enums at all were refused with the same error. So all 56
+// share the list with the pack's own commands, and the only lever on where they
+// appear is the name, because the in-game list is sorted alphabetically.
+// Our own command names, read out of the source the way tools/verify.py does.
+// Importing main.js would run every installer and need a whole game around it;
+// this needs only the names.
+const dir = new URL("../Admin+ BP/scripts/features/", import.meta.url)
+const ours = readdirSync(dir)
+    .filter(f => f.endsWith(".js") && f !== "vanillacmds.js")
+    .flatMap(f => [...readFileSync(new URL(f, dir), "utf8")
+        .matchAll(/command\(\{[^}]*?name:\s*"([a-z0-9_]+)"/gs)].map(m => m[1]))
+    .concat(["admin", "tp"])              // registered in main.js
+const vanilla = COMMANDS.map(c => `z${c.name}`)
+check("our own commands were found", ours.length > 30, true)
+check("every one is z-prefixed", vanilla.filter(n => !n.startsWith("z")), [])
+check("and the bare vanilla name is what actually runs",
+    vanilla.includes("zkill") && !vanilla.includes("kill"), true)
+
+// The whole point of the z: our commands must all sort ABOVE them.
+const lastOfOurs = [...ours].sort().pop()
+check("every vanilla command sorts after every one of ours",
+    vanilla.filter(n => n <= lastOfOurs), [])
+check("nothing collides with a command we already own",
+    vanilla.filter(n => ours.includes(n)), [])
+// /a:tp is ours; vanilla has a tp too, and the prefix is what keeps them apart.
+check("our own tp survives", ours.includes("tp"), true)
+check("and vanilla's is ztp", vanilla.includes("ztp"), true)
 
 console.log("\n— the tag has to be unique —")
 // Two commands resolving at once must not pick up each other's entities.
