@@ -51,7 +51,8 @@ const INCLUDED = [
 const HOMES = [
     { where: "CurseForge", url: "curseforge.com/minecraft-bedrock/addons/adminplus" },
     { where: "MCPEDL",     url: "mcpedl.com/adminplus/" },
-    { where: "GitHub",     url: "github.com/FireliteZGaming/Admin-plus" }
+    { where: "GitHub",     url: "github.com/FireliteZGaming/Admin-plus" },
+    { where: "YouTube",    url: "youtube.com/@firelitezgaming" }
 ]
 
 const LEARNED_FROM = [
