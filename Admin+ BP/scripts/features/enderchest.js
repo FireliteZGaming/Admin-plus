@@ -9,7 +9,7 @@ import { openEnderView } from "../core/enderview.js"
 import { placeEnderChest } from "../core/enderblock.js"
 import { ChestForm, chestUIAvailable, BIG, bigSlotFor, isBigDivider } from "../core/chestUI.js"
 import {
-    snapshot, enderSnapshot, slotLabel, itemLine, transfer, deposit
+    snapshot, enderSnapshot, slotLabel, itemLine, transfer, moveTo
 } from "../core/inventory.js"
 
 // /ec and /enderchest — the real ender chest, on screen.
@@ -28,15 +28,24 @@ import {
 // 63 are a 9x7 grid; the hotbar's nine are placed by hand so its gap can be the
 // width of the panel's own edge rather than a whole row.
 //
-// TAPPING, because forms still have no drag slots. What a tap does depends on
-// which half you tapped and whose chest it is, and in both cases it is the only
-// thing it could sensibly mean:
+// PICKING UP AND PUTTING DOWN, because a form cannot drag. It is not a missing
+// feature: a form's only channel back to script is "button N was pressed", so
+// there is no message that could carry "slot 3 was dropped onto slot 17", and
+// no resource pack can invent one. What a pack CAN do is draw the screen, which
+// is why the chest grid exists at all.
 //
-//   YOUR OWN     top -> take it out.  bottom -> put it in.
-//                A working two-way ender chest without a single drag.
+// So the gesture becomes two taps instead of one drag, and the outcome is the
+// same one — including landing on an occupied slot, which swaps.
+//
+//   YOUR OWN     tap a stack to lift it, tap anywhere to set it down. Tap
+//                where it came from to put it back.
 //   SOMEBODY     everything on screen is theirs, so a tap takes it off them,
 //   ELSE'S       exactly as /invsee does. Looking needs admin.invsee; taking
 //                needs to outrank them as well.
+//
+// The "Real chest" button is the escape hatch for anyone who wants actual
+// dragging, and it costs what dragging costs on Bedrock: something real to
+// open, and one tap on it.
 
 
 /**
@@ -48,7 +57,33 @@ import {
  */
 const DRAG_SLOT = BIG.divider + 4
 
-export async function enderScreen(viewer, target, back) {
+/** Where the stack you have picked up is shown while you carry it. */
+const HELD_SLOT = BIG.divider
+
+/**
+ * Which real slot a grid cell stands for — the inverse of the layout.
+ *
+ * Needed because picking up and putting down has to work on EMPTY cells too,
+ * and the drawn buttons only cover the occupied ones.
+ */
+function refForSlot(slot) {
+    if (slot >= BIG.container && slot < BIG.divider) {
+        return { kind: "ender", index: slot - BIG.container }
+    }
+    if (slot >= BIG.pack && slot < BIG.pack + 27) {
+        return { kind: "slot", index: 9 + (slot - BIG.pack) }
+    }
+    if (slot >= BIG.hotbar && slot < BIG.hotbar + 9) {
+        return { kind: "slot", index: slot - BIG.hotbar }
+    }
+    return undefined      // a break row: not a slot at all
+}
+
+function sameRef(a, b) {
+    return !!a && !!b && a.kind === b.kind && a.index === b.index
+}
+
+export async function enderScreen(viewer, target, back, held) {
     const own = viewer.id === target.id
     if (!chestUIAvailable()) {
         // The list view is invsee's fallback and it covers the inventory half.
@@ -90,52 +125,68 @@ export async function enderScreen(viewer, target, back) {
     // script at all — the Player class has no method for it — so the drag view
     // always costs a tap on something in the world, and putting that between
     // the player and their own chest made `/ec` feel broken.
+    if (held) {
+        form.button(HELD_SLOT, `§eHolding §r${held.label}`,
+            ["§7Tap any slot to put it there.",
+                "§8Tap where it came from to put it back."],
+            held.typeId, held.amount, held.enchanted)
+    }
+
     if (flag("enderchest.dragUI")) {
-        form.button(DRAG_SLOT, "§bDrag view",
-            ["§7A real chest you can drag and shift-click in.",
-                "§8Puts a marker in front of you to tap."],
+        form.button(DRAG_SLOT, "§bReal chest",
+            ["§7Opens the game's own chest screen, where dragging works.",
+                "§8Puts one in front of you for a moment."],
             "minecraft:ender_chest", 1, true)
     }
 
     const response = await form.show(viewer)
     if (response.canceled) return back ? back() : undefined
 
-    const again = () => enderScreen(viewer, target, back)
+    const again = (carry = held) => enderScreen(viewer, target, back, carry)
 
     if (response.selection === DRAG_SLOT && flag("enderchest.dragUI")) {
-        const view = openEnderView(viewer, target)
-        if (view.ok) {
-            return info(viewer, own
-                ? "§7Tap the marker in front of you."
-                : `§7Tap the marker — that is ${displayName(target)}§7's ender chest, live.`)
-        }
-        err(viewer, view.reason)
-        return again()
+        return realChest(viewer, target, own, again)
     }
 
-    const picked = atSlot.get(response.selection)
-    if (!picked || isBigDivider(response.selection)) return again()
+    const slot = response.selection
+    const ref = refForSlot(slot)
 
-    return own
-        ? moveOwn(viewer, picked, again)
-        : takeFrom(viewer, target, picked, again)
+    // PICK UP AND PUT DOWN, which is dragging without the drag. Only on your
+    // own chest: rearranging somebody else's while they are using it is a
+    // different feature with different consequences, and staff want to TAKE.
+    if (own && ref) {
+        if (held) {
+            if (sameRef(held.ref, ref)) return again(undefined)      // put it back
+            const moved = moveTo(viewer, held.ref, ref)
+            if (!moved.ok) { err(viewer, moved.reason); return again(undefined) }
+            return again(undefined)
+        }
+        const there = atSlot.get(slot)
+        if (!there) return again()                                   // empty, nothing to lift
+        return again({
+            ref,
+            label: there.label,
+            typeId: there.typeId,
+            amount: there.amount,
+            enchanted: there.enchants.length > 0
+        })
+    }
+
+    const picked = atSlot.get(slot)
+    if (!picked || isBigDivider(slot)) return again()
+    return takeFrom(viewer, target, picked, again)
 }
 
-/**
- * Your own chest: the tap moves the stack to the other half.
- *
- * Both directions re-read the slot before moving anything, so a stack that
- * changed between the form being drawn and the tap lands as a refusal rather
- * than as the wrong item moving.
- */
-async function moveOwn(player, item, again) {
-    const toChest = item.ref.kind !== "ender"
-    const result = toChest ? deposit(player, item.ref) : transfer(player, player, item.ref)
-    if (!result.ok) { err(player, result.reason); return again() }
-    ok(player, toChest
-        ? `Stored §f${itemLine(result.item)}§a.`
-        : `Took §f${itemLine(result.item)}§a out.`)
-    return again()
+/** Hand them the game's own chest screen, by whichever route suits the case. */
+async function realChest(viewer, target, own, again) {
+    // Your own can be a genuine ender chest, which is the real vanilla screen.
+    // Somebody else's cannot: a placed ender chest always shows whoever opens
+    // it THEIR contents, so staff get the container entity instead.
+    const put = own ? placeEnderChest(viewer) : openEnderView(viewer, target, "marker")
+    if (!put.ok) { err(viewer, put.reason); return again() }
+    return info(viewer, own
+        ? "§7In front of you — it clears itself when you close it."
+        : `§7Tap the chest in front of you — that is ${displayName(target)}§7's, live.`)
 }
 
 /** Somebody else's: the tap takes it, and only if you outrank them. */
@@ -264,12 +315,12 @@ command({
     name: "ec",
     description: "Open your ender chest — /ec, or /ec <player> for staff",
     optional: PLAYER,
-    run: (viewer, [selected]) => openFor(viewer, selected, "block")
+    run: (viewer, [selected]) => openFor(viewer, selected)
 })
 
 command({
     name: "enderchest",
     description: "Open your ender chest — /enderchest, or /enderchest <player> for staff",
     optional: PLAYER,
-    run: (viewer, [selected]) => openFor(viewer, selected, "marker")
+    run: (viewer, [selected]) => openFor(viewer, selected)
 })

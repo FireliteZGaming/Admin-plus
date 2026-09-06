@@ -225,6 +225,51 @@ export function deposit(player, ref) {
     return { ok: true, item }
 }
 
+/**
+ * Move one slot's contents onto another, swapping whatever was there.
+ *
+ * This is dragging, minus the drag. A form only ever reports which button was
+ * pressed — there is no message for "I dropped slot 3 onto slot 17" — so the
+ * gesture becomes two taps: pick up, then put down. The OUTCOME is identical,
+ * including landing on an occupied slot, which swaps exactly as it would if you
+ * had dragged onto it.
+ *
+ * Both refs must belong to the same player, and neither may be equipment —
+ * worn slots have their own rules about what can go in them and silently
+ * refusing armour into a helmet slot would be worse than not offering it.
+ *
+ * @returns {{ok: true, item: object, swapped: boolean} | {ok: false, reason: string}}
+ */
+export function moveTo(owner, fromRef, toRef) {
+    if (!fromRef || !toRef) return { ok: false, reason: "Nothing to move." }
+    if (fromRef.kind === "equipment" || toRef.kind === "equipment") {
+        return { ok: false, reason: "Worn slots can't be rearranged from here." }
+    }
+    if (fromRef.kind === toRef.kind && fromRef.index === toRef.index) {
+        return { ok: false, reason: "That is where it already is." }
+    }
+
+    const from = containerFor(owner, fromRef)
+    const to = containerFor(owner, toRef)
+    if (!from || !to) return { ok: false, reason: "Couldn't reach that container." }
+
+    const stack = safe(() => from.getItem(fromRef.index))
+    if (!stack) return { ok: false, reason: "That slot is empty now." }
+    const displaced = safe(() => to.getItem(toRef.index))
+
+    // Write the destination FIRST. If that throws, the source is untouched and
+    // nothing is lost; the other order would leave a hole on a failure.
+    const landed = safe(() => { to.setItem(toRef.index, stack); return true }, false)
+    if (!landed) return { ok: false, reason: "Couldn't put it there." }
+
+    const cleared = safe(() => { from.setItem(fromRef.index, displaced); return true }, false)
+    if (!cleared) {
+        return { ok: false, reason: "Moved it, but couldn't clear the old slot — check for a copy." }
+    }
+
+    return { ok: true, item: describeItem(stack, toRef), swapped: !!displaced }
+}
+
 /** The live ItemStack behind a ref, or undefined if the slot is empty now. */
 export function itemAt(player, ref) {
     if (!ref) return undefined
