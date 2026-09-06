@@ -3,6 +3,7 @@ import { CONFIG } from "../config.js"
 import { Table, cleanId } from "./storage.js"
 import { displayName } from "./identity.js"
 import { render, renderTag, nameTagsEnabled, flag } from "./settings.js"
+import { OP_COMMANDS } from "./opcommands.js"
 
 // Admin+ rank engine — see RANKS_PLAN.md for the design rationale.
 //
@@ -179,7 +180,26 @@ export const PERMISSION_NODES = {
     "Chat": ["chat.staff", "chat.viewall", "chat.manage", "chat.spy", "admin.broadcast"],
     "World upkeep": ["admin.clearchat", "admin.lagclear"],
     "Management": ["ranks.grant", "ranks.manage", "warp.manage", "spawn.set", "presets.apply", "admin.commands"],
-    "Player basics": ["warp.use", "spawn.use", "tpa.use", "report.use", "online.use"]
+    "Player basics": ["warp.use", "spawn.use", "tpa.use", "report.use", "online.use"],
+
+    // ONE NODE PER VANILLA COMMAND, so a rank can be given /a:zkill and refused
+    // /a:zgamemode — which matters most where a command DUPLICATES something the
+    // pack already does better: /gm makes cmd.gamemode redundant, and the pack's
+    // own /tp outranks cmd.teleport.
+    //
+    // Two layers, the same pair every feature here uses. `commands.allowed` is
+    // the WORLD asking "does this command exist at all", and these nodes are the
+    // ladder asking "who may use it". A command needs both.
+    //
+    // Ordinary nodes in every other respect: `cmd.*` grants the lot, a rank
+    // inherits them from the rank below, and `-cmd.gamemode` carves a hole in an
+    // inherited wildcard. Nothing here is special-cased.
+    "Operator": OP_COMMANDS.map(name => `cmd.${name}`)
+}
+
+/** The permission node governing one vanilla command. */
+export function commandNode(name) {
+    return `cmd.${String(name).trim().toLowerCase()}`
 }
 
 /** Checkbox-sized groupings for the rank editor form. */

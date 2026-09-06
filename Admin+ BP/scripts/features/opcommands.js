@@ -1,8 +1,8 @@
 import { menu, modal, confirm } from "../core/ui.js"
 import { hubTitle, hubEntry } from "../core/theme.js"
 import { ok, err, info } from "../core/util.js"
-import { setting, setSetting } from "../core/settings.js"
 import { record } from "../core/logs.js"
+import { OP_COMMANDS, allowedNow, writeAllowed } from "../core/opcommands.js"
 
 // /admin ▸ Settings ▸ Op commands
 //
@@ -22,59 +22,8 @@ import { record } from "../core/logs.js"
 // at a time is well inside anything the client has ever struggled with, and a
 // page that did come back short can only cost that page.
 
-/**
- * The commands this screen offers, and the deliberate gaps.
- *
- * Every Bedrock command at Game Directors level, minus the ones that would hand
- * the world over. The reasoning lives in core/settings.js beside the setting
- * itself and must not drift from this list:
- *
- *   op, deop                     the entire point of a whitelist
- *   execute, function,           WRAPPERS. Only the first word is checked, so
- *   scriptevent, schedule        each of these allows anything behind it
- *   kick                         removing somebody is this pack's job, not a
- *                                command anybody may type
- *   allowlist, permission,       dedicated-server and session administration
- *   reload, save, stop, ...
- */
-export const OP_COMMANDS = Object.freeze([
-    "aimassist", "camera", "camerashake", "clear", "clearspawnpoint", "clone",
-    "controlscheme", "damage", "daylock", "dialogue", "difficulty", "effect",
-    "enchant", "event", "fill", "fog", "gamemode", "gamerule", "give", "hud",
-    "inputpermission", "kill", "locate", "loot", "mobevent", "music", "particle",
-    "place", "playanimation", "playsound", "recipe", "replaceitem", "ride", "say",
-    "scoreboard", "setblock", "setworldspawn", "spawnpoint", "spreadplayers",
-    "stopsound", "structure", "summon", "tag", "teleport", "tellraw", "testfor",
-    "testforblock", "testforblocks", "tickingarea", "time", "title", "titleraw",
-    "toggledownfall", "tp", "weather", "xp"
-])
 
 const PER_PAGE = 14
-
-/** What is on right now, lowercased, in no particular order. */
-export function allowedNow() {
-    return String(setting("commands.allowed") ?? "")
-        .split(",")
-        .map(name => name.trim().toLowerCase())
-        .filter(Boolean)
-}
-
-/**
- * Write a new set, keeping anything an owner typed in by hand.
- *
- * Somebody may have added a command this screen does not list — a custom one, or
- * a name added by a newer game version. Dropping it because it is not in our
- * array would be this screen quietly overruling a deliberate edit.
- */
-export function writeAllowed(names) {
-    const known = new Set(OP_COMMANDS)
-    const custom = allowedNow().filter(name => !known.has(name))
-    const wanted = [...new Set([...names].map(n => n.trim().toLowerCase()).filter(Boolean))]
-
-    const ordered = OP_COMMANDS.filter(name => wanted.includes(name))
-    setSetting("commands.allowed", [...ordered, ...custom].join(", "))
-    return ordered.length + custom.length
-}
 
 /** The pages, each a slice of the list with a readable name. */
 export function pages() {

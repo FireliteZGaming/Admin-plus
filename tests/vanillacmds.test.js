@@ -2,7 +2,7 @@ import { CustomCommandParamType } from "@minecraft/server"
 import { COMMANDS, ENUMS, SELECTOR_TYPES } from "../Admin+ BP/scripts/core/vanillaparams.js"
 import { buildLine, tempTag } from "../Admin+ BP/scripts/features/vanillacmds.js"
 import { DEFAULTS } from "../Admin+ BP/scripts/core/settings.js"
-import { OP_COMMANDS } from "../Admin+ BP/scripts/features/opcommands.js"
+import { OP_COMMANDS } from "../Admin+ BP/scripts/core/opcommands.js"
 import { readFileSync, readdirSync } from "node:fs"
 
 let passed = 0, failed = 0

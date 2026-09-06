@@ -57,6 +57,36 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.1.8 — 2026-09-06
+
+**A permission per vanilla command — Ranks ▸ the rank ▸ Permissions ▸ Operator.**
+
+Fifty-six new nodes, one per command, so a rank can hold `/a:zkill` and be
+refused `/a:zgamemode`. That matters most where a vanilla command **duplicates
+something this pack already does better**: `/gm` makes `cmd.gamemode` redundant,
+and the pack's own `/tp` outranks `cmd.teleport`.
+
+**Two layers, and both have to agree.** `commands.allowed` is the world asking
+*does this command exist here at all*; the `cmd.<name>` node is the ladder
+asking *who may use it*. A node can never widen the whitelist — turning one on
+for a command the world has switched off still runs nothing.
+
+**They are ordinary nodes**, which is the whole point of making them nodes
+rather than a second list: `cmd.*` grants the set, a rank **inherits** them from
+the rank below, and `-cmd.gamemode` carves a hole in an inherited wildcard.
+Nothing about them is special-cased, so everything you already know about
+permissions applies.
+
+The Operator group is **paged, fourteen at a time**. Fifty-six switches in one
+form is the shape that has now bitten this pack twice, and on *this* screen a
+short response would quietly strip permissions from a rank rather than merely
+lose a setting.
+
+The rule that every declared node must actually be checked still holds. These
+are checked dynamically, so no literal `"cmd.kill"` exists for it to find — so
+the test now pins the single line in `execute.js` that enforces them instead.
+Delete that line and the suite fails.
+
 ## 2.1.7 — 2026-09-06
 
 **`/ec` and `/enderchest` are one screen now — invsee, for ender chests.**

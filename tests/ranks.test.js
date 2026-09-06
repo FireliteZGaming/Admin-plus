@@ -259,8 +259,18 @@ function sources(dir) {
 }
 const CODE = sources(SRC_DIR).join("\n")
 
+// The Operator group is the one checked DYNAMICALLY — has(player,
+// commandNode(name)) — so no literal "cmd.kill" exists anywhere for the
+// substring test below to find. Rather than exempt fifty-six nodes on trust,
+// pin the single line that enforces them: delete it and this fails, which is
+// exactly the guarantee the rule is after.
+const enforcedInExecute = CODE.includes("has(player, commandNode(name))")
+check("the Operator group is enforced where commands actually run",
+    enforcedInExecute, true)
+
 const declared = [...new Set(Object.values(PERMISSION_NODES).flat())]
 const unused = declared.filter(node => {
+    if (node.startsWith("cmd.")) return !enforcedInExecute
     // Counted as "asked about" when the code checks it directly, or when a
     // wildcard branch it belongs to is granted somewhere (admin.* covers
     // admin.kick). Only a direct check proves the switch does something, so

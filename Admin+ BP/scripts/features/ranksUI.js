@@ -309,9 +309,52 @@ async function nodeGroupsScreen(player, rankId, back) {
     })
 }
 
+/** Beyond this many switches a form stops being trustworthy — see below. */
+const NODES_PER_PAGE = 14
+
+/**
+ * A group, paged when it is big enough to need it.
+ *
+ * Operator carries one node per vanilla command, so it is fifty-six switches.
+ * That is exactly the shape that has now bitten this pack twice: `modal()`
+ * pairs answers to fields BY INDEX, and a response that comes back short leaves
+ * the tail reading as off — which on THIS screen would quietly strip
+ * permissions from a rank. Fourteen at a time, and a page that did come back
+ * short can only cost that page.
+ *
+ * The write path already rewrites only the nodes it was handed, so a page is a
+ * correct unit of work with no further care.
+ */
 async function nodeGroupScreen(player, rankId, group, back) {
+    const all = PERMISSION_NODES[group] ?? []
+    if (all.length <= NODES_PER_PAGE) {
+        return nodePageScreen(player, rankId, group, all, back)
+    }
+
+    const again = () => nodeGroupScreen(player, rankId, group, back)
     const rank = getRank(rankId)
-    const nodes = PERMISSION_NODES[group]
+    const pages = []
+    for (let i = 0; i < all.length; i += NODES_PER_PAGE) pages.push(all.slice(i, i + NODES_PER_PAGE))
+
+    return menu(player, {
+        title: title(`${group} · ${rankId}`),
+        body: subtitle(`${all.length} permissions, ${pages.length} pages.
+§8Each page saves on its own.`),
+        buttons: pages.map(nodes => {
+            const on = nodes.filter(n => rankState(rank, n) !== "none").length
+            const short = n => n.replace(/^cmd\./, "")
+            return {
+                text: hubEntry("ranks", `${short(nodes[0])} – ${short(nodes[nodes.length - 1])}`,
+                    on ? `${on} of ${nodes.length} on` : "none on"),
+                run: () => nodePageScreen(player, rankId, group, nodes, again)
+            }
+        }),
+        back
+    })
+}
+
+async function nodePageScreen(player, rankId, group, nodes, back) {
+    const rank = getRank(rankId)
 
     // Two editor styles, chosen in < Code > ("ranks.permissionEditor"):
     //

@@ -1,5 +1,6 @@
 import { world } from "@minecraft/server"
 import { setting } from "./settings.js"
+import { has, commandNode } from "./ranks.js"
 
 // Running vanilla commands without being an operator.
 //
@@ -82,8 +83,38 @@ export function checkCommand(line) {
  * Run one command as the server, positioned on the player who asked.
  * @returns {{ok: true, output: string} | {ok: false, reason: string}}
  */
-export function runAsServer(player, line) {
+/**
+ * May THIS player run this command, once the world allows it at all?
+ *
+ * Two layers, and both have to say yes. `commands.allowed` is the world asking
+ * whether a command exists here; the `cmd.<name>` node is the ladder asking who
+ * may use it — so a Mod can have /a:zkill and be refused /a:zgamemode, which is
+ * worth doing wherever a vanilla command duplicates something the pack already
+ * does better.
+ *
+ * An ordinary node, so `cmd.*` grants the set, it inherits down the ladder, and
+ * `-cmd.gamemode` carves a hole in an inherited wildcard. has() also lets a real
+ * operator through when no rank has an opinion, which keeps a fresh world's host
+ * from locking themselves out.
+ *
+ * @returns {{ok: true, command: string} | {ok: false, reason: string}}
+ */
+export function mayRun(player, line) {
     const checked = checkCommand(line)
+    if (!checked.ok) return checked
+
+    const name = commandName(checked.command)
+    if (!has(player, commandNode(name))) {
+        return {
+            ok: false,
+            reason: `Your rank is not allowed "${name}". An owner grants it in Ranks ▸ the rank ▸ Permissions ▸ Operator.`
+        }
+    }
+    return checked
+}
+
+export function runAsServer(player, line) {
+    const checked = mayRun(player, line)
     if (!checked.ok) return checked
 
     const dimension = player?.dimension ?? world.getDimension("overworld")

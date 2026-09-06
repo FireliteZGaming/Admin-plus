@@ -2,7 +2,7 @@ import { __test } from "@minecraft/server"
 import { onPlayerJoin, setRanks, has, applyPreset, PERMISSION_NODES, saveRank } from "../Admin+ BP/scripts/core/ranks.js"
 import { checkCommand, commandName, runAsServer } from "../Admin+ BP/scripts/core/execute.js"
 import { setting, setSetting, resetSetting, DEFAULTS } from "../Admin+ BP/scripts/core/settings.js"
-import { OP_COMMANDS } from "../Admin+ BP/scripts/features/opcommands.js"
+import { OP_COMMANDS } from "../Admin+ BP/scripts/core/opcommands.js"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -92,6 +92,47 @@ console.log("\n— names —")
 check("plain", commandName("give @s stone"), "give")
 check("with a slash", commandName("/time set day"), "time")
 check("padded", commandName("   kill @e  "), "kill")
+
+console.log("\n— one node per command, and both layers must agree —")
+// `commands.allowed` is the WORLD asking whether a command exists here at all;
+// `cmd.<name>` is the LADDER asking who may use it. A command needs both — so a
+// Mod can hold /a:zkill and be refused /a:zgamemode, which matters most where a
+// vanilla command duplicates something this pack already does better.
+applyPreset("server")
+setSetting("commands.allowed", "give, kill, gamemode")
+
+check("the world allowing it is not enough on its own",
+    runAsServer(mod, "give @s stone").ok, false)
+check("and the refusal says whose fault it is",
+    runAsServer(mod, "give @s stone").reason.includes("rank"), true)
+
+saveRank("mod", { perms: ["cmd.kill"] })
+check("a granted command runs", runAsServer(mod, "kill @e[type=cow]").ok, true)
+check("an ungranted one still does not", runAsServer(mod, "give @s stone").ok, false)
+
+// Ordinary nodes in every respect — that is the point of making them nodes.
+saveRank("mod", { perms: ["cmd.*"] })
+check("cmd.* grants the whole set", runAsServer(mod, "give @s stone").ok, true)
+saveRank("mod", { perms: ["cmd.*", "-cmd.gamemode"] })
+check("a denial carves a hole in the wildcard",
+    runAsServer(mod, "gamemode creative").ok, false)
+check("without touching its siblings", runAsServer(mod, "give @s stone").ok, true)
+
+// Inheritance, which is the half that makes this usable on a real ladder.
+saveRank("mod", { perms: ["cmd.kill"] })
+saveRank("admin", { perms: [] })
+check("a rank inherits command nodes from the rank below",
+    runAsServer(admin, "kill @e").ok, true)
+
+// And the world keeps the final say, so a node can never widen the whitelist.
+setSetting("commands.allowed", "kill")
+saveRank("mod", { perms: ["cmd.*"] })
+check("a node cannot grant what the world never allowed",
+    runAsServer(mod, "give @s stone").ok, false)
+check("while what it did allow still runs", runAsServer(mod, "kill @e").ok, true)
+
+applyPreset("server")
+resetSetting("commands.allowed")
 
 console.log("\n— who gets it —")
 // Deliberately not in any shipped ladder. Handing somebody the vanilla command
