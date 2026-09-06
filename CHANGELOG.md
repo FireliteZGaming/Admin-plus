@@ -57,6 +57,37 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.1.4 — 2026-09-06
+
+**Two screens that quietly contained other screens.**
+
+**Settings had eight doors, and one of them was all the others.** Automod,
+Configuration, Teleport tuning and Op commands each edit settings that **All
+values** also edited — two routes to the same value, looking nothing alike, with
+the catch-all being the sixty-field form that had just been corrupting toggles.
+
+All values is now **one group at a time**: a list of the twenty groups, each
+opening its own small screen. The largest is fourteen fields. Editing one group
+can no longer touch another, and the form that made a short response dangerous
+does not exist any more — which removes the bug class rather than the symptom
+2.1.3 patched.
+
+**"Permission bundles" and "Permissions" looked like the same thing, and one of
+them was lying.** Permissions are the real switches — every one is a node the
+code checks. Bundles were never stored; they only ever wrote permissions. Two
+screens of identical toggles, and nothing said which was the state and which the
+shortcut.
+
+They were also **quietly destructive**. Every node in *Moderation — light* sits
+inside *Moderation — full*, and a bundle showed as ON once you held all of it —
+so ticking the full one lit the light one too, untouched, and unticking that
+stripped eight permissions back out of the bundle you actually wanted. Same trap
+across the three chat bundles, which all contain `chat.staff`.
+
+Bundles are now **Quick fill**, inside the Permissions screen: press one and it
+*adds* that set, then you fine-tune with the switches. Nothing there can take a
+permission away, and a rank's permissions live in exactly one place.
+
 ## 2.1.3 — 2026-09-06
 
 **Op commands ship OFF, and there is a screen for them.**

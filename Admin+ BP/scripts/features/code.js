@@ -1,7 +1,7 @@
 import { world, system } from "@minecraft/server"
-import { menu, modal, confirm } from "../core/ui.js"
+import { menu, modal, confirm, subtitle } from "../core/ui.js"
 import { canUseCode, hasOperator, DEV_TAG } from "../core/devgate.js"
-import { hubTitle, multilineTitle } from "../core/theme.js"
+import { hubTitle, hubEntry, multilineTitle } from "../core/theme.js"
 import { ok, err, info } from "../core/util.js"
 import { refreshNameTag } from "../core/ranks.js"
 import { DEFAULTS, setting, overrides, replaceOverrides } from "../core/settings.js"
@@ -151,58 +151,82 @@ export function submittedValue(key, raw) {
 }
 
 export async function allValuesScreen(player, back) {
-    const keys = []
-    const fields = []
+    const again = () => allValuesScreen(player, back)
+    const groups = groupedKeys()
+    const differs = key => setting(key) !== DEFAULTS[key].value
+    const total = groups.reduce((n, [, keys]) => n + keys.filter(differs).length, 0)
 
-    // The group name rides on the first field of each group. Real header and
-    // divider elements exist in newer server-ui, but they also shift what
-    // formValues contains, and a mis-indexed config screen would write every
-    // value into the wrong key. A coloured line on the label costs nothing and
-    // cannot desynchronise.
-    for (const [group, groupKeys] of groupedKeys()) {
-        groupKeys.forEach((key, index) => {
-            const spec = DEFAULTS[key]
-            const heading = index === 0 ? `§6§l— ${group} —§r\n` : ""
-            const label = `${heading}§f${spec.label}\n§8${key} · ${spec.help}`
-            keys.push(key)
-            fields.push(kindOf(key) === "bool"
-                ? { id: key, type: "toggle", label, default: setting(key) === "true" }
-                : { id: key, type: "text", label, default: setting(key), placeholder: spec.value })
-        })
-    }
+    return menu(player, {
+        title: hubTitle("settings", "Every setting"),
+        body: [
+            subtitle("The same settings the screens above edit, seen raw."),
+            "",
+            total
+                ? `§f${total}§7 value${total === 1 ? "" : "s"} differ from the shipped default.`
+                : "§8Everything is at its shipped default."
+        ].join("\n"),
+        buttons: groups.map(([group, keys]) => {
+            const diff = keys.filter(differs).length
+            return {
+                text: hubEntry("settings", group,
+                    diff ? `${diff} of ${keys.length} changed` : `${keys.length} value${keys.length === 1 ? "" : "s"}`),
+                run: () => groupScreen(player, group, keys, again)
+            }
+        }),
+        back
+    })
+}
 
-    const values = await modal(player, hubTitle("settings", "All values"), fields)
+/**
+ * One group at a time, and never the whole config at once.
+ *
+ * This screen used to be a single SIXTY-FIELD form, which is how a toggle could
+ * be switched on, submitted, and come back off: answers pair to fields by index,
+ * so a response arriving short leaves the whole tail reading as nothing. The
+ * largest group here is fourteen.
+ *
+ * It reads better too. Finding a setting among twenty group names beats
+ * scrolling sixty fields looking for a label you half remember.
+ */
+async function groupScreen(player, group, keys, back) {
+    const fields = keys.map(key => {
+        const spec = DEFAULTS[key]
+        const label = `§f${spec.label}\n§8${key} · ${spec.help}`
+        return kindOf(key) === "bool"
+            ? { id: key, type: "toggle", label, default: setting(key) === "true" }
+            : { id: key, type: "text", label, default: setting(key), placeholder: spec.value }
+    })
+
+    const values = await modal(player, hubTitle("settings", group), fields)
     if (!values) return back()
 
-    // Anything that will not parse keeps the value it had. The edit does not
-    // half-apply and it does not throw the rest of your changes away either —
-    // one bad number costs you that one number.
+    // Start from what is already stored and touch only this group's keys.
+    // Submitting replaces the whole override table, so building `store` from
+    // scratch here would reset every OTHER group to its default.
+    const previous = { ...overrides() }
+    const store = { ...previous }
     const rejected = []
-    const store = {}
+    let changed = 0
+
     for (const key of keys) {
         const answer = submittedValue(key, values[key])
         if (answer.rejected) rejected.push(`${key} = ${answer.shown || "(blank)"}`)
-        const text = answer.text
-        // Store only what differs from the shipped default, so Factory Reset
-        // stays meaningful and the stored table stays small.
-        if (text === DEFAULTS[key].value) continue
-        store[key] = text
+        if (answer.text !== setting(key)) changed++
+        if (answer.text === DEFAULTS[key].value) delete store[key]
+        else store[key] = answer.text
     }
 
-    const previous = overrides()
     replaceOverrides(store)
     restyleEveryone()
 
-    const count = Object.keys(store).length
     if (rejected.length) {
         err(player, `Not a number, left as it was:\n§7${rejected.join("\n")}`)
     }
-    record(player, "config.edit", undefined,
-        `${count} value(s) differ from default${rejected.length ? ` · ${rejected.length} rejected` : ""}`,
+    if (!changed) { info(player, "§7Nothing changed."); return back() }
+
+    record(player, "config.edit", undefined, `${group}: ${changed} value(s) changed`,
         { kind: "config", overrides: previous })
-    ok(player, count
-        ? `Saved. §f${count}§a value${count === 1 ? "" : "s"} differ from default.`
-        : "Saved — everything is back at its default.")
+    ok(player, `Saved §f${changed}§a change${changed === 1 ? "" : "s"} in §f${group}§a.`)
     return back()
 }
 

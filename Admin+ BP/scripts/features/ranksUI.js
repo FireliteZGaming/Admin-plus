@@ -119,7 +119,6 @@ export async function rankScreen(player, rankId, back) {
             canMoveUp ? { text: "§7▲ Move up §8· outrank " + rows[index - 1].id, run: () => { moveRank(rankId, -1); return rankScreen(player, rankId, back) } } : null,
             canMoveDown ? { text: "§7▼ Move down §8· drop below " + rows[index + 1].id, run: () => { moveRank(rankId, 1); return rankScreen(player, rankId, back) } } : null,
             { text: "§bBasics §8· name, colour, staff", run: () => basicsScreen(player, rankId, () => rankScreen(player, rankId, back)) },
-            { text: "§bPermission bundles", run: () => bundlesScreen(player, rankId, () => rankScreen(player, rankId, back)) },
             { text: "§bPermissions §8· on / off", run: () => nodeGroupsScreen(player, rankId, () => rankScreen(player, rankId, back)) },
             { text: "§bInheritance", run: () => inheritScreen(player, rankId, () => rankScreen(player, rankId, back)) },
             { text: "§bMeta values §8· limits", run: () => metaScreen(player, rankId, () => rankScreen(player, rankId, back)) },
@@ -241,41 +240,71 @@ async function applyPresetScreen(player, key, back) {
 
 // -------------------------------------------------------------- permissions
 
-async function bundlesScreen(player, rankId, back) {
+/**
+ * Quick fill. A bundle is a SHORTCUT, not a second kind of permission.
+ *
+ * These used to be toggles on a screen of their own, sitting beside the real
+ * permissions and looking exactly like them — so nothing said which was the
+ * state and which the shortcut. Even the person who commissioned this pack
+ * could not tell them apart, which is a UI problem rather than a reading one.
+ *
+ * They also overlapped, which made them quietly destructive. Every node in
+ * "Moderation — light" is inside "Moderation — full", and a bundle showed as ON
+ * once you owned all of it — so ticking the full one lit the light one too,
+ * without being touched, and unticking that stripped eight nodes back out of
+ * the bundle you actually wanted.
+ *
+ * So they only ADD now. Press one, watch the permissions change, fine-tune them
+ * next door. Nothing here can take a permission away, and a rank's permissions
+ * live in exactly one place.
+ */
+async function quickFillScreen(player, rankId, back) {
+    const again = () => quickFillScreen(player, rankId, back)
     const rank = getRank(rankId)
-    const keys = Object.keys(BUNDLES)
-    const owned = key => BUNDLES[key].nodes.every(n => rank.perms.includes(n))
-    const values = await modal(player, title(`Bundles · ${rankId}`),
-        keys.map(key => ({
-            id: key,
-            type: "toggle",
-            label: `${BUNDLES[key].label}\n§8${BUNDLES[key].nodes.join(", ")}`,
-            default: owned(key)
-        })))
-    if (!values) return back()
+    const has = key => BUNDLES[key].nodes.every(n => rank.perms.includes(n))
 
-    let perms = [...rank.perms]
-    for (const key of keys) {
-        const nodes = BUNDLES[key].nodes
-        if (values[key]) {
-            for (const node of nodes) if (!perms.includes(node)) perms.push(node)
-        } else if (owned(key)) {
-            perms = perms.filter(p => !nodes.includes(p))
-        }
-    }
-    saveRank(rankId, { perms })
-    ok(player, `Updated bundles for §f${rankId}§a.`)
-    return back()
+    return menu(player, {
+        title: title(`Quick fill · ${rankId}`),
+        body: subtitle("Adds a set of permissions in one press.\n§8Nothing is ever taken away — switch things off in Permissions."),
+        buttons: Object.keys(BUNDLES).map(key => {
+            const bundle = BUNDLES[key]
+            const done = has(key)
+            const size = bundle.nodes.length
+            return {
+                text: `${done ? "§8" : "§b"}${bundle.label}\n§8${size} permission${size === 1 ? "" : "s"}${done ? " · already on" : ""}`,
+                run: () => {
+                    const perms = [...rank.perms]
+                    const added = bundle.nodes.filter(node => !perms.includes(node))
+                    if (!added.length) {
+                        info(player, "§7They already have every one of those.")
+                        return again()
+                    }
+                    saveRank(rankId, { perms: [...perms, ...added] })
+                    ok(player, `Added §f${added.length}§a permission${added.length === 1 ? "" : "s"} to §f${rankId}§a.`)
+                    return again()
+                }
+            }
+        }),
+        back
+    })
 }
 
 async function nodeGroupsScreen(player, rankId, back) {
     return menu(player, {
         title: title(`Permissions · ${rankId}`),
         body: subtitle("Every permission is a simple on/off.\n§8Off means the rank says nothing about it — the holder just gets\n§8whatever the default rank already gives them."),
-        buttons: Object.keys(PERMISSION_NODES).map(group => ({
-            text: group,
-            run: () => nodeGroupScreen(player, rankId, group, () => nodeGroupsScreen(player, rankId, back))
-        })),
+        buttons: [
+            // The shortcut lives WITH the thing it is a shortcut for, so the
+            // relationship is visible instead of needing to be explained.
+            {
+                text: "§eQuick fill §8· add a ready-made set",
+                run: () => quickFillScreen(player, rankId, () => nodeGroupsScreen(player, rankId, back))
+            },
+            ...Object.keys(PERMISSION_NODES).map(group => ({
+                text: group,
+                run: () => nodeGroupScreen(player, rankId, group, () => nodeGroupsScreen(player, rankId, back))
+            }))
+        ],
         back
     })
 }
