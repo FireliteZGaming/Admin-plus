@@ -21,11 +21,11 @@ import {
 // is not "X is impossible", and the way you find out is by reading a pack that
 // does it rather than by reasoning about the docs.
 //
-// THE SCREEN is the `big` chest size, which exists for this: 9x9, laid out the
-// way the game lays out a chest. Ender chest on the top three rows, a break,
-// their pack, another break, and the hotbar alone on the bottom row — the two
-// breaks are real rows of the grid that are never filled, over flat background
-// with no slot squares.
+// THE SCREEN is the `big` chest size, which exists for this: 72 buttons laid
+// out the way the game lays out a chest. Ender chest on the top three rows, a
+// full-row break, their pack, then the hotbar alone under a thin gap. The first
+// 63 are a 9x7 grid; the hotbar's nine are placed by hand so its gap can be the
+// width of the panel's own edge rather than a whole row.
 //
 // TAPPING, because forms still have no drag slots. What a tap does depends on
 // which half you tapped and whose chest it is, and in both cases it is the only
@@ -37,6 +37,15 @@ import {
 //   ELSE'S       exactly as /invsee does. Looking needs admin.invsee; taking
 //                needs to outrank them as well.
 
+
+/**
+ * The one cell of the break row that is a control.
+ *
+ * The break is otherwise never drawn into, so a single item in the middle of it
+ * reads as a deliberate button rather than as a stray slot — and it is the only
+ * free cell on the screen, because the other 71 are real inventory.
+ */
+const DRAG_SLOT = BIG.divider + 4
 
 export async function enderScreen(viewer, target, back) {
     const own = viewer.id === target.id
@@ -75,10 +84,34 @@ export async function enderScreen(viewer, target, back) {
             item.typeId, item.amount, item.enchants.length > 0)
     }
 
+    // The way through to a real container, when the world allows one. It is a
+    // button rather than the default because a container cannot be opened from
+    // script at all — the Player class has no method for it — so the drag view
+    // always costs a tap on something in the world, and putting that between
+    // the player and their own chest made `/ec` feel broken.
+    if (flag("enderchest.dragUI")) {
+        form.button(DRAG_SLOT, "§bDrag view",
+            ["§7A real chest you can drag and shift-click in.",
+                "§8Puts a marker in front of you to tap."],
+            "minecraft:ender_chest", 1, true)
+    }
+
     const response = await form.show(viewer)
     if (response.canceled) return back ? back() : undefined
 
     const again = () => enderScreen(viewer, target, back)
+
+    if (response.selection === DRAG_SLOT && flag("enderchest.dragUI")) {
+        const view = openEnderView(viewer, target)
+        if (view.ok) {
+            return info(viewer, own
+                ? "§7Tap the marker in front of you."
+                : `§7Tap the marker — that is ${displayName(target)}§7's ender chest, live.`)
+        }
+        err(viewer, view.reason)
+        return again()
+    }
+
     const picked = atSlot.get(response.selection)
     if (!picked || isBigDivider(response.selection)) return again()
 
@@ -141,19 +174,19 @@ function tooltip(item, own, inChest) {
  * they look for when they do not know that. Essentials made them the same
  * command and there is no reason to be different.
  */
-function openFor(viewer, selected) {
+function openFor(viewer, selected, mode) {
     if (!flag("feature.enderchest")) {
         return err(viewer, "Ender chests are turned off here.")
     }
 
     const targets = selected ?? []
-    if (!targets.length) return open(viewer, viewer)
+    if (!targets.length) return open(viewer, viewer, mode)
     if (targets.length > 1) {
         return err(viewer, "That selector matched more than one player — this opens one chest at a time.")
     }
 
     const target = targets[0]
-    if (target.id === viewer.id) return open(viewer, viewer)
+    if (target.id === viewer.id) return open(viewer, viewer, mode)
 
     // Looking in somebody else's is the invsee permission, deliberately rather
     // than a node of its own: a new node would be absent from every rank table
@@ -170,25 +203,39 @@ function openFor(viewer, selected) {
         // a search.
         info(target, `§7${displayName(viewer)}§7 looked in your ender chest.`)
     }
-    return open(viewer, target)
+    return open(viewer, target, mode)
 }
 
 /**
- * The drag view if the world allows it, the tap grid otherwise.
+ * Straight to the screen, with no step in between.
  *
- * The fallback is not a nicety. The container-entity technique has never run in
- * this pack, and the failure it is most likely to have is a quiet one — a
- * marker that spawns and opens nothing. If the spawn itself fails we say so and
- * still show a working screen; if it spawns but does not open, an owner turns
- * `enderchest.dragUI` off and everything keeps working.
+ * THE COMMAND MUST OPEN SOMETHING IMMEDIATELY. That rules out leading with the
+ * drag view, because a container cannot be opened from script — `Player` has no
+ * method for it, the DDUI `CustomForm` has no slot control, and no vanilla
+ * command opens one either (checked 2026-09-06 against the API reference and
+ * the command list). The engine opens a container only when a player interacts
+ * with one, so the drag view will always cost a tap on something in the world.
+ *
+ * A form has the opposite pair of properties: it opens on demand and can never
+ * have slots. That is not a coincidence — it is the same fact from both sides,
+ * and it is why the chest UI is a form wearing a chest's clothes.
+ *
+ * So the instant screen leads and the drag view is a button inside it, taken
+ * deliberately when somebody actually wants to move things around.
  */
-function open(viewer, target) {
-    if (flag("enderchest.dragUI")) {
-        const view = openEnderView(viewer, target)
+function open(viewer, target, mode) {
+    // A/B TEST, 2026-09-06. Neither mechanism can open a container outright —
+    // nothing can — so the question is which interaction costs least, and that
+    // is a question only a playtest answers. `/enderchest` and `/ec` are
+    // temporarily DIFFERENT so the two can be compared side by side; they go
+    // back to being the same command once one of them wins.
+    if (mode && flag("enderchest.dragUI")) {
+        const view = openEnderView(viewer, target, mode)
         if (view.ok) {
-            return info(viewer, target.id === viewer.id
-                ? "§7Tap the marker in front of you — drag and shift-click work in there."
-                : `§7Tap the marker in front of you — that is ${displayName(target)}§7's ender chest, live.`)
+            const how = mode === "ride"
+                ? "§7Seated. Open your inventory — the chest should be beside it."
+                : "§7Tap the marker in front of you."
+            return info(viewer, how)
         }
         info(viewer, `§8${view.reason} Showing the tap view instead.`)
     }
@@ -201,12 +248,12 @@ command({
     name: "ec",
     description: "Open your ender chest — /ec, or /ec <player> for staff",
     optional: PLAYER,
-    run: (viewer, [selected]) => openFor(viewer, selected)
+    run: (viewer, [selected]) => openFor(viewer, selected, "ride")
 })
 
 command({
     name: "enderchest",
     description: "Open your ender chest — /enderchest, or /enderchest <player> for staff",
     optional: PLAYER,
-    run: (viewer, [selected]) => openFor(viewer, selected)
+    run: (viewer, [selected]) => openFor(viewer, selected, "marker")
 })

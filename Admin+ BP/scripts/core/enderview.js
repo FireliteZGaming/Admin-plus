@@ -44,7 +44,25 @@ import { world, system } from "@minecraft/server"
 // by a crash or a chunk unload holds nothing but a copy — it is deleted on
 // sight, and deleting it can never cost anybody an item.
 
+// TWO MECHANISMS, ON PURPOSE, so a playtest can say which one Bedrock likes.
+//
+//   marker  spawn a container entity at the crosshair; the player taps it.
+//           Certain to be a real container, uncertain how it feels.
+//   ride    force the player to RIDE a container entity (addRider is
+//           scriptable). On a chested mount the inventory button shows the
+//           mount's container next to your own, with drag — and needs no aiming
+//           at anything. Uncertain whether a custom `horse` container behaves
+//           that way; that is exactly what the test is for.
+//
+// Neither can open the screen outright. Nothing can: `Container` has no open
+// method, `Player` has none, `CustomForm` has no slot control, and no vanilla
+// command does it either — checked 2026-09-06 against the real .d.ts for both
+// modules, beta and stable. The engine only ever OBSERVES a container opening
+// (`entityContainerOpened`, carrying an `openSource` describing which player
+// action did it). So the question is not how to skip the interaction, it is
+// which interaction costs the player least.
 const TYPE = "adminplus:ender_view"
+const RIDE_TYPE = "adminplus:ender_ride"
 const SIZE = 27
 
 /** How long a view may sit open untouched, and how far the viewer may wander. */
@@ -113,7 +131,7 @@ export function viewOf(viewerId) { return views.get(viewerId) }
  * Put a container marker in front of the viewer, loaded from `target`'s chest.
  * @returns {{ok: true} | {ok: false, reason: string}}
  */
-export function openEnderView(viewer, target) {
+export function openEnderView(viewer, target, mode = "marker") {
     const chest = enderOf(target)
     if (!chest) return { ok: false, reason: "Couldn't reach that ender chest." }
 
@@ -125,18 +143,25 @@ export function openEnderView(viewer, target) {
     }
     closeEnderView(viewer)
 
-    const at = safe(() => viewer.getHeadLocation()) ?? safe(() => viewer.location)
-    if (!at) return { ok: false, reason: "Couldn't work out where you are." }
-    const facing = safe(() => viewer.getViewDirection()) ?? { x: 0, y: 0, z: 1 }
-    const spot = {
-        x: at.x + facing.x * 1.4,
-        y: at.y + facing.y * 1.4,
-        z: at.z + facing.z * 1.4
+    const riding = mode === "ride"
+
+    // The marker goes at the crosshair at arm's length, so it is already under
+    // the aim the moment the command runs. The seat goes at the player's own
+    // feet, because they are about to be sitting in it.
+    let spot
+    if (riding) {
+        spot = safe(() => viewer.location)
+    } else {
+        const at = safe(() => viewer.getHeadLocation()) ?? safe(() => viewer.location)
+        if (!at) return { ok: false, reason: "Couldn't work out where you are." }
+        const facing = safe(() => viewer.getViewDirection()) ?? { x: 0, y: 0, z: 1 }
+        spot = { x: at.x + facing.x * 1.4, y: at.y + facing.y * 1.4, z: at.z + facing.z * 1.4 }
     }
+    if (!spot) return { ok: false, reason: "Couldn't work out where you are." }
 
     let entity
     try {
-        entity = viewer.dimension.spawnEntity(TYPE, spot)
+        entity = viewer.dimension.spawnEntity(riding ? RIDE_TYPE : TYPE, spot)
     } catch (e) {
         return { ok: false, reason: `Couldn't open the drag view (${e}).` }
     }
@@ -151,12 +176,26 @@ export function openEnderView(viewer, target) {
     }
 
     copyInto(chest, box)
-    safe(() => { entity.nameTag = "§bTap to open" })
+
+    if (riding) {
+        // Seat them in it. If this fails there is nothing to tap either — the
+        // seat is invisible and at their feet — so clean up rather than leave
+        // them standing next to a thing they cannot use.
+        const seat = safe(() => entity.getComponent("minecraft:rideable"))
+        const seated = seat && safe(() => seat.addRider(viewer), false)
+        if (!seated) {
+            safe(() => entity.remove())
+            return { ok: false, reason: "Couldn't sit you in the ender chest seat." }
+        }
+    } else {
+        safe(() => { entity.nameTag = "§bTap to open" })
+    }
 
     views.set(viewer.id, {
         viewerId: viewer.id,
         targetId: target.id,
         own: viewer.id === target.id,
+        mode: riding ? "ride" : "marker",
         entityId: entity.id,
         entity,
         chestSig: signature(chest),
@@ -183,6 +222,10 @@ export function closeEnderView(viewer) {
         copyInto(box, chest)
     }
 
+    // Stand them up before the seat disappears out from under them.
+    if (view.mode === "ride") {
+        safe(() => view.entity.getComponent("minecraft:rideable")?.ejectRiders())
+    }
     safe(() => view.entity.remove())
     return true
 }
@@ -237,7 +280,24 @@ function step() {
 
         // Any of these means the view cannot be trusted to reconcile: drop it.
         // The chest keeps the items either way.
-        if (!viewer || !target || !box || !chest || !distanceOk(viewer, view.entity)) {
+        if (!viewer || !target || !box || !chest) {
+            closeEnderView(viewerId)
+            continue
+        }
+
+        // How you leave differs by mechanism. A marker you walk away from; a
+        // seat you get out of, and getting out IS the close — waiting for a
+        // distance that never grows would strand the seat under them.
+        //
+        // Both get a moment's grace first. A rider may not be registered on the
+        // same tick it was added, and closing on that would look exactly like
+        // the feature not working at all.
+        const settling = system.currentTick - view.opened < 10
+        const stillThere = settling || (view.mode === "ride"
+            ? !!safe(() => view.entity.getComponent("minecraft:rideable")
+                ?.getRiders()?.some(r => r?.id === viewerId), false)
+            : distanceOk(viewer, view.entity))
+        if (!stillThere) {
             closeEnderView(viewerId)
             continue
         }
@@ -260,10 +320,13 @@ export function sweepOrphans() {
     for (const dimensionId of ["overworld", "nether", "the_end"]) {
         const dimension = safe(() => world.getDimension(dimensionId))
         if (!dimension) continue
-        for (const entity of safe(() => dimension.getEntities({ type: TYPE }), []) ?? []) {
-            if ([...views.values()].some(v => v.entityId === entity.id)) continue
-            safe(() => entity.remove())
-            removed++
+        for (const type of [TYPE, RIDE_TYPE]) {
+            for (const entity of safe(() => dimension.getEntities({ type }), []) ?? []) {
+                if ([...views.values()].some(v => v.entityId === entity.id)) continue
+                safe(() => entity.getComponent("minecraft:rideable")?.ejectRiders())
+                safe(() => entity.remove())
+                removed++
+            }
         }
     }
     return removed
