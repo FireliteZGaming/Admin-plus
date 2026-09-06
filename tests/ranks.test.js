@@ -264,7 +264,7 @@ const CODE = sources(SRC_DIR).join("\n")
 // substring test below to find. Rather than exempt fifty-six nodes on trust,
 // pin the single line that enforces them: delete it and this fails, which is
 // exactly the guarantee the rule is after.
-const enforcedInExecute = CODE.includes("has(player, commandNode(name))")
+const enforcedInExecute = CODE.includes("deniedFor(player, commandNode(name))")
 check("the Operator group is enforced where commands actually run",
     enforcedInExecute, true)
 

@@ -770,6 +770,29 @@ export function rankState(rankOrId, node) {
     return granted ? "inherited" : "denied"
 }
 
+/**
+ * Is this node explicitly DENIED for this player?
+ *
+ * The opposite default to has(). Vanilla commands are on for everybody unless a
+ * rank says otherwise, so the question is never "were you granted this" — it is
+ * "did somebody take it away". Same resolver as has(): heaviest rank with an
+ * opinion wins, wildcards and inheritance included, so `-cmd.gamemode` on a rank
+ * refuses it there and nowhere else.
+ */
+export function deniedFor(player, node) {
+    if (!player || isOwner(player)) return false
+    for (const rank of playerRanks(player)) {
+        let best = 0
+        let granted = true
+        for (const pattern of effectivePerms(rank)) {
+            const score = matchScore(pattern, node)
+            if (score > best) { best = score; granted = !pattern.startsWith("-") }
+        }
+        if (best > 0) return !granted
+    }
+    return false
+}
+
 /** Does this player have a permission node? */
 export function has(player, node) {
     if (!player) return false

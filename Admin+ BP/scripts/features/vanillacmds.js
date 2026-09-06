@@ -140,7 +140,6 @@ for (const spec of COMMANDS) {
         name: `${PREFIX}${spec.name}`,
         group: "vanilla",
         description: `${spec.help} — operator-level, logged`,
-        perm: "admin.commands",
         mandatory,
         optional,
         run: (player, args) => {

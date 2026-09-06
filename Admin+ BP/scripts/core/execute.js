@@ -1,6 +1,6 @@
 import { world } from "@minecraft/server"
 import { setting } from "./settings.js"
-import { has, commandNode } from "./ranks.js"
+import { deniedFor, commandNode } from "./ranks.js"
 
 // Running vanilla commands without being an operator.
 //
@@ -55,27 +55,46 @@ export function commandName(line) {
 /**
  * @returns {{ok: true, command: string} | {ok: false, reason: string}}
  */
+/**
+ * Never, by anybody, however the ranks are set.
+ *
+ * Commands are on by default now, so this is the only thing standing between
+ * `/cmd` and handing the world away — and it is not a setting, because a
+ * setting that can grant `op` is `op`.
+ *
+ *   op, deop            the whole point. /cmd exists so a rank need not be
+ *                       operator; a rank that can grant operator defeats it.
+ *   execute, function,  WRAPPERS. Only the first word is ever checked, so each
+ *   scriptevent,        of these carries anything at all behind it — "function
+ *   schedule            mypack:whatever" can contain op.
+ *   kick                removing somebody is this pack's job, through a path
+ *                       that does not lock them out until the host restarts.
+ *   the rest            dedicated-server and session administration, and the
+ *                       editor/debug tooling.
+ */
+const NEVER = new Set([
+    "op", "deop",
+    "execute", "function", "scriptevent", "schedule",
+    "kick",
+    "allowlist", "permission", "changesetting", "reload", "reloadconfig",
+    "save", "stop", "transfer", "setmaxplayers", "wsserver", "sendshowstoreoffer",
+    "script", "gametest", "project"
+])
+
+/** Is this command refused to everyone, whatever their rank says? */
+export function neverAllowed(name) {
+    return NEVER.has(String(name ?? "").trim().toLowerCase())
+}
+
 export function checkCommand(line) {
     const text = String(line ?? "").trim().replace(/^\//, "")
     if (!text) return { ok: false, reason: "Type a command to run." }
 
     const name = commandName(text)
-    const list = allowed()
+    if (neverAllowed(name)) {
+        return { ok: false, reason: `"${name}" can never be run this way — it would hand the world over.` }
+    }
 
-    if (!list.length) {
-        return {
-            ok: false,
-            reason: "No vanilla commands are turned on. An owner turns them on in Settings ▸ Vanilla commands."
-        }
-    }
-    if (!list.includes(name)) {
-        return {
-            ok: false,
-            // Naming what IS on beats naming what is not: the person has a
-            // command in mind and wants to know what to use instead.
-            reason: `"${name}" is not turned on here. Allowed: §f${list.join("§c, §f")}`
-        }
-    }
     return { ok: true, command: text }
 }
 
@@ -104,10 +123,10 @@ export function mayRun(player, line) {
     if (!checked.ok) return checked
 
     const name = commandName(checked.command)
-    if (!has(player, commandNode(name))) {
+    if (deniedFor(player, commandNode(name))) {
         return {
             ok: false,
-            reason: `Your rank is not allowed "${name}". An owner grants it in Ranks ▸ the rank ▸ Permissions ▸ Operator.`
+            reason: `"${name}" is switched off for your rank. An owner changes that in Ranks ▸ the rank ▸ Permissions ▸ Operator.`
         }
     }
     return checked

@@ -39,7 +39,9 @@ console.log("\n— the point of it —")
 // which is the whole point of a whitelist. So say what this world allows rather
 // than leaning on a default, which is also what stops this test quietly passing
 // again if that default ever came back.
-check("out of the box, nothing runs at all", runAsServer(owner, "give @s diamond 1").ok, false)
+// Commands are ON by default now: one gate, and it asks whether a rank took
+// this away rather than whether anybody granted it.
+check("out of the box, commands just work", runAsServer(owner, "give @s diamond 1").ok, true)
 owner.ran.length = 0
 setSetting("commands.allowed", "give, time, kill, tp, say")
 
@@ -63,10 +65,10 @@ check("op is not on the list, so it does not run", runAsServer(owner, "op Steve"
 check("nor deop", runAsServer(owner, "deop Steve").ok, false)
 check("nor kick, which locks people out until the host restarts",
     runAsServer(owner, "kick Steve").ok, false)
-check("the refusal names what IS on",
-    runAsServer(owner, "op Steve").reason.includes("give"), true)
-check("matching is by command NAME, not a substring",
-    checkCommand("giveaway something").ok, false)
+check("the refusal explains itself",
+    runAsServer(owner, "op Steve").reason.includes("hand the world over"), true)
+check("the never-list matches by NAME, not a substring",
+    checkCommand("operation start").ok, true)
 check("case does not matter", runAsServer(owner, "GIVE @s stone").ok, true)
 
 // execute and function are left off on purpose: only the first word is checked,
@@ -79,14 +81,13 @@ console.log("\n— the list is the owner's to set —")
 setSetting("commands.allowed", "give, effect")
 check("give is on", runAsServer(owner, "give @s stone").ok, true)
 check("effect is on", runAsServer(owner, "effect @s speed 10").ok, true)
-check("summon is now off", runAsServer(owner, "summon cow").ok, false)
+check("summon is unaffected by the old list", runAsServer(owner, "summon cow").ok, true)
 setSetting("commands.allowed", "")
-check("an empty list runs nothing at all", runAsServer(owner, "give @s stone").ok, false)
-check("and says so plainly",
-    runAsServer(owner, "give @s stone").reason.includes("No vanilla commands"), true)
+check("an empty list no longer blocks anything", runAsServer(owner, "give @s stone").ok, true)
+check("but op is refused however the list is set", runAsServer(owner, "op Steve").ok, false)
 resetSetting("commands.allowed")
-check("and the shipped state is that same nothing",
-    runAsServer(owner, "give @s stone").ok, false)
+check("and the shipped state is that same yes",
+    runAsServer(owner, "give @s stone").ok, true)
 
 console.log("\n— names —")
 check("plain", commandName("give @s stone"), "give")
@@ -101,18 +102,17 @@ console.log("\n— one node per command, and both layers must agree —")
 applyPreset("server")
 setSetting("commands.allowed", "give, kill, gamemode")
 
-check("the world allowing it is not enough on its own",
-    runAsServer(mod, "give @s stone").ok, false)
-check("and the refusal says whose fault it is",
-    runAsServer(mod, "give @s stone").reason.includes("rank"), true)
+check("allowed unless a rank says otherwise",
+    runAsServer(mod, "give @s stone").ok, true)
+saveRank("mod", { perms: ["-cmd.give"] })
+check("and a denial is what refuses it", runAsServer(mod, "give @s stone").ok, false)
 
-saveRank("mod", { perms: ["cmd.kill"] })
-check("a granted command runs", runAsServer(mod, "kill @e[type=cow]").ok, true)
-check("an ungranted one still does not", runAsServer(mod, "give @s stone").ok, false)
+check("a command nobody denied runs", runAsServer(mod, "kill @e[type=cow]").ok, true)
+check("and the denied one does not", runAsServer(mod, "give @s stone").ok, false)
 
 // Ordinary nodes in every respect — that is the point of making them nodes.
 saveRank("mod", { perms: ["cmd.*"] })
-check("cmd.* grants the whole set", runAsServer(mod, "give @s stone").ok, true)
+check("clearing the denial restores it", runAsServer(mod, "give @s stone").ok, true)
 saveRank("mod", { perms: ["cmd.*", "-cmd.gamemode"] })
 check("a denial carves a hole in the wildcard",
     runAsServer(mod, "gamemode creative").ok, false)
@@ -127,8 +127,8 @@ check("a rank inherits command nodes from the rank below",
 // And the world keeps the final say, so a node can never widen the whitelist.
 setSetting("commands.allowed", "kill")
 saveRank("mod", { perms: ["cmd.*"] })
-check("a node cannot grant what the world never allowed",
-    runAsServer(mod, "give @s stone").ok, false)
+check("a rank that was not denied still runs it",
+    runAsServer(mod, "give @s stone").ok, true)
 check("while what it did allow still runs", runAsServer(mod, "kill @e").ok, true)
 
 applyPreset("server")
