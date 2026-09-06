@@ -1,4 +1,5 @@
 import { world, system } from "@minecraft/server"
+import { noteChat } from "../core/chatlog.js"
 import { CONFIG } from "../config.js"
 import { primaryRank, isStaff } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
@@ -57,6 +58,9 @@ export function postToChannel(sender, message, channel) {
     // The log always carries the label, so the record stays whole even though
     // most readers never saw one.
     console.log(`[Admin+] [${stripCodes(channel?.display ?? "?")}] ${sender.name}: ${message}`)
+    // And kept in the world, so staff can read it back later. The content log
+    // is wiped every session and nobody can open it from inside the game.
+    noteChat(sender, message, channel)
     return readers.length
 }
 

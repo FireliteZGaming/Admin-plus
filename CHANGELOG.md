@@ -57,6 +57,33 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.1.9 — 2026-09-06
+
+**A chat log — /admin ▸ Logs ▸ Chat.**
+
+The action log says who did what TO somebody. This says what was actually said,
+which is the other half of most moderation calls: an argument gets reported
+twenty minutes late, and without it the only honest answer is "I wasn't there."
+
+Recent, a search over words or names, and — on any player in Logs ▸ Players —
+a third view beside *Received* and *Did*: **Said**.
+
+**Private messages are never in here.** That is a boundary, not an oversight.
+This hangs off the channel funnel that public chat uses; `/pm` and private chat
+send straight to the players involved and never pass through it, so they cannot
+be recorded by accident. Players can switch those off in their own settings, and
+a log that kept them anyway would make that preference a lie. `/sudo` **is**
+recorded, because it goes through the same funnel — a line somebody was *made*
+to say is the one most worth having a record of.
+
+**Its own table and its own cap** (`logs.chatCap`, 200 lines). Chat outruns
+staff actions by orders of magnitude, so sharing the audit log's ring buffer
+would have pushed every ban and mute out of Recent within minutes — chat would
+have destroyed the record it is meant to support.
+
+It stores what was typed, not the decorated line: no colour codes, no rank
+prefix. `logs.chat` switches the whole thing off.
+
 ## 2.1.8 — 2026-09-06
 
 **A permission per vanilla command — Ranks ▸ the rank ▸ Permissions ▸ Operator.**

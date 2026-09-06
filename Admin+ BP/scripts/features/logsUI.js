@@ -10,6 +10,9 @@ import {
     recent, about, by, branch, search, people, getEntry,
     canUndo, markUndone, size, summarise
 } from "../core/logs.js"
+import {
+    recentChat, chatBy, searchChat, chatLogSize, clearChatLog
+} from "../core/chatlog.js"
 
 // /admin ▸ Logs
 //
@@ -40,6 +43,7 @@ export async function logsScreen(player, back) {
         body: subtitle(`${size()} entries kept. Newest first.`),
         buttons: [
             { text: hubButton("settings", "Recent", "Everything, newest first"), run: () => listScreen(player, "Recent", recent(120), again) },
+            { text: hubButton("chat", "Chat", `What was actually said · ${chatLogSize()} lines`), run: () => chatScreen(player, again) },
             { text: hubButton("settings", "Players", "What was done to them, and what they did"), run: () => peopleScreen(player, again) },
             { text: hubButton("settings", "Filter", "By kind of action"), run: () => filterScreen(player, again) },
             { text: hubButton("settings", "Search", "By name or wording"), run: () => searchScreen(player, again) }
@@ -68,6 +72,77 @@ async function listScreen(player, title, entries, back) {
     })
 }
 
+// ------------------------------------------------------------------- chat
+//
+// A separate door because it answers a different question. The action log says
+// who did what TO somebody; this says what was actually said, which is the
+// other half of most moderation decisions — an argument gets reported twenty
+// minutes late and otherwise the only honest answer is "I wasn't there".
+//
+// Private messages are not in here. They never pass through the channel funnel
+// this reads from, and players can switch them off in their own settings — a
+// log that kept them anyway would make that preference a lie.
+
+/** One line, as it was typed rather than as it was decorated. */
+function chatLine(entry) {
+    const when = formatDate(entry.at)
+    const where = entry.channel ? ` §8· ${entry.channel}` : ""
+    return `§f${entry.name}§r${where}\n§7${entry.text}\n§8${when}`
+}
+
+async function chatListScreen(player, title, lines, back) {
+    if (!lines.length) { info(player, "No chat recorded there yet."); return back() }
+    return pagedMenu(player, {
+        title: hubTitle("chat", title),
+        body: subtitle(`${lines.length} line${lines.length === 1 ? "" : "s"}, newest first.`),
+        items: lines,
+        render: entry => ({ text: chatLine(entry) }),
+        onPick: () => chatListScreen(player, title, lines, back),
+        back
+    })
+}
+
+async function chatScreen(player, back) {
+    const again = () => chatScreen(player, back)
+    const kept = chatLogSize()
+
+    return menu(player, {
+        title: hubTitle("chat", "Chat log"),
+        body: [
+            subtitle(kept ? `${kept} lines kept.` : "Nothing recorded yet."),
+            "§8Public chat only — private messages are never recorded."
+        ].join("\n"),
+        buttons: [
+            { text: hubEntry("chat", "Recent", "Everything said, newest first"), run: () => chatListScreen(player, "Recent chat", recentChat(150), again) },
+            { text: hubEntry("chat", "Search", "Find a word, or everything one person said"), run: () => chatSearchScreen(player, again) },
+            has(player, "admin.settings")
+                ? { text: hubEntry("actions", "Clear the chat log", "Throws away every line kept"), run: () => clearChatScreen(player, again) }
+                : null
+        ].filter(Boolean),
+        back
+    })
+}
+
+async function chatSearchScreen(player, back) {
+    const values = await modal(player, hubTitle("chat", "Search chat"), [
+        { id: "text", type: "text", label: "A word, or a player's name", placeholder: "diamond" }
+    ])
+    if (!values) return back()
+    const text = String(values.text ?? "").trim()
+    if (!text) return back()
+    return chatListScreen(player, `Chat · "${text}"`, searchChat(text, 150), back)
+}
+
+async function clearChatScreen(player, back) {
+    const yes = await confirm(player, hubTitle("chat", "Clear chat log"),
+        `Throw away all ${chatLogSize()} recorded lines?\n\n§8The action log is not touched.`,
+        "§cClear")
+    if (!yes) return back()
+    clearChatLog()
+    ok(player, "Chat log cleared.")
+    return back()
+}
+
 async function peopleScreen(player, back) {
     const seen = people()
     if (!seen.length) { info(player, "The log hasn't seen anyone yet."); return back() }
@@ -84,17 +159,24 @@ async function peopleScreen(player, back) {
 async function personScreen(player, person, back) {
     const received = about(person.id)
     const did = by(person.id)
+    const said = chatBy(person.id, 150)
     return menu(player, {
         title: hubTitle("settings", person.name),
         body: [
-            subtitle("Two questions, two views."),
+            subtitle("What was done to them, what they did, and what they said."),
             `§fDone to them: §7${received.length}`,
-            `§fThings they did: §7${did.length}`
+            `§fThings they did: §7${did.length}`,
+            `§fLines of chat: §7${said.length}`
         ].join("\n"),
         buttons: [
             { text: hubEntry("actions", "Received", "What staff did to them — the appeal view"), run: () => listScreen(player, `${person.name} · received`, received, () => personScreen(player, person, back)) },
-            { text: hubEntry("ranks", "Did", "What they did as staff — the audit view"), run: () => listScreen(player, `${person.name} · did`, did, () => personScreen(player, person, back)) }
-        ],
+            { text: hubEntry("ranks", "Did", "What they did as staff — the audit view"), run: () => listScreen(player, `${person.name} · did`, did, () => personScreen(player, person, back)) },
+            // The third question people actually ask about somebody, and the
+            // one the action log could never answer.
+            said.length
+                ? { text: hubEntry("chat", "Said", `${said.length} line${said.length === 1 ? "" : "s"} of chat`), run: () => chatListScreen(player, `${person.name} · said`, said, () => personScreen(player, person, back)) }
+                : null
+        ].filter(Boolean),
         back
     })
 }

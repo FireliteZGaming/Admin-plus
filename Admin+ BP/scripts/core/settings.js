@@ -129,6 +129,16 @@ export const DEFAULTS = {
         // turns it on; nobody inherits a half-finished feature in an update.
         value: "false", label: "Ender chest", help: "true / false · /ec, and /enderchest <player> for staff"
     },
+    "logs.chat": {
+        value: "true",
+        label: "Keep a chat log",
+        help: "true / false · records public chat so staff can read it back. Private messages are never recorded."
+    },
+    "logs.chatCap": {
+        value: "200",
+        label: "Chat lines kept",
+        help: "How many lines to keep before the oldest fall off. Chat is high-volume, so this is separate from the action log's cap."
+    },
     "feature.reports": {
         value: "true", label: "Reports", help: "true / false · /report and the panel queue"
     },

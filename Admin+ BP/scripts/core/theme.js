@@ -11,6 +11,7 @@ export const HUB = {
     warps:    "§a",   // green  — going places
     settings: "§8",   // grey   — configuration, in any hub
     code:     "§5",   // purple — the dev escape hatch
+    chat:     "§d",   // pink   — what people said, as opposed to what they did
     about:    "§7"    // silver — inert information
 }
 
