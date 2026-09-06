@@ -57,6 +57,75 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.1.2 — 2026-09-06
+
+**`/ec` gives you the real ender chest screen.**
+
+Not a copy of it, not a grid drawn to resemble one — the genuine vanilla
+container, because what you open is a genuine ender chest. It puts one in front
+of you and takes it away again when you close it. Drag, shift-click,
+double-click-to-fill: every behaviour anyone has ever learned in a chest, with
+nothing reimplemented and nothing to keep in sync, because it is not a mirror of
+your ender chest, it *is* your ender chest.
+
+**Why it has to be a block.** A Java server's `/enderchest` opens instantly
+because Bukkit has `player.openInventory(...)` — a method that opens a container
+*for* a player. Bedrock has no equivalent, anywhere: not on `Player`, not on
+`Container`, not in the new DDUI forms, and not as a command. Input cannot be
+synthesised either — the input API can read and block, never inject. So the
+engine only ever opens a container in response to a real interaction, and every
+Bedrock addon that needs one does the same thing this now does: puts it in the
+world and lets you open it. Riding an entity with a container was tried and is
+worse — it takes your input away instead of giving you the chest.
+
+**It is careful about your world**, since placing blocks in somebody else's
+world is not a small thing:
+
+- **it only ever replaces air**, so nothing you have built is overwritten — it
+  tries the space in front of you, then above it, then over your head;
+- **it cannot be mined.** An ender chest breaks into eight obsidian, so a placed
+  one would be an obsidian generator: open, break, repeat. Ours refuses to break;
+- **it disappears the moment you close it**, not on a timer — the engine cannot
+  open a container for us but it does say when one closes;
+- **it is only removed if it is still ours.** Break it or build over the spot and
+  nothing gets punched out;
+- **every placement is written to world storage**, so a crash cannot strand one.
+  Anything left over is swept on the next load.
+
+`/enderchest` still uses the entity marker, which is the route that also works
+on *somebody else's* chest — a placed ender chest always shows whoever opens it
+their own, so staff can never use one to look inside another player's.
+
+## 2.1.1 — 2026-09-06
+
+**The ender chest opens the moment you type the command.**
+
+2.1.0 put a step in the way: `/ec` spawned something you had to tap before
+anything appeared, which made the command feel broken. Now the screen opens
+straight away and the draggable container is a button inside it, taken when you
+actually want to move things about rather than every single time.
+
+**Why it cannot simply open a draggable chest instantly**, since it is the
+obvious question: a container cannot be opened from script at all. Checked
+against the real type definitions for `@minecraft/server` and
+`@minecraft/server-ui`, beta and stable — `Container` has thirteen methods and
+every one is data, `Player` has nothing, the new DDUI `CustomForm` has no slot
+control, and no vanilla command does it either. The engine only ever *observes*
+a container opening. Forms are the mirror image: openable on demand, and
+structurally unable to hold slots, because the only thing a form sends back is
+"button N was pressed" — which is why the chest screen this pack has always
+drawn is a form wearing a chest's clothes, and why no resource pack can add
+dragging to it.
+
+So a real container always costs one interaction, and the only open question is
+which interaction costs least. **`/ec` and `/enderchest` are temporarily
+different so the two candidates can be compared side by side** — one puts an
+ender chest in front of you to tap, the other seats you so your own inventory
+button opens it. They go back to being one command once one of them wins.
+
+The marker is an actual ender chest now, rather than an invisible entity wearing
+a floating "tap to open" label. That was a debug artifact and it looked like one.
+
 ## 2.1.0 — 2026-09-05
 
 **`/menu` — the other half of panel-first.**

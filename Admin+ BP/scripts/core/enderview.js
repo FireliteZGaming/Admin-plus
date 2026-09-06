@@ -187,9 +187,10 @@ export function openEnderView(viewer, target, mode = "marker") {
             safe(() => entity.remove())
             return { ok: false, reason: "Couldn't sit you in the ender chest seat." }
         }
-    } else {
-        safe(() => { entity.nameTag = "§bTap to open" })
     }
+    // No nametag. The marker renders as an ender chest, so floating text over
+    // it would be a label on something that already says what it is — and a
+    // debug artifact is exactly what it looked like.
 
     views.set(viewer.id, {
         viewerId: viewer.id,

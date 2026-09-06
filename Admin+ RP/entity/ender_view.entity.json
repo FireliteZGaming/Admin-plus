@@ -4,9 +4,9 @@
         "description": {
             "identifier": "adminplus:ender_view",
             "materials": { "default": "entity_alphatest" },
-            "textures": { "default": "textures/entity/floating_text" },
-            "geometry": { "default": "geometry.floating_text" },
-            "render_controllers": [ "controller.render.floating_text" ]
+            "textures": { "default": "textures/entity/ender_marker" },
+            "geometry": { "default": "geometry.adminplus_ender_marker" },
+            "render_controllers": [ "controller.render.ender_marker" ]
         }
     }
 }

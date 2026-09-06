@@ -6,6 +6,7 @@ import { flag } from "../core/settings.js"
 import { displayName } from "../core/identity.js"
 import { record } from "../core/logs.js"
 import { openEnderView } from "../core/enderview.js"
+import { placeEnderChest } from "../core/enderblock.js"
 import { ChestForm, chestUIAvailable, BIG, bigSlotFor, isBigDivider } from "../core/chestUI.js"
 import {
     snapshot, enderSnapshot, slotLabel, itemLine, transfer, deposit
@@ -229,6 +230,21 @@ function open(viewer, target, mode) {
     // is a question only a playtest answers. `/enderchest` and `/ec` are
     // temporarily DIFFERENT so the two can be compared side by side; they go
     // back to being the same command once one of them wins.
+    // THE BLOCK ROUTE, and it is only possible on your own chest: a placed
+    // ender chest always shows whoever opens it THEIR contents, so it can never
+    // be used to look inside somebody else's. Staff keep the entity routes.
+    if (mode === "block" && flag("enderchest.dragUI")) {
+        if (viewer.id === target.id) {
+            const put = placeEnderChest(viewer)
+            if (put.ok) {
+                return info(viewer, "§7Your ender chest is in front of you — it clears itself when you close it.")
+            }
+            info(viewer, `§8${put.reason} Showing the tap view instead.`)
+            return enderScreen(viewer, target, undefined)
+        }
+        mode = "marker"
+    }
+
     if (mode && flag("enderchest.dragUI")) {
         const view = openEnderView(viewer, target, mode)
         if (view.ok) {
@@ -248,7 +264,7 @@ command({
     name: "ec",
     description: "Open your ender chest — /ec, or /ec <player> for staff",
     optional: PLAYER,
-    run: (viewer, [selected]) => openFor(viewer, selected, "ride")
+    run: (viewer, [selected]) => openFor(viewer, selected, "block")
 })
 
 command({
