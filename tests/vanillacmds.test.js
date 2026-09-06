@@ -2,6 +2,7 @@ import { CustomCommandParamType } from "@minecraft/server"
 import { COMMANDS, ENUMS, SELECTOR_TYPES } from "../Admin+ BP/scripts/core/vanillaparams.js"
 import { buildLine, tempTag } from "../Admin+ BP/scripts/features/vanillacmds.js"
 import { DEFAULTS } from "../Admin+ BP/scripts/core/settings.js"
+import { OP_COMMANDS } from "../Admin+ BP/scripts/features/opcommands.js"
 import { readFileSync, readdirSync } from "node:fs"
 
 let passed = 0, failed = 0
@@ -12,17 +13,22 @@ function check(name, actual, expected) {
 }
 
 const P = CustomCommandParamType
-const shipped = String(DEFAULTS["commands.allowed"].value)
-    .split(",").map(s => s.trim().toLowerCase()).filter(Boolean)
 
-console.log("\n— every allowed command has a typed registration —")
-// The allowlist and the table are two lists of the same thing, and they drift
-// silently: a command on the allowlist with no row cannot be typed at all, and
-// a row that is not allowlisted registers a command that always refuses. Both
-// look like "it just doesn't work" from inside the game.
+// Compared against the OFFERED list rather than the shipped whitelist, which is
+// now empty on purpose. Registration happens in beforeEvents.startup, and world
+// storage cannot be read that early — so every command this pack can ever allow
+// must be registered up front, and each one refuses at RUN time until an owner
+// turns it on in Settings ▸ Op commands.
+const offered = [...OP_COMMANDS]
+
+console.log("\n— every offered command has a typed registration —")
+// The two lists are the same thing written twice, and they drift silently: a
+// command the screen offers with no row cannot be typed at all, and a row the
+// screen never offers registers a command nobody can ever switch on. Both look
+// like "it just doesn't work" from inside the game.
 const names = COMMANDS.map(c => c.name)
-check("a row for every allowed command", shipped.filter(c => !names.includes(c)), [])
-check("and nothing registered that is not allowed", names.filter(n => !shipped.includes(n)), [])
+check("a row for every command the screen offers", offered.filter(c => !names.includes(c)), [])
+check("and nothing registered the screen cannot switch on", names.filter(n => !offered.includes(n)), [])
 check("no command is registered twice", names.length, new Set(names).size)
 
 console.log("\n— shapes Bedrock will actually accept —")

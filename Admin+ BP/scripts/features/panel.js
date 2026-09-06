@@ -6,6 +6,7 @@ import { hubTitle, hubButton, HUB } from "../core/theme.js"
 import { ranksScreen } from "./ranksUI.js"
 import { actionsScreen } from "./actions.js"
 import { codeScreen, canUseCode, allValuesScreen, configPresetsScreen, factoryResetScreen, previewLine } from "./code.js"
+import { opCommandsScreen } from "./opcommands.js"
 import { hasOperator } from "../core/devgate.js"
 import { channelsScreen } from "./chatUI.js"
 import { warpsScreen } from "./warps.js"
@@ -135,6 +136,7 @@ async function settingsScreen(player, back) {
             has(player, "chat.manage")
                 ? { text: hubButton("settings", "Chat channels", "Create, gate and order the chats"), run: () => channelsScreen(player, again) }
                 : null,
+            { text: hubButton("settings", "Op commands", "Vanilla commands without op — all off until you say so"), run: () => opCommandsScreen(player, again) },
             { text: hubButton("settings", "Teleport tuning", "Warmup, cooldown, TPA expiry"), run: () => teleportTuningScreen(player, again) },
             { text: hubButton("settings", "All values", "Every config value, one field at a time"), run: () => allValuesScreen(player, again) },
             { text: hubButton("presets", "Config presets", "Named baselines for the values above"), run: () => configPresetsScreen(player, again) },

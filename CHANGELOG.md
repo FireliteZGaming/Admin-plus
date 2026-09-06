@@ -59,6 +59,32 @@ The per-version detail for all of it is below, unchanged.
 
 ## 2.1.3 — 2026-09-06
 
+**Op commands ship OFF, and there is a screen for them.**
+
+`commands.allowed` used to arrive with **fifty-six vanilla commands already
+enabled** — `give`, `gamemode`, `effect`, `summon`, `fill`, `enchant`, `tp` and
+the rest. The setting's own notes had argued the opposite the whole time: that
+an empty list "makes turning `/cmd` on a deliberate act rather than a default".
+The comment was right and the value disagreed with it. Now nothing is on until
+somebody turns it on.
+
+**Settings ▸ Op commands** is the new door: every command with a switch beside
+it, rather than a comma-separated string you had to type without a typo. It is
+the same `commands.allowed` underneath — one list, one gate — just one you can
+read. Anything you added by hand that the screen does not list is kept rather
+than quietly dropped.
+
+It is **paged, fourteen at a time**, and that is not tidiness. Fifty-six toggles
+in one form is exactly the shape that produced the bug below.
+
+**Worlds that already set their own list keep it** — only worlds still on the
+default are affected, which is the point. Note that the `/a:` commands are all
+still registered: registration happens at startup, before world storage can be
+read, so every command the screen *can* enable has to exist up front and refuse
+until it is switched on.
+
+---
+
 **A setting you changed could come back unchanged — and worse.**
 
 Reported from a world: Troll commands was switched on, submitted, and was still

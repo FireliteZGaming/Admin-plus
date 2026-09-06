@@ -300,7 +300,11 @@ export const DEFAULTS = {
         //   script, gametest, project   debug and editor tooling
         //   help, list, me, tell,       already runnable by anybody, so routing
         //   packstack                   them through here buys nothing
-        value: "aimassist, camera, camerashake, clear, clearspawnpoint, clone, controlscheme, damage, daylock, dialogue, difficulty, effect, enchant, event, fill, fog, gamemode, gamerule, give, hud, inputpermission, kill, locate, loot, mobevent, music, particle, place, playanimation, playsound, recipe, replaceitem, ride, say, scoreboard, setblock, setworldspawn, spawnpoint, spreadplayers, stopsound, structure, summon, tag, teleport, tellraw, testfor, testforblock, testforblocks, tickingarea, time, title, titleraw, toggledownfall, tp, weather, xp",
+        // SHIPS EMPTY. The paragraphs above argue for exactly this and the
+        // value used to contradict them: fifty-six commands arrived ON, which
+        // made a whitelist into a blocklist with extra steps. Turning any of
+        // it on is now a deliberate act, taken in Settings > Op commands.
+        value: "",
         label: "Vanilla commands turned on",
         help: "Comma separated · ONLY these run through /cmd. Empty means none. Never add execute, function, scriptevent or schedule: only the first word is checked, so each of them allows everything behind it."
     },

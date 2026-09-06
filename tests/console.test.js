@@ -97,6 +97,13 @@ check("the shipped default is ON", canUseConsole(creator), true)
 console.log("\n— it can only run the owner's own whitelist —")
 // The console runs through runAsServer -> checkCommand, the SAME gate /cmd
 // uses, so it grants nothing the owner has not already exposed and cannot /op.
+
+// The shipped list is EMPTY, so nothing runs until an owner turns it on. This
+// test used to lean on a permissive default and would have gone on passing if
+// that default came back.
+check("nothing is allowed out of the box", checkCommand("kill @e").ok, false)
+setSetting("commands.allowed", "kill, give")
+
 check("a whitelisted command passes", checkCommand("kill @e[type=cow]").ok, true)
 check("op does NOT — it is never on the list", checkCommand("op Steve").ok, false)
 check("nor deop", checkCommand("deop Steve").ok, false)

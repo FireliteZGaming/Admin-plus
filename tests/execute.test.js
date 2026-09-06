@@ -2,6 +2,7 @@ import { __test } from "@minecraft/server"
 import { onPlayerJoin, setRanks, has, applyPreset, PERMISSION_NODES, saveRank } from "../Admin+ BP/scripts/core/ranks.js"
 import { checkCommand, commandName, runAsServer } from "../Admin+ BP/scripts/core/execute.js"
 import { setting, setSetting, resetSetting, DEFAULTS } from "../Admin+ BP/scripts/core/settings.js"
+import { OP_COMMANDS } from "../Admin+ BP/scripts/features/opcommands.js"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -33,6 +34,15 @@ const mod = fakePlayer("Mod"); setRanks(mod.id, ["mod"], mod.name)
 console.log("\n— the point of it —")
 // Losing op used to mean losing the whole vanilla command set, so telling
 // somebody "your rank gives you the same power" was not true. It is now.
+
+// The shipped list is EMPTY — nothing runs until an owner turns something on,
+// which is the whole point of a whitelist. So say what this world allows rather
+// than leaning on a default, which is also what stops this test quietly passing
+// again if that default ever came back.
+check("out of the box, nothing runs at all", runAsServer(owner, "give @s diamond 1").ok, false)
+owner.ran.length = 0
+setSetting("commands.allowed", "give, time, kill, tp, say")
+
 const gave = runAsServer(owner, "give @s diamond 1")
 check("a vanilla command runs", gave.ok, true)
 check("it is handed to the DIMENSION, which runs at operator level",
@@ -75,7 +85,8 @@ check("an empty list runs nothing at all", runAsServer(owner, "give @s stone").o
 check("and says so plainly",
     runAsServer(owner, "give @s stone").reason.includes("No vanilla commands"), true)
 resetSetting("commands.allowed")
-check("back to the shipped set", runAsServer(owner, "give @s stone").ok, true)
+check("and the shipped state is that same nothing",
+    runAsServer(owner, "give @s stone").ok, false)
 
 console.log("\n— names —")
 check("plain", commandName("give @s stone"), "give")
@@ -96,11 +107,19 @@ saveRank("admin", { perms: [...PERMISSION_NODES.Management.slice(0, 0), "admin.c
 check("granting it works", has(admin, "admin.commands"), true)
 applyPreset("server")
 
-console.log("\n— what the shipped list must never contain —")
-// These are not opinions. Each one hands over more than the whitelist means to,
-// and the failure is silent, so they get pinned rather than remembered.
-const shipped = String(DEFAULTS["commands.allowed"].value)
-    .split(",").map(s => s.trim().toLowerCase()).filter(Boolean)
+console.log("\n— nothing is on until somebody turns it on —")
+// The list used to SHIP with fifty-six commands enabled, which made a whitelist
+// into a blocklist with extra steps. The setting's own comment argued for empty
+// the whole time; now the value agrees with it.
+check("the shipped whitelist is empty",
+    String(DEFAULTS["commands.allowed"].value).trim(), "")
+
+console.log("\n— what the OFFERED list must never contain —")
+// The curation moved: the default is empty, so these guarantees now belong to
+// the set the Op commands screen offers. They are not opinions — each one hands
+// over more than the whitelist means to, and the failure is silent, so they get
+// pinned rather than remembered.
+const shipped = [...OP_COMMANDS]
 
 check("kick is absent — it locks somebody out until the HOST restarts",
     shipped.includes("kick"), false)
