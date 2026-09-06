@@ -57,6 +57,37 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.1.3 — 2026-09-06
+
+**A setting you changed could come back unchanged — and worse.**
+
+Reported from a world: Troll commands was switched on, submitted, and was still
+off. **All values** is a sixty-field form, and answers are paired to fields by
+index, so if a response ever comes back short every key past the cut arrives as
+nothing at all. Nothing was being read as an answer:
+
+- a **toggle** became `false`, so settings nobody touched turned themselves off;
+- a **text field** became empty — and empty *differs from the default*, so it
+  was written. A short form could have blanked `commands.allowed`, which would
+  have taken `/cmd` out of the world entirely.
+
+A key with no answer now keeps the value it already had. Not skipped, either:
+submitting replaces the whole override table, so leaving a key out would revert
+it to the shipped default — the same bug in different clothing.
+
+**Picking up and putting down.** Tap a stack in `/ec` and it lifts; tap any
+other slot and it goes there, swapping with whatever was in the way, exactly as
+dropping onto an occupied slot would. Tap where it came from to put it back. It
+is dragging's outcome without the drag, which a form cannot do: a form's only
+message back is "button N was pressed", so nothing could carry "slot 3 was
+dropped onto slot 17" — no resource pack can add that, however much JSON-UI can
+restyle a screen.
+
+The block that 2.1.2 put in front of you is gone from the command. It matched
+the vanilla screen and then added something the original never had: a chest
+appearing in your world. It is still there as a button for anyone who wants
+literal dragging and will spend a tap on it.
+
 ## 2.1.2 — 2026-09-06
 
 **`/ec` gives you the real ender chest screen.**

@@ -1,5 +1,5 @@
 import { setting, setSetting, resetSetting, overrides, replaceOverrides, flag, render, renderTag, DEFAULTS } from "../Admin+ BP/scripts/core/settings.js"
-import { toBlock, fromBlock, canUseCode, kindOf, groupOf, groupedKeys, GROUPS } from "../Admin+ BP/scripts/features/code.js"
+import { toBlock, fromBlock, canUseCode, kindOf, groupOf, groupedKeys, GROUPS, submittedValue } from "../Admin+ BP/scripts/features/code.js"
 import { getNickname, setNickname, displayName, hasNickname, NICK_MAX } from "../Admin+ BP/scripts/core/identity.js"
 // canUseCode comes via features/code.js above, which re-exports it.
 import { hasOperator, inDeveloperMode, setDeveloperMode } from "../Admin+ BP/scripts/core/devgate.js"
@@ -174,6 +174,42 @@ const taggedNonOp = {
 check("a non-op holding the tag is still refused", canUseCode(taggedNonOp), false)
 check("even though the tag is really there", inDeveloperMode(taggedNonOp), true)
 check("because operator is the other lock", hasOperator(taggedNonOp), false)
+
+console.log("\n— a form that answers short must not destroy settings —")
+// Reported from a world: a toggle was switched on, submitted, and came back off.
+// The All values form is sixty fields and modal() pairs answers to fields BY
+// INDEX, so a short response leaves the tail undefined. Coercing that was
+// destructive both ways, and the text case was the worse one.
+setSetting("feature.troll", "true")
+check("an unanswered toggle keeps what it had, rather than reading as off",
+    submittedValue("feature.troll", undefined).text, "true")
+setSetting("feature.troll", "false")
+check("and keeps it when it was off too",
+    submittedValue("feature.troll", undefined).text, "false")
+resetSetting("feature.troll")
+
+check("a real answer still applies", submittedValue("feature.troll", true).text, "true")
+check("in both directions", submittedValue("feature.troll", false).text, "false")
+
+// The one that would have taken /cmd out entirely: "" differs from the default,
+// so it would have been STORED as an empty whitelist.
+setSetting("commands.allowed", "kill,give")
+check("an unanswered text field is not blanked",
+    submittedValue("commands.allowed", undefined).text, "kill,give")
+check("and it is never reported as a rejection",
+    submittedValue("commands.allowed", undefined).rejected, false)
+resetSetting("commands.allowed")
+
+check("a real text answer is trimmed and kept",
+    submittedValue("commands.allowed", "  kill, give  ").text, "kill, give")
+
+// Numbers still fail one at a time rather than taking the form down.
+setSetting("items.knockback", "9")
+check("a number that will not parse is rejected",
+    submittedValue("items.knockback", "abc").rejected, true)
+check("and keeps the value it had", submittedValue("items.knockback", "abc").text, "9")
+check("a good number goes through", submittedValue("items.knockback", "14").text, "14")
+resetSetting("items.knockback")
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

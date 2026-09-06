@@ -121,6 +121,35 @@ function isNumeric(text) {
     return text !== "" && Number.isFinite(Number(text))
 }
 
+/**
+ * What a key should become, given whatever the form said about it.
+ *
+ * A MISSING ANSWER IS NOT AN ANSWER. The All values form is sixty fields long
+ * and `modal()` pairs answers to fields by index, so a response that ever comes
+ * back short leaves every key past the cut undefined. Coercing that was
+ * silently destructive both ways: a toggle became "false", turning off settings
+ * nobody touched, and a text field became "", which DIFFERS from its default
+ * and so got STORED — blanking commands.allowed would take /cmd out entirely.
+ *
+ * The answer has to be the key's CURRENT value rather than a skip, because the
+ * caller replaces the whole override table: a key left out of it reverts to the
+ * shipped default, which is the same bug wearing a different hat.
+ */
+export function submittedValue(key, raw) {
+    const kind = kindOf(key)
+    if (raw === undefined) return { text: setting(key), rejected: false, shown: "" }
+
+    const text = kind === "bool"
+        ? (raw ? "true" : "false")
+        : String(raw).trim()
+
+    // A number that will not parse costs you that one number and nothing else.
+    if (kind === "number" && !isNumeric(text)) {
+        return { text: setting(key), rejected: true, shown: text }
+    }
+    return { text, rejected: false, shown: text }
+}
+
 export async function allValuesScreen(player, back) {
     const keys = []
     const fields = []
@@ -151,15 +180,9 @@ export async function allValuesScreen(player, back) {
     const rejected = []
     const store = {}
     for (const key of keys) {
-        const kind = kindOf(key)
-        let text = kind === "bool"
-            ? (values[key] ? "true" : "false")
-            : String(values[key] ?? "").trim()
-
-        if (kind === "number" && !isNumeric(text)) {
-            rejected.push(`${key} = ${text || "(blank)"}`)
-            text = setting(key)
-        }
+        const answer = submittedValue(key, values[key])
+        if (answer.rejected) rejected.push(`${key} = ${answer.shown || "(blank)"}`)
+        const text = answer.text
         // Store only what differs from the shipped default, so Factory Reset
         // stays meaningful and the stored table stays small.
         if (text === DEFAULTS[key].value) continue
