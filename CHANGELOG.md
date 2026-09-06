@@ -57,6 +57,34 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.1.7 — 2026-09-06
+
+**`/ec` and `/enderchest` are one screen now — invsee, for ender chests.**
+
+Open it and you get the chest grid: their ender chest on top, their inventory
+below. Tap a stack to lift it, tap anywhere to set it down, swapping with
+whatever was there. On somebody else's, a tap takes the item off them — looking
+needs `admin.invsee`, taking needs to outrank them, and both are logged.
+
+**Both attempts at real dragging are gone.** A container cannot be opened from
+script, so one has to exist somewhere you can touch — and every arrangement of
+that was worse than the grid:
+
+- the **entity marker** needed a tap and could not be aimed past;
+- **riding** one took the player's input away instead of giving them the chest;
+- the **real ender chest block** matched the vanilla screen exactly and then left
+  ender chests lying around, which is not a trade worth making.
+
+The setting that chose between them is gone too, rather than left switching
+nothing.
+
+**The break row is empty again.** The held stack and the drag button were drawn
+into it, which rendered as items floating in what is meant to read as a gap. The
+stack you are carrying is named in the title instead.
+
+**Ships OFF.** `feature.enderchest` is `false` — a world that wants it turns it
+on, and nobody inherits it in an update.
+
 ## 2.1.6 — 2026-09-06
 
 **The ender chest's hotbar row was bound to nothing.**

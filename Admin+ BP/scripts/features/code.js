@@ -62,7 +62,6 @@ export const GROUPS = {
     presence: "Join & leave",
     vanish: "Vanish",
     invsee: "Inventory viewing",
-    enderchest: "Ender chests",
     audit: "Staff action announcements",
     cleanup: "Lag clear",
     automod: "Automod",

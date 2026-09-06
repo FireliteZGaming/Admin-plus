@@ -5,8 +5,6 @@ import { has, canActOn } from "../core/ranks.js"
 import { flag } from "../core/settings.js"
 import { displayName } from "../core/identity.js"
 import { record } from "../core/logs.js"
-import { openEnderView } from "../core/enderview.js"
-import { placeEnderChest } from "../core/enderblock.js"
 import { ChestForm, chestUIAvailable, BIG, bigSlotFor, isBigDivider } from "../core/chestUI.js"
 import {
     snapshot, enderSnapshot, slotLabel, itemLine, transfer, moveTo
@@ -49,18 +47,6 @@ import {
 
 
 /**
- * The one cell of the break row that is a control.
- *
- * The break is otherwise never drawn into, so a single item in the middle of it
- * reads as a deliberate button rather than as a stray slot — and it is the only
- * free cell on the screen, because the other 71 are real inventory.
- */
-const DRAG_SLOT = BIG.divider + 4
-
-/** Where the stack you have picked up is shown while you carry it. */
-const HELD_SLOT = BIG.divider
-
-/**
  * Which real slot a grid cell stands for — the inverse of the layout.
  *
  * Needed because picking up and putting down has to work on EMPTY cells too,
@@ -100,7 +86,12 @@ export async function enderScreen(viewer, target, back, held) {
     }
     const carried = snapshot(target)
 
-    const form = new ChestForm("big").title(own ? "Ender chest" : `${target.name}'s ender chest`)
+    // The held stack is named in the TITLE rather than drawn into the break row.
+    // A button there renders as an item floating in what is meant to read as
+    // empty space, which looked like a bug rather than a control.
+    const heading = own ? "Ender chest" : `${target.name}'s ender chest`
+    const form = new ChestForm("big")
+        .title(held ? `${heading} · holding ${held.label}` : heading)
     const atSlot = new Map()
 
     // The chest half.
@@ -125,28 +116,10 @@ export async function enderScreen(viewer, target, back, held) {
     // script at all — the Player class has no method for it — so the drag view
     // always costs a tap on something in the world, and putting that between
     // the player and their own chest made `/ec` feel broken.
-    if (held) {
-        form.button(HELD_SLOT, `§eHolding §r${held.label}`,
-            ["§7Tap any slot to put it there.",
-                "§8Tap where it came from to put it back."],
-            held.typeId, held.amount, held.enchanted)
-    }
-
-    if (flag("enderchest.dragUI")) {
-        form.button(DRAG_SLOT, "§bReal chest",
-            ["§7Opens the game's own chest screen, where dragging works.",
-                "§8Puts one in front of you for a moment."],
-            "minecraft:ender_chest", 1, true)
-    }
-
     const response = await form.show(viewer)
     if (response.canceled) return back ? back() : undefined
 
     const again = (carry = held) => enderScreen(viewer, target, back, carry)
-
-    if (response.selection === DRAG_SLOT && flag("enderchest.dragUI")) {
-        return realChest(viewer, target, own, again)
-    }
 
     const slot = response.selection
     const ref = refForSlot(slot)
@@ -175,18 +148,6 @@ export async function enderScreen(viewer, target, back, held) {
     const picked = atSlot.get(slot)
     if (!picked || isBigDivider(slot)) return again()
     return takeFrom(viewer, target, picked, again)
-}
-
-/** Hand them the game's own chest screen, by whichever route suits the case. */
-async function realChest(viewer, target, own, again) {
-    // Your own can be a genuine ender chest, which is the real vanilla screen.
-    // Somebody else's cannot: a placed ender chest always shows whoever opens
-    // it THEIR contents, so staff get the container entity instead.
-    const put = own ? placeEnderChest(viewer) : openEnderView(viewer, target, "marker")
-    if (!put.ok) { err(viewer, put.reason); return again() }
-    return info(viewer, own
-        ? "§7In front of you — it clears itself when you close it."
-        : `§7Tap the chest in front of you — that is ${displayName(target)}§7's, live.`)
 }
 
 /** Somebody else's: the tap takes it, and only if you outrank them. */
@@ -226,19 +187,19 @@ function tooltip(item, own, inChest) {
  * they look for when they do not know that. Essentials made them the same
  * command and there is no reason to be different.
  */
-function openFor(viewer, selected, mode) {
+function openFor(viewer, selected) {
     if (!flag("feature.enderchest")) {
         return err(viewer, "Ender chests are turned off here.")
     }
 
     const targets = selected ?? []
-    if (!targets.length) return open(viewer, viewer, mode)
+    if (!targets.length) return open(viewer, viewer)
     if (targets.length > 1) {
         return err(viewer, "That selector matched more than one player — this opens one chest at a time.")
     }
 
     const target = targets[0]
-    if (target.id === viewer.id) return open(viewer, viewer, mode)
+    if (target.id === viewer.id) return open(viewer, viewer)
 
     // Looking in somebody else's is the invsee permission, deliberately rather
     // than a node of its own: a new node would be absent from every rank table
@@ -255,7 +216,7 @@ function openFor(viewer, selected, mode) {
         // a search.
         info(target, `§7${displayName(viewer)}§7 looked in your ender chest.`)
     }
-    return open(viewer, target, mode)
+    return open(viewer, target)
 }
 
 /**
@@ -275,37 +236,7 @@ function openFor(viewer, selected, mode) {
  * So the instant screen leads and the drag view is a button inside it, taken
  * deliberately when somebody actually wants to move things around.
  */
-function open(viewer, target, mode) {
-    // A/B TEST, 2026-09-06. Neither mechanism can open a container outright —
-    // nothing can — so the question is which interaction costs least, and that
-    // is a question only a playtest answers. `/enderchest` and `/ec` are
-    // temporarily DIFFERENT so the two can be compared side by side; they go
-    // back to being the same command once one of them wins.
-    // THE BLOCK ROUTE, and it is only possible on your own chest: a placed
-    // ender chest always shows whoever opens it THEIR contents, so it can never
-    // be used to look inside somebody else's. Staff keep the entity routes.
-    if (mode === "block" && flag("enderchest.dragUI")) {
-        if (viewer.id === target.id) {
-            const put = placeEnderChest(viewer)
-            if (put.ok) {
-                return info(viewer, "§7Your ender chest is in front of you — it clears itself when you close it.")
-            }
-            info(viewer, `§8${put.reason} Showing the tap view instead.`)
-            return enderScreen(viewer, target, undefined)
-        }
-        mode = "marker"
-    }
-
-    if (mode && flag("enderchest.dragUI")) {
-        const view = openEnderView(viewer, target, mode)
-        if (view.ok) {
-            const how = mode === "ride"
-                ? "§7Seated. Open your inventory — the chest should be beside it."
-                : "§7Tap the marker in front of you."
-            return info(viewer, how)
-        }
-        info(viewer, `§8${view.reason} Showing the tap view instead.`)
-    }
+function open(viewer, target) {
     return enderScreen(viewer, target, undefined)
 }
 

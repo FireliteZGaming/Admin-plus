@@ -1,5 +1,11 @@
 import { world, system } from "@minecraft/server"
 
+// CLEANUP ONLY as of 2.1.7. Nothing opens this any more — the drag routes
+// were removed because a real container has to exist somewhere you can touch
+// it, and both ways of arranging that were worse than the grid. The install
+// function stays because its sweep is what clears anything an earlier version
+// left lying in somebody's world.
+
 // A REAL container screen onto somebody's ender chest — drag, shift-click and
 // all, because it is the game's own container UI rather than a form.
 //

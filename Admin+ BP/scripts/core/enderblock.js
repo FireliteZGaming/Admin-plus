@@ -1,6 +1,12 @@
 import { world, system } from "@minecraft/server"
 import { Table } from "./storage.js"
 
+// CLEANUP ONLY as of 2.1.7. Nothing opens this any more — the drag routes
+// were removed because a real container has to exist somewhere you can touch
+// it, and both ways of arranging that were worse than the grid. The install
+// function stays because its sweep is what clears anything an earlier version
+// left lying in somebody's world.
+
 // The real ender chest, put where you can reach it.
 //
 // Every other route ends at the same wall: a container cannot be opened from

@@ -125,12 +125,9 @@ export const DEFAULTS = {
         value: "true", label: "Teleport requests", help: "true / false · /tpa and friends"
     },
     "feature.enderchest": {
-        value: "true", label: "Ender chest", help: "true / false · /ec, and /enderchest <player> for staff"
-    },
-    "enderchest.dragUI": {
-        value: "true",
-        label: "Ender chest drag view",
-        help: "true / false · a real container you can drag in; false uses the tap grid"
+        // Ships OFF while the screen is still settling. A world that wants it
+        // turns it on; nobody inherits a half-finished feature in an update.
+        value: "false", label: "Ender chest", help: "true / false · /ec, and /enderchest <player> for staff"
     },
     "feature.reports": {
         value: "true", label: "Reports", help: "true / false · /report and the panel queue"
