@@ -716,6 +716,40 @@ function isOperator(player) {
     } catch { return false }
 }
 
+/**
+ * How a RANK answers for one node, resolved the way has() resolves it.
+ *
+ * The rank editor used to read `rank.perms` literally, which is not the question
+ * anybody looking at that screen is asking. Everything a rank INHERITS, and
+ * everything it gets through a wildcard, rendered as OFF while the holder
+ * plainly had it — an Admin inheriting from Mod, or holding "chat.*", looked
+ * like it had almost nothing.
+ *
+ * Built on effectivePerms and matchScore rather than repeating them. A second
+ * copy of inheritance resolution would drift from has(), and the screen would go
+ * back to lying in a new way that nobody would spot for months.
+ *
+ * @returns {"own"|"inherited"|"denied"|"none"}
+ */
+export function rankState(rankOrId, node) {
+    const rank = typeof rankOrId === "string" ? ranksTable.get(rankOrId) : rankOrId
+    if (!rank) return "none"
+
+    // What this rank says ITSELF comes first — that is what the switch writes,
+    // so it has to be what the switch shows.
+    if (rank.perms.includes(node)) return "own"
+    if (rank.perms.includes(`-${node}`)) return "denied"
+
+    let best = 0
+    let granted = false
+    for (const pattern of effectivePerms(rank)) {
+        const score = matchScore(pattern, node)
+        if (score > best) { best = score; granted = !pattern.startsWith("-") }
+    }
+    if (!best) return "none"
+    return granted ? "inherited" : "denied"
+}
+
 /** Does this player have a permission node? */
 export function has(player, node) {
     if (!player) return false

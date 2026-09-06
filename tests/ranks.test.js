@@ -8,7 +8,7 @@ import {
     PERMISSION_NODES,
     setRanks, grantRank, revokeRank, heldRankIds, playerRanks, displayRanks, primaryRank,
     moveHeldRank, onPlayerJoin, defaultRank, displacedBy, cooldownFor, saveRank as saveR, knownHolders,
-    CREATOR_GAMERTAG, CREATOR_RANK, allRanks,
+    CREATOR_GAMERTAG, CREATOR_RANK, allRanks, rankState,
     DEVELOPER_RANK, isTeamDeveloper, __setTeamDevelopers
 } from "../Admin+ BP/scripts/core/ranks.js"
 import { CONFIG } from "../Admin+ BP/scripts/config.js"
@@ -444,6 +444,25 @@ check("taking that rank away brings it back", primaryRank(creator).id, "adminplu
 applyPreset("spearmace")
 check("it survives a ladder being replaced", primaryRank(creator).id, "adminplus_creator")
 check("and still grants nothing there", has(creator, "admin.panel"), false)
+applyPreset("server")
+
+console.log("\n— what a rank REALLY says about a node —")
+// Reported from a world: permissions showed as off for things an Admin plainly
+// had. The editor was reading rank.perms literally, so everything reaching a
+// rank by INHERITANCE or through a WILDCARD rendered as off. rankState resolves
+// it the way has() does, rather than by a second copy of that logic.
+applyPreset("server")
+check("a node the rank states itself", rankState("admin", "admin.ban"), "own")
+check("one it gets through a wildcard — chat.* covers this",
+    rankState("admin", "chat.viewall"), "inherited")
+check("one it inherits from the rank below", rankState("admin", "admin.kick"), "inherited")
+check("and one nothing grants at all", rankState("admin", "admin.commands"), "none")
+check("an unknown rank says nothing", rankState("nosuchrank", "admin.ban"), "none")
+
+// A denial has to beat an inherited grant, or "-node" would be decorative.
+saveRank("admin", { perms: ["-admin.kick"] })
+check("an explicit denial wins over what it inherits",
+    rankState("admin", "admin.kick"), "denied")
 applyPreset("server")
 
 console.log("\n— the team developer's badge —")

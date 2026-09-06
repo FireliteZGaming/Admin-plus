@@ -8,7 +8,7 @@ import {
     ladder, getRank, saveRank, deleteRank, normaliseRankId, moveRank,
     PRESETS, BUNDLES, PERMISSION_NODES,
     applyPreset, restoreSnapshot, hasSnapshot, snapshot,
-    canEditRank, canActOn, has, displacedBy,
+    canEditRank, canActOn, has, rankState, displacedBy,
     playerRanks, displayRanks, heldRankIds, primaryRank, moveHeldRank,
     setRanks, grantRank, revokeRank, knownHolders
 } from "../core/ranks.js"
@@ -324,19 +324,38 @@ async function nodeGroupScreen(player, rankId, group, back) {
     const dropdown = String(setting("ranks.permissionEditor")).trim().toLowerCase() === "dropdown"
     const stateOf = node => rank.perms.includes(node) ? 1 : (rank.perms.includes(`-${node}`) ? 2 : 0)
 
+    /**
+     * The control says what THIS rank states, because that is what it writes.
+     * The note beside it says what the holder actually ends up with — a
+     * different question, and the one people were reading the switch as
+     * answering.
+     *
+     * Without it the screen looked plainly wrong: an Admin inherits most of Mod
+     * and holds "chat.*", so row after row read OFF while the holder obviously
+     * had the thing. rankState() resolves it exactly as has() does.
+     */
+    const labelFor = node => {
+        const state = rankState(rank, node)
+        if (state === "inherited") return `${node}\n§8· has it already, inherited`
+        if (state === "denied" && !rank.perms.includes(`-${node}`)) {
+            return `${node}\n§8· denied further up the ladder`
+        }
+        return node
+    }
+
     const values = await modal(player, hubTitle("ranks", group),
         nodes.map(node => dropdown
             ? {
                 id: node,
                 type: "dropdown",
-                label: node,
+                label: labelFor(node),
                 options: ["Default", "§aAllow", "§cDeny"],
                 default: stateOf(node)
             }
             : {
                 id: node,
                 type: "toggle",
-                label: node,
+                label: labelFor(node),
                 default: rank.perms.includes(node)
             }))
     if (!values) return back()

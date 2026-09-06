@@ -57,6 +57,26 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.1.5 — 2026-09-06
+
+**Permissions showed as off for things a rank plainly had.**
+
+Reported from a world, and real: the rank editor read a rank's own `perms` list
+literally, so anything reaching that rank by **inheritance** or through a
+**wildcard** rendered as off. An Admin inherits most of Mod and holds `chat.*`,
+so row after row read off while the holder obviously had the thing.
+
+The switch still means "what this rank states itself", because that is what it
+writes — flipping it on writes the node, flipping it off does not write a
+denial. What is new is the line beneath it: **"has it already, inherited"**, or
+**"denied further up the ladder"**. The control answers one question and the
+note answers the other, instead of one control appearing to answer both and
+getting it wrong.
+
+It resolves through the same path `has()` uses rather than a second copy of the
+inheritance rules, because a second copy drifts and the screen starts lying
+again somewhere nobody looks.
+
 ## 2.1.4 — 2026-09-06
 
 **Two screens that quietly contained other screens.**
