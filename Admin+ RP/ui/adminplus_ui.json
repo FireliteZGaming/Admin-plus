@@ -142,7 +142,7 @@
 					"type": "image",
 					"size": [
 						176,
-						177
+						171
 					],
 					"texture": "textures/ui/big_ui",
 					"layer": 0,
@@ -163,11 +163,11 @@
 								"type": "grid",
 								"grid_dimensions": [
 									9,
-									7
+									8
 								],
 								"size": [
 									"100% - 14px",
-									126
+									144
 								],
 								"offset": [
 									7,
@@ -177,114 +177,6 @@
 								"anchor_to": "top_left",
 								"grid_item_template": "adminplus_ui.inventory_item",
 								"collection_name": "form_buttons",
-								"layer": 1
-							}
-						},
-						{
-							"big_hotbar_0@adminplus_ui.inventory_item": {
-								"collection_index": 63,
-								"offset": [
-									7,
-									153
-								],
-								"anchor_from": "top_left",
-								"anchor_to": "top_left",
-								"layer": 1
-							}
-						},
-						{
-							"big_hotbar_1@adminplus_ui.inventory_item": {
-								"collection_index": 64,
-								"offset": [
-									25,
-									153
-								],
-								"anchor_from": "top_left",
-								"anchor_to": "top_left",
-								"layer": 1
-							}
-						},
-						{
-							"big_hotbar_2@adminplus_ui.inventory_item": {
-								"collection_index": 65,
-								"offset": [
-									43,
-									153
-								],
-								"anchor_from": "top_left",
-								"anchor_to": "top_left",
-								"layer": 1
-							}
-						},
-						{
-							"big_hotbar_3@adminplus_ui.inventory_item": {
-								"collection_index": 66,
-								"offset": [
-									61,
-									153
-								],
-								"anchor_from": "top_left",
-								"anchor_to": "top_left",
-								"layer": 1
-							}
-						},
-						{
-							"big_hotbar_4@adminplus_ui.inventory_item": {
-								"collection_index": 67,
-								"offset": [
-									79,
-									153
-								],
-								"anchor_from": "top_left",
-								"anchor_to": "top_left",
-								"layer": 1
-							}
-						},
-						{
-							"big_hotbar_5@adminplus_ui.inventory_item": {
-								"collection_index": 68,
-								"offset": [
-									97,
-									153
-								],
-								"anchor_from": "top_left",
-								"anchor_to": "top_left",
-								"layer": 1
-							}
-						},
-						{
-							"big_hotbar_6@adminplus_ui.inventory_item": {
-								"collection_index": 69,
-								"offset": [
-									115,
-									153
-								],
-								"anchor_from": "top_left",
-								"anchor_to": "top_left",
-								"layer": 1
-							}
-						},
-						{
-							"big_hotbar_7@adminplus_ui.inventory_item": {
-								"collection_index": 70,
-								"offset": [
-									133,
-									153
-								],
-								"anchor_from": "top_left",
-								"anchor_to": "top_left",
-								"layer": 1
-							}
-						},
-						{
-							"big_hotbar_8@adminplus_ui.inventory_item": {
-								"collection_index": 71,
-								"offset": [
-									151,
-									153
-								],
-								"anchor_from": "top_left",
-								"anchor_to": "top_left",
 								"layer": 1
 							}
 						}

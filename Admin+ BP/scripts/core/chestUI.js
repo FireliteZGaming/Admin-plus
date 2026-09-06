@@ -46,13 +46,20 @@ import { textureFor } from "./itemTextures.js"
  * container, break, the player's pack, a thin break, then the hotbar. Neither
  * community size can hold that.
  *
- * IT IS NOT ONE GRID, and that is the whole trick. A grid spaces every row
- * equally, so a break can only be a whole 18px row — but the game separates the
- * hotbar by about the thickness of the panel's own bottom edge, not by a row.
- * So the first 63 buttons are a 9x7 grid (chest, a full-row break, pack) and
- * the last nine are placed individually with an explicit `collection_index`,
- * six pixels lower. A grid cannot start at an index other than zero, which is
- * why it is the hotbar that leaves the grid and not the chest.
+ * ONE UNIFORM GRID, 9x8, and the row heights are why.
+ *
+ * The game separates the hotbar by about the thickness of the panel's bottom
+ * edge rather than by a whole row, so the hotbar was lifted out of the grid and
+ * placed cell by cell with an explicit `collection_index`. **That property does
+ * not exist in this JSON-UI version** — the content log says
+ * `Unknown property [collection_index]`, nine times, once per cell — so those
+ * cells bound to nothing at all.
+ *
+ * A grid always starts at index 0 and spaces every row equally, and nothing
+ * else can address a collection by index. So a break can only ever be a whole
+ * 18px row or no row: there is no sub-row gap available at any price. The break
+ * under the chest is worth a row; the one above the hotbar is not, so the
+ * hotbar sits directly under the pack.
  *
  * Adding it costs nothing on the compatibility side
  * precisely BECAUSE the string is ours: a foreign pack whose UI loads above
@@ -77,16 +84,15 @@ const SIZES = new Map([
  * recomputed by every screen that draws one.
  *
  * Rows, top to bottom: three of container, a break, three of pack, then the
- * hotbar on its own — the shape of the screen the game itself draws.
+ * hotbar — the shape of the screen the game draws, minus a gap Bedrock will
+ * not give us.
  */
 export const BIG = Object.freeze({
     container: 0,       // 0..26   the chest half
     divider: 27,        // 27..35  never filled — the break under the chest
     pack: 36,           // 36..62  inventory slots 9..35
-    hotbar: 63,         // 63..71  inventory slots 0..8, drawn 6px lower
-    total: 72,
-    /** Where the grid stops and the hand-placed hotbar begins. */
-    gridCells: 63
+    hotbar: 63,         // 63..71  inventory slots 0..8, the last row
+    total: 72
 })
 
 /** The one row that is a break rather than slots. */

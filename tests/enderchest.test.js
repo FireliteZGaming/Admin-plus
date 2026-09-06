@@ -102,7 +102,14 @@ check("chest half starts at the top", BIG.container, 0)
 check("the break is the fourth row", [BIG.divider, BIG.pack], [27, 36])
 check("hotbar is the last nine", [BIG.hotbar, BIG.total - BIG.hotbar], [63, 9])
 check("the break is exactly one row", BIG.pack - BIG.divider, 9)
-check("the grid stops where the hotbar begins", BIG.gridCells, BIG.hotbar)
+
+// The hotbar was briefly lifted OUT of the grid so its gap could be six pixels
+// rather than a whole row. `collection_index` does not exist in this JSON-UI
+// version — the content log said so nine times, once per orphaned cell — and
+// nothing else addresses a collection by index. So every cell is in the one
+// grid, which spaces rows equally: a break is a whole row or it is nothing.
+check("every cell belongs to the one grid", BIG.total % 9, 0)
+check("which makes it eight uniform rows", BIG.total / 9, 8)
 
 // Hotbar is 0..8 in the container but the BOTTOM row on screen — get this
 // backwards and every item is drawn three rows from where it lives.
@@ -156,28 +163,20 @@ for (const [name, { sentinel, count }] of sizes) {
     const [cols, rows] = grid?.grid_dimensions ?? []
     check(`${name} is nine wide`, cols, 9)
 
-    // `big` is the one that is not all grid: the last row is placed by hand so
-    // its gap can be thinner than a row. Everything below pins that row,
-    // because a wrong index there draws the wrong nine items and nothing throws.
-    const loose = kids.filter(([k]) => k.startsWith(`${name}_hotbar_`)).map(([, c]) => c)
-    check(`${name} draws ${count} cells`, cols * rows + loose.length, count)
+    check(`${name} draws ${count} cells`, cols * rows, count)
 
-    let bottom = HEADER + rows * ROW
-    if (loose.length) {
-        check(`${name}'s grid covers everything above the hand-placed row`, cols * rows, BIG.gridCells)
-        check(`${name}'s loose row is nine wide`, loose.length, 9)
-        check(`${name}'s loose row reads the right nine buttons`,
-            loose.map(c => c.collection_index), [...Array(9).keys()].map(i => BIG.hotbar + i))
-        check(`${name}'s loose row is on one line`,
-            new Set(loose.map(c => c.offset[1])).size, 1)
-        check(`${name}'s loose row is evenly spaced across the panel`,
-            loose.map(c => c.offset[0]), [...Array(9).keys()].map(i => 7 + i * 18))
+    // EVERY cell must come from the grid. A row was once placed by hand, cell by
+    // cell, with `collection_index` — so its gap could be six pixels instead of
+    // a whole row. That property does not exist in this JSON-UI version: the
+    // content log answered with `Unknown property [collection_index]`, nine
+    // times, one per orphaned cell, and those cells bound to nothing.
+    //
+    // Nothing else can address a collection by index, so this stays pinned. A
+    // loose control here draws no item and reports no error the game surfaces.
+    const loose = kids.filter(([, c]) => c && "collection_index" in c)
+    check(`${name} places no cell outside the grid`, loose.length, 0)
 
-        const gap = loose[0].offset[1] - (HEADER + rows * ROW)
-        check(`${name}'s hotbar gap is the bottom edge, not a whole row`, gap, FOOTER)
-        check(`${name}'s grid is sized to its own rows`, grid.size[1], rows * ROW)
-        bottom = loose[0].offset[1] + ROW
-    }
+    const bottom = HEADER + rows * ROW
 
     // The panel image has to be tall enough for everything in it, or the last
     // row hangs off the frame.

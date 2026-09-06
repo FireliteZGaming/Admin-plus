@@ -57,6 +57,25 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.1.6 — 2026-09-06
+
+**The ender chest's hotbar row was bound to nothing.**
+
+Caught in the content log rather than by eye, which is the only place it showed:
+nine `Unknown property [collection_index]` errors, one per cell.
+
+The hotbar had been lifted out of the grid and placed cell by cell, so the gap
+above it could be six pixels — the thickness of the panel's own edge, the way the
+game separates it — rather than a whole 18px row. **`collection_index` does not
+exist in this JSON-UI version.** Those nine cells bound to no data at all, and
+nothing about that is visible from inside the game; the row simply draws empty.
+
+Nothing else can address a collection by index, and a grid always starts at zero
+with uniform rows. So a break can be a whole row or nothing, at any price. The
+one under the chest earns its row. The one above the hotbar does not, so the
+hotbar now sits directly under the pack, and every cell comes from the grid
+again. A test pins that no cell is ever placed outside it.
+
 ## 2.1.5 — 2026-09-06
 
 **Permissions showed as off for things a rank plainly had.**
