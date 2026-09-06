@@ -57,6 +57,27 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.1.10 — 2026-09-06
+
+**One gate for vanilla commands, and they are on by default.**
+
+`/a:tp` could be refused by three separate checks: the world whitelist, an
+`admin.commands` node absent from every shipped ladder, and the per-command
+node. Three answers to one question, and "insufficient permission" never said
+which had refused. Two are gone.
+
+What is left is one per-rank switch, and it is **allow by default** — the
+question is no longer "were you granted this" but "did somebody take it away".
+Switch a command off for a rank in **Ranks ▸ the rank ▸ Permissions ▸
+Operator**; wildcards and inheritance work as they do everywhere else.
+
+Nothing needs turning on, and no ladder needs re-applying.
+
+**`op` and `deop` can never be run this way**, along with the wrappers that
+carry anything behind them (`execute`, `function`, `scriptevent`, `schedule`),
+`kick`, and the dedicated-server admin commands. That list is not a setting,
+because a setting that can grant `op` is `op`.
+
 ## 2.1.9 — 2026-09-06
 
 **A chat log — /admin ▸ Logs ▸ Chat.**
