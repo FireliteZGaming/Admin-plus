@@ -57,6 +57,43 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.1.11 — 2026-09-07
+
+**"Insufficient permission" is fixed. It was one word in one line.**
+
+2.1.10 collapsed three permission gates into one, and `/a:tp` still answered
+*insufficient permission* for anybody without operator. The gates were never the
+problem.
+
+Every vanilla command this pack runs is handed to the DIMENSION, because a
+command run from a dimension executes at operator level whatever the person who
+asked for it holds. That is the whole mechanism. But it was wrapped in
+
+    execute as "<player>" at @s run <command>
+
+and `execute as` **replaces the executor with that player** — so the inner
+command was dispatched at *their* permission level, and handing it to the
+dimension bought exactly nothing. It only ever worked for people who already had
+op, which is why it looked like a ranks bug and was not one.
+
+It is now
+
+    execute at <that player> run <command>
+
+`at` moves position, rotation and dimension only; the executor stays the server.
+`~ ~ ~` still means where you are standing.
+
+`@s` no longer means you under `at` — it would mean the server — so it is
+rewritten to a selector naming exactly you. A temporary tag, not your name, so
+two players with the same name cannot both be hit; `@s[r=5]` keeps its own
+arguments, merged rather than trailing; the tag is removed the moment the
+command returns.
+
+Fixes `/a:tp` and the rest of `/a:z*`, `/cmd`, and the creator console for
+everybody whose rank was supposed to grant them.
+
+---
+
 ## 2.1.10 — 2026-09-06
 
 **One gate for vanilla commands, and they are on by default.**

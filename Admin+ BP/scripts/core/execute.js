@@ -15,9 +15,17 @@ import { deniedFor, commandNode } from "./ranks.js"
 // core/moderation.js already uses to kick somebody. So a rank can be given the
 // vanilla command set without anybody being opped.
 //
-// Wrapped in `execute as ... at ...` so @s and ~ ~ ~ mean what the person
-// typing them expects. Without that, everything would resolve against the
-// dimension's origin and half the commands people actually want would misfire.
+// Wrapped in `execute at ...` so ~ ~ ~ means where the person is standing.
+// Without that, everything would resolve against the dimension's origin and
+// half the commands people actually want would misfire.
+//
+// NEVER `execute as`. That was the bug behind every "insufficient permission"
+// report — /a:tp, /cmd, the console, all of it. `as` REPLACES the executor with
+// the player, so the inner command is dispatched at THAT PLAYER's permission
+// level, and handing it to the dimension in the first place bought nothing.
+// `at` moves only position, rotation and dimension; the executor stays the
+// server. The cost is that @s stops meaning them, so it gets rewritten — see
+// rewriteSelf below.
 //
 // WHY THIS IS BETTER THAN OP, and the reason it is worth building at all:
 // operator is invisible. Nothing records that an operator ran /give, and
@@ -132,13 +140,72 @@ export function mayRun(player, line) {
     return checked
 }
 
+/**
+ * Rewrite every `@s` so it names the player instead of the executor.
+ *
+ * `execute at` leaves the server as the executor, which is the whole point — but
+ * it also means `@s` is the server, and `/kill @s` would then hit nothing (or
+ * the wrong thing). Every occurrence becomes the selector that picks out this
+ * one player.
+ *
+ * `@s[...]` keeps its own arguments: they merge INTO the replacement rather than
+ * trailing after it, because `@a[...][...]` is not a selector. Bracket depth is
+ * counted so `hasitem=[{item=stone}]` survives, and `@sign`/`@stuff` are left
+ * alone — only a bare `@s` is a selector.
+ */
+function rewriteSelf(text, me) {
+    const head = me.slice(0, -1)          // "@a[tag=…,limit=1" — always ends "]"
+    let out = "", i = 0
+    while (i < text.length) {
+        const isSelf = text[i] === "@" && (text[i + 1] === "s" || text[i + 1] === "S")
+            && !/[A-Za-z0-9_]/.test(text[i + 2] ?? "")
+        if (!isSelf) { out += text[i++]; continue }
+
+        let j = i + 2, args = ""
+        if (text[j] === "[") {
+            let depth = 0, k = j
+            for (; k < text.length; k++) {
+                const c = text[k]
+                if (c === "[" || c === "{") depth++
+                else if (c === "]" || c === "}") { depth--; if (depth === 0) { k++; break } }
+            }
+            args = text.slice(j + 1, k - 1).trim()
+            j = k
+        }
+        out += args ? `${head},${args}]` : me
+        i = j
+    }
+    return out
+}
+
+/** A tag no player could plausibly own, unique per invocation. */
+let counter = 0
+function runTag() {
+    counter = (counter + 1) % 100000
+    return `apx_${Date.now().toString(36)}_${counter}`
+}
+
 export function runAsServer(player, line) {
     const checked = mayRun(player, line)
     if (!checked.ok) return checked
 
     const dimension = player?.dimension ?? world.getDimension("overworld")
-    // as + at, so @s is them and ~ is where they are standing.
-    const wrapped = `execute as "${player.name}" at @s run ${checked.command}`
+
+    // One specific player, named in a way a command can use. A tag rather than a
+    // name because two people can share a name, and `@a[name=…]` would then hit
+    // both. `@a`, not `@e`, because every command that takes this wants a player.
+    let tag = null
+    try {
+        const candidate = runTag()
+        player?.addTag?.(candidate)
+        tag = candidate
+    } catch { tag = null }
+    const me = tag
+        ? `@a[tag=${tag},limit=1]`
+        : `@a[name="${String(player?.name ?? "").replace(/"/g, "")}",limit=1]`
+
+    // `at`, never `as` — see the note at the top of this file.
+    const wrapped = `execute at ${me} run ${rewriteSelf(checked.command, me)}`
     try {
         const result = dimension.runCommand(wrapped)
         return { ok: true, output: String(result?.successCount ?? 0), command: checked.command }
@@ -146,5 +213,9 @@ export function runAsServer(player, line) {
         // A command that the game refuses is normal — a typo, a bad selector,
         // nothing matched. Hand the message back rather than swallowing it.
         return { ok: false, reason: String(e).replace(/^Error: /, "") }
+    } finally {
+        // The tag must not outlive the command, or a later selector picks this
+        // player up again.
+        if (tag) { try { player.removeTag(tag) } catch { /* left, or unloaded */ } }
     }
 }

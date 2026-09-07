@@ -13,11 +13,13 @@ function check(name, actual, expected) {
 
 let n = 0
 function fakePlayer(name) {
-    const ran = []
+    const ran = [], tags = []
     const p = {
         id: `x${n++}`, name, nameTag: name, commandPermissionLevel: 0,
         ran,
-        getTags: () => [], addTag: () => true, removeTag: () => true,
+        getTags: () => [...tags],
+        addTag: t => { if (!tags.includes(t)) tags.push(t); return true },
+        removeTag: t => { const i = tags.indexOf(t); if (i >= 0) tags.splice(i, 1); return true },
         sendMessage: () => { },
         dimension: { id: "minecraft:overworld", runCommand: c => { ran.push(c); return { successCount: 1 } } }
     }
@@ -49,9 +51,45 @@ const gave = runAsServer(owner, "give @s diamond 1")
 check("a vanilla command runs", gave.ok, true)
 check("it is handed to the DIMENSION, which runs at operator level",
     owner.ran.length, 1)
-check("wrapped so @s and ~ mean the person who typed it",
-    owner.ran[0].startsWith('execute as "Owner" at @s run '), true)
-check("and the command itself is intact", owner.ran[0].endsWith("give @s diamond 1"), true)
+
+// THE fix of 2.1.11, and the reason /a:tp answered "insufficient permission"
+// for months. `execute as` REPLACES the executor with the player, so the inner
+// command was dispatched at THEIR permission level and handing it to the
+// dimension bought nothing at all. `at` moves position and rotation only.
+console.log("\n— it runs as the SERVER, positioned on the player —")
+check("never `execute as`", owner.ran[0].includes("execute as"), false)
+check("`execute at`, so the executor stays the server",
+    owner.ran[0].startsWith("execute at @a[tag="), true)
+check("aimed at exactly one player",
+    /^execute at @a\[tag=[^\],]+,limit=1\] run /.test(owner.ran[0]), true)
+
+// `at` costs @s its meaning — it would be the server — so it is rewritten to
+// the same one-player selector.
+check("@s is rewritten to that player, not left pointing at the server",
+    owner.ran[0].includes("@s"), false)
+check("and the command is otherwise intact",
+    owner.ran[0].replace(/@a\[tag=[^\]]*\]/g, "@s"), "execute at @s run give @s diamond 1")
+
+// The tag is a means, not a mark. One left behind would be picked up by the
+// next selector that asked for it.
+check("the tag does not outlive the command",
+    owner.getTags().filter(t => t.startsWith("apx_")), [])
+
+owner.ran.length = 0
+runAsServer(owner, "kill @s[r=5]")
+check("@s keeps its own arguments, merged rather than trailing",
+    owner.ran[0].replace(/tag=[^\],]+,/g, ""), "execute at @a[limit=1] run kill @a[limit=1,r=5]")
+
+owner.ran.length = 0
+runAsServer(owner, "tp @s ~ ~10 ~")
+check("~ still means where they are standing, because `at` is what places it",
+    owner.ran[0].endsWith(" ~ ~10 ~"), true)
+
+owner.ran.length = 0
+runAsServer(owner, "say @stuff is not a selector")
+check("only a bare @s is rewritten", owner.ran[0].endsWith("say @stuff is not a selector"), true)
+
+owner.ran.length = 0
 check("a leading slash is accepted too",
     runAsServer(owner, "/time set day").ok, true)
 
