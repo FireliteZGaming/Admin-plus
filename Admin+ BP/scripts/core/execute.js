@@ -24,8 +24,16 @@ import { deniedFor, commandNode } from "./ranks.js"
 // the player, so the inner command is dispatched at THAT PLAYER's permission
 // level, and handing it to the dimension in the first place bought nothing.
 // `at` moves only position, rotation and dimension; the executor stays the
-// server. The cost is that @s stops meaning them, so it gets rewritten — see
-// rewriteSelf below.
+// server. The cost is that the command no longer knows who "you" are, and it is
+// paid in two places, both below:
+//
+//   rewriteSelf         @s would be the server, so it is pointed at the player.
+//   withExplicitTarget  an OMITTED target would be the server too — and there
+//                       is no @s in `/gamemode creative` for the first rewrite
+//                       to catch — so the target is written in.
+//
+// Between them nothing is left resolving against the executor, which is what
+// "runs as them" has to mean once `as` is off the table.
 //
 // WHY THIS IS BETTER THAN OP, and the reason it is worth building at all:
 // operator is invisible. Nothing records that an operator ran /give, and
@@ -178,6 +186,118 @@ function rewriteSelf(text, me) {
     return out
 }
 
+/**
+ * Split a command into arguments the way the game does.
+ *
+ * Not `split(/\s+/)`. A selector carries spaces inside its brackets
+ * (`@a[name="Some Player", r=5]`) and so does a quoted string, and either one
+ * chopped into pieces would be counted as several arguments — which is the one
+ * thing the table below must never get wrong.
+ */
+function tokenise(text) {
+    const out = []
+    let depth = 0, quoted = false, current = ""
+    for (const c of String(text ?? "")) {
+        if (c === '"') { quoted = !quoted; current += c; continue }
+        if (!quoted) {
+            if (c === "[" || c === "{") depth++
+            else if (c === "]" || c === "}") depth--
+            else if (depth === 0 && /\s/.test(c)) {
+                if (current) out.push(current)
+                current = ""
+                continue
+            }
+        }
+        current += c
+    }
+    if (current) out.push(current)
+    return out
+}
+
+/** `~`, `^`, `10`, `-3.5` — a coordinate rather than somebody's name. */
+function isCoord(token) { return /^[~^]|^[-+]?[0-9]/.test(String(token ?? "")) }
+
+/**
+ * Commands whose target may be LEFT OUT, and where it belongs when it is.
+ *
+ * This is the other half of dropping `execute as`, and the half that is easy to
+ * miss: `as` did not only decide what `@s` meant, it decided what an OMITTED
+ * target meant. `/gamemode creative` with nobody named is "the executor" — which
+ * under `execute at` is the server, not the person who typed it. Rewriting `@s`
+ * cannot reach that, because there is no `@s` in the text to rewrite.
+ *
+ * So the target is written in explicitly and nothing is ever left to default.
+ *
+ * `absent` decides whether the target really was left out, from the arguments
+ * that ARE there, and it is deliberately conservative: when a command could be
+ * read either way, it is left alone and the game answers for it. Guessing wrong
+ * here does not fail — it silently acts on the wrong player, which is worse than
+ * any error. `at` is where the target is spliced in, because for `/tp` it is the
+ * FIRST argument and appending would teleport the world at them.
+ *
+ * Every entry is a real Bedrock grammar with an optional self-defaulting target.
+ * A command whose target is mandatory does not belong here; nothing defaults.
+ */
+const SELF_TARGET = new Map([
+    // `kill`, `clear`, `clearspawnpoint`: the target is the whole argument list.
+    ["kill", { at: 0, absent: a => a.length === 0 }],
+    ["clear", { at: 0, absent: a => a.length === 0 }],
+    ["clearspawnpoint", { at: 0, absent: a => a.length === 0 }],
+
+    // `spawnpoint [player] [x y z]` — a bare position is three arguments and no
+    // player, and the game would read the first number as somebody's name.
+    ["spawnpoint", {
+        at: 0,
+        absent: a => a.length === 0 || (a.length === 3 && a.every(isCoord))
+    }],
+
+    // `gamemode <mode> [player]`, `playsound <sound> [player] …`
+    ["gamemode", { at: 1, absent: a => a.length === 1 }],
+    ["playsound", { at: 1, absent: a => a.length === 1 }],
+
+    // `xp <amount> [unit] [player]`. The unit is spelled out rather than counted,
+    // so `xp 30 Steve` is left alone while `xp 30 levels` is not.
+    ["xp", {
+        at: a => a.length,
+        absent: a => a.length === 1 || (a.length === 2 && /^(l|levels?|p|points?)$/i.test(a[1]))
+    }],
+    ["experience", {
+        at: a => a.length,
+        absent: a => a.length === 1 || (a.length === 2 && /^(l|levels?|p|points?)$/i.test(a[1]))
+    }],
+
+    // `tp`/`teleport` is the ambiguous one, and the command that started all of
+    // this. `tp <destination>` teleports YOU; `tp <victim> <destination>`
+    // teleports somebody else. So the victim was omitted when the first argument
+    // is a coordinate, or when there is nothing after it that could be a
+    // destination — `tp Steve` and `tp Steve true` both mean "send me to Steve".
+    ["tp", { at: 0, absent: tpVictimOmitted }],
+    ["teleport", { at: 0, absent: tpVictimOmitted }]
+])
+
+function tpVictimOmitted(args) {
+    if (!args.length) return false          // invalid either way; let the game say so
+    if (isCoord(args[0])) return true
+    return args.length === 1 || /^(true|false)$/i.test(args[1] ?? "")
+}
+
+/**
+ * Write the player in wherever the command would otherwise have defaulted to
+ * whoever ran it.
+ */
+function withExplicitTarget(command, me) {
+    const parts = tokenise(command)
+    const rule = SELF_TARGET.get(String(parts[0] ?? "").toLowerCase())
+    if (!rule) return command
+
+    const args = parts.slice(1)
+    if (!rule.absent(args)) return command
+
+    const at = typeof rule.at === "function" ? rule.at(args) : rule.at
+    args.splice(at, 0, me)
+    return [parts[0], ...args].join(" ")
+}
+
 /** A tag no player could plausibly own, unique per invocation. */
 let counter = 0
 function runTag() {
@@ -204,8 +324,12 @@ export function runAsServer(player, line) {
         ? `@a[tag=${tag},limit=1]`
         : `@a[name="${String(player?.name ?? "").replace(/"/g, "")}",limit=1]`
 
-    // `at`, never `as` — see the note at the top of this file.
-    const wrapped = `execute at ${me} run ${rewriteSelf(checked.command, me)}`
+    // `at`, never `as` — see the note at the top of this file. Two rewrites,
+    // and between them nothing is left resolving against the executor: the
+    // target is written in where it would have defaulted, then every @s is
+    // pointed at the player rather than the server.
+    const named = withExplicitTarget(checked.command, me)
+    const wrapped = `execute at ${me} run ${rewriteSelf(named, me)}`
     try {
         const result = dimension.runCommand(wrapped)
         return { ok: true, output: String(result?.successCount ?? 0), command: checked.command }

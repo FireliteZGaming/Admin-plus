@@ -89,6 +89,84 @@ owner.ran.length = 0
 runAsServer(owner, "say @stuff is not a selector")
 check("only a bare @s is rewritten", owner.ran[0].endsWith("say @stuff is not a selector"), true)
 
+console.log("\n— an OMITTED target is the player, not the server —")
+// The other half of dropping `execute as`, and the half that is easy to miss:
+// `as` decided what a left-out target meant as well as what @s meant.
+// `/gamemode creative` names nobody, so there is no @s for the rewrite above to
+// catch — it just quietly meant the executor, which is now the server.
+function line(text) {
+    owner.ran.length = 0
+    runAsServer(owner, text)
+    // The tag is unique per call and uninteresting; ME is what matters.
+    return owner.ran[0].replace(/@a\[tag=[^\],]+,limit=1/g, "@a[ME")
+}
+
+check("gamemode names the player", line("gamemode creative"),
+    "execute at @a[ME] run gamemode creative @a[ME]")
+check("but not when one was given", line("gamemode creative Steve"),
+    "execute at @a[ME] run gamemode creative Steve")
+
+check("kill is the player, not everything", line("kill"),
+    "execute at @a[ME] run kill @a[ME]")
+check("and a given target still wins", line("kill @e[type=cow]"),
+    "execute at @a[ME] run kill @e[type=cow]")
+
+check("clear empties their inventory", line("clear"),
+    "execute at @a[ME] run clear @a[ME]")
+check("spawnpoint sets theirs", line("spawnpoint"),
+    "execute at @a[ME] run spawnpoint @a[ME]")
+check("a bare position is a position, not a name", line("spawnpoint 10 64 30"),
+    "execute at @a[ME] run spawnpoint @a[ME] 10 64 30")
+check("clearspawnpoint too", line("clearspawnpoint"),
+    "execute at @a[ME] run clearspawnpoint @a[ME]")
+check("playsound plays it to them", line("playsound note.harp"),
+    "execute at @a[ME] run playsound note.harp @a[ME]")
+
+// The unit is spelled out rather than counted, so a NAME in that position is
+// left alone. Guessing wrong here would silently give somebody else the levels.
+check("xp with no unit", line("xp 30"), "execute at @a[ME] run xp 30 @a[ME]")
+check("xp with a unit", line("xp 30 levels"), "execute at @a[ME] run xp 30 levels @a[ME]")
+check("xp already naming somebody is untouched", line("xp 30 Steve"),
+    "execute at @a[ME] run xp 30 Steve")
+
+console.log("\n— /tp, the command that started this —")
+// `tp <destination>` moves YOU; `tp <victim> <destination>` moves somebody
+// else. Under `execute at` the first form moved the server, which is why
+// /a:tp was the command people reported.
+check("to a coordinate", line("tp 10 64 30"),
+    "execute at @a[ME] run tp @a[ME] 10 64 30")
+check("relative to where they stand", line("tp ~ ~10 ~"),
+    "execute at @a[ME] run tp @a[ME] ~ ~10 ~")
+check("to another player", line("tp Steve"),
+    "execute at @a[ME] run tp @a[ME] Steve")
+check("to another player, checking blocks", line("tp Steve true"),
+    "execute at @a[ME] run tp @a[ME] Steve true")
+check("but moving somebody ELSE is left alone", line("tp Steve Alex"),
+    "execute at @a[ME] run tp Steve Alex")
+check("as is moving them to a coordinate", line("tp Steve 10 64 30"),
+    "execute at @a[ME] run tp Steve 10 64 30")
+check("@s as the victim is rewritten, not doubled", line("tp @s ~ ~10 ~"),
+    "execute at @a[ME] run tp @a[ME] ~ ~10 ~")
+
+console.log("\n— it never guesses on a command with a real target —")
+// A command whose target is mandatory has nothing to default to, so nothing
+// here may touch it. This is the failure that would be silent.
+check("give", line("give @s stone"), "execute at @a[ME] run give @a[ME] stone")
+check("effect", line("effect Steve speed 10"),
+    "execute at @a[ME] run effect Steve speed 10")
+check("say is not a target command at all", line("say gamemode creative"),
+    "execute at @a[ME] run say gamemode creative")
+check("time set day is untouched", line("time set day"),
+    "execute at @a[ME] run time set day")
+
+// A selector carries spaces inside its brackets, so counting arguments by
+// splitting on whitespace would see three where there is one — and then write
+// a second target into a command that already had one.
+check("a selector with spaces is ONE argument", line('kill @e[type=cow, r=5]'),
+    "execute at @a[ME] run kill @e[type=cow, r=5]")
+check("and so is a quoted name", line('gamemode creative "Some Player"'),
+    'execute at @a[ME] run gamemode creative "Some Player"')
+
 owner.ran.length = 0
 check("a leading slash is accepted too",
     runAsServer(owner, "/time set day").ok, true)

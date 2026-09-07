@@ -57,6 +57,53 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.1.12 — 2026-09-07
+
+**Commands run as you now, properly. Nothing defaults to the server any more.**
+
+2.1.11 fixed the permission half of this: `execute as` was replacing the
+executor with the player, so the command ran at *their* level and being handed
+to the dimension bought nothing. It became `execute at`, which keeps the server
+as the executor.
+
+That left a second half, and it is the one that broke the commands people
+actually type. `execute as` did not only decide what `@s` meant — it decided
+what a **left-out target** meant. `/gamemode creative` names nobody, so there is
+no `@s` for the rewrite to catch; it just quietly meant "the executor", which is
+now the server.
+
+Every target is written in explicitly before the command runs. These all mean
+you again:
+
+| you type | it runs |
+|---|---|
+| `/gamemode creative` | on you |
+| `/kill` | on you, not on everything |
+| `/clear` | your inventory |
+| `/spawnpoint`, `/spawnpoint 10 64 30` | yours |
+| `/clearspawnpoint` | yours |
+| `/xp 30`, `/xp 30 levels` | to you |
+| `/playsound note.harp` | to you |
+| `/tp 10 64 30`, `/tp ~ ~10 ~`, `/tp Steve` | moves **you** |
+
+and `/tp Steve Alex` still moves Steve, because naming two people has always
+meant that. `~ ~ ~` is still where you are standing.
+
+It is a curated list, and deliberately so. A command whose target is required
+has nothing to default to and is never touched — `/give`, `/effect`, `/enchant`,
+`/tag` and the rest go through exactly as typed. Where a command could honestly
+be read either way it is left alone and the game answers, because guessing wrong
+would not fail, it would silently act on somebody else.
+
+Arguments are counted the way the game counts them, so a selector carrying
+spaces — `@e[type=cow, r=5]` — is one argument and not three, and a second
+target is never written into a command that already had one.
+
+Applies everywhere commands run: `/cmd`, all of `/a:z*`, and the creator
+console.
+
+---
+
 ## 2.1.11 — 2026-09-07
 
 **"Insufficient permission" is fixed. It was one word in one line.**
