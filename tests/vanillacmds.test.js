@@ -79,18 +79,31 @@ check("summon takes an entity type",
 console.log("\n— rebuilding the command line —")
 const spec = { name: "kill", params: [["targets", P.EntitySelector, true]] }
 
-// A selector arrives RESOLVED, as Entity[], so the text that was typed is gone.
-// Each entity is tagged instead and the line targets that tag — which also
-// means the set is fixed at the moment the game resolved it.
+// A selector arrives as TEXT and is pasted straight through, because the engine
+// expands a custom command's selector argument at the CALLER's permission level
+// — so `/a:zkill @p` was refused with "insufficient permissions for selector
+// expansion" before this code ever ran, for exactly the people /a:z* exists for.
+// The dimension expands it instead, at operator level, when the command runs.
 {
-    const tagged = []
-    const entity = { addTag: t => tagged.push(t), removeTag: () => {} }
-    const clean = []
-    check("a selector becomes a tag lookup",
-        buildLine(spec, [[entity]], "T1", clean), "kill @e[tag=T1]")
-    check("and the entity really was tagged", tagged, ["T1"])
-    check("so it can be untagged afterwards", clean.length, 1)
+    check("a selector is pasted through as typed",
+        buildLine(spec, ["@p"], "T1", []), "kill @p")
+    check("filters and all", buildLine(spec, ["@e[type=cow,r=5]"], "T1", []),
+        "kill @e[type=cow,r=5]")
+    check("and it is never quoted, because a quoted selector is a NAME",
+        buildLine(spec, ['"@e[type=cow, r=5]"'], "T1", []), "kill @e[type=cow, r=5]")
 }
+
+// The registration has to agree, or the engine resolves it before this file
+// gets a say. This is the whole fix, and it is one word.
+const vanillaSrc = readFileSync(
+    new URL("../Admin+ BP/scripts/features/vanillacmds.js", import.meta.url), "utf8")
+check("the table still marks selectors, so render() can find them",
+    COMMANDS.flatMap(c => (c.params ?? []).filter(p => SELECTOR_TYPES.has(p[1]))).length > 0,
+    true)
+check("but the REGISTRATION downgrades every one of them to a String",
+    vanillaSrc.includes("type: SELECTOR_TYPES.has(type) ? P.String : type"), true)
+check("and nothing tags entities to paste a selector back any more",
+    vanillaSrc.includes("@e[tag=${tag}]"), false)
 
 check("an empty selector result is treated as absent",
     buildLine(spec, [[]], "T2", []), "kill")
@@ -110,10 +123,9 @@ check("so is a missing optional", buildLine(spec, [undefined], "T3", []), "kill"
 {
     const s = { name: "give", params: [["players", P.PlayerSelector], ["item", P.ItemType],
                                        ["amount", P.Integer, true]] }
-    const player = { addTag: () => {}, removeTag: () => {} }
     check("an item type is written by id, and a count follows",
-        buildLine(s, [[player], { id: "minecraft:diamond" }, 5], "T", []),
-        "give @e[tag=T] minecraft:diamond 5")
+        buildLine(s, ["@s", { id: "minecraft:diamond" }, 5], "T", []),
+        "give @s minecraft:diamond 5")
 }
 
 {
@@ -136,9 +148,8 @@ check("so is a missing optional", buildLine(spec, [undefined], "T3", []), "kill"
 {
     const s = { name: "effect", params: [["targets", P.EntitySelector], ["effect", P.Enum, false, "effect"],
                                          ["seconds", P.Integer, true], ["amplifier", P.Integer, true]] }
-    const e = { addTag: () => {}, removeTag: () => {} }
     check("building stops at the first absent argument",
-        buildLine(s, [[e], "speed", undefined, 3], "T", []), "effect @e[tag=T] speed")
+        buildLine(s, ["@s", "speed", undefined, 3], "T", []), "effect @s speed")
 }
 
 console.log("\n— one namespace, so the grouping is in the name —")

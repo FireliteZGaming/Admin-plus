@@ -61,7 +61,7 @@ check("never `execute as`", owner.ran[0].includes("execute as"), false)
 check("`execute at`, so the executor stays the server",
     owner.ran[0].startsWith("execute at @a[tag="), true)
 check("aimed at exactly one player",
-    /^execute at @a\[tag=[^\],]+,limit=1\] run /.test(owner.ran[0]), true)
+    /^execute at @a\[tag=[^\],]+,c=1\] run /.test(owner.ran[0]), true)
 
 // `at` costs @s its meaning — it would be the server — so it is rewritten to
 // the same one-player selector.
@@ -78,7 +78,7 @@ check("the tag does not outlive the command",
 owner.ran.length = 0
 runAsServer(owner, "kill @s[r=5]")
 check("@s keeps its own arguments, merged rather than trailing",
-    owner.ran[0].replace(/tag=[^\],]+,/g, ""), "execute at @a[limit=1] run kill @a[limit=1,r=5]")
+    owner.ran[0].replace(/tag=[^\],]+,/g, ""), "execute at @a[c=1] run kill @a[c=1,r=5]")
 
 owner.ran.length = 0
 runAsServer(owner, "tp @s ~ ~10 ~")
@@ -98,7 +98,7 @@ function line(text) {
     owner.ran.length = 0
     runAsServer(owner, text)
     // The tag is unique per call and uninteresting; ME is what matters.
-    return owner.ran[0].replace(/@a\[tag=[^\],]+,limit=1/g, "@a[ME")
+    return owner.ran[0].replace(/@a\[tag=[^\],]+,c=1/g, "@a[ME")
 }
 
 check("gamemode names the player", line("gamemode creative"),

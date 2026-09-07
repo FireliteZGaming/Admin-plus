@@ -57,6 +57,31 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.1.13 — 2026-09-07
+
+**Two bugs that stopped 2.1.12 working at all. Both found in a playtest.**
+
+**`limit=1` is Java.** Bedrock counts with `c=1`, and it does not fail quietly —
+the selector 2.1.12 built to name you came back as
+`Syntax error: Unexpected "limit"` on every single command. `/zfill`, `/zkill`,
+all of them. It is `@a[tag=…,c=1]` now.
+
+**Selectors are taken as text, not resolved by the engine.** `/a:zkill @p` was
+refused with *insufficient permissions for selector expansion* before any of
+this pack's code ran, because the game expands a custom command's selector
+argument at the **caller's** permission level — and a caller with a rank and no
+op is precisely who `/a:z*` exists for. The selector is now passed straight
+through and the dimension expands it when the command runs, at operator level,
+which is the same mechanism everything else here already uses.
+
+The cost, said plainly: the game's selector auto-completion is gone for those
+arguments, and the set resolves when the command runs rather than when it was
+typed. A selector carrying spaces has to be quoted — `"@e[type=cow, r=5]"` — and
+the quotes come back off before it runs. Item names, block names, enums and
+coordinates all still complete as they did.
+
+---
+
 ## 2.1.12 — 2026-09-07
 
 **Commands run as you now, properly. Nothing defaults to the server any more.**

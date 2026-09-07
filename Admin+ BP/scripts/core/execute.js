@@ -162,7 +162,7 @@ export function mayRun(player, line) {
  * alone — only a bare `@s` is a selector.
  */
 function rewriteSelf(text, me) {
-    const head = me.slice(0, -1)          // "@a[tag=…,limit=1" — always ends "]"
+    const head = me.slice(0, -1)          // "@a[tag=…,c=1" — always ends "]"
     let out = "", i = 0
     while (i < text.length) {
         const isSelf = text[i] === "@" && (text[i + 1] === "s" || text[i + 1] === "S")
@@ -314,6 +314,10 @@ export function runAsServer(player, line) {
     // One specific player, named in a way a command can use. A tag rather than a
     // name because two people can share a name, and `@a[name=…]` would then hit
     // both. `@a`, not `@e`, because every command that takes this wants a player.
+    //
+    // `c=1`, NOT `limit=1`. `limit` is Java; Bedrock counts with `c`, and it
+    // does not fail quietly — every command came back
+    // `Syntax error: Unexpected "limit"`.
     let tag = null
     try {
         const candidate = runTag()
@@ -321,8 +325,8 @@ export function runAsServer(player, line) {
         tag = candidate
     } catch { tag = null }
     const me = tag
-        ? `@a[tag=${tag},limit=1]`
-        : `@a[name="${String(player?.name ?? "").replace(/"/g, "")}",limit=1]`
+        ? `@a[tag=${tag},c=1]`
+        : `@a[name="${String(player?.name ?? "").replace(/"/g, "")}",c=1]`
 
     // `at`, never `as` — see the note at the top of this file. Two rewrites,
     // and between them nothing is left resolving against the executor: the

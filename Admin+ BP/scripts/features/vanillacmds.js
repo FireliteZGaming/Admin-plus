@@ -52,16 +52,26 @@ for (const [key, values] of Object.entries(ENUMS)) {
 }
 
 /**
- * Turn one resolved argument back into command text.
+ * Turn one argument back into command text.
  *
- * Selectors are the case worth explaining. The game hands back resolved
- * `Entity[]` / `Player[]` rather than the text that was typed, so the selector
- * cannot be pasted back — every entity gets a one-shot tag instead and the line
- * targets `@e[tag=…]`.
+ * Selectors are the case worth explaining, and it changed in 2.1.13.
  *
- * That is better than the text would have been: the set is resolved ONCE, so
- * `@e[type=cow,c=3]` acts on exactly the three cows the game picked, and cannot
- * quietly re-resolve to a different three when the command runs a tick later.
+ * They used to be registered as `EntitySelector`/`PlayerSelector` so the engine
+ * would resolve them and hand back `Entity[]`, which the pack tagged and pasted
+ * back as `@e[tag=…]`. **That cannot work for the people this feature exists
+ * for.** The engine expands a custom command's selector argument at the
+ * CALLER's permission level, so `/a:zkill @p` was refused with *insufficient
+ * permissions for selector expansion* before this file's handler ever ran —
+ * which is exactly the audience `/a:z*` is for: somebody with a rank and no op.
+ *
+ * So the selector is taken as TEXT and pasted straight into the line. The
+ * dimension expands it when the command runs, at operator level, which is the
+ * same mechanism everything else here already leans on.
+ *
+ * The cost is real and worth naming: the engine's selector auto-completion is
+ * gone for these arguments, and the set now resolves when the command runs
+ * rather than when it was typed. A command that cannot run is worth less than
+ * one without completion.
  *
  * @returns {string|undefined} text, or undefined if this argument is absent
  */
@@ -69,12 +79,11 @@ function render(value, type, tag, cleanup) {
     if (value === undefined || value === null) return undefined
 
     if (SELECTOR_TYPES.has(type)) {
-        const list = Array.isArray(value) ? value : [value]
-        if (!list.length) return undefined
-        for (const entity of list) {
-            try { entity.addTag(tag); cleanup.push(entity) } catch { /* already gone */ }
-        }
-        return `@e[tag=${tag}]`
+        // Never quoted: `"@e[type=cow]"` is a name, not a selector. A selector
+        // carrying spaces has to arrive quoted to survive the game's own
+        // tokeniser, and the quotes come back off here.
+        const text = String(value).trim().replace(/^"(.*)"$/s, "$1")
+        return text || undefined
     }
 
     if (type === P.Location) {
@@ -130,9 +139,14 @@ for (const spec of COMMANDS) {
         // name must be the registered enum's namespaced name, not a label of our
         // choosing. Getting this wrong registers a command whose enum silently
         // offers nothing.
+        // A selector is registered as a STRING. Registering it as
+        // EntitySelector makes the ENGINE expand it, and it does that at the
+        // caller's permission level — so `/a:zkill @p` was refused outright for
+        // anybody without op, which is everybody this command set is for. See
+        // render() above.
         const entry = type === P.Enum
             ? { name: enumName[enumKey], type }
-            : { name, type }
+            : { name, type: SELECTOR_TYPES.has(type) ? P.String : type }
         ;(isOptional ? optional : mandatory).push(entry)
     }
 
