@@ -8,7 +8,7 @@ import {
     ladder, getRank, saveRank, deleteRank, normaliseRankId, moveRank,
     PRESETS, BUNDLES, PERMISSION_NODES,
     applyPreset, restoreSnapshot, hasSnapshot, snapshot,
-    canEditRank, canActOn, has, rankState, displacedBy,
+    canEditRank, canActOn, has, rankState, displacedBy, defaultRank,
     playerRanks, displayRanks, heldRankIds, primaryRank, moveHeldRank,
     setRanks, grantRank, revokeRank, knownHolders
 } from "../core/ranks.js"
@@ -163,8 +163,10 @@ async function createRankScreen(player, back) {
     saveRank(id, {
         display: values.display || `§7${id}`,
         staff: values.staff,
-        replacesLower: values.replaces,
-        inherits: [],
+        // Inherit the default rank, because granting this one REPLACES it — a
+        // new rank that inherited nothing would quietly cost the player the
+        // basics everybody starts with.
+        inherits: [defaultRank()?.id].filter(Boolean),
         perms: [],
         meta: {}
     })
@@ -177,22 +179,13 @@ async function basicsScreen(player, rankId, back) {
     const values = await modal(player, hubTitle("ranks", `Basics · ${rankId}`), [
         { id: "display", type: "text", label: "Display", default: rank.display },
         { id: "staff", type: "toggle", label: "Counts as staff", default: rank.staff },
-        { id: "isDefault", type: "toggle", label: "Default rank for new players", default: !!rank.default },
-        {
-            id: "replaces",
-            type: "toggle",
-            label: "Replaces lower ranks when granted" +
-                "\n§8On: giving this rank drops the weaker ones (a promotion)." +
-                "\n§8Off: it stacks on top of what they already hold.",
-            default: rank.replacesLower !== false
-        }
+        { id: "isDefault", type: "toggle", label: "Default rank for new players", default: !!rank.default }
     ])
     if (!values) return back()
     saveRank(rankId, {
         display: values.display,
         staff: values.staff,
-        default: values.isDefault,
-        replacesLower: values.replaces
+        default: values.isDefault
     })
     ok(player, `Updated §f${rankId}§a.`)
     return back()

@@ -145,7 +145,8 @@ console.log("\n— create / delete —")
 saveRank("builder", { display: "§9Builder", staff: false, perms: ["warp.use"], inherits: [], meta: {} })
 check("new rank lands at the bottom", ladder().map(r => r.id).at(-1), "builder")
 grantRank(steve.id, "builder", steve.name)
-check("player holds both", heldRankIds(steve), ["member", "builder"])
+check("granting it replaces member, even though it is weaker",
+    heldRankIds(steve), ["builder"])
 deleteRank("builder")
 check("delete strips it from holders", heldRankIds(steve), ["member"])
 check("rank is gone", getRank("builder"), undefined)
@@ -196,33 +197,55 @@ const rookie = fakePlayer("Rookie")
 onPlayerJoin(rookie)
 check("starts on member", primaryRank(rookie).id, "member")
 grantRank(rookie.id, "mod", rookie.name)
-check("promotion replaces member outright", heldRankIds(rookie), ["mod"])
+check("a grant replaces member outright", heldRankIds(rookie), ["mod"])
 check("tag is now mod", primaryRank(rookie).id, "mod")
 check("nametag re-stamped", rookie.nameTag.includes("Mod"), true)
 grantRank(rookie.id, "owner", rookie.name)
 check("a stronger grant goes to the front", primaryRank(rookie).id, "owner")
 grantRank(rookie.id, "owner", rookie.name)
-check("granting the same rank twice does not duplicate it", heldRankIds(rookie), ["owner"])
+check("granting the same rank twice does not duplicate it",
+    heldRankIds(rookie).filter(id => id === "owner").length, 1)
 revokeRank(rookie.id, "owner", rookie.name)
+revokeRank(rookie.id, "mod", rookie.name)
 check("with nothing left they fall back to the default rank", heldRankIds(rookie), ["member"])
 
-console.log("\n— promotions replace, cosmetic ranks stack —")
+console.log("\n— ranks STACK; only the default is replaced —")
+// The rule, and the whole of it: a rank is something you HOLD, not a slot you
+// occupy. Granting Admin to a Builder leaves them both. The one thing any grant
+// takes away is the DEFAULT rank, because that is what everybody has for want
+// of anything else — and it goes whatever the new rank weighs, which is the
+// case the old weight comparison got backwards.
 const promo = fakePlayer("Promo")
 onPlayerJoin(promo)
 check("starts as member", heldRankIds(promo), ["member"])
-check("promotion says what it displaces", displacedBy(promo.id, "mod").map(r => r.id), ["member"])
+check("a grant says it will take member", displacedBy(promo.id, "mod").map(r => r.id), ["member"])
 grantRank(promo.id, "mod", promo.name)
-check("member is gone after promotion", heldRankIds(promo), ["mod"])
+check("member is gone", heldRankIds(promo), ["mod"])
+check("and there is nothing left to displace", displacedBy(promo.id, "admin"), [])
 grantRank(promo.id, "admin", promo.name)
-check("promoting again drops mod too", heldRankIds(promo), ["admin"])
+check("a second rank stacks rather than replacing the first",
+    heldRankIds(promo).sort(), ["admin", "mod"])
+check("the strongest still wears the tag", primaryRank(promo).id, "admin")
 
-// A cosmetic rank opts out and stacks instead.
-saveRank("builder", { display: "§9Builder", staff: false, perms: [], inherits: [], meta: {}, replacesLower: false })
+// A rank BELOW member on the ladder replaces it too. A new rank lands at the
+// bottom, so under the old weight comparison member outweighed it and survived
+// — which left every freshly created rank sitting as Member-and-that.
+saveRank("builder", { display: "§9Builder", staff: false, perms: [], inherits: [], meta: {} })
+const fresh = fakePlayer("Fresh")
+onPlayerJoin(fresh)
+check("builder sits below member",
+    getRank("builder").weight < getRank("member").weight, true)
+check("granting it still takes member",
+    displacedBy(fresh.id, "builder").map(r => r.id), ["member"])
+grantRank(fresh.id, "builder", fresh.name)
+check("a rank weaker than the default still replaces it", heldRankIds(fresh), ["builder"])
+
 grantRank(promo.id, "builder", promo.name)
-check("cosmetic rank stacks", heldRankIds(promo).sort(), ["admin", "builder"])
-check("and does not steal the tag", primaryRank(promo).id, "admin")
-check("cosmetic grant displaces nothing", displacedBy(promo.id, "builder"), [])
+check("and it stacks on real ranks", heldRankIds(promo).sort(), ["admin", "builder", "mod"])
+check("without stealing the tag", primaryRank(promo).id, "admin")
+check("granting the default itself displaces nothing", displacedBy(fresh.id, "member"), [])
 deleteRank("builder")
+
 
 console.log("\n— staff are exempt from cooldowns —")
 saveRank("member", { meta: { tpCooldown: 8 } })

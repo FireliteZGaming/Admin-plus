@@ -84,7 +84,9 @@ const priorRanks = heldRankIds(nova.id)
 grantRank(nova.id, "mod", nova.name)
 const rankEntry = record(firelite, "rank.grant", nova, "mod", { kind: "ranks", ranks: priorRanks })
 grantRank(nova.id, "admin", nova.name)          // something else happens after
-check("they are admin before the undo", heldRankIds(nova.id), ["admin"])
+// Ranks stack, so they now hold both — which is precisely why undo has to
+// restore what they HELD rather than reverse the one action it recorded.
+check("they hold both before the undo", heldRankIds(nova.id).sort(), ["admin", "mod"])
 check("undo applies", applyUndo(rankEntry), true)
 check("and lands on exactly what they held", heldRankIds(nova.id), priorRanks)
 

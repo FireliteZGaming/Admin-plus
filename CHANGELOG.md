@@ -57,6 +57,37 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.1.14 — 2026-09-07
+
+**Ranks stack. The only thing a grant takes away is Member.**
+
+A rank is something a player HOLDS, not a slot they occupy. Granting Admin to
+somebody who is also a Builder now leaves them both — the grant adds, it does
+not evict. Admin simply goes in front, because staff ranks take the nametag.
+
+The one rank any grant replaces is the **default** one, Member. That is what
+everybody has for want of anything else, so holding it beside a real rank means
+nothing, and every ladder's ranks inherit it anyway.
+
+**It goes whatever the new rank weighs.** This is the part that was wrong: the
+old rule dropped ranks *weaker* than the one being granted, and a newly created
+rank lands at the BOTTOM of the ladder — below Member. So Member outweighed it
+and survived, and every fresh rank left the player sitting as
+Member-and-that-rank. A rank below Member on the ladder now replaces Member just
+as a rank above it does.
+
+**"Replaces lower ranks when granted" is gone** from both the create and the
+basics screen. Ranks always stack now, so the switch had nothing left to
+control, and a switch that does nothing is worse than no switch.
+
+A rank created from the panel now **inherits the default rank**, so replacing
+Member cannot quietly cost somebody the basics everybody starts with. Ranks in
+the shipped presets already did this.
+
+Nothing needs re-applying, and nobody loses a rank they hold.
+
+---
+
 ## 2.1.13 — 2026-09-07
 
 **Two bugs that stopped 2.1.12 working at all. Both found in a playtest.**

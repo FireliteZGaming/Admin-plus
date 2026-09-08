@@ -305,11 +305,7 @@ export function saveRank(id, data) {
         perms: data.perms ?? existing?.perms ?? [],
         meta: data.meta ?? existing?.meta ?? {},
         staff: data.staff ?? existing?.staff ?? false,
-        default: data.default ?? existing?.default ?? false,
-        // Granting this rank clears the weaker ranks the player holds, so a
-        // promotion reads as a promotion. Turn it off for cosmetic ranks that
-        // are meant to sit alongside whatever someone already has.
-        replacesLower: data.replacesLower ?? existing?.replacesLower ?? true
+        default: data.default ?? existing?.default ?? false
     }
     // Only one default rank at a time.
     if (rank.default) {
@@ -630,15 +626,22 @@ export function grantRank(playerId, rankId, name) {
     if (!ranksTable.has(rankId)) return false
     const rank = ranksTable.get(rankId)
     const weight = rank.weight ?? 0
+    // RANKS STACK. Granting Admin to somebody who is also a Builder leaves them
+    // both, whatever the two weigh. A rank is something a player holds, not a
+    // slot they occupy, and dropping ranks they had earned because a new one
+    // outweighed them threw away work nobody asked to lose. Which rank they
+    // WEAR is a separate question, and displayRanks already answers it — staff
+    // first, then their own display order.
+    //
+    // The one exception is the DEFAULT rank. It is what everybody holds for
+    // want of anything else, so keeping it beside a real rank means nothing,
+    // and every ladder's own ranks inherit it anyway. It goes whatever the new
+    // rank weighs — including a cosmetic one sitting BELOW it, which is the
+    // case the old weight comparison got wrong: member outweighed a new rank,
+    // so a brand-new rank left the player as Member-and-that.
+    const fallback = defaultRank()
     let held = heldRankIds(playerId).filter(id => id !== rankId)
-
-    // A promotion should not leave the old rank underneath it. When the rank
-    // replaces lower ones, every weaker rank the player holds is dropped —
-    // giving VIP to a Member leaves them VIP, not VIP-and-Member. Ranks marked
-    // as stacking (cosmetic ones) keep everything instead.
-    if (rank.replacesLower !== false) {
-        held = held.filter(id => (ranksTable.get(id)?.weight ?? 0) > weight)
-    }
+    if (fallback && rankId !== fallback.id) held = held.filter(id => id !== fallback.id)
 
     // Insert by LADDER position rather than appending. The tag a player wears is
     // the first entry in their display order, so appending meant granting Mod to
@@ -653,15 +656,17 @@ export function grantRank(playerId, rankId, name) {
     return true
 }
 
-/** What granting this rank would remove, for the confirmation copy. */
+/**
+ * What granting this rank would remove, for the confirmation copy.
+ *
+ * Only ever the default rank now, because that is the only thing a grant takes
+ * away — see grantRank. It still returns a list so the callers that render it
+ * do not have to care.
+ */
 export function displacedBy(playerId, rankId) {
-    const rank = ranksTable.get(rankId)
-    if (!rank || rank.replacesLower === false) return []
-    const weight = rank.weight ?? 0
-    return heldRankIds(playerId)
-        .filter(id => id !== rankId && (ranksTable.get(id)?.weight ?? 0) <= weight)
-        .map(id => ranksTable.get(id))
-        .filter(Boolean)
+    const fallback = defaultRank()
+    if (!ranksTable.has(rankId) || !fallback || rankId === fallback.id) return []
+    return heldRankIds(playerId).includes(fallback.id) ? [fallback] : []
 }
 
 export function revokeRank(playerId, rankId, name) {
