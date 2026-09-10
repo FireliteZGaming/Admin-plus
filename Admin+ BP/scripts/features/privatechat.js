@@ -3,7 +3,7 @@ import { command } from "../core/registry.js"
 import { CONFIG } from "../config.js"
 import { ok, err, info } from "../core/util.js"
 import { has, primaryRank, isStaff } from "../core/ranks.js"
-import { displayName } from "../core/identity.js"
+import { displayName, nameTokens } from "../core/identity.js"
 import { isMuted } from "../core/moderation.js"
 import { pref, PREFS } from "../core/prefs.js"
 import { render, renderTag, flag } from "../core/settings.js"
@@ -95,8 +95,8 @@ function sendPrivate(player, selected, message) {
     // open would be a mute in name only.
     if (isMuted(player)) return err(player, "You are muted.")
 
-    player.sendMessage(render("format.pmOut", { NAME: displayName(target), MSG: text }))
-    target.sendMessage(render("format.pmIn", { NAME: displayName(player), MSG: text }))
+    player.sendMessage(render("format.pmOut", { ...nameTokens(target), MSG: text }))
+    target.sendMessage(render("format.pmIn", { ...nameTokens(player), MSG: text }))
     rememberExchange(player, target)
     spy(player, target, text, "pm")
 }
@@ -334,7 +334,7 @@ export function routePrivate(player, message) {
         PAIR: pairLabel(player, partner),
         TAG: renderTag(primaryRank(player)),
         RANK: primaryRank(player)?.display ?? "",
-        NAME: displayName(player),
+        ...nameTokens(player),
         MSG: "\u0000"
     }).replace(/ {2,}/g, " ").replace("\u0000", message)
     player.sendMessage(line)

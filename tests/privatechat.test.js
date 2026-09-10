@@ -122,11 +122,15 @@ check("and invites addressed to them go too", pendingInvites(alex).length, 0)
 
 console.log("\n— the formats —")
 check("private messages ship on", setting("feature.pm"), "true")
+// The three name-carrying formats accept EITHER token: {NAME} is the gamertag,
+// {NICKNAME} is what they call themselves, and every site fills both so the
+// template chooses. The shipped ones ask for {NICKNAME}. {FROM} is the spy
+// line's own token and is unrelated.
 for (const [key, token] of [
-    ["format.pmOut", "{NAME}"], ["format.pmIn", "{NAME}"],
-    ["format.prchat", "{NAME}"], ["format.spy", "{FROM}"]
+    ["format.pmOut", /\{NICKNAME\}|\{NAME\}/], ["format.pmIn", /\{NICKNAME\}|\{NAME\}/],
+    ["format.prchat", /\{NICKNAME\}|\{NAME\}/], ["format.spy", /\{FROM\}/]
 ]) {
-    check(`${key} names somebody`, setting(key).includes(token), true)
+    check(`${key} names somebody`, token.test(setting(key)), true)
     check(`${key} carries the message`, setting(key).includes("{MSG}"), true)
 }
 check("the spy line says which kind it was", setting("format.spy").includes("{KIND}"), true)

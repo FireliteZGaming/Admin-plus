@@ -1,6 +1,6 @@
 import { setting, setSetting, resetSetting, overrides, replaceOverrides, flag, render, renderTag, DEFAULTS } from "../Admin+ BP/scripts/core/settings.js"
 import { toBlock, fromBlock, canUseCode, kindOf, groupOf, groupedKeys, GROUPS, submittedValue } from "../Admin+ BP/scripts/features/code.js"
-import { getNickname, setNickname, displayName, hasNickname, NICK_MAX } from "../Admin+ BP/scripts/core/identity.js"
+import { getNickname, setNickname, displayName, hasNickname, nameTokens, NICK_MAX } from "../Admin+ BP/scripts/core/identity.js"
 // canUseCode comes via features/code.js above, which re-exports it.
 import { hasOperator, inDeveloperMode, setDeveloperMode } from "../Admin+ BP/scripts/core/devgate.js"
 
@@ -29,7 +29,28 @@ resetSetting("staff.exemptCooldowns")
 console.log("\n— rendering —")
 check("tag wraps the rank in the brackets", renderTag({ display: "§cAdmin" }), "§8[§cAdmin§8]")
 check("no rank means no tag", renderTag(undefined), "")
-check("tokens are substituted", render("format.chat", { TAG: "[A]", NAME: "Steve", MSG: "hi", RANK: "" }), "[A] §7Steve §8» §rhi")
+check("tokens are substituted", render("format.chat", { TAG: "[A]", NICKNAME: "Steve", MSG: "hi", RANK: "" }), "[A] §7Steve §8» §rhi")
+
+// {NAME} is the GAMERTAG and {NICKNAME} is what they call themselves. Every
+// site fills both, so a template chooses; the shipped formats ask for
+// {NICKNAME}, which is why the line above does. Before this split, {NAME} was
+// filled with displayName() everywhere and there was no way for a format to
+// reach the real account name at all — which is the name you ban under and the
+// one the audit log stores.
+{
+    setSetting("format.chat", "{NAME} as {NICKNAME}: {MSG}")
+    check("a format can ask for either, and they are different things",
+        render("format.chat", { ...nameTokens("Steve", "Ghost"), MSG: "hi" }),
+        "Steve as Ghost: hi")
+    check("no nickname means {NICKNAME} falls back rather than rendering empty",
+        render("format.chat", { ...nameTokens("Steve"), MSG: "hi" }),
+        "Steve as Steve: hi")
+    // A real Player, not a bare name: the gamertag comes off .name, and with no
+    // nickname stored the two agree.
+    check("and it reads a Player the same way",
+        nameTokens({ id: "p1", name: "Alex" }), { NAME: "Alex", NICKNAME: "Alex" })
+    resetSetting("format.chat")
+}
 setSetting("format.nameTag", "{TAG}\n{NAME}")
 check("a typed \n becomes a real line break", render("format.nameTag", { TAG: "[A]", NAME: "Steve" }), "[A]\nSteve")
 resetSetting("format.nameTag")

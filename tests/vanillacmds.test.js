@@ -1,5 +1,5 @@
 import { CustomCommandParamType } from "@minecraft/server"
-import { COMMANDS, ENUMS, SELECTOR_TYPES } from "../Admin+ BP/scripts/core/vanillaparams.js"
+import { COMMANDS, ENUMS, SELECTOR_TYPES, CODENAME, codenameFor, GAME_OWNED } from "../Admin+ BP/scripts/core/vanillaparams.js"
 import { buildLine, tempTag } from "../Admin+ BP/scripts/features/vanillacmds.js"
 import { DEFAULTS } from "../Admin+ BP/scripts/core/settings.js"
 import { OP_COMMANDS } from "../Admin+ BP/scripts/core/opcommands.js"
@@ -136,10 +136,39 @@ check("so is a missing optional", buildLine(spec, [undefined], "T3", []), "kill"
 }
 
 {
-    const s = { name: "say", params: [["message", P.String], ["more", P.String, true]] }
-    check("a plain word needs no quoting", buildLine(s, ["hello"], "T", []), "say hello")
+    // Was written against `say`, which is no longer a passthrough — /broadcast
+    // does the same job with an audience and an audit record. `tellraw` carries
+    // the same String-with-spaces shape, which is all this is testing.
+    const s = { name: "tellraw", params: [["players", P.String], ["json", P.String]] }
+    check("a plain word needs no quoting",
+        buildLine(s, ["@a", "hello"], "T", []), "tellraw @a hello")
     check("but a value with spaces is quoted, or it becomes two arguments",
-        buildLine(s, ["hello there"], "T", []), 'say "hello there"')
+        buildLine(s, ["@a", "hello there"], "T", []), 'tellraw @a "hello there"')
+}
+
+console.log("\n— fixed words the caller should not have to type —")
+{
+    // /replaceitem's grammar is `replaceitem entity <target> …`, where the
+    // second word picks between two overloads rather than carrying anything the
+    // caller supplies. It has to reach the game, and it must NOT be a parameter
+    // — that would offer a choice with one valid answer.
+    const real = COMMANDS.find(c => c.name === "replaceitem")
+    check("replaceitem carries a fixed word", real.fixed, ["entity"])
+    check("which lands straight after the command name",
+        buildLine(real, ["@s", "slot.armor.head", 0, "destroy",
+                         { id: "minecraft:diamond_helmet" }], "T", []),
+        "replaceitem entity @s slot.armor.head 0 destroy minecraft:diamond_helmet")
+    check("and a row without one is untouched",
+        buildLine({ name: "kill", params: [["t", P.String, true]] }, ["@e"], "T", []),
+        "kill @e")
+
+    // The slot names are why slotType is a String. Every one carries dots, and
+    // an enum value that is not a bare identifier makes Bedrock refuse the
+    // whole registration without saying so.
+    const slotType = real.params.find(p => p[0] === "slotType")
+    check("slotType is a String, never an Enum", slotType[1], P.String)
+    check("because a real slot name would be stripped by the enum filter",
+        /^[a-z_0-9]+$/.test("slot.armor.head"), false)
 }
 
 // Optional parameters are positional, so a gap cannot legitimately happen —
@@ -167,21 +196,51 @@ const ours = readdirSync(dir)
     .flatMap(f => [...readFileSync(new URL(f, dir), "utf8")
         .matchAll(/command\(\{[^}]*?name:\s*"([a-z0-9_]+)"/gs)].map(m => m[1]))
     .concat(["admin", "tp"])              // registered in main.js
-const vanilla = COMMANDS.map(c => `z${c.name}`)
+// Built with the REAL codenameFor, not by restating the naming rule here. The
+// version of this block that this replaced did `COMMANDS.map(c => \`z${c.name}\`)`
+// — it wrote down its own expectation and then agreed with itself, so when the
+// z prefix was removed in 2.1.15 every assertion below still passed while
+// testing nothing at all. If the naming changes again, this has to notice.
+const vanilla = COMMANDS.map(c => codenameFor(c.name))
 check("our own commands were found", ours.length > 30, true)
-check("every one is z-prefixed", vanilla.filter(n => !n.startsWith("z")), [])
-check("and the bare vanilla name is what actually runs",
-    vanilla.includes("zkill") && !vanilla.includes("kill"), true)
+check("every vanilla command has a registered name", vanilla.filter(n => !n), [])
 
-// The whole point of the z: our commands must all sort ABOVE them.
-const lastOfOurs = [...ours].sort().pop()
-check("every vanilla command sorts after every one of ours",
-    vanilla.filter(n => n <= lastOfOurs), [])
+// The two properties that actually matter, now that sort order is not one.
+// A duplicate name means one registration silently loses to the other, and
+// Bedrock will not say which.
+check("no two vanilla commands register the same name",
+    vanilla.filter((n, i) => vanilla.indexOf(n) !== i), [])
 check("nothing collides with a command we already own",
     vanilla.filter(n => ours.includes(n)), [])
-// /a:tp is ours; vanilla has a tp too, and the prefix is what keeps them apart.
+
+// CODENAME may only rename commands that exist. A typo'd key would sit there
+// doing nothing, and the command would quietly keep its vanilla name.
+const realNames = new Set(COMMANDS.map(c => c.name))
+check("every CODENAME key is a real vanilla command",
+    [...CODENAME.keys()].filter(k => !realNames.has(k)), [])
+
+// THE ONE THAT MATTERS. Bedrock resolves the bare `/slay` to this pack only
+// while nothing else claims that word; if a registration is named `kill`, then
+// `/kill` reaches the GAME's and this pack's is stranded at `/a:kill`. That is
+// not just three extra keystrokes — the audience for these commands holds a
+// rank and NO operator, and vanilla's kill refuses them outright. So a name
+// the game owns makes the command unreachable by the short path for exactly
+// the people it was built for.
+check("no codename is a name the game already owns",
+    vanilla.filter(n => GAME_OWNED.has(n)), [])
+check("so every one of the 56 got renamed, not just the long ones",
+    COMMANDS.filter(c => !CODENAME.has(c.name)).map(c => c.name), [])
+
+// The renames that had to happen, as opposed to the ones that were taste.
+check("gamemode does not shadow our own /gm", codenameFor("gamemode"), "gmode")
+check("testfor reads as what it does", codenameFor("testfor"), "count")
+check("kill could not stay kill", codenameFor("kill"), "slay")
+check("nor fill stay fill", codenameFor("fill"), "region")
+check("music shortens rather than needing a synonym", codenameFor("music"), "mus")
+// /a:tp is ours; vanilla has a tp too, and the codename is what keeps them apart.
 check("our own tp survives", ours.includes("tp"), true)
-check("and vanilla's is ztp", vanilla.includes("ztp"), true)
+check("and vanilla's is port", codenameFor("tp"), "port")
+check("which is not a name we already own", ours.includes("port"), false)
 
 console.log("\n— the tag has to be unique —")
 // Two commands resolving at once must not pick up each other's entities.

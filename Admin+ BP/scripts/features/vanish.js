@@ -37,7 +37,7 @@ command({
             // The same line the game would print for a real disconnect, from
             // the same code — so vanishing reads as leaving unless someone is
             // paying very close attention.
-            if (nowHidden) announceLeave(displayName(target))
+            if (nowHidden) announceLeave(target.name, displayName(target))
             else announceJoin(target)
 
             if (target.id === player.id) {

@@ -1,7 +1,7 @@
 import { world, system, CommandPermissionLevel } from "@minecraft/server"
 import { CONFIG } from "../config.js"
 import { Table, cleanId } from "./storage.js"
-import { displayName } from "./identity.js"
+import { displayName, nameTokens } from "./identity.js"
 import { render, renderTag, nameTagsEnabled, flag } from "./settings.js"
 import { OP_COMMANDS } from "./opcommands.js"
 
@@ -182,8 +182,8 @@ export const PERMISSION_NODES = {
     "Management": ["ranks.grant", "ranks.manage", "warp.manage", "spawn.set", "presets.apply", "admin.commands"],
     "Player basics": ["warp.use", "spawn.use", "tpa.use", "report.use", "online.use"],
 
-    // ONE NODE PER VANILLA COMMAND, so a rank can be given /a:zkill and refused
-    // /a:zgamemode — which matters most where a command DUPLICATES something the
+    // ONE NODE PER VANILLA COMMAND, so a rank can be given /a:kill and refused
+    // /a:gmode — which matters most where a command DUPLICATES something the
     // pack already does better: /gm makes cmd.gamemode redundant, and the pack's
     // own /tp outranks cmd.teleport.
     //
@@ -873,6 +873,34 @@ export function canActOn(actor, targetPlayerOrId) {
     return topWeight(actor) > topWeight(targetId ?? targetPlayerOrId)
 }
 
+/**
+ * Whether `viewer` is allowed to SEE what `actor` did.
+ *
+ * The rule is equal-or-below: you watch your peers and the people under you,
+ * never the people above you. This is a different question from `canActOn`,
+ * which asks whether you may act on somebody, and conflating the two is what
+ * caused the leak this fixes — the staff notice checked only that the viewer
+ * outranked the TARGET, and never looked at the actor at all. So a moderator
+ * watched an operator open a third player's ender chest, which is exactly the
+ * thing a moderator is not supposed to know about.
+ *
+ * Note the asymmetry with `canActOn`: acting requires being STRICTLY above,
+ * because two peers should not be able to punish each other. Seeing only
+ * requires being LEVEL, because peers reviewing each other's moderation is the
+ * point of an audit trail.
+ */
+export function canSeeActionsOf(viewer, actor) {
+    if (!actor || !viewer) return true
+    if (viewer.id === actor.id) return true
+    if (isOwner(viewer)) return true
+    if (isOwner(actor)) return false
+    // An operator sits above the ladder, so they see everyone; and nobody on
+    // the ladder sees them.
+    if (isOperator(viewer)) return true
+    if (isOperator(actor)) return false
+    return topWeight(viewer) >= topWeight(actor)
+}
+
 export function canEditRank(actor, rank) {
     if (isUnrestricted(actor)) return true
     if (!rank) return true
@@ -906,7 +934,7 @@ export function refreshNameTag(player) {
         const tag = render("format.nameTag", {
             TAG: renderTag(rank),
             RANK: rank?.display ?? "",
-            NAME: displayName(player)
+            ...nameTokens(player)
         })
         // Only write when it actually changed. This runs for every player on a
         // timer, and assigning a nametag is a native call whether the string is

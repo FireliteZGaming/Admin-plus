@@ -7,7 +7,7 @@ import { invseeScreen } from "./invsee.js"
 import { displayName, getNickname, setNickname, NICK_MAX } from "../core/identity.js"
 import { renderTag, flag } from "../core/settings.js"
 import {
-    kick, ban, mute, unmute, isMuted, isFrozen, setFrozen,
+    kick, ban, mute, unmute, isMuted, hasMuteTag, isFrozen, setFrozen,
     tpaClosed, setTpaClosed, statusLine,
     banList, unban, isBanned, banRecord,
     BAN_REASONS, banSliderMax, banLengthMs, banLengthLabel, PERMANENT_NOTCH
@@ -227,11 +227,23 @@ async function playerActionsScreen(player, target, back) {
                     }
                 }
                 : null,
-            allowed && has(player, "admin.mute")
+            // Muting needs `allowed` (the rank check); UNMUTING does not, and
+            // that split is the whole point. See the long note in
+            // features/modcommands.js on /unmute: lifting a mute is
+            // restorative, and gating it by rank meant a `/mute @a` left every
+            // peer silenced with nobody able to undo it for them. Muting stays
+            // ranked so a junior still cannot silence a senior.
+            has(player, "admin.mute") && (allowed || isMuted(target) || hasMuteTag(target))
                 ? {
-                    text: isMuted(target) ? "§eUnmute" : "§eMute",
-                    run: () => isMuted(target)
-                        ? (unmute(target.id), record(player, "mod.unmute", target, "lifted"), ok(player, `Unmuted §f${displayName(target)}§a.`), info(target, "§aYou can speak again."), again())
+                    // EITHER half counts, for the label and for what the button
+                    // does. With only `isMuted` here, a player carrying a
+                    // leftover mute tag and no record was offered "Mute" — so
+                    // somebody trying to free themselves muted themselves
+                    // instead, and the button still read Mute afterwards. That
+                    // is the reported symptom, and this is it.
+                    text: (isMuted(target) || hasMuteTag(target)) ? "§eUnmute" : "§eMute",
+                    run: () => (isMuted(target) || hasMuteTag(target))
+                        ? (unmute(target), record(player, "mod.unmute", target, "lifted"), ok(player, `Unmuted §f${displayName(target)}§a.`), info(target, "§aYou can speak again."), again())
                         : durationScreen(player, target, "mute", again)
                 }
                 : null,

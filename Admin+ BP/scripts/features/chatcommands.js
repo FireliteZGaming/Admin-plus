@@ -3,7 +3,7 @@ import { command } from "../core/registry.js"
 import { CONFIG } from "../config.js"
 import { ok, err, info } from "../core/util.js"
 import { isStaff } from "../core/ranks.js"
-import { displayName } from "../core/identity.js"
+import { displayName, nameTokens } from "../core/identity.js"
 import { isMuted } from "../core/moderation.js"
 import { render, flag } from "../core/settings.js"
 import {
@@ -129,7 +129,7 @@ function sendEmote(player, action) {
     }
 
     const line = render("format.emote", {
-        NAME: displayName(player),
+        ...nameTokens(player),
         MSG: text,
         CHANNEL: channel.display ?? ""
     })

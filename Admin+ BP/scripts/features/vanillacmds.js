@@ -3,18 +3,19 @@ import { command, defineEnum } from "../core/registry.js"
 import { ok, err } from "../core/util.js"
 import { record } from "../core/logs.js"
 import { runAsServer, checkCommand } from "../core/execute.js"
-import { COMMANDS, ENUMS, SELECTOR_TYPES } from "../core/vanillaparams.js"
+import { COMMANDS, ENUMS, SELECTOR_TYPES, codenameFor } from "../core/vanillaparams.js"
 
-// /a:z<command> — the vanilla command set, typed, without operator.
+// The vanilla command set, typed, without operator.
 //
 // One registration per command, because a registration has one fixed parameter
 // list and a single /cmd could therefore never be `EntitySelector` for kill and
 // `Location BlockType` for setblock at the same time. See core/vanillaparams.js
 // for the table and the reasoning.
 //
-// The gain is that the GAME does the parsing: `/a:zkill @e[` opens the engine's
-// own selector completion with every filter it supports, item and block names
-// complete, and a bad argument is refused before any of this code runs.
+// The gain is that the GAME does the parsing: item and block names complete,
+// enums offer their vocabulary, and a bad argument is refused before any of
+// this code runs. Selector arguments are the exception and it is a deliberate
+// one — see render() below.
 //
 // Everything still goes through runAsServer, so all three of the properties
 // that made /cmd worth building survive: it runs at operator level for somebody
@@ -23,18 +24,16 @@ import { COMMANDS, ENUMS, SELECTOR_TYPES } from "../core/vanillaparams.js"
 // down.
 
 const P = CustomCommandParamType
-/**
- * The prefix every vanilla passthrough carries: `/a:zkill`, `/a:zgive`.
- *
- * It is a "z" because the in-game command list is sorted ALPHABETICALLY and
- * there is nowhere else to put these. A pack gets one namespace, so all 56 sit
- * in the same list as the pack's own 49; "z" is the only prefix that puts every
- * one of them below every one of ours, whose names run from admin to warps.
- *
- * It also sidesteps a collision for free: this pack already owns /a:tp, and
- * vanilla has a tp of its own. /a:ztp is nobody else's.
- */
-const PREFIX = "z"
+
+// The `z` prefix is GONE as of 2.1.15 — `/a:zkill` is now `/a:kill`. See
+// CODENAME in core/vanillaparams.js for every name and the reasoning.
+//
+// The prefix bought exactly one thing: the in-game command list is sorted
+// alphabetically, and "z" pushed all 56 of these below the pack's own, whose
+// names run from admin to warps. That is a real convenience and it is now
+// gone; the 56 interleave. It was not worth a leading letter of noise on
+// every name, and the only genuine COLLISION with the pack's own commands was
+// `tp`, which CODENAME handles by itself.
 
 /**
  * Registered enum names, keyed by the short name used in the table.
@@ -46,8 +45,11 @@ const PREFIX = "z"
  */
 const enumName = {}
 for (const [key, values] of Object.entries(ENUMS)) {
-    // z_ prefixed for the same reason the commands are, and because the pack
-    // already defines an enum called "gamemode" for /gm.
+    // z_ prefixed because the pack already defines an enum called "gamemode"
+    // for /gm and the two would collide. The COMMANDS dropped their z in
+    // 2.1.15; these keep theirs, because an enum name is internal — nobody
+    // ever types it — so renaming would be a registration change with nothing
+    // to show for it.
     enumName[key] = defineEnum(`z_${key}`, values)
 }
 
@@ -114,7 +116,14 @@ function render(value, type, tag, cleanup) {
  * malformed command rather than a wrong one, which is the better failure.
  */
 export function buildLine(spec, args, tag, cleanup = []) {
-    const parts = [spec.name]
+    // `fixed` is literal words the command needs but nobody should have to
+    // type, emitted straight after the name. /replaceitem is the reason: its
+    // grammar is `replaceitem entity <target> …` and `replaceitem block
+    // <pos> …`, where the second word chooses between two different overloads
+    // rather than carrying any information the caller supplies. Registering it
+    // as a parameter would mean offering a choice with exactly one valid
+    // answer.
+    const parts = [spec.name, ...(spec.fixed ?? [])]
     const params = spec.params ?? []
     for (let i = 0; i < params.length; i++) {
         const piece = render(args[i], params[i][1], tag, cleanup)
@@ -150,10 +159,16 @@ for (const spec of COMMANDS) {
         ;(isOptional ? optional : mandatory).push(entry)
     }
 
+    const registered = codenameFor(spec.name)
     command({
-        name: `${PREFIX}${spec.name}`,
+        name: registered,
         group: "vanilla",
-        description: `${spec.help} — operator-level, logged`,
+        // Name the vanilla command when the registration is called something
+        // else, so `/a:count` says out loud that it is `testfor` and nobody
+        // has to come and read this file to find that out.
+        description: registered === spec.name
+            ? `${spec.help} — operator-level, logged`
+            : `${spec.help} (vanilla /${spec.name}) — operator-level, logged`,
         mandatory,
         optional,
         run: (player, args) => {

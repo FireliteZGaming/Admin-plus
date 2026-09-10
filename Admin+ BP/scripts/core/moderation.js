@@ -333,6 +333,27 @@ export async function kick(target, reason) {
 
 // --------------------------------------------------------------------- mutes
 
+/**
+ * A tag mirroring the mute, so the state is VISIBLE from inside the game.
+ *
+ * The record in storage is what actually blocks chat — it carries the reason
+ * and the expiry, and a tag carries neither. The tag exists because storage is
+ * invisible: when somebody says "I am still muted" and the panel says they are
+ * not, there was previously no way to tell who was wrong without reading a
+ * dynamic property nobody can read in game. `/tag <player> list` now answers it.
+ *
+ * The two are kept in step by `syncMuteTag`, and `unmute` clears BOTH whichever
+ * one is present — so a mute that somehow got stuck in either half can always
+ * be lifted by the ordinary command, rather than needing someone to go find the
+ * one person who cast it.
+ */
+export const MUTE_TAG = "ap:muted"
+
+function playerFor(playerOrId) {
+    if (playerOrId && typeof playerOrId !== "string") return playerOrId
+    try { return world.getAllPlayers().find(p => p.id === playerOrId) } catch { return undefined }
+}
+
 export function muteRecord(playerOrId) {
     const record = mutes.get(idOf(playerOrId))
     if (!active(record)) return undefined
@@ -340,6 +361,27 @@ export function muteRecord(playerOrId) {
 }
 
 export function isMuted(playerOrId) { return !!muteRecord(playerOrId) }
+
+/** Whether the mirror tag is on them, regardless of what storage thinks. */
+export function hasMuteTag(player) {
+    try { return !!player?.getTags?.().includes(MUTE_TAG) } catch { return false }
+}
+
+/**
+ * Put the tag back in step with the record, and say whether it had drifted.
+ *
+ * Called from the chat gate, which is exactly where a stuck mute shows up. A
+ * tag left behind by an EXPIRED mute is the common case: a record carries an
+ * expiry and a tag cannot, so a timed mute running out leaves the tag on.
+ */
+export function syncMuteTag(player) {
+    if (!player?.addTag) return false
+    const should = isMuted(player)
+    const has = hasMuteTag(player)
+    if (should === has) return false
+    try { should ? player.addTag(MUTE_TAG) : player.removeTag(MUTE_TAG) } catch { return false }
+    return true
+}
 
 export function mute(target, durationMs, reason, by) {
     mutes.set(target.id, {
@@ -349,9 +391,27 @@ export function mute(target, durationMs, reason, by) {
         at: Date.now(),
         until: durationMs > 0 ? Date.now() + durationMs : 0
     })
+    try { target.addTag?.(MUTE_TAG) } catch { /* offline, or already there */ }
 }
 
-export function unmute(playerId) { mutes.delete(playerId) }
+/**
+ * Lift a mute. Clears the record AND the tag, and reports whether there was
+ * anything to clear — so `/unmute` can tell the difference between "done" and
+ * "they were not muted" without asking twice.
+ *
+ * Takes a player or a bare id. Given an id it looks the player up, because the
+ * tag cannot be removed without them, and every caller used to pass `target.id`.
+ *
+ * @returns {boolean} true if a record or a tag was actually removed
+ */
+export function unmute(playerOrId) {
+    const id = idOf(playerOrId)
+    const player = playerFor(playerOrId)
+    const had = !!mutes.get(id) || hasMuteTag(player)
+    mutes.delete(id)
+    try { player?.removeTag?.(MUTE_TAG) } catch { /* left */ }
+    return had
+}
 
 // --------------------------------------------------------------------- flags
 

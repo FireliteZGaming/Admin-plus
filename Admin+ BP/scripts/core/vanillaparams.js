@@ -59,6 +59,15 @@ export const ENUMS = {
                  "tooltips", "touch_controls", "status_effects", "vehicle_health"],
     inputperm:  ["camera", "movement"],
     permstate:  ["enabled", "disabled"],
+    aimassistop: ["set", "clear"],
+    // ReplaceMode. Only two values, and both are bare words — unlike the slot
+    // NAMES this command also takes, which carry dots and therefore cannot be
+    // an enum at all. See the replaceitem row.
+    replacemode: ["destroy", "keep"],
+    // Which target aim assist prefers: the CLOSEST one, or the one nearest to
+    // where the crosshair already points. Microsoft's docs call this
+    // AimAssistTargetMode.
+    aimmode:    ["distance", "angle"],
     locateop:   ["biome", "structure"],
     xpunit:     ["levels", "points"],
     damagecause: ["anvil", "block_explosion", "campfire", "charging", "contact", "drowning",
@@ -199,18 +208,70 @@ export const COMMANDS = [
                ["rest2", P.String, true], ["rest3", P.String, true],
                ["rest4", P.String, true], ["rest5", P.String, true]] },
 
-    { name: "aimassist", help: "Aim assist settings",
-      params: [["rest", P.String], ["rest2", P.String, true], ["rest3", P.String, true],
-               ["rest4", P.String, true], ["rest5", P.String, true]] },
+    // Typed from Microsoft's own reference, not from guessing at the five loose
+    // strings this used to be:
+    //
+    //   /aimassist <players: target> set [x angle] [y angle] [max distance]
+    //                                    [target mode] [preset id]
+    //   /aimassist <players: target> clear
+    //
+    // The selector comes FIRST and is MANDATORY, which nothing else in this
+    // table does — everywhere else the target is either later or optional. Get
+    // that order wrong and every argument lands one place off.
+    //
+    // Aim assist is the help Bedrock gives controller and touch players, easing
+    // the crosshair toward a target. The angles are the cone it reaches
+    // through, max distance how far it looks, and target mode decides whether
+    // it prefers the NEAREST target or the one already closest to the
+    // crosshair. A preset id names an aim-assist preset defined in a pack.
+    { name: "aimassist", help: "Tune or clear a player's aim assist",
+      params: [["players", P.PlayerSelector], ["action", P.Enum, false, "aimassistop"],
+               ["xAngle", P.Float, true], ["yAngle", P.Float, true],
+               ["maxDistance", P.Float, true], ["targetMode", P.Enum, true, "aimmode"],
+               ["presetId", P.String, true]] },
 
     // ---------------------------------------------------------- movement
-    { name: "tp", help: "Teleport",
-      params: [["targets", P.EntitySelector], ["destination", P.Location, true],
-               ["facing", P.Location, true]] },
+    //
+    // Retyped from Microsoft's reference. The row this replaced was WRONG in
+    // three ways, and had been since it was written from memory:
+    //
+    //   * `facing` was declared a bare Location. In the real grammar `facing`
+    //     is a LITERAL KEYWORD followed by a position or an entity, so the old
+    //     row emitted `tp @s ~ ~10 ~ 10 20 30` — not a valid command. It could
+    //     not have worked, and nothing caught it because nothing typed it.
+    //   * yRot / xRot, the rotation form, were missing entirely.
+    //   * checkForBlocks was missing entirely.
+    //
+    // /teleport has TEN overloads and a registration has one parameter list, so
+    // they cannot all be offered. Bedrock ships `tp` and `teleport` as the same
+    // command under two names, and this table carries both — so rather than
+    // registering the same shape twice, each takes a different real overload:
+    //
+    //   /port  <victim> <x y z>    [yRot] [xRot] [checkForBlocks]
+    //   /move  <victim> <target>   [checkForBlocks]
+    //
+    // Coordinates on one, an entity destination on the other. The pack's OWN
+    // /a:tp already does player-to-player with rank protection, so /move is the
+    // unprotected any-entity version of that, and /port is the one thing
+    // neither of the others can do.
+    //
+    // `facing` is deliberately not offered by either. It needs a literal word
+    // in the MIDDLE of the line, which buildLine's `fixed` cannot express (that
+    // only emits after the command name), and it occupies the same argument
+    // positions as yRot/xRot. Offering it broken is worse than not offering it.
+    { name: "tp", help: "Teleport to coordinates — /port <target> <x y z> [yRot] [xRot]",
+      params: [["victim", P.EntitySelector], ["destination", P.Location],
+               ["yRot", P.Float, true], ["xRot", P.Float, true],
+               ["checkForBlocks", P.Boolean, true]] },
 
-    { name: "teleport", help: "Teleport",
-      params: [["targets", P.EntitySelector], ["destination", P.Location, true],
-               ["facing", P.Location, true]] },
+    // The other half of the pair above: an ENTITY destination rather than
+    // coordinates. `/teleport <victim: target> <destination: target>
+    // [checkForBlocks]` is a real overload, and it is the one /port cannot
+    // reach, because a registration cannot type its second parameter as both a
+    // position and a selector.
+    { name: "teleport", help: "Teleport one entity to another — /move <target> <destination>",
+      params: [["victim", P.EntitySelector], ["destination", P.EntitySelector],
+               ["checkForBlocks", P.Boolean, true]] },
 
     { name: "spreadplayers", help: "Scatter players around a point",
       params: [["centre", P.Location], ["spread", P.Float], ["maxRange", P.Float],
@@ -257,10 +318,33 @@ export const COMMANDS = [
       params: [["action", P.String], ["rest", P.String, true], ["rest2", P.String, true],
                ["rest3", P.String, true], ["rest4", P.String, true]] },
 
-    { name: "replaceitem", help: "Replace an item in a slot",
-      params: [["rest", P.String], ["rest2", P.String, true], ["rest3", P.String, true],
-               ["rest4", P.String, true], ["rest5", P.String, true],
-               ["rest6", P.String, true]] },
+    // Typed from Microsoft's reference. /replaceitem has FOUR overloads:
+    //
+    //   replaceitem block  <x y z>  slot.container <slotId> [mode] <item> [amount] [data]
+    //   replaceitem entity <target> <slotType>     <slotId> [mode] <item> [amount] [data]
+    //
+    // A Bedrock registration has ONE parameter list, and position two is a
+    // POSITION in the block form and a TARGET in the entity form, so the two
+    // cannot share one. This row is the ENTITY form — the common case, and the
+    // one the name /slot implies. The block form (putting an item into a chest
+    // at coordinates) would need its own command; it is not registered.
+    //
+    // `mode` is mandatory here even though vanilla lets you leave it out. It
+    // sits BEFORE the item, so making it optional would put a mandatory
+    // parameter after an optional one, which Bedrock fills positionally and
+    // this pack's own test forbids. One extra word buys an explicit answer to
+    // "what happens to what was already in the slot".
+    //
+    // slotType is a STRING, not an Enum, and it is not an oversight: every
+    // value carries dots (slot.armor.head, slot.weapon.mainhand) and Bedrock
+    // refuses an enum whose values are not bare identifiers — silently. The
+    // filter above this table would strip all fourteen of them.
+    { name: "replaceitem", help: "Put an item in an entity's slot — slotType is slot.armor.head, slot.weapon.mainhand, slot.inventory, slot.hotbar, slot.enderchest…",
+      fixed: ["entity"],
+      params: [["target", P.EntitySelector], ["slotType", P.String],
+               ["slotId", P.Integer], ["mode", P.Enum, false, "replacemode"],
+               ["item", P.ItemType], ["amount", P.Integer, true],
+               ["data", P.Integer, true]] },
 
     // ---------------------------------------------------------- world state
     { name: "time", help: "Set or query the time",
@@ -284,11 +368,11 @@ export const COMMANDS = [
       params: [["event", P.String], ["enabled", P.Boolean, true]] },
 
     // ---------------------------------------------------------- presentation
-    { name: "say", help: "Say something as the server",
-      params: [["message", P.String], ["more", P.String, true], ["more2", P.String, true],
-               ["more3", P.String, true], ["more4", P.String, true],
-               ["more5", P.String, true], ["more6", P.String, true]] },
-
+    //
+    // `say` is deliberately NOT here. /broadcast is the same act done better:
+    // it picks an audience (all or a chat channel), it writes an audit record,
+    // and it reports how many people it reached. A passthrough beside it would
+    // have been a second way to do one thing, with the worse one unlogged.
     { name: "tellraw", help: "Send raw JSON text",
       params: [["players", P.PlayerSelector], ["json", P.String]] },
 
@@ -327,4 +411,198 @@ export const COMMANDS = [
                ["rest4", P.String, true], ["rest5", P.String, true],
                ["rest6", P.String, true], ["rest7", P.String, true]] }
 ].filter(spec => !spec.skip)
+
+/**
+ * What each vanilla command is actually CALLED in this pack.
+ *
+ * These replaced the `z` prefix in 2.1.15. The prefix was a sorting hack — it
+ * pushed all 56 below the pack's own commands in the alphabetical in-game list
+ * — and it cost every single one of them a leading letter that meant nothing.
+ * `/a:zfill` reads as a typo. Sorting is a weaker reason to disfigure 56 names
+ * than legibility is to keep them clean, and the standing decision in
+ * CLAUDE.md was already "bare command names" — the prefix was the thing out of
+ * step, not this.
+ *
+ * The rule, from the user: readable at a glance, and shortened only where
+ * shortening leaves something a person can still read. `/gm` works as an
+ * abbreviation because everybody already types it in Minecraft; `/fl` would
+ * not, because nobody does. So:
+ *
+ *   * a long name gets the shortening people already use out loud — camera to
+ *     cam, difficulty to diff, damage to dmg, music to mus.
+ *   * a name that cannot be shortened without turning into initials gets a
+ *     real WORD instead, taken from what the command does. `testfor` counts
+ *     entities, so it is `count`. `camerashake` shakes the camera, so it is
+ *     `shake`. `replaceitem` writes an item into a slot, so it is `slot`.
+ *
+ * **EVERY ONE of the 56 is renamed, and that is the important part.** The first
+ * pass left 27 of them on their vanilla name — kill, give, fill, tag, time —
+ * on the reasoning that those were already short enough to leave alone. That
+ * was wrong, and the pack's own verifier had the answer written down:
+ *
+ *     a custom command registers namespaced, and the bare form only reaches
+ *     the player if nothing else claims it
+ *
+ * So `/kill` never reaches `/a:kill` — it reaches the GAME's kill, and the
+ * pack's version is only available at the full `/a:kill`, colon and all. That
+ * is slower to type, and worse than slow: the people this whole command set
+ * exists for hold a rank and NO operator, and vanilla's kill refuses them. A
+ * colliding name is not merely inconvenient for them, it is unreachable by the
+ * short path.
+ *
+ * A name vanilla does not own is therefore not a nicety. It is the difference
+ * between `/slay @e[type=cow]` and `/a:kill @e[type=cow]` for somebody who
+ * cannot use `/kill` at all. Every name below is checked against the game's own
+ * command list by `tests/vanillacmds.test.js`, and adding one that collides
+ * fails the suite.
+ *
+ * NOT keyed to permissions. `commandNode()` builds `cmd.<vanilla name>` from
+ * the command text at run time, so a rank that holds `cmd.fill` is unaffected
+ * by what the registration is called. Renaming here is purely cosmetic, which
+ * is why it was safe to do in one pass.
+ */
+export const CODENAME = new Map([
+    // Shortenings people already say out loud.
+    ["damage", "dmg"],
+    ["effect", "eff"],
+    ["enchant", "ench"],
+    ["camera", "cam"],
+    ["aimassist", "aim"],
+    ["difficulty", "diff"],
+    ["structure", "struct"],
+    ["playanimation", "anim"],
+    ["spreadplayers", "spread"],
+    ["inputpermission", "input"],
+    ["controlscheme", "controls"],
+    ["tickingarea", "ticking"],
+    ["dialogue", "dialog"],
+    ["music", "mus"],
+    ["xp", "exp"],
+    ["hud", "overlay"],
+    // Bedrock ships `tp` and `teleport` as the same command under two names,
+    // and this table carries both, so both need one. Splitting them into a
+    // `/bring` and a `/goto` was considered and dropped: those read beautifully
+    // for a player target and cannot express `~ ~10 ~` at all, which is most of
+    // what teleport is actually for. So they keep vanilla's own shape — one
+    // short, one long — and `move` is the long one because it reads as a
+    // sentence with any destination: `/move @p ~ ~10 ~`, `/move @s @e[c=1]`.
+    ["teleport", "move"],
+    ["particle", "fx"],
+
+    // Real words, because the vanilla name is already as short as it goes and
+    // taking it would mean the bare form reaches the GAME's command instead of
+    // this one. These are the 27 that the first pass wrongly left alone.
+    ["kill", "slay"],
+    ["give", "gift"],
+    ["clear", "wipe"],
+    ["fill", "region"],
+    ["clone", "copy"],
+    ["locate", "find"],
+    ["loot", "drops"],
+    ["time", "clock"],
+    ["weather", "sky"],
+    ["tag", "label"],
+    ["ride", "mount"],
+    ["event", "trigger"],
+    ["summon", "sum"],
+    ["recipe", "unlock"],       // recipe give/take is unlocking and relocking
+    ["place", "feature"],       // it places features, jigsaws and structures
+    ["fog", "mist"],
+    ["daylock", "lockday"],     // same two words, the other way round
+    ["mobevent", "mobs"],
+    ["tellraw", "rawtell"],
+    ["title", "showtitle"],
+    ["titleraw", "rawtitle"],
+
+    // Real words, because the vanilla name is either a mouthful or a lie
+    // about what the command does.
+    ["testfor", "count"],           // it counts entities; the help says so
+    ["camerashake", "shake"],
+    ["setblock", "block"],
+    ["replaceitem", "slot"],        // writes an item INTO a slot
+    ["toggledownfall", "rain"],
+    ["gamerule", "rule"],
+    ["playsound", "sound"],
+    ["stopsound", "soundoff"],      // pairs with sound, reads as its opposite
+    ["scoreboard", "score"],
+    ["testforblock", "checkblock"],
+    ["testforblocks", "checkarea"],
+    ["spawnpoint", "setspawn"],
+    ["clearspawnpoint", "unspawn"], // pairs with setspawn
+    ["setworldspawn", "worldspawn"],
+
+    // Two names that could not just be taken.
+    //
+    // `gamemode` would sit next to this pack's own `/a:gm`, which does the
+    // same job through the script API and is the one to reach for. `gmode`
+    // keeps the vanilla passthrough available without the two reading as the
+    // same command with a typo between them.
+    ["gamemode", "gmode"],
+    // The pack already owns `/a:tp` (admin teleport, player to player), so
+    // vanilla's cannot have it. Bedrock ships `tp` and `teleport` as aliases
+    // of one another and this table carries both; they keep that shape here —
+    // one short, one long — as `port` and `tele`.
+    ["tp", "port"]
+])
+
+/**
+ * Command names the GAME owns, so a registration must never use one.
+ *
+ * A custom command is registered namespaced (`a:slay`), and Bedrock also
+ * resolves the BARE form (`/slay`) — but only when nothing else claims it.
+ * Anything on this list is claimed, so naming a passthrough `kill` would make
+ * `/kill` reach vanilla's, leaving this pack's only at `/a:kill`.
+ *
+ * It is the 56 this file already describes plus the ones the pack refuses to
+ * run at all (see NEVER in core/execute.js) plus the handful of vanilla
+ * commands with no passthrough. Kept here rather than in the test so the
+ * source of truth sits next to the names it constrains.
+ */
+export const GAME_OWNED = new Set([
+    ...COMMANDS.map(c => c.name),
+    // Refused outright by core/execute.js, but the GAME still owns the name.
+    "op", "deop", "execute", "function", "scriptevent", "schedule", "kick",
+    "allowlist", "whitelist", "permission", "changesetting", "reload",
+    "reloadconfig", "save", "stop", "transfer", "setmaxplayers", "wsserver",
+    "sendshowstoreoffer", "script", "gametest", "project",
+    // Real vanilla commands this pack has no passthrough for.
+    "tell", "w", "list", "me", "msg", "experience", "gametip", "help",
+    "immutableworld", "ops", "querytarget", "setmaxplayers", "tickingareas",
+    "worldbuilder", "wb", "alwaysday", "clearspawnpoint", "connect"
+])
+
+/** What a vanilla command is registered as. Falls through to its own name. */
+export function codenameFor(name) {
+    return CODENAME.get(name) ?? name
+}
+
+/**
+ * Which rows have been checked against Microsoft's command reference, and when.
+ *
+ * **A row not in here was written from memory and has never been verified.**
+ * That is not a theoretical worry. `/tp` sat in this table for its whole life
+ * declaring `facing` as a bare Location, when `facing` is a literal KEYWORD in
+ * the real grammar — so it emitted `tp @s ~ ~10 ~ 10 20 30`, which is not a
+ * command. Nothing caught it, because every test here checked the SHAPE of a
+ * row (eight parameters or fewer, mandatory before optional, enums that exist)
+ * and nothing checked whether the shape was the RIGHT one.
+ *
+ * `/aimassist` and `/replaceitem` were worse: five and six loose `rest` strings
+ * standing in for grammars nobody had read.
+ *
+ * The source is `learn.microsoft.com/en-us/minecraft/creator/commands/commands/
+ * <name>`, plus `.../enums/<name>` for a vocabulary. Not memory, and not
+ * another addon — see [[bedrock-version-sourcing]].
+ *
+ * Kept beside the table rather than as a field on each row so that the honest
+ * count is one thing you can look at, and so an unverified row cannot quietly
+ * look verified. `python tools/commands.py` renders the whole set with this
+ * column filled in.
+ */
+export const CHECKED = new Map([
+    ["aimassist", "2026-09-10"],   // was 5 loose strings; selector is FIRST and mandatory
+    ["replaceitem", "2026-09-10"], // was 6 loose strings; entity form only, block form unregistered
+    ["tp", "2026-09-10"],          // was emitting invalid text; now coordinates + rotation
+    ["teleport", "2026-09-10"]     // now the entity-destination overload
+])
 

@@ -1,7 +1,7 @@
 import { world, system } from "@minecraft/server"
-import { has, canActOn } from "./ranks.js"
+import { has, canActOn, canSeeActionsOf } from "./ranks.js"
 import { render, flag } from "./settings.js"
-import { displayName } from "./identity.js"
+import { displayName, nameTokens } from "./identity.js"
 
 // "[Admin: Kicked Member]" — said in chat, to the people entitled to know.
 //
@@ -11,11 +11,27 @@ import { displayName } from "./identity.js"
 // day it starts logging. The panel's Kick button and /kick produce the same
 // sentence, because they are the same act.
 //
-// WHO SEES IT is the whole design. It goes to staff who outrank the TARGET —
-// so the person it happened to never reads it, and neither does anyone below
-// them. "Higher ranks" is measured against the affected player, not against the
-// staff member who acted, because the question being answered is "who is
-// entitled to know what was done to this person".
+// WHO SEES IT is the whole design, and it is TWO rank lines, not one.
+//
+//   above the TARGET     who is entitled to know what was done to this person.
+//                        So the person it happened to never reads it, and
+//                        neither does anyone below them.
+//   not below the ACTOR  you do not get to watch your seniors work.
+//
+// Only the first line existed at first, and the missing second one leaked:
+// a moderator sat reading an operator opening a third player's ender chest,
+// because the moderator did outrank that third player and nothing anywhere
+// looked at who was doing it. Reported from a live world.
+//
+// The two lines are deliberately different strengths. ACTING on somebody needs
+// rank strictly above them, so two peers cannot punish each other. SEEING an
+// action only needs to be level, because peers reviewing each other's
+// moderation is the entire point of having an audit trail.
+//
+// The honest consequence, and it is a real one: the top of the ladder answers
+// to nobody. An owner acting on a moderator is announced to no one at all,
+// because every remaining candidate is below them. The action is still written
+// to the LOG — this rule governs the chat line, not the record.
 
 /**
  * Actions whose audience is narrower than "any staff above the target".
@@ -149,6 +165,11 @@ export function audienceFor(actor, target, action) {
         if (viewer.id === target.id) continue       // never the person it happened to
         if (node ? !has(viewer, node) : !has(viewer, "admin.panel")) continue
         if (!canActOn(viewer, target)) continue     // must outrank the target
+        // ...and must not be outranked by the ACTOR. This half was missing, so
+        // a moderator saw an operator open a third player's ender chest: the
+        // only rank check was against the target, and a moderator does outrank
+        // an ordinary player. You watch your peers and the people under you.
+        if (!canSeeActionsOf(viewer, actor)) continue
         out.push(viewer)
     }
     return out
@@ -165,7 +186,7 @@ export function lineFor(actor, target, action, detail) {
     const name = displayName(target)
     const self = !!(actor && target && actor.id && actor.id === target.id)
     return render("format.command", {
-        NAME: displayName(actor),
+        ...nameTokens(actor),
         ACTION: phraseFor(action, name, detail, self),
         COMMAND: verbOf(action),
         TARGET: name,

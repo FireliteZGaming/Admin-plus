@@ -53,3 +53,34 @@ export function displayName(player) {
 /** True when they are wearing a nickname rather than their account name. */
 export function hasNickname(playerOrId) { return getNickname(playerOrId) !== undefined }
 
+/**
+ * The two name tokens a format string can use, always BOTH, so a template gets
+ * to choose rather than the code choosing for it.
+ *
+ *   {NAME}      the real gamertag, always. The thing you ban, look up in the
+ *               audit log, or hand to another admin.
+ *   {NICKNAME}  what they are calling themselves — the nickname if they have
+ *               one, and the gamertag if they do not.
+ *
+ * `{NICKNAME}` falls back rather than rendering empty on purpose: these strings
+ * are edited by hand in Settings, and a token that silently disappears leaves a
+ * chat line reading "  joined the game" with nobody in it. Falling back means a
+ * template can use `{NICKNAME}` alone and always say something.
+ *
+ * Every site that fills a name token goes through here. There are nine of them
+ * — chat, the nametag, join, leave, /me, both directions of PM, broadcast and
+ * the staff action notice — and the reason they share one function is that
+ * `{NAME}` used to mean the DISPLAY name in some and never got a second
+ * meaning anywhere. One helper is what stops that drifting apart again.
+ *
+ * @param playerOrName a Player, or a bare name when the player object is gone
+ * @param nickname     only with a bare name, when the nickname is known separately
+ */
+export function nameTokens(playerOrName, nickname) {
+    if (typeof playerOrName === "string") {
+        return { NAME: playerOrName, NICKNAME: nickname || playerOrName }
+    }
+    const real = playerOrName?.name ?? ""
+    return { NAME: real, NICKNAME: displayName(playerOrName) || real }
+}
+

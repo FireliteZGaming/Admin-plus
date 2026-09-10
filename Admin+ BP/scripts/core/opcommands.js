@@ -26,7 +26,7 @@ export const OP_COMMANDS = Object.freeze([
     "controlscheme", "damage", "daylock", "dialogue", "difficulty", "effect",
     "enchant", "event", "fill", "fog", "gamemode", "gamerule", "give", "hud",
     "inputpermission", "kill", "locate", "loot", "mobevent", "music", "particle",
-    "place", "playanimation", "playsound", "recipe", "replaceitem", "ride", "say",
+    "place", "playanimation", "playsound", "recipe", "replaceitem", "ride",
     "scoreboard", "setblock", "setworldspawn", "spawnpoint", "spreadplayers",
     "stopsound", "structure", "summon", "tag", "teleport", "tellraw", "testfor",
     "testforblock", "testforblocks", "tickingarea", "time", "title", "titleraw",

@@ -112,7 +112,7 @@ function startStaffMode(player) {
             markVanished(player, true)
             // The same line a real disconnect prints, from the same helper,
             // which is what makes vanishing read as leaving.
-            announceLeave(displayName(player))
+            announceLeave(player.name, displayName(player))
         }
     }
 

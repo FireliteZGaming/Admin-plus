@@ -55,13 +55,33 @@ announceJoin(nova)
 check("the display name is used", sent.at(-1), "§e§dStarlight joined the game")
 setNickname(nova, "")
 
-console.log("\n— the format is editable —")
+console.log("\n— {NAME} is the gamertag, {NICKNAME} is what they call themselves —")
+// The shipped line uses {NICKNAME}, so a nicknamed player still joins under the
+// name everyone watched them wear. But {NAME} now reaches the real account name,
+// which it could not do at all before — every site filled it with displayName().
+// That is the name you ban under and the one the audit log stores, so a server
+// that wants it in the join line can finally ask for it.
+setNickname(nova, "§dStarlight")
 setSetting("format.join", "§a+ {NAME}")
 sent.length = 0
 announceJoin(nova)
-check("custom join format", sent.at(-1), "§a+ Nova")
+check("a {NAME} format shows the gamertag even when nicknamed", sent.at(-1), "§a+ Nova")
+setSetting("format.join", "§a+ {NICKNAME}")
+sent.length = 0
+announceJoin(nova)
+check("and {NICKNAME} shows the nickname", sent.at(-1), "§a+ §dStarlight")
+setSetting("format.join", "§a+ {NAME} ({NICKNAME})")
+sent.length = 0
+announceJoin(nova)
+check("both at once, which is the point of splitting them",
+    sent.at(-1), "§a+ Nova (§dStarlight)")
+setNickname(nova, "")
+sent.length = 0
+announceJoin(nova)
+check("no nickname means {NICKNAME} falls back rather than going blank",
+    sent.at(-1), "§a+ Nova (Nova)")
 resetSetting("format.join")
-check("default restored", setting("format.join"), "§e{NAME} joined the game")
+check("default restored", setting("format.join"), "§e{NICKNAME} joined the game")
 
 console.log("\n— announcements can be switched off entirely —")
 setSetting("presence.announce", "false")

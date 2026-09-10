@@ -33,19 +33,19 @@ export const DEFAULTS = {
     "format.nameTag": {
         // Tag BESIDE the name, on one line — the way Essentials shows it.
         // Put \\n back in (via < Code >) to stack it above instead.
-        value: "{TAG} §f{NAME}",
+        value: "{TAG} §f{NICKNAME}",
         label: "Nametag (above head)",
-        help: "Tokens: {TAG} {RANK} {NAME}  ·  \\n stacks the tag above the name"
+        help: "Tokens: {TAG} {RANK} {NAME} {NICKNAME} · {NAME} is the gamertag, {NICKNAME} is what they call themselves · \\n stacks the tag above the name"
     },
     "format.chat": {
-        value: "{TAG} §7{NAME} §8» §r{MSG}",
+        value: "{TAG} §7{NICKNAME} §8» §r{MSG}",
         label: "Chat line",
-        help: "Tokens: {TAG} {RANK} {NAME} {MSG}  ·  needs beta APIs to take effect"
+        help: "Tokens: {TAG} {RANK} {NAME} {NICKNAME} {MSG}  · {NAME} is the gamertag, {NICKNAME} is their nickname or gamertag · needs beta APIs to take effect"
     },
     "format.chatChannel": {
-        value: "{CHANNEL} §8|§r {TAG} {NAME}§7: §r{MSG}",
+        value: "{CHANNEL} §8|§r {TAG} {NICKNAME}§7: §r{MSG}",
         label: "Chat line (multi-channel readers)",
-        help: "Tokens: {CHANNEL} {TAG} {RANK} {NAME} {MSG} · used only for readers who see more than one channel"
+        help: "Tokens: {CHANNEL} {TAG} {RANK} {NAME} {NICKNAME} {MSG} · used only for readers who see more than one channel"
     },
     "presence.announce": {
         value: "true",
@@ -53,14 +53,14 @@ export const DEFAULTS = {
         help: "true / false · Admin+ prints them; the vanilla ones are silenced by the resource pack"
     },
     "format.join": {
-        value: "§e{NAME} joined the game",
+        value: "§e{NICKNAME} joined the game",
         label: "Join line",
-        help: "Token: {NAME} · matches vanilla's wording and colour on purpose"
+        help: "Tokens: {NAME} {NICKNAME} · matches vanilla's wording and colour on purpose"
     },
     "format.leave": {
-        value: "§e{NAME} left the game",
+        value: "§e{NICKNAME} left the game",
         label: "Leave line",
-        help: "Token: {NAME} · /vanish prints this, which is what makes it convincing"
+        help: "Tokens: {NAME} {NICKNAME} · /vanish prints this, which is what makes it convincing"
     },
     "vanish.hideFromLists": {
         value: "true",
@@ -221,9 +221,9 @@ export const DEFAULTS = {
         help: "Leave empty to show nothing."
     },
     "format.command": {
-        value: "§o§7[{NAME}: {ACTION}]",
+        value: "§o§7[{NICKNAME}: {ACTION}]",
         label: "Staff action line",
-        help: "Tokens: {NAME} {ACTION} {TARGET} {DETAIL} · shown in chat to staff above the target. {ACTION} is the whole sentence, e.g. Banned Steve."
+        help: "Tokens: {NAME} {NICKNAME} {ACTION} {TARGET} {DETAIL} · shown in chat to staff above the target. {ACTION} is the whole sentence, e.g. Banned Steve."
     },
     "audit.announce": {
         value: "true",
@@ -241,9 +241,9 @@ export const DEFAULTS = {
         help: "true / false · the grid draws items from texture paths, which do not change between game versions. false gives a plain list that needs no resource pack at all."
     },
     "format.emote": {
-        value: "§d* {NAME} §r§d§o{MSG}",
+        value: "§d* {NICKNAME} §r§d§o{MSG}",
         label: "Emote line",
-        help: "Tokens: {NAME} {MSG} {CHANNEL} · what /emote prints"
+        help: "Tokens: {NAME} {NICKNAME} {MSG} {CHANNEL} · what /emote prints"
     },
     "feature.emote": {
         value: "true",
@@ -251,22 +251,22 @@ export const DEFAULTS = {
         help: "true / false · lets players describe an action instead of saying something"
     },
     "format.pmOut": {
-        value: "§8[§dyou §8» §d{NAME}§8] §7{MSG}",
+        value: "§8[§dyou §8» §d{NICKNAME}§8] §7{MSG}",
         label: "Private message you sent",
-        help: "Tokens: {NAME} {MSG} · {NAME} is who you sent it to"
+        help: "Tokens: {NAME} {NICKNAME} {MSG} · {NAME} is who you sent it to"
     },
     "format.pmIn": {
-        value: "§8[§d{NAME} §8» §dyou§8] §7{MSG}",
+        value: "§8[§d{NICKNAME} §8» §dyou§8] §7{MSG}",
         label: "Private message you received",
-        help: "Tokens: {NAME} {MSG} · {NAME} is who sent it"
+        help: "Tokens: {NAME} {NICKNAME} {MSG} · {NAME} is who sent it"
     },
     "format.prchat": {
         // Same shape as format.chatChannel: who the room is, then who spoke.
         // {PAIR} names BOTH people, so a line scrolling past says which
         // conversation it belongs to — the same job the channel label does.
-        value: "§8[§5{PAIR}§8]§r {TAG} {NAME}§7: §r{MSG}",
+        value: "§8[§5{PAIR}§8]§r {TAG} {NICKNAME}§7: §r{MSG}",
         label: "Private chat session line",
-        help: "Tokens: {PAIR} {TAG} {RANK} {NAME} {MSG} · {PAIR} is both names, {NAME} is whoever spoke"
+        help: "Tokens: {PAIR} {TAG} {RANK} {NAME} {NICKNAME} {MSG} · {PAIR} is both names, {NAME} is whoever spoke"
     },
     "format.spy": {
         value: "§8[spy · {KIND}] §7{FROM} §8» §7{TO}§8: {MSG}",
@@ -318,7 +318,7 @@ export const DEFAULTS = {
     "format.broadcast": {
         value: "§8[§c§lBroadcast§r§8]§r §e{MSG}",
         label: "Broadcast line",
-        help: "Tokens: {MSG} {NAME} {CHANNEL} · {NAME} is whoever sent it"
+        help: "Tokens: {MSG} {NAME} {NICKNAME} {CHANNEL} · {NAME} is whoever sent it"
     }
 }
 

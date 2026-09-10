@@ -57,6 +57,216 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.1.15 — 2026-09-10
+
+**Staff notices no longer leak upward: you cannot watch your seniors work.**
+
+Reported from a live world — a moderator could see an operator opening a
+player's inventory and ender chest. The audience rule had only ever checked one
+thing, that the viewer outranked the **target**, and never looked at who was
+**acting**. A moderator does outrank an ordinary player, so an operator's every
+move on that player was announced straight to them.
+
+It is now two rank lines: above the target, **and** not below the actor.
+
+They are deliberately different strengths. *Acting* on somebody requires rank
+strictly above them, so two peers cannot punish each other. *Seeing* an action
+only requires being level, because peers reviewing each other's moderation is
+the entire point of having an audit trail — two moderators still see each
+other's kicks.
+
+**The honest consequence, stated rather than discovered later:** the top of the
+ladder now answers to nobody. An owner acting on a moderator is announced to no
+one at all, because every remaining candidate is below them. The action is
+still written to the log — this rule governs the chat line, not the record, and
+the log has always stored the real gamertag.
+
+**A mute now carries a tag, `ap:muted`, so the state is visible from inside the
+game.**
+
+The record in storage is still what blocks chat — it holds the reason and the
+expiry, and a tag holds neither. The tag exists because storage is *invisible*:
+when somebody said "I am still muted" and the panel said they were not, there
+was no way to tell who was wrong without reading a dynamic property nobody can
+read in game. `/tag <player> list` answers it now.
+
+**Either half is enough to act on.** `/unmute` clears the record *and* the tag,
+whichever is present, so a mute that has come apart can always be lifted by the
+ordinary command instead of the player being stuck while staff work out which
+half is lying. `syncMuteTag` also runs from the chat gate — the exact place a
+stuck mute surfaces, because somebody tries to talk and cannot — and puts the
+two back in step, writing only when they actually disagree. The common drift is
+a *timed* mute running out: a record carries an expiry and a tag cannot, so the
+tag outlives it.
+
+**And the commands say what happened.** `/mute` on somebody already muted
+reports "Already muted" rather than silently re-applying, which would have reset
+a running timer without a word. `/unmute` on somebody who is not muted reports
+"Not muted" — and says it every time now, not only when nothing else in the
+selector succeeded, because swallowing it whenever some *other* player got
+unmuted is how a real mute hides behind a successful one. A leftover tag with no
+record reports itself distinctly: "cleared a leftover mute tag — they were not
+actually muted."
+
+**This is also the likely cause of the reported symptom.** The panel's button
+chose its label from `isMuted()` alone, so a player carrying a stuck tag was
+offered **Mute** rather than Unmute — and somebody trying to free themselves
+muted themselves instead, with the button still reading Mute afterwards. Both
+the label and what the button does now consider the tag.
+
+**Unmuting is no longer rank-gated, and a mass mute is survivable again.**
+
+`/mute @a` silences every peer — and because lifting a mute ALSO required
+`canActOn`, none of them could unmute each other. A moderator could not free
+another moderator, so the only way out of a room-wide mute was the one person
+who cast it. Reported from a live world.
+
+Muting stays ranked, because it is punitive and a junior must not be able to
+silence a senior. **Unmuting is restorative and the risk runs the other way:**
+the worst case without a rank check is that somebody speaks who should not,
+which any staff member can undo in one command. The worst case with it is a
+room full of staff who cannot talk and cannot help each other. `admin.mute` is
+still required, so this is open to everyone already trusted to mute — nobody
+else. The panel makes the same split: the Mute button still needs rank over the
+target, the Unmute button appears whenever they are actually muted.
+
+**`{NAME}` is the gamertag. `{NICKNAME}` is what they call themselves.**
+
+Before this, every one of the nine places that fills a name token filled
+`{NAME}` with `displayName()` — the nickname when one was set. There was no
+token at all for the real account name, which is the name you ban under and the
+one the audit log stores, so a format string simply could not ask for it.
+
+Both are now always offered and the template chooses. `{NICKNAME}` falls back to
+the gamertag rather than rendering empty, because these strings are edited by
+hand and a token that silently disappears leaves a chat line reading
+"  joined the game" with nobody in it.
+
+**Nothing looks different.** The shipped formats were switched to `{NICKNAME}`
+in the same change, so a nicknamed player still joins, chats and emotes under
+the name everyone watched them wear. What changed is that `{NAME}` now means
+something, and the Settings help text says which is which.
+
+One helper — `nameTokens()` in `core/identity.js` — fills both everywhere, so
+the nine sites cannot drift apart the way they did to get here.
+
+**The `z` prefix is gone. `/a:zfill` is now `/a:fill`.**
+
+The prefix existed for one reason: the in-game command list is sorted
+alphabetically, and a pack gets exactly one namespace, so "z" was the only
+thing that would push all 56 vanilla passthroughs below the pack's own, whose
+names run from admin to warps. That is a real convenience, and it has been
+traded away. It was not worth a leading letter of noise on every single name —
+`/a:zfill` reads as a typo — and the standing decision in CLAUDE.md was already
+"bare command names". The prefix was the thing out of step.
+
+Checked before doing it: of the 56 vanilla names, exactly **one** actually
+collided with a command this pack already owns, and that is `tp`.
+
+**All 56 got a new name, and none of them may be a name the game owns.** That
+second part is the whole point, and the first attempt at this got it wrong by
+leaving 27 commands on their vanilla name on the grounds that `kill` and `fill`
+were already short enough. The pack's own verifier had the answer written down:
+
+> a custom command registers namespaced, and the bare form only reaches the
+> player if nothing else claims it
+
+So `/kill` never reaches `/a:kill`. It reaches the **game's** kill, and this
+pack's version stays stranded behind the full `/a:kill`, colon and all. That is
+slower to type, and worse than slow — the people this entire command set exists
+for hold a rank and **no operator**, and vanilla's kill refuses them. A
+colliding name does not merely cost them keystrokes; it puts the command out of
+reach by the short path entirely.
+
+`tests/vanillacmds.test.js` now fails the suite if any codename appears in
+`GAME_OWNED`, so this cannot come back.
+
+**The naming rule.** A name is shortened only where shortening leaves something
+a person can still read at a glance. `/gm` works as an abbreviation because
+everybody already types it in Minecraft; `/fl` would not, because nobody does.
+
+- Long names took the shortening people already say out loud — `camera` →
+  **`cam`**, `difficulty` → **`diff`**, `damage` → **`dmg`**, `effect` →
+  **`eff`**, `enchant` → **`ench`**, `structure` → **`struct`**,
+  `playanimation` → **`anim`**, `inputpermission` → **`input`**,
+  `controlscheme` → **`controls`**, `spreadplayers` → **`spread`**,
+  `tickingarea` → **`ticking`**, `dialogue` → **`dialog`**.
+- Names that could not shrink without turning into initials got a real WORD,
+  taken from what the command actually does — `testfor` → **`count`** (it
+  counts entities; the help text says so), `camerashake` → **`shake`**,
+  `setblock` → **`block`**, `replaceitem` → **`slot`** (it writes an item into
+  a slot), `toggledownfall` → **`rain`**, `gamerule` → **`rule`**, `playsound`
+  → **`sound`**, `stopsound` → **`soundoff`**, `scoreboard` → **`score`**,
+  `testforblock` → **`checkblock`**, `testforblocks` → **`checkarea`**,
+  `spawnpoint` → **`setspawn`**, `clearspawnpoint` → **`unspawn`**,
+  `setworldspawn` → **`worldspawn`**, `kill` → **`slay`**, `give` →
+  **`gift`**, `clear` → **`wipe`**, `fill` → **`region`**, `clone` →
+  **`copy`**, `locate` → **`find`**, `loot` → **`drops`**, `time` →
+  **`clock`**, `weather` → **`sky`**, `tag` → **`label`**, `ride` →
+  **`mount`**, `event` → **`trigger`**, `recipe` → **`unlock`**, `place` →
+  **`feature`**, `fog` → **`mist`**, `daylock` → **`lockday`**, `mobevent` →
+  **`mobs`**, `say` → **`announce`**, `tellraw` → **`rawtell`**, `title` →
+  **`showtitle`**, `titleraw` → **`rawtitle`**, `hud` → **`overlay`**,
+  `particle` → **`fx`**.
+- And where a plain shortening was enough, it was used — `music` → **`mus`**,
+  `xp` → **`exp`**.
+
+Teleport was the awkward one. Bedrock ships `tp` and `teleport` as the same
+command under two names and the table carries both, so both need one. Splitting
+them into a `/bring` and a `/goto` was considered and dropped: those read
+beautifully for a player target and cannot express `~ ~10 ~` at all, which is
+most of what teleport is for. So they keep vanilla's own shape, one short and
+one long — **`port`** and **`move`**, the latter chosen because it reads as a
+sentence with any destination: `/move @p ~ ~10 ~`, `/move @s @e[c=1]`.
+
+`gamemode` is **`gmode`**, because it would otherwise sit next to this pack's
+own `/a:gm` — which does the same job through the script API and is the one to
+reach for — with the two reading as the same command with a typo between them.
+
+**`say` is gone entirely, so there are 55 passthroughs now, not 56.**
+`/broadcast` is the same act done better: it picks an audience (everyone, or one
+chat channel), it writes an audit record, and it tells you how many people it
+reached. Keeping a `say` beside it would have been two ways to do one thing with
+the worse one unlogged — and "never punish or announce without a record" is why
+the log exists. Removed from the parameter table, from the op-command allowlist,
+and from the codename map together, so nothing is left registering a command the
+settings screen cannot switch on.
+
+Where a registration is not called what the vanilla command is called, the
+description now says so — `/a:count` describes itself as `(vanilla /testfor)`,
+so nobody has to read the source to find out.
+
+**Permissions are untouched.** `commandNode()` builds `cmd.<vanilla name>` from
+the command text at run time, so a rank holding `cmd.fill` never knew or cared
+what the registration was called. This rename is cosmetic all the way down,
+which is why it was safe to do in one pass.
+
+**This renames commands that shipped.** The z-prefixed names went out in 2.0.4
+and are in the tagged v2.0.5, so anyone already typing `/a:zkill` will find it
+gone. That is five days of exposure and the names were never advertised
+anywhere; keeping them alive as hidden aliases would have meant 167
+registrations, a count Bedrock has never been tested at here, to preserve
+muscle memory that has barely had time to form.
+
+**A test that had been agreeing with itself now actually checks.** The old
+block built its expectation with `COMMANDS.map(c => \`z${c.name}\`)` — it wrote
+down the naming rule and then confirmed its own arithmetic, so when the prefix
+was removed every assertion still passed while testing nothing. It now calls
+the real `codenameFor` and pins what matters: no two commands register the same
+name, none collides with one the pack already owns, and none is a name the game
+owns.
+
+**`tools/verify.py` was blind to all 56 for one build, and is not now.** It
+finds commands by matching `name: "literal"`, and the passthroughs register in
+a loop as `name: registered` — a variable. So the moment the prefix came out,
+the verifier stopped seeing them: it reported "53 commands" while 56 more went
+unchecked for duplicates and unchecked against the eight-parameter limit, and
+said nothing was wrong. It now reads them out of the table and resolves them
+through the same `CODENAME` map the pack registers with, and refuses to
+continue if it does not find exactly 56.
+
+---
+
 ## 2.1.14 — 2026-09-07
 
 **Ranks stack. The only thing a grant takes away is Member.**

@@ -3,7 +3,7 @@ import { command } from "../core/registry.js"
 import { ok, err, info, formatDuration, parseDuration } from "../core/util.js"
 import { canActOn } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
-import { mute, unmute, isMuted, banList, unban } from "../core/moderation.js"
+import { mute, unmute, isMuted, hasMuteTag, banList, unban } from "../core/moderation.js"
 import { chatAvailable } from "./chat.js"
 import { banScreen } from "./actions.js"
 import { record } from "../core/logs.js"
@@ -41,10 +41,19 @@ command({
         const why = String(reason ?? "").trim() || "No reason given"
         const muted = []
         const blocked = []
+        const already = []
 
         for (const target of targets) {
             if (target.id !== player.id && !canActOn(player, target)) {
                 blocked.push(displayName(target))
+                continue
+            }
+            // Say so rather than silently re-muting. Re-applying would reset a
+            // running timer without a word, so somebody who typed the command
+            // twice would quietly double the sentence — and after a `/mute @a`,
+            // "already muted" is the answer to "did that work?".
+            if (isMuted(target) || hasMuteTag(target)) {
+                already.push(displayName(target))
                 continue
             }
             mute(target, ms, why, player)
@@ -62,6 +71,7 @@ command({
                 info(player, "§7Chat interception needs beta APIs — this mute is recorded but NOT enforced on this runtime.")
             }
         }
+        if (already.length) info(player, `§7Already muted: §f${already.join(", ")}`)
         if (blocked.length) err(player, `Outranked you, skipped: §f${blocked.join(", ")}`)
     }
 })
@@ -106,20 +116,49 @@ command({
 
         const cleared = []
         const untouched = []
+        const unstuck = []
         for (const target of targets) {
-            if (!isMuted(target)) { untouched.push(displayName(target)); continue }
-            if (target.id !== player.id && !canActOn(player, target)) {
-                err(player, `${displayName(target)} outranks you — skipped.`)
-                continue
-            }
-            unmute(target.id)
-            record(player, "mod.unmute", target, "lifted")
-            cleared.push(displayName(target))
+            // BOTH halves are checked, and either one is enough to act on. A
+            // record with no tag, or a tag with no record, is a mute that has
+            // come apart — and the whole reason the tag exists is so that the
+            // ordinary command can put it back together instead of the player
+            // being stuck until somebody works out which half is lying.
+            const hadRecord = isMuted(target)
+            const hadTag = hasMuteTag(target)
+            if (!hadRecord && !hadTag) { untouched.push(displayName(target)); continue }
+            // NO hierarchy check here, deliberately — this used to require
+            // canActOn and that was the bug.
+            //
+            // Muting is punitive, so it is ranked: a junior must not be able to
+            // silence a senior. UNMUTING is restorative and the risk runs the
+            // other way. Requiring rank to lift a mute meant that after a
+            // `/mute @a`, every peer was silenced AND barred from fixing it —
+            // a moderator could not unmute another moderator, so the only way
+            // out was the one person who cast it. The worst case without the
+            // check is that somebody speaks who should not, which any staff
+            // member can undo in one command; the worst case WITH it is a room
+            // full of staff who cannot talk and cannot help each other.
+            //
+            // `admin.mute` is still required to get this far, so this is not
+            // open to everyone — it is open to everyone already trusted to mute.
+            // The PLAYER, not their id: unmute has to reach them to take the
+            // tag off, and every caller used to hand it a bare id.
+            unmute(target)
+            record(player, "mod.unmute", target,
+                hadRecord ? "lifted" : "cleared a leftover mute tag")
+            ;(hadRecord ? cleared : unstuck).push(displayName(target))
             info(target, "§aYou can speak again.")
         }
 
         if (cleared.length) ok(player, `Unmuted §f${cleared.join(", ")}§a.`)
-        if (untouched.length && !cleared.length) info(player, `§7Not muted: §f${untouched.join(", ")}`)
+        if (unstuck.length) {
+            ok(player, `Cleared a leftover mute tag on §f${unstuck.join(", ")}§a — they were not actually muted.`)
+        }
+        // Always said, not only when nothing else happened. "They weren't muted"
+        // is the answer to "why can't they talk", and swallowing it whenever
+        // some OTHER player in the same selector got unmuted is how a real mute
+        // hides behind a successful one.
+        if (untouched.length) info(player, `§7Not muted: §f${untouched.join(", ")}`)
     }
 })
 

@@ -1,6 +1,6 @@
 import { world, system } from "@minecraft/server"
 import { render, flag } from "../core/settings.js"
-import { displayName } from "../core/identity.js"
+import { displayName, nameTokens, getNickname } from "../core/identity.js"
 import { isVanished } from "../core/vanish.js"
 
 // Join and leave lines, printed by us instead of by the game.
@@ -22,13 +22,19 @@ import { isVanished } from "../core/vanish.js"
 /** Print the join line for a player. */
 export function announceJoin(player) {
     if (!flag("presence.announce")) return
-    world.sendMessage(render("format.join", { NAME: displayName(player) }))
+    world.sendMessage(render("format.join", nameTokens(player)))
 }
 
-/** Print the leave line for a name (the player object is gone by then). */
-export function announceLeave(name) {
+/**
+ * Print the leave line. The player object is gone by the time this runs, so
+ * both names have to be handed in rather than looked up off a Player.
+ *
+ * @param name     the gamertag, which is what playerLeave carries
+ * @param nickname theirs if they had one; falls back to the gamertag
+ */
+export function announceLeave(name, nickname) {
     if (!flag("presence.announce")) return
-    world.sendMessage(render("format.leave", { NAME: name }))
+    world.sendMessage(render("format.leave", nameTokens(name, nickname)))
 }
 
 export function installPresence() {
@@ -45,6 +51,10 @@ export function installPresence() {
         // A vanished player already "left" when they vanished. Announcing it
         // again on the real disconnect is the tell that gives the trick away.
         if (isVanished(playerId)) return
-        system.run(() => announceLeave(playerName))
+        // getNickname takes an id, which is the only handle left once the
+        // Player is gone — so a nicknamed player still leaves under the name
+        // everybody watched them wear.
+        const nickname = getNickname(playerId)
+        system.run(() => announceLeave(playerName, nickname))
     })
 }

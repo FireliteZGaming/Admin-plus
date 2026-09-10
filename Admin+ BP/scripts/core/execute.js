@@ -123,7 +123,7 @@ export function checkCommand(line) {
  *
  * Two layers, and both have to say yes. `commands.allowed` is the world asking
  * whether a command exists here; the `cmd.<name>` node is the ladder asking who
- * may use it — so a Mod can have /a:zkill and be refused /a:zgamemode, which is
+ * may use it — so a Mod can have /a:kill and be refused /a:gmode, which is
  * worth doing wherever a vanilla command duplicates something the pack already
  * does better.
  *

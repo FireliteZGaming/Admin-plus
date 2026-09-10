@@ -2,9 +2,9 @@ import { world, system } from "@minecraft/server"
 import { noteChat } from "../core/chatlog.js"
 import { CONFIG } from "../config.js"
 import { primaryRank, isStaff } from "../core/ranks.js"
-import { displayName } from "../core/identity.js"
+import { displayName, nameTokens } from "../core/identity.js"
 import { render, renderTag } from "../core/settings.js"
-import { isMuted, muteRecord } from "../core/moderation.js"
+import { isMuted, muteRecord, syncMuteTag } from "../core/moderation.js"
 import { formatDuration } from "../core/util.js"
 import { activeChannel, visibleTo, audienceFor, isChannelMuted, channelMute } from "../core/channels.js"
 // The test comes from core, the delivery from the feature: asking core avoids
@@ -40,7 +40,7 @@ export function formatChatLine(sender, message, channel, labelled) {
     const tokens = {
         TAG: withTag ? renderTag(rank) : "",
         RANK: withTag ? (rank?.display ?? "") : "",
-        NAME: displayName(sender),
+        ...nameTokens(sender),
         MSG: message,
         CHANNEL: channel?.display ?? ""
     }
@@ -76,6 +76,13 @@ export function installChat() {
 
     event.subscribe(eventData => {
         const player = eventData.sender
+
+        // Put the mirror tag back in step first. This is where a stuck mute
+        // surfaces — somebody tries to talk and cannot — so it is the right
+        // place to self-heal. The common drift is a TIMED mute running out: the
+        // record carries an expiry and a tag cannot, so the tag outlives it.
+        // Only writes when the two actually disagree.
+        syncMuteTag(player)
 
         // Muted players never reach any channel.
         if (isMuted(player)) {

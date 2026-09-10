@@ -1,7 +1,7 @@
 import { world, CustomCommandParamType } from "@minecraft/server"
 import { command, defineEnum } from "../core/registry.js"
 import { ok, err } from "../core/util.js"
-import { displayName } from "../core/identity.js"
+import { displayName, nameTokens } from "../core/identity.js"
 import { render } from "../core/settings.js"
 import { record } from "../core/logs.js"
 import { allChannels, getChannel, audienceFor } from "../core/channels.js"
@@ -65,7 +65,7 @@ export function broadcastTo(sender, scope, message) {
 
     const line = render("format.broadcast", {
         MSG: text,
-        NAME: sender ? displayName(sender) : "Console",
+        ...nameTokens(sender ?? "Console"),
         CHANNEL: channel?.display ?? "§7Everyone"
     })
     for (const player of audience) player.sendMessage(line)
