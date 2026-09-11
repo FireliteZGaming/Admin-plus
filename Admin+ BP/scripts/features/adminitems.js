@@ -402,6 +402,59 @@ function openEye(player) {
 }
 
 /**
+ * The three worlds, and how tall each one is.
+ *
+ * The heights are here because picking a dimension makes Y dangerous in a way
+ * it never was before. Every other teleport in this pack stays where you
+ * already are, so the height you type is always a height that exists. Choose
+ * the Nether with `~` still in the Y box while standing at 200 in the Overworld
+ * and you arrive inside the bedrock roof, which is not somewhere you walk out
+ * of. So the range is checked and named before anything moves.
+ *
+ * Read from the engine where it will say — `heightRange` is the authority and
+ * the Overworld's floor has moved once already — and falling back to these,
+ * which is what every version since 1.18 uses.
+ */
+const WORLDS = [
+    { id: "minecraft:overworld", label: "Overworld", min: -64, max: 320 },
+    { id: "minecraft:nether", label: "Nether", min: 0, max: 128 },
+    { id: "minecraft:the_end", label: "The End", min: 0, max: 256 }
+]
+
+/** Their names, in the order the dropdown shows them. */
+export function worldLabels() { return WORLDS.map(w => w.label) }
+
+/** Which entry a dimension id is, or 0 — the Overworld — when it is unknown. */
+export function worldIndex(dimensionId) {
+    const at = WORLDS.findIndex(w => w.id === String(dimensionId ?? ""))
+    return at === -1 ? 0 : at
+}
+
+/** How tall that world is, asking the engine first. */
+export function worldHeight(index) {
+    const world_ = WORLDS[index] ?? WORLDS[0]
+    const live = safe(() => {
+        const range = world.getDimension(world_.id)?.heightRange
+        return Number.isFinite(range?.min) && Number.isFinite(range?.max)
+            ? { min: range.min, max: range.max }
+            : undefined
+    })
+    return { ...world_, ...(live ?? {}) }
+}
+
+/**
+ * Is this a height you can stand at in that world?
+ *
+ * The top of the range is where blocks stop, so it is not a place to be — hence
+ * `<`, not `<=`. Returns the complaint, or undefined when it is fine.
+ */
+export function heightProblem(y, index) {
+    const w = worldHeight(index)
+    if (y >= w.min && y < w.max) return undefined
+    return `§f${w.label}§c only goes from §f${w.min}§c to §f${w.max - 1}§c — §f${Math.round(y)}§c is outside it.`
+}
+
+/**
  * One coordinate field, read with vanilla's own grammar.
  *
  * `~` is where you already are, `~10` is ten further along, and a bare number
@@ -429,14 +482,20 @@ const FAR = 30000000
 /**
  * Type a place and go there.
  *
+ * The world first, then where in it, because that is the order the question
+ * gets asked in. It opens on the world you are standing in, so a jump within
+ * the same one needs nothing but a number.
+ *
  * The three fields open holding where you are standing, so the format is shown
  * rather than explained and changing only the height is a one-character edit —
  * which is most of what an admin actually wants from a coordinate teleport.
  */
 async function jumpToCoordinates(player) {
     const here = player.location
+    const from = worldIndex(player.dimension?.id)
     const round = n => String(Math.round(n))
     const answer = await modal(player, hubTitle("warps", "Jump to a location"), [
+        { id: "world", type: "dropdown", label: "§7World", options: worldLabels(), default: from },
         { id: "x", type: "text", label: "§7X", placeholder: "~", default: round(here.x) },
         { id: "y", type: "text", label: "§7Y  §8(height)", placeholder: "~", default: round(here.y) },
         { id: "z", type: "text", label: "§7Z", placeholder: "~", default: round(here.z) }
@@ -454,15 +513,30 @@ async function jumpToCoordinates(player) {
         return err(player, "That is outside the world — X and Z stop at 30 million.")
     }
 
+    // Picking a world is what makes the height dangerous. `~` in the Y box means
+    // where you are NOW, and 200 in the Overworld is inside the Nether's bedrock
+    // roof — somewhere you do not walk out of. Named and refused, never clamped:
+    // silently moving somebody 73 blocks from where they asked is worse than
+    // telling them the number was wrong.
+    const to = Number(answer.world) || 0
+    const wrongHeight = heightProblem(y, to)
+    if (wrongHeight) return err(player, wrongHeight)
+
+    const target = worldHeight(to)
+    const dimension = safe(() => world.getDimension(target.id))
+    if (!dimension) return err(player, `Couldn't reach the §f${target.label}§c.`)
+
     try {
         player.teleport({ x, y, z }, {
-            dimension: player.dimension,
+            dimension,
             rotation: safe(() => player.getRotation(), undefined),
             keepVelocity: false
         })
         const where = `${Math.round(x)} ${Math.round(y)} ${Math.round(z)}`
-        record(player, "mod.tpTo", player, `ender eye · ${where}`)
-        info(player, `§7Jumped to §f${where}§7.`)
+        record(player, "mod.tpTo", player, `ender eye · ${target.label} ${where}`)
+        info(player, to === from
+            ? `§7Jumped to §f${where}§7.`
+            : `§7Jumped to §f${where}§7 in the §f${target.label}§7.`)
     } catch (e) {
         err(player, `Couldn't jump there: ${e}`)
     }

@@ -57,6 +57,31 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.2.1 — 2026-09-11
+
+**The Ender Eye's Location screen picks a world too.** A dropdown above the
+coordinates — Overworld, Nether, The End — opening on the one you are standing
+in, so a jump within it still needs nothing but a number.
+
+That was the half of the question coordinates alone could never answer, and it
+brings a footgun the rest of the eye never had. **Every other teleport here
+stays in the world you are already in, so the height you type is always a height
+that exists.** Pick the Nether with `~` still in the Y box while standing at 200
+in the Overworld and you arrive inside the bedrock roof — which is not somewhere
+you walk out of.
+
+So the range is checked, and the refusal **names the world and the limit**:
+"Nether only goes from 0 to 127 — 200 is outside it." Refused, never clamped;
+silently moving somebody 73 blocks from where they asked is worse than telling
+them the number was wrong. The ceiling itself is out as well, because the top of
+the range is where blocks stop rather than a place to stand.
+
+The heights are read from the engine where it will say, falling back to the
+known table. The Overworld's floor has already moved once, in 1.18, and a
+hardcoded number that disagreed with the game would refuse real heights.
+
+The confirmation only mentions the world when you actually changed it.
+
 ## 2.2.0 — 2026-09-11
 
 **The Orbital Strike.** A fishing rod in `/items`. Aim at something across the

@@ -1,6 +1,7 @@
 import { ItemStack, __test } from "@minecraft/server"
 import { setting, setSetting, resetSetting, DEFAULTS } from "../Admin+ BP/scripts/core/settings.js"
-import { ITEMS, signItem, itemKey, knockback, coordinate, SIGIL, installAdminItems } from "../Admin+ BP/scripts/features/adminitems.js"
+import { ITEMS, signItem, itemKey, knockback, coordinate, SIGIL, installAdminItems,
+         worldLabels, worldIndex, worldHeight, heightProblem } from "../Admin+ BP/scripts/features/adminitems.js"
 import { armNuke } from "../Admin+ BP/scripts/core/orbital.js"
 
 let passed = 0, failed = 0
@@ -280,6 +281,47 @@ console.log("\n— one rod, one strike —")
 
     resetSetting("feature.troll")
 }
+
+
+console.log("\n— the Location screen names a world as well as a place —")
+// Coordinates alone were only ever half the question. The dropdown opens on the
+// world you are standing in, so a jump within it needs nothing but a number.
+check("three worlds, in the order people say them",
+    worldLabels(), ["Overworld", "Nether", "The End"])
+check("it opens on the world you are in", worldIndex("minecraft:nether"), 1)
+check("the end too", worldIndex("minecraft:the_end"), 2)
+check("and an unknown one falls back to the Overworld rather than throwing",
+    worldIndex("minecraft:some_mod_world"), 0)
+check("as does no dimension at all", worldIndex(undefined), 0)
+
+console.log("\n— choosing a world is what makes the height dangerous —")
+// This is the whole reason the dropdown needed a guard. `~` in the Y box means
+// where you are NOW: standing at 200 in the Overworld and picking the Nether
+// puts you inside the bedrock roof, which is not somewhere you walk out of.
+// Named and REFUSED, never clamped — silently moving somebody 73 blocks from
+// where they asked is worse than telling them the number was wrong.
+check("200 is fine in the Overworld", heightProblem(200, 0), undefined)
+check("but not in the Nether", heightProblem(200, 1) === undefined, false)
+check("and the refusal names the world and the limit",
+    heightProblem(200, 1).includes("Nether") && heightProblem(200, 1).includes("127"), true)
+
+check("the Nether's own ceiling is out too — that IS the bedrock",
+    heightProblem(128, 1) === undefined, false)
+check("one below it is where you can stand", heightProblem(127, 1), undefined)
+check("its floor is fine", heightProblem(0, 1), undefined)
+check("below the floor is not", heightProblem(-1, 1) === undefined, false)
+
+check("the Overworld reaches below zero, which the others do not",
+    heightProblem(-60, 0), undefined)
+check("the End does not", heightProblem(-60, 2) === undefined, false)
+
+// The engine is asked first — the Overworld's floor has moved once already, in
+// 1.18, and a hardcoded table that disagreed with the game would refuse real
+// heights. The stub reports ranges, so this proves the reading path runs.
+check("heights come from the engine where it will say",
+    worldHeight(1), { id: "minecraft:nether", label: "Nether", min: 0, max: 128 })
+check("and an index out of range is the Overworld, not a crash",
+    worldHeight(99).label, "Overworld")
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)
