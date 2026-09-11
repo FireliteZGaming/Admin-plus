@@ -2,7 +2,7 @@ import { world, system } from "@minecraft/server"
 import { noteChat } from "../core/chatlog.js"
 import { CONFIG } from "../config.js"
 import { primaryRank, isStaff } from "../core/ranks.js"
-import { displayName, nameTokens } from "../core/identity.js"
+import { displayName, nameTokens, stripCodes } from "../core/identity.js"
 import { render, renderTag } from "../core/settings.js"
 import { isMuted, muteRecord, syncMuteTag } from "../core/moderation.js"
 import { formatDuration } from "../core/util.js"
@@ -63,8 +63,6 @@ export function postToChannel(sender, message, channel) {
     noteChat(sender, message, channel)
     return readers.length
 }
-
-function stripCodes(text) { return String(text).replace(/§./g, "") }
 
 export function installChat() {
     const event = world.beforeEvents?.chatSend

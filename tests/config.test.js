@@ -1,8 +1,9 @@
 import { setting, setSetting, resetSetting, overrides, replaceOverrides, flag, render, renderTag, DEFAULTS } from "../Admin+ BP/scripts/core/settings.js"
 import { toBlock, fromBlock, canUseCode, kindOf, groupOf, groupedKeys, GROUPS, submittedValue } from "../Admin+ BP/scripts/features/code.js"
-import { getNickname, setNickname, displayName, hasNickname, nameTokens, NICK_MAX } from "../Admin+ BP/scripts/core/identity.js"
+import { getNickname, setNickname, displayName, hasNickname, nameTokens, styledName, stripCodes, NICK_MAX } from "../Admin+ BP/scripts/core/identity.js"
 // canUseCode comes via features/code.js above, which re-exports it.
 import { hasOperator, inDeveloperMode, setDeveloperMode } from "../Admin+ BP/scripts/core/devgate.js"
+import { readFileSync, readdirSync } from "node:fs"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -97,12 +98,59 @@ console.log("\n— display names —")
 const p = { id: "n1", name: "Nova" }
 check("no nickname means the account name", displayName(p), "Nova")
 setNickname(p, "§dStarlight")
-check("nickname takes over", displayName(p), "§dStarlight")
+check("nickname takes over", displayName(p), "Starlight")
 check("and is recorded as set", hasNickname(p), true)
 check("control characters are stripped", setNickname(p, "Line1\nLine2"), "Line1Line2")
 check("spaces and hyphens survive", setNickname(p, "Big Red-Dog"), "Big Red-Dog")
 check("length is capped", setNickname(p, "z".repeat(80)).length, NICK_MAX)
 check("clearing falls back to the account name", setNickname(p, "   "), undefined)
+
+console.log("\n— a name cannot repaint the line it sits in —")
+// In BEDROCK a colour code does not clear the style codes; only §r does. So a
+// nickname carrying §k obfuscates everything printed AFTER it, and every
+// Admin+ message is a coloured sentence with a name in the middle:
+//
+//     [Admin+] §f§kSteve§a was muted for 10m by Alex
+//              ^^ everything from here on is scrambled
+//
+// The split is by audience. Admin+'s own sentences get a plain name; the
+// templated lines keep the colour a template author asked for, ended so it
+// cannot escape.
+{
+    const styled = { id: "n2", name: "Cass" }
+    setNickname(styled, "§k§lZZZ")
+
+    check("what Admin+ prints carries no codes at all", displayName(styled), "ZZZ")
+    check("the stored nickname is untouched", getNickname(styled), "§k§lZZZ")
+    check("and the styled form is still reachable", styledName(styled), "§k§lZZZ")
+
+    const tokens = nameTokens(styled)
+    check("the gamertag token is always plain", tokens.NAME, "Cass")
+    check("the nickname token keeps its colour", tokens.NICKNAME.startsWith("§k§lZZZ"), true)
+    check("but ends with a reset, so nothing after it is styled",
+        tokens.NICKNAME.endsWith("§r"), true)
+
+    // A name that styles nothing must not gain a §r — that would reset the
+    // colour the template just set, one space before the name it applies to.
+    const plain = { id: "n3", name: "Dana" }
+    check("a plain name gains no reset", nameTokens(plain).NICKNAME, "Dana")
+
+    // The bare-name form, used when the player object is gone (leave messages,
+    // the ban list), goes through the same rules.
+    const gone = nameTokens("Eli", "§6Eli")
+    check("a remembered name is plain", gone.NAME, "Eli")
+    check("and a remembered nickname is terminated", gone.NICKNAME, "§6Eli§r")
+
+    // A nickname made only of codes renders as nothing — an invisible player in
+    // every list, which is a hiding place rather than a name.
+    const ghost = { id: "n4", name: "Fay" }
+    check("a nickname of pure codes is refused", setNickname(ghost, "§k§l§o"), undefined)
+    check("so they keep their account name", displayName(ghost), "Fay")
+
+    check("stripCodes leaves ordinary text alone", stripCodes("Plain Name"), "Plain Name")
+    check("and handles nothing at all", stripCodes(undefined), "")
+}
+
 check("really cleared", [getNickname(p), displayName(p)], [undefined, "Nova"])
 
 console.log("\n— the permission editor is switchable —")
@@ -231,6 +279,24 @@ check("a number that will not parse is rejected",
 check("and keeps the value it had", submittedValue("items.knockback", "abc").text, "9")
 check("a good number goes through", submittedValue("items.knockback", "14").text, "14")
 resetSetting("items.knockback")
+
+
+console.log("\n— one place decides what a formatting code means —")
+// chat.js and chatcommands.js each carried their own private copy of this,
+// byte-identical to the other and to the one in identity.js, and nobody knew:
+// the bug that prompted the shared version was fixed in none of the three.
+// A rule about § that lives in four files is four rules.
+{
+    const root = new URL("../Admin+ BP/scripts/", import.meta.url)
+    const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap(e =>
+        e.isDirectory() ? walk(new URL(`${e.name}/`, dir)) : [new URL(e.name, dir)])
+    const defined = walk(root).filter(url =>
+        url.pathname.endsWith(".js") &&
+        /function stripCodes\b/.test(readFileSync(url, "utf8")))
+    check("stripCodes is defined exactly once",
+        defined.map(u => u.pathname.split("/").slice(-2).join("/")),
+        ["core/identity.js"])
+}
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

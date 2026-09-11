@@ -57,6 +57,61 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.1.25 — 2026-09-11
+
+**A name can no longer repaint the line it sits in.**
+
+`§` plus one character is Minecraft's formatting escape, and in *Bedrock* a
+colour code does not clear the style codes — only `§r` does. So a nickname
+carrying `§k` obfuscated everything printed after it, `§l` bolded the rest of
+the line, and neither stopped at the end of the name. Every Admin+ message is a
+coloured sentence with a name in the middle of it, so one nickname could
+scramble the whole thing:
+
+    [Admin+] §f§kSteve§a was muted for 10m by Alex
+             ^^ from here on, everything is obfuscated
+
+Anybody who can set a nickname could do it, which is anybody staff have given
+`/nick` to — and it would read as Admin+ being broken rather than as somebody
+having done it.
+
+The fix splits by **audience**, not by caller:
+
+- **What Admin+ says in its own sentences is now plain.** `displayName()`
+  strips the codes, so all 116 places that print a name are fixed by one
+  function rather than by remembering at each one. Moderation output should not
+  be styled by the person being moderated anyway.
+- **The templated lines keep their colour.** Chat, the nametag, join and leave
+  run through `format.*` strings where an owner put the colours there on
+  purpose, so a coloured nickname still renders — it just cannot escape, because
+  `{NICKNAME}` now ends with `§r`. Only where a code was actually used: adding a
+  reset to every plain gamertag would cancel the colour the template just set.
+  `{NAME}`, the gamertag, is plain by definition.
+
+The stored nickname is untouched either way, so nothing anybody set is rewritten
+and turning a colour back on is just clearing and re-setting it.
+
+**A nickname made only of formatting codes is now refused**, the same as a blank
+one. It rendered as nothing at all — an invisible player in every list, chat
+line and nametag, which is a hiding place rather than a name.
+
+### One place decides what a `§` means
+
+`chat.js` and `chatcommands.js` each carried their own private `stripCodes`,
+byte-identical to the other and to the one this work added to `identity.js`, and
+nothing knew about the others. A rule about `§` living in three files is three
+rules, and the bug above was fixed in none of them. They now import the one
+function, and a test walks the source tree and fails if a second definition ever
+appears.
+
+### Known, and deliberately left
+
+A **ban or mute reason** can still carry codes into a broadcast. It is the same
+class of bug, but only staff can write one, where anybody with `/nick` could set
+a nickname — so it is a much smaller hole, and stripping colour out of text
+staff typed on purpose is a different decision from stopping a name repainting a
+sentence. Say the word and it goes the same way.
+
 ## 2.1.24 — 2026-09-11
 
 **The Ender Eye takes a location.** A second entry below the player list: type

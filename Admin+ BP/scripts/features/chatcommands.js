@@ -3,7 +3,7 @@ import { command } from "../core/registry.js"
 import { CONFIG } from "../config.js"
 import { ok, err, info } from "../core/util.js"
 import { isStaff } from "../core/ranks.js"
-import { displayName, nameTokens } from "../core/identity.js"
+import { displayName, nameTokens, stripCodes } from "../core/identity.js"
 import { isMuted } from "../core/moderation.js"
 import { render, flag } from "../core/settings.js"
 import {
@@ -75,8 +75,6 @@ function announce(actor, muted, channel) {
     const colour = muted ? "§c" : "§a"
     world.sendMessage(`${CONFIG.brand.prefix}${colour}${where} has been ${verb} by §f${displayName(actor)}§r${colour}.`)
 }
-
-function stripCodes(text) { return String(text).replace(/§./g, "") }
 
 /** For the panel and /chat: a short note on what is currently shut. */
 export function chatMuteLine() {

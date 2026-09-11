@@ -52,7 +52,9 @@ console.log("\n— nicknames are respected —")
 setNickname(nova, "§dStarlight")
 sent.length = 0
 announceJoin(nova)
-check("the display name is used", sent.at(-1), "§e§dStarlight joined the game")
+// The nickname carries a colour, so the token ends with §r — everything
+// after the name is the format string's own again, not the nickname's.
+check("the display name is used, and stops where it ends", sent.at(-1), "§e§dStarlight§r joined the game")
 setNickname(nova, "")
 
 console.log("\n— {NAME} is the gamertag, {NICKNAME} is what they call themselves —")
@@ -69,12 +71,15 @@ check("a {NAME} format shows the gamertag even when nicknamed", sent.at(-1), "§
 setSetting("format.join", "§a+ {NICKNAME}")
 sent.length = 0
 announceJoin(nova)
-check("and {NICKNAME} shows the nickname", sent.at(-1), "§a+ §dStarlight")
+check("and {NICKNAME} shows the nickname", sent.at(-1), "§a+ §dStarlight§r")
 setSetting("format.join", "§a+ {NAME} ({NICKNAME})")
 sent.length = 0
 announceJoin(nova)
 check("both at once, which is the point of splitting them",
-    sent.at(-1), "§a+ Nova (§dStarlight)")
+    sent.at(-1), "§a+ Nova (§dStarlight§r)")
+// Note where the reset lands: the closing bracket is the format string's
+// colour again, not pink. That is the containment doing its job — a name
+// paints itself and nothing else.
 setNickname(nova, "")
 sent.length = 0
 announceJoin(nova)
