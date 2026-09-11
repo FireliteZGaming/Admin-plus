@@ -373,33 +373,28 @@ export const COMMANDS = [
     //
     // /teleport has TEN overloads and a registration has one parameter list, so
     // they cannot all be offered. Bedrock ships `tp` and `teleport` as the same
-    // command under two names, and this table carries both — so rather than
-    // registering the same shape twice, each takes a different real overload:
+    // command under two names, and this table used to carry BOTH, splitting the
+    // overloads between them: /port took coordinates, /move took an entity
+    // destination.
     //
-    //   /port  <victim> <x y z>    [yRot] [xRot] [checkForBlocks]
-    //   /move  <victim> <target>   [checkForBlocks]
+    // `tp` is gone as of 2.1.23 and `port` is a pack command now — it hands
+    // over the Ender Eye. The eye is the entity destination: you pick a player
+    // from a list and you are there, which is the one form a custom command
+    // cannot offer, because a destination means a selector and the ENGINE
+    // refuses to expand one at the permission level these commands hold.
     //
-    // Coordinates on one, an entity destination on the other. The pack's OWN
-    // /a:tp already does player-to-player with rank protection, so /move is the
-    // unprotected any-entity version of that, and /port is the one thing
-    // neither of the others can do.
+    // So the single surviving row takes COORDINATES, which is the form neither
+    // the eye nor the pack's own /a:tp can express:
     //
-    // `facing` is deliberately not offered by either. It needs a literal word
-    // in the MIDDLE of the line, which buildLine's `fixed` cannot express (that
-    // only emits after the command name), and it occupies the same argument
+    //   /move <victim> <x y z> [yRot] [xRot] [checkForBlocks]
+    //
+    // `facing` is deliberately not offered. It needs a literal word in the
+    // MIDDLE of the line, which buildLine's `fixed` cannot express (that only
+    // emits after the command name), and it occupies the same argument
     // positions as yRot/xRot. Offering it broken is worse than not offering it.
-    { name: "tp", help: "Teleport to coordinates — /port <target> <x y z> [yRot] [xRot]",
+    { name: "teleport", help: "Teleport to coordinates — /move <target> <x y z> [yRot] [xRot]",
       params: [["victim", P.EntitySelector], ["destination", P.Location],
                ["yRot", P.Float, true], ["xRot", P.Float, true],
-               ["checkForBlocks", P.Boolean, true]] },
-
-    // The other half of the pair above: an ENTITY destination rather than
-    // coordinates. `/teleport <victim: target> <destination: target>
-    // [checkForBlocks]` is a real overload, and it is the one /port cannot
-    // reach, because a registration cannot type its second parameter as both a
-    // position and a selector.
-    { name: "teleport", help: "Teleport one entity to another — /move <target> <destination>",
-      params: [["victim", P.EntitySelector], ["destination", P.EntitySelector],
                ["checkForBlocks", P.Boolean, true]] },
 
     // `/spreadplayers <x> <z> <spreadDistance> <maxRange> <victim> [maxHeight]`
@@ -621,9 +616,9 @@ export const COMMANDS = [
  * What each vanilla command is actually CALLED in this pack.
  *
  * These replaced the `z` prefix in 2.1.15. The prefix was a sorting hack — it
- * pushed all 56 below the pack's own commands in the alphabetical in-game list
+ * pushed all 54 below the pack's own commands in the alphabetical in-game list
  * — and it cost every single one of them a leading letter that meant nothing.
- * `/a:zfill` reads as a typo. Sorting is a weaker reason to disfigure 56 names
+ * `/a:zfill` reads as a typo. Sorting is a weaker reason to disfigure 54 names
  * than legibility is to keep them clean, and the standing decision in
  * CLAUDE.md was already "bare command names" — the prefix was the thing out of
  * step, not this.
@@ -640,7 +635,7 @@ export const COMMANDS = [
  *     entities, so it is `count`. `camerashake` shakes the camera, so it is
  *     `shake`. `replaceitem` writes an item into a slot, so it is `slot`.
  *
- * **EVERY ONE of the 56 is renamed, and that is the important part.** The first
+ * **EVERY ONE of the 54 is renamed, and that is the important part.** The first
  * pass left 27 of them on their vanilla name — kill, give, fill, tag, time —
  * on the reasoning that those were already short enough to leave alone. That
  * was wrong, and the pack's own verifier had the answer written down:
@@ -684,13 +679,12 @@ export const CODENAME = new Map([
     ["music", "mus"],
     ["xp", "exp"],
     ["hud", "overlay"],
-    // Bedrock ships `tp` and `teleport` as the same command under two names,
-    // and this table carries both, so both need one. Splitting them into a
-    // `/bring` and a `/goto` was considered and dropped: those read beautifully
-    // for a player target and cannot express `~ ~10 ~` at all, which is most of
-    // what teleport is actually for. So they keep vanilla's own shape — one
-    // short, one long — and `move` is the long one because it reads as a
-    // sentence with any destination: `/move @p ~ ~10 ~`, `/move @s @e[c=1]`.
+    // Only one teleport row survives, and it takes coordinates. `/bring` and
+    // `/goto` were considered and dropped: those read beautifully for a player
+    // target and cannot express `~ ~10 ~` at all, which is what this row is
+    // now entirely for. `move` reads as a sentence with a coordinate
+    // destination — `/move @p ~ ~10 ~` — and leaves `port` free for the pack
+    // command that hands over the Ender Eye.
     ["teleport", "move"],
     ["particle", "fx"],
 
@@ -736,18 +730,13 @@ export const CODENAME = new Map([
     ["clearspawnpoint", "unspawn"], // pairs with setspawn
     ["setworldspawn", "worldspawn"],
 
-    // Two names that could not just be taken.
+    // One name that could not just be taken.
     //
     // `gamemode` would sit next to this pack's own `/a:gm`, which does the
     // same job through the script API and is the one to reach for. `gmode`
     // keeps the vanilla passthrough available without the two reading as the
     // same command with a typo between them.
-    ["gamemode", "gmode"],
-    // The pack already owns `/a:tp` (admin teleport, player to player), so
-    // vanilla's cannot have it. Bedrock ships `tp` and `teleport` as aliases
-    // of one another and this table carries both; they keep that shape here —
-    // one short, one long — as `port` and `tele`.
-    ["tp", "port"]
+    ["gamemode", "gmode"]
 ])
 
 /**
@@ -758,7 +747,7 @@ export const CODENAME = new Map([
  * Anything on this list is claimed, so naming a passthrough `kill` would make
  * `/kill` reach vanilla's, leaving this pack's only at `/a:kill`.
  *
- * It is the 56 this file already describes plus the ones the pack refuses to
+ * It is the 54 this file already describes plus the ones the pack refuses to
  * run at all (see NEVER in core/execute.js) plus the handful of vanilla
  * commands with no passthrough. Kept here rather than in the test so the
  * source of truth sits next to the names it constrains.
@@ -771,6 +760,12 @@ export const GAME_OWNED = new Set([
     "reloadconfig", "save", "stop", "transfer", "setmaxplayers", "wsserver",
     "sendshowstoreoffer", "script", "gametest", "project",
     // Real vanilla commands this pack has no passthrough for.
+    //
+    // `tp` is on this list rather than in COMMANDS as of 2.1.23. The game still
+    // owns the name — dropping the passthrough does not free it — so a pack
+    // command called `tp` would only ever answer to `/a:tp`, which is exactly
+    // what main.js's teleport is and why it is registered under that name.
+    "tp",
     "tell", "w", "list", "me", "msg", "experience", "gametip", "help",
     "immutableworld", "ops", "querytarget", "setmaxplayers", "tickingareas",
     "worldbuilder", "wb", "alwaysday", "clearspawnpoint", "connect"
@@ -807,8 +802,7 @@ export function codenameFor(name) {
 export const CHECKED = new Map([
     ["aimassist", "2026-09-10"],   // was 5 loose strings; selector is FIRST and mandatory
     ["replaceitem", "2026-09-10"], // was 6 loose strings; entity form only, block form unregistered
-    ["tp", "2026-09-10"],          // was emitting invalid text; now coordinates + rotation
-    ["teleport", "2026-09-10"],    // now the entity-destination overload
+    ["teleport", "2026-09-11"],    // took over /port's coordinate form when tp was dropped
     ["kill", "2026-09-10"],        // already right
     ["give", "2026-09-10"],        // already right; [components: json] not offered
     ["clear", "2026-09-10"],       // already right

@@ -297,7 +297,7 @@ check("no Java-only command names",
         "item", "attribute", "datapack", "forceload", "trigger", "spectate"].includes(c)), [])
 
 check("the commands people actually reach for are on it",
-    ["kill", "clear", "give", "effect", "enchant", "gamemode", "tp", "teleport",
+    ["kill", "clear", "give", "effect", "enchant", "gamemode", "teleport",
         "summon", "xp", "time", "weather", "fill", "setblock", "kill"]
         .filter(c => !shipped.includes(c)), [])
 check("every entry is a single lowercase word",

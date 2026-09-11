@@ -206,29 +206,34 @@ console.log("\n— a player parameter gets @a, an entity parameter gets @e —")
 
 console.log("\n— two selectors in one command must not share a tag —")
 {
-    // /move, /mount and /dialog each take TWO selectors. With one tag for the
-    // whole line, `/move <cow> <steve>` came out as
-    //     teleport @e[tag=T] @e[tag=T]
-    // which teleports both sets to themselves. Caught by a second look before
-    // it shipped; the suffix is what keeps the two sides apart.
+    // /mount and /dialog each take TWO selectors. With one tag for the whole
+    // line, `/mount <cow> start_riding <steve>` came out as
+    //     ride @e[tag=T] start_riding @e[tag=T]
+    // which sits both sets on themselves. Caught by a second look before it
+    // shipped; the suffix is what keeps the two sides apart.
+    //
+    // /move was the original example here and no longer qualifies: it took over
+    // the COORDINATE overload when `tp` was dropped in 2.1.23, so its second
+    // argument is a position now. /mount stands in, and the covered list below
+    // is what catches a third command growing a second selector.
     const marks = []
     const ent = n => ({ name: n, addTag: t => marks.push(`${n}:${t}`), removeTag: () => {} })
-    const tele = COMMANDS.find(c => c.name === "teleport")
+    const mount = COMMANDS.find(c => c.name === "ride")
     const cleanup = []
     check("each selector parameter gets its own tag",
-        buildLine(tele, [[ent("cow")], [ent("steve")]], "T", cleanup),
-        "teleport @e[tag=T_0] @e[tag=T_1]")
+        buildLine(mount, [[ent("cow")], "start_riding", [ent("steve")]], "T", cleanup),
+        "ride @e[tag=T_0] start_riding @e[tag=T_2]")
     check("and the two sets really are tagged differently",
-        marks, ["cow:T_0", "steve:T_1"])
+        marks, ["cow:T_0", "steve:T_2"])
 
     // Cleanup has to know WHICH tag each entity got, or the first set is
     // stripped and the second wears theirs for good.
     check("cleanup carries the tag with the entity",
-        cleanup.map(c => `${c.entity.name}:${c.tag}`), ["cow:T_0", "steve:T_1"])
+        cleanup.map(c => `${c.entity.name}:${c.tag}`), ["cow:T_0", "steve:T_2"])
     check("every command taking two selectors is covered",
         COMMANDS.filter(c => (c.params ?? []).filter(p => SELECTOR_TYPES.has(p[1])).length > 1)
             .map(c => c.name).sort(),
-        ["dialogue", "ride", "teleport"])
+        ["dialogue", "ride"])
 }
 
 check("an empty selector result is treated as absent",
@@ -307,10 +312,32 @@ console.log("\n— fixed words the caller should not have to type —")
         buildLine(s, ["@s", "speed", undefined, 3], "T", []), "effect @s speed")
 }
 
+console.log("\n— a count written in prose goes stale silently —")
+// vanillaparams.js, vanillacmds.js and verify.py all said "56" for the whole
+// life of a 55-row table. When `tp` was dropped, that stale number was read
+// back as if it were the truth and the correction landed one short — a wrong
+// comment is worse than no comment, because it gets quoted. So every count
+// stated in the prose is checked against the table it describes.
+{
+    const counted = ["../Admin+ BP/scripts/core/vanillaparams.js",
+                     "../Admin+ BP/scripts/features/vanillacmds.js",
+                     "../tools/verify.py",
+                     "./vanillacmds.test.js"]
+    const pattern = /\b(?:all|the) (\d{2})(?= (?:below|of these|vanilla passthroughs|this file|interleave|got renamed|is renamed|share the list))/gi
+    const stale = []
+    for (const path of counted) {
+        const text = readFileSync(new URL(path, import.meta.url), "utf8")
+        for (const m of text.matchAll(pattern)) {
+            if (Number(m[1]) !== COMMANDS.length) stale.push(`${path}: "${m[0]}"`)
+        }
+    }
+    check("no comment states a stale command count", stale, [])
+}
+
 console.log("\n— one namespace, so the grouping is in the name —")
 // A pack gets exactly ONE command namespace. Registering these under `cmd:` was
 // tried and refused twice: registerEnum would not take a second namespace, and
-// commands carrying no enums at all were refused with the same error. So all 56
+// commands carrying no enums at all were refused with the same error. So all 54
 // share the list with the pack's own commands, and the only lever on where they
 // appear is the name, because the in-game list is sorted alphabetically.
 // Our own command names, read out of the source the way tools/verify.py does.
@@ -354,7 +381,7 @@ check("every CODENAME key is a real vanilla command",
 // the people it was built for.
 check("no codename is a name the game already owns",
     vanilla.filter(n => GAME_OWNED.has(n)), [])
-check("so every one of the 56 got renamed, not just the long ones",
+check("so every one of the 54 got renamed, not just the long ones",
     COMMANDS.filter(c => !CODENAME.has(c.name)).map(c => c.name), [])
 
 // The renames that had to happen, as opposed to the ones that were taste.
@@ -363,10 +390,14 @@ check("testfor reads as what it does", codenameFor("testfor"), "count")
 check("kill could not stay kill", codenameFor("kill"), "slay")
 check("nor fill stay fill", codenameFor("fill"), "region")
 check("music shortens rather than needing a synonym", codenameFor("music"), "mus")
-// /a:tp is ours; vanilla has a tp too, and the codename is what keeps them apart.
+// /a:tp is ours. Vanilla's `tp` used to be a passthrough here under the
+// codename `port`; 2.1.23 dropped it — `teleport` carries the whole grammar —
+// and `port` is a pack command now, the one that hands over the Ender Eye.
 check("our own tp survives", ours.includes("tp"), true)
-check("and vanilla's is port", codenameFor("tp"), "port")
-check("which is not a name we already own", ours.includes("port"), false)
+check("vanilla tp is no longer registered", COMMANDS.some(c => c.name === "tp"), false)
+check("but the game still owns the name", GAME_OWNED.has("tp"), true)
+check("and port is ours, not a codename", [...CODENAME.values()].includes("port"), false)
+check("port is a pack command", ours.includes("port"), true)
 
 console.log("\n— the tag has to be unique —")
 // Two commands resolving at once must not pick up each other's entities.

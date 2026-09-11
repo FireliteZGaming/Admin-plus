@@ -201,7 +201,7 @@ for f in js:
         if total > LIMIT:
             fail(f"/{name.group(1)} declares {total} parameters; Bedrock allows {LIMIT}")
 
-# The 56 vanilla passthroughs register in a LOOP, with `name: registered` — a
+# The 54 vanilla passthroughs register in a LOOP, with `name: registered` — a
 # variable, not a literal — so the scan above cannot see a single one of them.
 # For one build it did not, and this file cheerfully reported "54 commands" while
 # 56 more went unchecked for duplicates and for the eight-parameter limit. They

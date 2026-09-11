@@ -1,10 +1,13 @@
 import { world, system, ItemStack } from "@minecraft/server"
 import { command } from "../core/registry.js"
 import { ok, err, info } from "../core/util.js"
-import { has, isStaff, canActOn } from "../core/ranks.js"
+import { has, isStaff, canActOn, primaryRank } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
 import { record } from "../core/logs.js"
 import { ChestForm, chestUIAvailable } from "../core/chestUI.js"
+import { pagedMenu, subtitle } from "../core/ui.js"
+import { hubTitle } from "../core/theme.js"
+import { isVanished } from "../core/vanish.js"
 import { worldToken, makeBanHammer, HAMMER_NAME } from "../core/banhammer.js"
 import { setting } from "../core/settings.js"
 
@@ -49,23 +52,27 @@ const ITEMS = {
         lines: ["§7Use it to jump to a random player."],
         typeId: "minecraft:compass"
     },
-    // The Ender Eye: look somewhere, use it, be there.
+    // The Ender Eye: use it, pick somebody, be there.
     //
     // It exists because every other way to teleport needs a TARGET, and a
     // target means a selector — and a custom command's selector parameter is
     // expanded by the engine at a permission level these commands cannot have,
-    // so `@p` and friends are refused before any of this pack's code runs. An
-    // item has no arguments to refuse. You point at a roof and you are on it.
+    // so `@p` and friends are refused before any of this pack's code runs.
     //
-    // That is also why it suits the audience: nobody has to know that `@p`
-    // exists, or that it would not have worked.
+    // An item has no arguments to refuse. So the destination is CHOSEN FROM A
+    // LIST instead of typed, which is not a consolation prize: the people using
+    // this pack do not know selector syntax, and a menu of names they recognise
+    // beats `@p` even where `@p` works. Looking somewhere and jumping there is
+    // still in the menu, as its own entry.
+    //
+    // `/port` hands one over; so does /items.
     eye: {
         slot: 15,
         gate: p => has(p, "admin.tp"),
         make: () => signItem("minecraft:ender_eye", "§d§lEnder Eye",
-            "§7Look somewhere and use it to jump there."),
+            "§7Use it to pick who you jump to."),
         name: "§d§lEnder Eye",
-        lines: ["§7Look somewhere and use it to jump there.", "§8No target needed — it goes where you look."],
+        lines: ["§7Use it to pick who you jump to.", "§8Or jump to whatever you are looking at."],
         typeId: "minecraft:ender_eye"
     },
     knockback: {
@@ -142,6 +149,32 @@ command({
             if (!key) return
             give(player, key)
         }).catch(e => console.warn(`[Admin+] /items form failed: ${e}`))
+    }
+})
+
+// /port — the shortest route to the eye.
+//
+// It replaced the vanilla `tp` passthrough, which was registered under this
+// name and could not take a selector for the reason above. Rather than leave a
+// teleport command that refuses every target, `/port` hands over the thing that
+// actually works. Somebody already holding one gets told so instead of
+// collecting a second.
+command({
+    name: "port",
+    description: "Get the Ender Eye — /port, then use it and pick where to go",
+    perm: "admin.tp",
+    run: (player) => {
+        const container = safe(() => player.getComponent("minecraft:inventory")?.container)
+        const held = container && safe(() => {
+            for (let i = 0; i < container.size; i++) {
+                if (itemKey(container.getItem(i)) === "eye") return true
+            }
+            return false
+        }, false)
+        if (held) {
+            return info(player, `${ITEMS.eye.name}§7 is already in your inventory — use it.`)
+        }
+        give(player, "eye")
     }
 })
 
@@ -232,28 +265,130 @@ export function installAdminItems() {
         console.warn("[Admin+] entityHitEntity unavailable — the Knockback stick will not fire")
     }
 
+    // The Ender Eye goes on the BEFORE event, because a vanilla ender eye that
+    // is merely handled is still thrown: it flies off toward a stronghold and
+    // is gone. `cancel` is the only thing that stops that, and a cancelled
+    // before-event means the AFTER event never fires — so the eye cannot be
+    // handled in both places, and this is the one that has to win.
+    //
+    // Before-event handlers run in a read-only context, hence system.run for
+    // everything that touches the world.
+    const beforeUse = world.beforeEvents?.itemUse
+    let eyeHandled = false
+    if (beforeUse?.subscribe) {
+        beforeUse.subscribe(event => {
+            const player = event.source
+            if (!player || itemKey(event.itemStack) !== "eye") return
+            event.cancel = true
+            // Checked at USE time, not when it was handed over — an item that
+            // outlives its holder's permission goes inert rather than becoming
+            // a way round the ranks.
+            system.run(() => { if (has(player, "admin.tp")) openEye(player) })
+        })
+        eyeHandled = true
+    } else {
+        console.warn("[Admin+] beforeEvents.itemUse unavailable — the Ender Eye will be thrown when used")
+    }
+
     // The Teleport compass, standalone (staff mode has its own; this one works
-    // without entering it), and the Ender Eye beside it.
+    // without entering it). The eye falls back to here only on a runtime with
+    // no before event, where it will be thrown as well as answered — worse than
+    // the real route, better than an item that does nothing.
     const use = world.afterEvents?.itemUse
     if (use?.subscribe) {
         use.subscribe(event => {
             const player = event.source
             if (!player) return
             const key = itemKey(event.itemStack)
-            if (key !== "teleport" && key !== "eye") return
-            // Checked at USE time, not when it was handed over — an item that
-            // outlives its holder's permission goes inert rather than becoming
-            // a way round the ranks.
+            if (key !== "teleport" && (key !== "eye" || eyeHandled)) return
             if (!has(player, "admin.tp")) return
-            system.run(() => key === "eye" ? blinkToLook(player) : teleportToRandom(player))
+            system.run(() => key === "eye" ? openEye(player) : teleportToRandom(player))
         })
     }
 
     return true
 }
 
+// ------------------------------------------------------------ the eye
+
+/**
+ * Who this person may jump to.
+ *
+ * Vanished players are left out unless the holder is allowed to see vanish —
+ * the same rule /vanished and the People screen follow. An eye that lists a
+ * hidden moderator would give them away without their doing anything, and
+ * teleporting to one would give them away twice.
+ *
+ * Rank does NOT filter this list. Going to somebody is not something you do TO
+ * them, so `canActOn` is the wrong question; the Teleport compass has always
+ * worked the same way.
+ */
+function jumpTargets(player) {
+    const seesVanished = has(player, "admin.vanish")
+    return world.getAllPlayers()
+        .filter(other => other.id !== player.id)
+        .filter(other => seesVanished || !isVanished(other))
+        .sort((a, b) => displayName(a).localeCompare(displayName(b)))
+}
+
+/** How far away, in whole blocks, or which dimension if it is another one. */
+function whereIs(player, other) {
+    if (other.dimension?.id !== player.dimension?.id) {
+        return `§8${String(other.dimension?.id ?? "").replace("minecraft:", "").replace(/_/g, " ")}`
+    }
+    const dx = other.location.x - player.location.x
+    const dy = other.location.y - player.location.y
+    const dz = other.location.z - player.location.z
+    return `§8${Math.round(Math.hypot(dx, dy, dz))} blocks away`
+}
+
+/**
+ * The picker. A list of people, plus the look-and-jump the eye shipped with.
+ *
+ * Everything discoverable in one place was the point: a separate gesture for
+ * "where I am looking" would be a thing nobody finds.
+ */
+function openEye(player) {
+    const targets = jumpTargets(player)
+    pagedMenu(player, {
+        title: hubTitle("warps", "Ender Eye"),
+        body: subtitle(targets.length
+            ? `${targets.length} player${targets.length === 1 ? "" : "s"} to jump to.`
+            : "Nobody else is online — but you can still jump to what you see."),
+        items: targets,
+        render: other => {
+            const rank = primaryRank(other)
+            const hidden = isVanished(other) ? " §8(vanished)" : ""
+            return { text: `${rank ? rank.display + "§r " : ""}§a${displayName(other)}§r${hidden}\n${whereIs(player, other)}` }
+        },
+        onPick: other => jumpTo(player, other),
+        extra: [{
+            text: "§dWhere I'm looking\n§8Jump to the block in your crosshair",
+            run: () => blinkToLook(player)
+        }]
+    }).catch(e => console.warn(`[Admin+] Ender Eye form failed: ${e}`))
+}
+
+function jumpTo(player, target) {
+    // Re-read them: the menu was drawn from a snapshot and they may have left
+    // while it was open, which would otherwise throw on a stale handle.
+    const live = world.getAllPlayers().find(p => p.id === target.id)
+    if (!live) return info(player, `§7${displayName(target)} left before you got there.`)
+    try {
+        player.teleport(live.location, { dimension: live.dimension })
+        record(player, "mod.tpTo", live, "ender eye")
+        info(player, `§7Jumped to §f${displayName(live)}§7.`)
+    } catch (e) {
+        err(player, `Couldn't jump there: ${e}`)
+    }
+}
+
 /**
  * Put them on top of whatever they are looking at.
+ *
+ * One entry in the eye's menu rather than the whole item. It is the form that
+ * needs no target at all, which is why it earns a place beside the names: the
+ * roof you want is often not where anybody is standing.
  *
  * Lands on the block's UPPER face rather than where the ray struck, which is
  * what makes it safe: the space above a solid block is the one place you can

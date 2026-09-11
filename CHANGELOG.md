@@ -57,6 +57,72 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.1.23 — 2026-09-11
+
+**The Ender Eye picks a person.** `/port` no longer teleports — it hands you the
+eye, and using the eye opens a list of who is online. Click a name, you are
+there.
+
+2.1.22 shipped the eye as look-and-blink, which solved half the problem. The
+other half is that most of the time you want to reach a *player*, not a roof —
+and reaching a player is exactly what no command here can do, because a
+destination means a selector and the engine refuses to expand one at the
+permission level these commands hold. A menu has nothing to expand. It also
+suits who actually plays here: a list of names you recognise beats `@p` even
+where `@p` works, and nobody has to be taught that `@p` exists.
+
+Looking somewhere and jumping there is still in the eye — as the first entry
+below the names, so everything it does is in one place instead of split across
+two gestures nobody would find.
+
+**It can no longer be thrown.** A vanilla ender eye that is merely *handled* is
+still thrown: it flies off toward a stronghold and is gone, taking your teleport
+with it. Using it is now cancelled outright, which is the only thing that stops
+that. A cancelled use means the after-event never fires, so the eye moved to the
+before-event entirely — and the cancel happens before the permission check, so
+even an eye whose holder has lost `admin.tp` stays in the inventory rather than
+flying away. An ender eye somebody crafted is untouched; only ours is caught,
+by the per-world serial in its lore.
+
+The list leaves out vanished players unless you are allowed to see vanish, the
+same rule `/vanished` and the People screen follow — an eye that listed a hidden
+moderator would give them away without their having done anything. Rank does not
+filter it: going to somebody is not something you do *to* them. Each entry says
+how many blocks away they are, or which dimension they are in.
+
+`/port` says so rather than handing you a second one if you already have an eye.
+
+### The command table: 55 vanilla passthroughs become 54
+
+`tp` is gone. Bedrock ships `tp` and `teleport` as two names for the same
+command, and this table carried both, splitting the overloads between them —
+`/port` took coordinates, `/move` took an entity destination. Registering the
+same command twice to buy one extra overload was always a thin trade, and it
+cost the name `port`.
+
+So `/move` now carries the whole grammar that is worth having:
+
+    /move <target> <x y z> [yRot] [xRot] [checkForBlocks]
+
+Coordinates are the form neither the eye nor the pack's own `/a:tp` can express,
+which makes it the one worth keeping. The entity destination is the eye's job
+now, and it does it better than the command did.
+
+The game still owns `/tp` — dropping the passthrough does not free the name — so
+it moves onto the explicit owned list rather than being inferred from the table.
+
+### Smaller
+
+- A test now checks every command count written in a source comment against the
+  actual table. Three files said "56" for the whole life of a 55-row table, and
+  when `tp` was dropped the stale number was read back as if it were true and
+  the correction landed one short. A wrong comment is worse than no comment,
+  because it gets quoted.
+- The test stub gained a real `itemUse`, before and after, with the engine's own
+  rule that a cancelled before-event suppresses the after-event. The throw-cancel
+  is tested by firing a use and reading the flag, not by looking for the word
+  `cancel` in the source.
+
 ## 2.1.22 — 2026-09-11
 
 **The Ender Eye.** A new admin item in `/items`: look somewhere, use it, be

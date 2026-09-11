@@ -31,9 +31,9 @@ const P = CustomCommandParamType
 // CODENAME in core/vanillaparams.js for every name and the reasoning.
 //
 // The prefix bought exactly one thing: the in-game command list is sorted
-// alphabetically, and "z" pushed all 56 of these below the pack's own, whose
+// alphabetically, and "z" pushed all 54 of these below the pack's own, whose
 // names run from admin to warps. That is a real convenience and it is now
-// gone; the 56 interleave. It was not worth a leading letter of noise on
+// gone; the 54 interleave. It was not worth a leading letter of noise on
 // every name, and the only genuine COLLISION with the pack's own commands was
 // `tp`, which CODENAME handles by itself.
 

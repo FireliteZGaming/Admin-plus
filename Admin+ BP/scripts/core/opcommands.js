@@ -20,6 +20,9 @@ import { setting, setSetting } from "./settings.js"
  *                                command anybody may type
  *   allowlist, permission,       dedicated-server and session administration
  *   reload, save, stop, ...
+ *   tp                           vanilla's own alias of `teleport`, which IS
+ *                                here. Registering both spent a name on a
+ *                                duplicate; `port` is the Ender Eye now.
  */
 export const OP_COMMANDS = Object.freeze([
     "aimassist", "camera", "camerashake", "clear", "clearspawnpoint", "clone",
@@ -30,7 +33,7 @@ export const OP_COMMANDS = Object.freeze([
     "scoreboard", "setblock", "setworldspawn", "spawnpoint", "spreadplayers",
     "stopsound", "structure", "summon", "tag", "teleport", "tellraw", "testfor",
     "testforblock", "testforblocks", "tickingarea", "time", "title", "titleraw",
-    "toggledownfall", "tp", "weather", "xp"
+    "toggledownfall", "weather", "xp"
 ])
 
 /** What is on right now, lowercased, in no particular order. */

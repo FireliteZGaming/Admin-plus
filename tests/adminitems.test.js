@@ -1,6 +1,6 @@
-import { ItemStack } from "@minecraft/server"
+import { ItemStack, __test } from "@minecraft/server"
 import { setting, setSetting, resetSetting, DEFAULTS } from "../Admin+ BP/scripts/core/settings.js"
-import { ITEMS, signItem, itemKey, knockback, SIGIL } from "../Admin+ BP/scripts/features/adminitems.js"
+import { ITEMS, signItem, itemKey, knockback, SIGIL, installAdminItems } from "../Admin+ BP/scripts/features/adminitems.js"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -19,13 +19,16 @@ check("nor a type and name pair, which is how itemKey tells them apart",
 // target means a selector — and a custom command's selector parameter is
 // expanded by the engine at a permission level these commands cannot have, so
 // `@p` is refused before any of this pack's code runs. An item has no arguments
-// to refuse, which also means nobody has to know `@p` exists.
+// to refuse, which also means nobody has to know `@p` exists: the destination
+// is PICKED from a list of names instead of typed.
 check("the eye is an ender eye", ITEMS.eye.typeId, "minecraft:ender_eye")
 check("and answers to the teleport node, not staff mode",
     ITEMS.eye.gate({ getTags: () => [], commandPermissionLevel: 0,
                      name: "T", id: "t" }), false)
-check("its blurb says no target is needed",
-    ITEMS.eye.lines.some(l => l.includes("where you look")), true)
+check("its blurb says you pick who to jump to",
+    ITEMS.eye.lines.some(l => l.includes("pick who you jump to")), true)
+check("and that looking somewhere still works",
+    ITEMS.eye.lines.some(l => l.includes("looking at")), true)
 // Row two of a large chest is slots 9-17; these want to be spread across it
 // rather than bunched, because they are picked by eye.
 check("the four items sit evenly across one chest row",
@@ -139,6 +142,46 @@ console.log("\n— knockback picks a working signature and normalises direction 
     const victim = { applyKnockback: (h) => calls.push(h) }
     knockback(attacker, victim)
     check("a straight-up look does not produce NaN", Number.isFinite(calls[0].x) && Number.isFinite(calls[0].z), true)
+}
+
+
+console.log("\n— using the eye must never throw it —")
+// A vanilla ender eye that is merely HANDLED is still thrown: it flies off
+// toward a stronghold and is gone, taking the admin's teleport with it. The
+// only thing that stops that is `cancel` on the BEFORE event — and a cancelled
+// before-event means the after-event never fires, so the eye cannot be handled
+// in both places. This fires a real use through the stub and reads the flag,
+// rather than asserting that the source contains the word "cancel".
+{
+    installAdminItems()
+    const holder = {
+        id: "eye-holder", name: "Holder",
+        getTags: () => ["ap:rank:Owner"],
+        commandPermissionLevel: 0,
+        location: { x: 0, y: 64, z: 0 },
+        dimension: { id: "minecraft:overworld" },
+        getRotation: () => ({ x: 0, y: 0 }),
+        getBlockFromViewDirection: () => undefined,
+        sendMessage: () => {},
+        teleport: () => {}
+    }
+
+    const eye = ITEMS.eye.make()
+    check("using the eye is cancelled, so it is never thrown",
+        __test.emitItemUse(holder, eye).cancel, true)
+
+    // Everything else must still go through untouched, or using a sword would
+    // start being swallowed by the item system.
+    const stick = new ItemStack("minecraft:stick", 1)
+    check("using anything else is left alone",
+        __test.emitItemUse(holder, stick).cancel, false)
+
+    // A hand-made ender eye is not ours — no serial in the lore — so a player
+    // who crafts one can still use it as an ender eye.
+    const crafted = new ItemStack("minecraft:ender_eye", 1)
+    crafted.nameTag = "§d§lEnder Eye"
+    check("a forged copy is not cancelled either",
+        __test.emitItemUse(holder, crafted).cancel, false)
 }
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
