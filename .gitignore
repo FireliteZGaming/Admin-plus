@@ -27,3 +27,7 @@ notes/
 # git would keep every one of them forever; the public copies live on the
 # releases page. The README and the MCPEDL handshake image stay tracked.
 releases/*.mcaddon
+
+# Written by tools/deploy.py: what went out last, so a changed build under an
+# already-installed version can be refused. A fact about THIS working copy.
+.deployed.json
