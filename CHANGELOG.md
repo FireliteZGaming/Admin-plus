@@ -57,6 +57,35 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.1.24 — 2026-09-11
+
+**The Ender Eye takes a location.** A second entry below the player list: type
+X, Y and Z and go there.
+
+That completes the set, and each of the three reaches somewhere the other two
+cannot. A name gets you to a person. Looking gets you to a place you can see. A
+coordinate gets you to a place that is neither — the spot a member reported, a
+height above a build, somewhere in the dark you have written down.
+
+The three fields open holding **where you are standing**, so the format is shown
+rather than explained and changing only the height is a one-character edit. They
+read vanilla's own grammar: `~` is where you are, `~10` is ten further along, a
+bare number is absolute. Anybody who has typed a `/tp` already knows it.
+
+A field that cannot be read is **refused by name** — "Y is not a number" —
+rather than quietly becoming 0. That is the whole reason the parsing is its own
+function with its own tests: a typo'd height read as zero drops you into
+bedrock, and it would look like the eye simply misbehaved. `Infinity` is
+refused for the same reason, since it survives `Number()` and throws only when
+the teleport runs.
+
+X and Z past 30 million are refused too. That is the world border; a teleport
+past it does nothing at all, and saying so beats pressing the button and
+appearing not to have moved.
+
+The eye's entries are in the order you reach for them: people first, then a
+location, then where you are looking.
+
 ## 2.1.23 — 2026-09-11
 
 **The Ender Eye picks a person.** `/port` no longer teleports — it hands you the

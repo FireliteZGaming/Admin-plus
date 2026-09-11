@@ -5,7 +5,7 @@ import { has, isStaff, canActOn, primaryRank } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
 import { record } from "../core/logs.js"
 import { ChestForm, chestUIAvailable } from "../core/chestUI.js"
-import { pagedMenu, subtitle } from "../core/ui.js"
+import { pagedMenu, modal, subtitle } from "../core/ui.js"
 import { hubTitle } from "../core/theme.js"
 import { isVanished } from "../core/vanish.js"
 import { worldToken, makeBanHammer, HAMMER_NAME } from "../core/banhammer.js"
@@ -72,7 +72,7 @@ const ITEMS = {
         make: () => signItem("minecraft:ender_eye", "§d§lEnder Eye",
             "§7Use it to pick who you jump to."),
         name: "§d§lEnder Eye",
-        lines: ["§7Use it to pick who you jump to.", "§8Or jump to whatever you are looking at."],
+        lines: ["§7Use it to pick who you jump to.", "§8Or a location, or whatever you are looking at."],
         typeId: "minecraft:ender_eye"
     },
     knockback: {
@@ -363,10 +363,80 @@ function openEye(player) {
         },
         onPick: other => jumpTo(player, other),
         extra: [{
+            text: "§bLocation\n§8Type coordinates and go there",
+            run: () => jumpToCoordinates(player)
+        }, {
             text: "§dWhere I'm looking\n§8Jump to the block in your crosshair",
             run: () => blinkToLook(player)
         }]
     }).catch(e => console.warn(`[Admin+] Ender Eye form failed: ${e}`))
+}
+
+/**
+ * One coordinate field, read with vanilla's own grammar.
+ *
+ * `~` is where you already are, `~10` is ten further along, and a bare number
+ * is absolute — the same rule the game uses everywhere else, so anybody who has
+ * typed a /tp before does not have to learn a second one. Anything else comes
+ * back undefined and is REFUSED by name, rather than quietly becoming 0: a
+ * typo'd Y that reads as zero drops you into bedrock.
+ */
+function coordinate(text, origin) {
+    const raw = String(text ?? "").trim()
+    if (!raw) return undefined
+    if (raw === "~") return origin
+    if (raw.startsWith("~")) {
+        const offset = Number(raw.slice(1))
+        return Number.isFinite(offset) ? origin + offset : undefined
+    }
+    const value = Number(raw)
+    return Number.isFinite(value) ? value : undefined
+}
+
+// The world border. Past it a teleport does nothing at all, so it is better to
+// say so than to press the button and appear not to have moved.
+const FAR = 30000000
+
+/**
+ * Type a place and go there.
+ *
+ * The three fields open holding where you are standing, so the format is shown
+ * rather than explained and changing only the height is a one-character edit —
+ * which is most of what an admin actually wants from a coordinate teleport.
+ */
+async function jumpToCoordinates(player) {
+    const here = player.location
+    const round = n => String(Math.round(n))
+    const answer = await modal(player, hubTitle("warps", "Jump to a location"), [
+        { id: "x", type: "text", label: "§7X", placeholder: "~", default: round(here.x) },
+        { id: "y", type: "text", label: "§7Y  §8(height)", placeholder: "~", default: round(here.y) },
+        { id: "z", type: "text", label: "§7Z", placeholder: "~", default: round(here.z) }
+    ])
+    if (!answer) return
+
+    const x = coordinate(answer.x, here.x)
+    const y = coordinate(answer.y, here.y)
+    const z = coordinate(answer.z, here.z)
+    const bad = [["X", x], ["Y", y], ["Z", z]].filter(pair => pair[1] === undefined).map(pair => pair[0])
+    if (bad.length) {
+        return err(player, `${bad.join(" and ")} ${bad.length > 1 ? "are not numbers" : "is not a number"}. Type a number, or §f~§c for where you are now.`)
+    }
+    if (Math.abs(x) > FAR || Math.abs(z) > FAR) {
+        return err(player, "That is outside the world — X and Z stop at 30 million.")
+    }
+
+    try {
+        player.teleport({ x, y, z }, {
+            dimension: player.dimension,
+            rotation: safe(() => player.getRotation(), undefined),
+            keepVelocity: false
+        })
+        const where = `${Math.round(x)} ${Math.round(y)} ${Math.round(z)}`
+        record(player, "mod.tpTo", player, `ender eye · ${where}`)
+        info(player, `§7Jumped to §f${where}§7.`)
+    } catch (e) {
+        err(player, `Couldn't jump there: ${e}`)
+    }
 }
 
 function jumpTo(player, target) {
@@ -442,4 +512,4 @@ function teleportToRandom(player) {
     }
 }
 
-export { ITEMS, signItem, itemKey, knockback, SIGIL }
+export { ITEMS, signItem, itemKey, knockback, coordinate, SIGIL }

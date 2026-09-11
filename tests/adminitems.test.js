@@ -1,6 +1,6 @@
 import { ItemStack, __test } from "@minecraft/server"
 import { setting, setSetting, resetSetting, DEFAULTS } from "../Admin+ BP/scripts/core/settings.js"
-import { ITEMS, signItem, itemKey, knockback, SIGIL, installAdminItems } from "../Admin+ BP/scripts/features/adminitems.js"
+import { ITEMS, signItem, itemKey, knockback, coordinate, SIGIL, installAdminItems } from "../Admin+ BP/scripts/features/adminitems.js"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -183,6 +183,28 @@ console.log("\n— using the eye must never throw it —")
     check("a forged copy is not cancelled either",
         __test.emitItemUse(holder, crafted).cancel, false)
 }
+
+
+console.log("\n— coordinates read the way the game reads them —")
+// `~` is what people already type, so the eye takes it. The important half is
+// the refusal: a field that cannot be read comes back undefined and is named in
+// an error, never silently treated as 0 — a typo'd Y that reads as zero drops
+// you into bedrock, and it would look like the eye simply misbehaved.
+check("a plain number is absolute", coordinate("100", 7), 100)
+check("a negative one too", coordinate("-12.5", 7), -12.5)
+check("a bare tilde is where you already are", coordinate("~", 64), 64)
+check("a tilde with an offset moves from there", coordinate("~10", 64), 74)
+check("and a negative offset goes the other way", coordinate("~-10", 64), 54)
+check("surrounding spaces are ignored", coordinate("  ~5  ", 64), 69)
+
+check("an empty field is refused, not read as zero", coordinate("", 64), undefined)
+check("so is whitespace alone", coordinate("   ", 64), undefined)
+check("so is a word", coordinate("here", 64), undefined)
+check("so is a tilde with nonsense after it", coordinate("~up", 64), undefined)
+check("and so is nothing at all", coordinate(undefined, 64), undefined)
+// Number("Infinity") is finite-looking until you check; a teleport there throws.
+check("infinity is refused", coordinate("Infinity", 64), undefined)
+check("as is a tilde offset of infinity", coordinate("~Infinity", 64), undefined)
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)
