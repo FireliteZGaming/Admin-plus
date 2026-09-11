@@ -57,6 +57,208 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.1.19 — 2026-09-10
+
+**All 55 vanilla commands have now been read against Microsoft's reference.**
+`python tools/commands.py` says 55 of 55; it said 4 this morning. Not one row is
+guesswork any more.
+
+The hit rate is the part worth knowing: **sixteen of the fifty-five were wrong**,
+and nine of those could never have worked at all.
+
+**Could not have worked — the command text they built was invalid:**
+
+- **`/exp`** demanded a mandatory `levels|points` unit. That is *Java's*
+  grammar; Bedrock is `/xp <amount> [player]`.
+- **`/port`** declared `facing` as a position when it is a literal keyword.
+- **`/sum`** had `nameTag` in position three, where vanilla expects `yRot`, so
+  `/sum zombie ~ ~ ~ Bob` handed a name to a rotation. `spawnEvent` was
+  unreachable, so no baby zombies and no charged creepers.
+- **`/spread`** declared x and z as a single three-value Location. Every
+  argument after it landed one place along. `maxHeight` was missing, and the
+  target was entity-typed when the command wants a player.
+- **`/input`** had no `set` verb at all — `inputpermission @a[…] camera enabled`
+  is not a command. Nine of its eleven permissions were also missing, which is
+  most of what makes it useful: you could not freeze someone's jump or their
+  sneak, only camera and movement.
+- **`/shake`** had no `add` verb.
+- **`/controls`** had no `set` verb.
+- **`/trigger`** was missing the literal `entity` that `/event` requires.
+- **`/mount`** had the wrong pair of optional enums, in the wrong order, and
+  `teleportRules` did not exist in the table at all.
+
+**Vocabularies that were short**, which shows up as the game refusing a value it
+actually accepts: `/eff` was seven effects light (the whole 1.21 trial-chamber
+batch), `/ench` two (`breach`, `lunge`), `/diff` was missing `p e n h`, `/sky`
+was missing `query`, `/gmode` was missing `s c a d`, and `/dmg` carried a
+`suicide` cause that does not exist while missing `mace_smash`. `/overlay`
+listed a `vehicle_health` element that is not one.
+
+**Vocabularies that existed but were never offered.** `/rule` took a bare String
+for the rule name — 38 names, none of them completing, and nobody remembers
+whether it is `dodaylightcycle` or `doDaylightCycle`. Same for the verbs on
+`/struct`, `/ticking`, `/mist`, `/dialog`, `/feature`, `/drops`, `/score`,
+`/cam`, and the repeat mode on `/mus`.
+
+**Four are as good as they can be, and that is now written down rather than
+left looking like laziness.** `/cam` has 35 overloads built from keyword
+literals in mid-line; `/drops` has 20; `/score` has 11 branches and one of them
+takes a bare `+=` as an argument. A parameter list cannot describe a grammar
+made of keywords, so those take a typed verb and loose words after it — a
+decision, with the reason in the row.
+
+**Also fixed:** `/find` was missing `useNewChunksOnly`, `/checkblock` its
+optional block states, `/rawtitle` the two extra slots its `times` form needs,
+and `/loot`, `/structure`, `/tickingarea` and `/place` all had a bare String
+where a real enum existed.
+
+## 2.1.18 — 2026-09-10
+
+**An entity argument is run ON each entity with `@s`, not handed to the
+dimension.** `/slay @e[family=monster]` was refused with *insufficient
+permissions for selector expansion*, and with that the picture from a live world
+finally resolves:
+
+    /exp 100                    worked    no selector in the rebuilt line
+    execute at @a[tag=…,c=1]    worked    that wrapper is in every command
+    kill @e[tag=…]              refused
+    /slay @e[family=monster]    refused
+
+`dimension.runCommand` can expand **`@a`** and cannot expand **`@e`**. No
+amount of care writing the line gets round that, because the problem is the
+asking.
+
+So it stops asking. The engine has already resolved the argument by the time
+this code runs, so the slot becomes `@s` and the command runs once on each
+entity through `Entity.runCommand`. `@s` names the executor and expands
+nothing — there is no broad selector left for anything to refuse.
+
+One dead mob in a list of forty is not a reason to abandon the other
+thirty-nine, so failures are counted rather than thrown, and the reply now says
+how many were actually affected: *Ran /kill — 12 affected.*
+
+**The limit, stated rather than discovered:** only the FIRST entity argument can
+be `@s`, because there is one executor. The three commands taking two —
+`/move`, `/mount`, `/dialog` — still hand the second to the dimension and remain
+subject to the same restriction.
+
+## 2.1.17 — 2026-09-10
+
+**One player is written as a NAME, not a selector at all.** This is the fix that
+matters, and a live world handed us the clue: `/exp 100` worked, `/exp 100
+<name>` did not. The only difference between them is that the second puts a
+selector in the rebuilt line — so it is *expansion* that gets refused, not the
+command, not the route, not the permission level.
+
+The engine has already resolved the argument by the time this code runs, so for
+a single player there is nothing to gain by handing a selector back. A name is
+not a selector; the parser never expands it, and it reaches exactly the same
+person. `/exp 100 Steve` now becomes `xp 100 "Steve"`. Quoted, because a
+gamertag can contain spaces.
+
+Several players still need a selector, and entities always do — which is where
+the rest of this applies.
+
+**A player argument gets `@a`, an entity argument gets `@e`.** Found in the same
+world: `/gift FireliteZGaming chainmail_boots` came back with
+
+    Error occurred with parsing command params: Selector must be player-type
+
+Resolved selectors are handed back to the game as a tag, and the rebuilt line
+always used `@e[tag=…]` — every entity. But vanilla checks a selector's TYPE
+**syntactically**, not what it happens to resolve to, so a player-typed argument
+handed `@e` is refused outright even when every tagged entity is a player. The
+parameter table has always known which is which; the code just was not asking.
+**Twenty-one player parameters were all emitting `@e`**, which is exactly why
+some of these worked and some did not.
+
+`@e` is also the most permission-restricted selector the game has, so this is
+the likely cause of `insufficient permissions for selector expansion` on
+commands that take a player — `/ench` among them.
+
+**The pack no longer claims success it did not have.** A command the game
+REFUSES does not throw: it returns `successCount: 0` and writes its own
+complaint into chat. So `runAsServer` printed a cheerful green *"Ran /enchant
+…"* directly above the game's red *"insufficient permissions for selector
+expansion"*, with nothing to say which of the two was telling the truth.
+
+Zero is not always failure — `/slay @e[type=cow]` with no cows nearby
+legitimately affects nobody — so it is now reported as what it is, the command
+ran and changed nothing, and the game's own message is pointed at rather than
+contradicted.
+
+**`tools/deploy.py` now refuses to deploy changed content under a version that
+is already installed.** CLAUDE.md has said "bump before deploying" from the
+start, and it was broken anyway: 2.1.15 went out, four more changes were made on
+top, and all of them deployed still stamped 2.1.15. The pack list is the only
+place the version is visible in game, so one number meaning two builds makes it
+a liar — and the symptom is reloading the world, seeing the same number, and
+reasonably concluding nothing deployed.
+
+A rule in a document did not stop that. A tool that refuses does, which is the
+same shape as `release.py` refusing a build the engine has never run. It stores
+a fingerprint of everything that ships in `.deployed.json`; re-deploying the
+same build is still fine, changing one byte without bumping is not.
+
+## 2.1.16 — 2026-09-10
+
+**The selector picker is back.** Typing `/slay ` offers `@a @e @p @r @s` and
+every filter again, the way vanilla does, and a Location argument suggests `~`
+or the coordinates of the block you are looking at.
+
+2.1.13 had downgraded every selector parameter to a plain String to dodge
+"insufficient permissions for selector expansion", and that cure was worse than
+the disease: it turned the argument into a blank text box. A blank text box is
+no use at all to somebody who does not already know selector syntax — which is
+most of the audience for a command set whose entire purpose is handing power to
+people who are not operators. It was a real cost and it should have been a
+decision, not a comment.
+
+`/gm` has always used a real `PlayerSelector` and has always worked, which was
+sitting there the whole time as evidence the blanket downgrade was unnecessary.
+`render()` now handles both shapes, so if the refusal ever comes back for a
+non-operator the way back is one line, written out in the file.
+
+**Two selectors in one command no longer collide.** Found by a second pass
+before this shipped, not after. Every selector in a line was sharing one tag,
+so `/move <cow> <steve>` came out as
+
+    teleport @e[tag=T] @e[tag=T]
+
+— both sides resolving to the same set, teleporting everything to itself. Hits
+`/move`, `/mount` and `/dialog`. Each selector parameter now gets its own tag,
+and the tag travels with the entity into cleanup so the right one comes off.
+
+**Vanish no longer leaks upward either.** It announces itself rather than going
+through the audit system, which meant it also skipped the rank rule 2.1.15 added
+everywhere else — a moderator was watching an admin disappear, which rather
+defeats the point of disappearing. `/vanished` was the same leak by another
+door: it listed everyone hidden with no rank filter at all, so anyone who could
+not be told could simply look it up. Both use the same predicate as the audit
+announcer now. It also lists LIVE players rather than stored names, because
+somebody who logged off while vanished is not vanished, they are offline.
+
+### Eleven more commands read against Microsoft's reference
+
+`python tools/commands.py` prints the table with the verified column. **15 of 55
+now**, up from 4. Four were genuinely broken:
+
+- **`/exp` could never have worked.** It demanded a mandatory `levels|points`
+  unit, which is *Java's* grammar — Bedrock is `/xp <amount> [player]`. So
+  `/exp 30 levels @s` emitted `xp 30 levels @s` and was rejected every time.
+- **`/sum` had `nameTag` in position three, where vanilla expects `yRot`**, so
+  `/sum zombie ~ ~ ~ Bob` handed a name to a rotation. `spawnEvent` was
+  unreachable entirely — no baby zombies, no charged creepers.
+- **`/eff` was seven effects short**: the whole 1.21 batch, six of them from
+  trial chambers.
+- **`/ench` was missing `breach` and `lunge`**, the mace enchantments.
+
+Two more had the right shape and an incomplete vocabulary: **`/sky query`** and
+**`/diff p`** are both things vanilla accepts and this pack was refusing.
+
+Correct as they stood, now confirmed rather than assumed: `/slay`, `/gift`,
+`/wipe`, `/region`, `/block`.
+
 ## 2.1.15 — 2026-09-10
 
 **Staff notices no longer leak upward: you cannot watch your seniors work.**

@@ -1,10 +1,10 @@
 import { world, CustomCommandParamType } from "@minecraft/server"
 import { command } from "../core/registry.js"
 import { ok, err, info } from "../core/util.js"
-import { canActOn, isStaff, refreshNameTag } from "../core/ranks.js"
+import { canActOn, canSeeActionsOf, isStaff, refreshNameTag } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
 import { record } from "../core/logs.js"
-import { isVanished, toggle, unvanish, vanishedNames, vanishedCount } from "../core/vanish.js"
+import { isVanished, toggle, unvanish } from "../core/vanish.js"
 import { announceJoin, announceLeave } from "./presence.js"
 
 // /vanish [player] — hide, or bring someone back.
@@ -56,11 +56,23 @@ command({
     }
 })
 
-/** Only staff hear about it — that is the whole point of the feature. */
+/**
+ * Only staff hear about it — that is the whole point of the feature.
+ *
+ * And only staff who are not BELOW the person who did it. Vanish is on the
+ * audit system's SILENT list because it announces itself here in its own
+ * words, which meant it also skipped the rank rule that governs every other
+ * staff notice: a moderator was watching an admin disappear. Somebody senior
+ * going invisible is exactly the thing a junior should not be told about,
+ * because the whole point is that nobody knows they are there.
+ *
+ * Same predicate the audit announcer uses, so the two cannot drift.
+ */
 function tellStaff(actor, target, hidden) {
     for (const member of world.getAllPlayers()) {
         if (member.id === actor.id || member.id === target.id) continue
         if (!isStaff(member)) continue
+        if (!canSeeActionsOf(member, actor)) continue
         member.sendMessage(`§8[staff] §7${displayName(target)} is now ${hidden ? "§8vanished" : "§fvisible"}§7.`)
     }
 }
@@ -70,9 +82,19 @@ command({
     description: "Who is currently vanished",
     perm: "admin.vanish",
     run: (player) => {
-        const count = vanishedCount()
-        if (!count) return info(player, "§7Nobody is vanished.")
-        info(player, `§7Vanished (§f${count}§7): §f${vanishedNames().join(", ")}`)
+        // Rank-filtered, and built from LIVE players rather than the stored
+        // names. Closing the leak in tellStaff and leaving this alone would
+        // have been pointless — a moderator who cannot be told an admin
+        // vanished could simply type /vanished and read it off the list.
+        //
+        // Live players also answer the question more honestly: somebody who
+        // logged off while vanished is not "currently vanished", they are
+        // offline, and listing them invited staff to go looking for a person
+        // who is not there.
+        const hidden = world.getAllPlayers()
+            .filter(p => isVanished(p) && p.id !== player.id && canSeeActionsOf(player, p))
+        if (!hidden.length) return info(player, "§7Nobody is vanished.")
+        info(player, `§7Vanished (§f${hidden.length}§7): §f${hidden.map(displayName).join(", ")}`)
     }
 })
 

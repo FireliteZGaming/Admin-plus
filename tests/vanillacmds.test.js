@@ -100,10 +100,115 @@ const vanillaSrc = readFileSync(
 check("the table still marks selectors, so render() can find them",
     COMMANDS.flatMap(c => (c.params ?? []).filter(p => SELECTOR_TYPES.has(p[1]))).length > 0,
     true)
-check("but the REGISTRATION downgrades every one of them to a String",
-    vanillaSrc.includes("type: SELECTOR_TYPES.has(type) ? P.String : type"), true)
-check("and nothing tags entities to paste a selector back any more",
-    vanillaSrc.includes("@e[tag=${tag}]"), false)
+// Selectors keep their REAL type, which is what makes the game offer
+// `@a @e @p @r @s` and every filter as you type. 2.1.13 downgraded them to
+// String to dodge a permission error and that traded the picker for a blank
+// text box — useless to anyone who does not already know selector syntax, which
+// is most of the audience for a command set aimed at people without operator.
+// /gm has always used a real PlayerSelector and works, which is why this went
+// back.
+// Comment lines stripped first. The file keeps the old downgrade written out
+// in a comment as the one-line way back if the permission error ever returns,
+// and a raw substring match found its own escape hatch and called it live code.
+const vanillaCode = vanillaSrc.split("\n")
+    .filter(line => !line.trim().startsWith("//") && !line.trim().startsWith("*"))
+    .join("\n")
+check("the registration does NOT downgrade selectors to String",
+    vanillaCode.includes("type: SELECTOR_TYPES.has(type) ? P.String : type"), false)
+check("so the engine resolves them and hands back entities",
+    vanillaCode.includes("[tag=${tag}]"), true)
+check("and the selector head depends on the parameter type",
+    vanillaCode.includes('type === P.PlayerSelector ? "@a" : "@e"'), true)
+
+console.log("\n— a player parameter gets @a, an entity parameter gets @e —")
+{
+    // Vanilla checks a selector's TYPE syntactically, not what it resolves to.
+    // A player-typed argument handed `@e[tag=…]` is refused with
+    //     Error occurred with parsing command params: Selector must be player-type
+    // even when every tagged entity IS a player. Reported from a live world:
+    // /ench went through and /gift did not, and the only difference was that
+    // one of them checks.
+    const ent = n => ({ name: n, addTag: () => {}, removeTag: () => {} })
+    const line = (name, args) =>
+        buildLine(COMMANDS.find(c => c.name === name), args, "T", [])
+
+    // ONE player is written as a NAME, which is not a selector at all, so the
+    // game never expands it — and expansion is the thing that gets refused.
+    // Confirmed live: `/exp 100` worked and `/exp 100 <name>` did not, and the
+    // only difference was a selector in the rebuilt line.
+    check("one player becomes a quoted name, no selector",
+        line("xp", [100, [ent("FireliteZGaming")]]), 'xp 100 "FireliteZGaming"')
+    check("a gamertag with spaces survives as one argument",
+        line("xp", [5, [ent("Big Red Dog")]]), 'xp 5 "Big Red Dog"')
+    check("give too", line("give", [[ent("p")], { id: "minecraft:chainmail_boots" }]),
+        'give "p" minecraft:chainmail_boots')
+    check("several players fall back to @a, never @e",
+        line("give", [[ent("a"), ent("b")], { id: "minecraft:stone" }]),
+        "give @a[tag=T_0] minecraft:stone")
+    check("kill takes any entity, so @e",
+        line("kill", [[ent("c")]]), "kill @e[tag=T_0]")
+
+    // ...but an entity argument does not actually GO that way any more. The
+    // dimension refuses to expand `@e` at all — `/slay @e[family=monster]` came
+    // back "insufficient permissions for selector expansion" — so the slot
+    // becomes `@s` and the command is run ON each resolved entity instead.
+    // `@s` names the executor and expands nothing.
+    const self = (name, args, at) =>
+        buildLine(COMMANDS.find(c => c.name === name), args, "T", [], at)
+    check("an entity argument becomes @s when run per entity",
+        self("kill", [[ent("m1"), ent("m2")]], 0), "kill @s")
+    check("and the rest of the line is untouched",
+        self("effect", [[ent("m")], "speed", 30], 0), "effect @s speed 30")
+    check("an empty set still stops the line",
+        self("kill", [[]], 0), "kill")
+
+    // The sweep that matters: 21 player parameters were ALL emitting @e.
+    const offenders = []
+    for (const c of COMMANDS) {
+        const params = c.params ?? []
+        const args = params.map(p => SELECTOR_TYPES.has(p[1]) ? [ent("x")]
+            : p[3] ? ENUMS[p[3]][0]
+            : p[1] === P.Location ? { x: 0, y: 0, z: 0 }
+            : (p[1] === P.ItemType || p[1] === P.BlockType || p[1] === P.EntityType)
+                ? { id: "minecraft:stone" }
+            : p[1] === P.Boolean ? true
+            : (p[1] === P.Integer || p[1] === P.Float) ? 1 : "w")
+        const built = buildLine(c, args, "T", [])
+        params.forEach((p, i) => {
+            if (p[1] === P.PlayerSelector && built.includes(`@e[tag=T_${i}`)) {
+                offenders.push(`${c.name}.${p[0]}`)
+            }
+        })
+    }
+    check("no player parameter anywhere emits @e", offenders, [])
+}
+
+console.log("\n— two selectors in one command must not share a tag —")
+{
+    // /move, /mount and /dialog each take TWO selectors. With one tag for the
+    // whole line, `/move <cow> <steve>` came out as
+    //     teleport @e[tag=T] @e[tag=T]
+    // which teleports both sets to themselves. Caught by a second look before
+    // it shipped; the suffix is what keeps the two sides apart.
+    const marks = []
+    const ent = n => ({ name: n, addTag: t => marks.push(`${n}:${t}`), removeTag: () => {} })
+    const tele = COMMANDS.find(c => c.name === "teleport")
+    const cleanup = []
+    check("each selector parameter gets its own tag",
+        buildLine(tele, [[ent("cow")], [ent("steve")]], "T", cleanup),
+        "teleport @e[tag=T_0] @e[tag=T_1]")
+    check("and the two sets really are tagged differently",
+        marks, ["cow:T_0", "steve:T_1"])
+
+    // Cleanup has to know WHICH tag each entity got, or the first set is
+    // stripped and the second wears theirs for good.
+    check("cleanup carries the tag with the entity",
+        cleanup.map(c => `${c.entity.name}:${c.tag}`), ["cow:T_0", "steve:T_1"])
+    check("every command taking two selectors is covered",
+        COMMANDS.filter(c => (c.params ?? []).filter(p => SELECTOR_TYPES.has(p[1])).length > 1)
+            .map(c => c.name).sort(),
+        ["dialogue", "ride", "teleport"])
+}
 
 check("an empty selector result is treated as absent",
     buildLine(spec, [[]], "T2", []), "kill")

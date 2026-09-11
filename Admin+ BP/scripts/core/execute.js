@@ -305,6 +305,61 @@ function runTag() {
     return `apx_${Date.now().toString(36)}_${counter}`
 }
 
+/**
+ * Run one line once per entity, with `@s` standing for each of them in turn.
+ *
+ * **Why this exists: the dimension will not expand `@e`.** Every report from a
+ * live world pointed the same way —
+ *
+ *     /exp 100                     worked   (no selector in the rebuilt line)
+ *     execute at @a[tag=…,c=1]     worked   (that wrapper is in every command)
+ *     kill @e[tag=…]               refused  "insufficient permissions for
+ *                                            selector expansion"
+ *
+ * — so `dimension.runCommand` can expand `@a` and cannot expand `@e`. A command
+ * whose argument is an ENTITY therefore cannot go through a rebuilt command
+ * line at all, however carefully the line is written.
+ *
+ * The way out is to stop asking for expansion. The engine has already resolved
+ * the argument, so the command is run ON each entity with `@s` in the slot:
+ * `@s` names the executor and expands nothing. `Entity.runCommand` is the door,
+ * and the whole point is that the entity is the origin, so there is no broad
+ * selector for anything to refuse.
+ *
+ * Failures are counted rather than thrown: one dead mob in a list of forty is
+ * not a reason to abandon the other thirty-nine.
+ *
+ * @returns {{ok: boolean, output: string, command: string, reason?: string}}
+ */
+export function runOnEach(player, line, entities) {
+    const checked = mayRun(player, line)
+    if (!checked.ok) return checked
+
+    const list = [...(entities ?? [])]
+    if (!list.length) {
+        return { ok: false, reason: "nothing matched that selector.", command: checked.command }
+    }
+
+    let worked = 0
+    let lastError = ""
+    for (const entity of list) {
+        try {
+            const result = entity.runCommand(checked.command)
+            if (Number(result?.successCount ?? 0) > 0) worked++
+        } catch (e) {
+            lastError = String(e).replace(/^Error: /, "")
+        }
+    }
+    if (worked === 0) {
+        return {
+            ok: false,
+            command: checked.command,
+            reason: lastError || "the game refused it for every target — its own message is above this one"
+        }
+    }
+    return { ok: true, output: String(worked), command: checked.command }
+}
+
 export function runAsServer(player, line) {
     const checked = mayRun(player, line)
     if (!checked.ok) return checked
@@ -336,7 +391,26 @@ export function runAsServer(player, line) {
     const wrapped = `execute at ${me} run ${rewriteSelf(named, me)}`
     try {
         const result = dimension.runCommand(wrapped)
-        return { ok: true, output: String(result?.successCount ?? 0), command: checked.command }
+        const affected = Number(result?.successCount ?? 0)
+        // A command the game REFUSES does not throw. It comes back with
+        // successCount 0 and writes its own complaint into chat — which meant
+        // this reported a cheerful green "Ran /enchant …" directly above the
+        // game's red "insufficient permissions for selector expansion", and
+        // there was no way to tell from the pack which of the two was right.
+        //
+        // Zero is not always a failure: `/slay @e[type=cow]` with no cows
+        // nearby legitimately affects nobody. So it is reported as what it is —
+        // the command ran and changed nothing — rather than guessed at either
+        // way.
+        if (affected === 0) {
+            return {
+                ok: false,
+                reason: "the game refused it or it matched nothing — its own message is above this one",
+                command: checked.command,
+                output: "0"
+            }
+        }
+        return { ok: true, output: String(affected), command: checked.command }
     } catch (e) {
         // A command that the game refuses is normal — a typo, a bad selector,
         // nothing matched. Hand the message back rather than swallowing it.
