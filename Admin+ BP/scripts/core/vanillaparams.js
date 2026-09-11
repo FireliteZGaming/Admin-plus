@@ -46,7 +46,11 @@ export const ENUMS = {
     // `query` is not a weather type — `/weather query` is its own overload, and
     // carrying it in the vocabulary is what lets ONE registration reach both.
     weather:    ["clear", "rain", "thunder", "query"],
-    timeset:    ["day", "noon", "sunset", "night", "midnight", "sunrise"],
+    // No `timeset` vocabulary here on purpose. `/time set` takes a NUMBER or
+    // a word, and one parameter cannot be both, so the value is a String and
+    // an enum of day/noon/sunset/… would only ever have been registered and
+    // never offered. Same for the old `riderule`: it belongs to the
+    // summon_ride overload, which this table does not reach.
     timeop:     ["set", "add", "query"],
     tagop:      ["add", "remove", "list"],
     titleop:    ["clear", "reset", "title", "subtitle", "actionbar", "times"],
@@ -71,7 +75,6 @@ export const ENUMS = {
                "remove_target", "play_spline"],
     rideop:     ["start_riding", "stop_riding", "evict_riders", "summon_rider", "summon_ride"],
     ridefill:   ["until_full", "if_group_fits"],
-    riderule:   ["no_ride_change", "reassign_rides", "skip_riders"],
     // TeleportRules, which was missing entirely — start_riding takes it.
     teleportrules: ["teleport_rider", "teleport_ride"],
     recipeop:   ["give", "take"],

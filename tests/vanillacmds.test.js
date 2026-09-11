@@ -61,6 +61,18 @@ check("and no non-Enum parameter claims one",
         .filter(p => p[1] !== P.Enum && p[3])
         .map(p => `${c.name}:${p[3]}`)), [])
 check("every enum has values", Object.entries(ENUMS).filter(([, v]) => !v.length).map(([k]) => k), [])
+// ...and every enum is USED. The registration loop registers all of them with
+// Bedrock, so one no parameter names is a registration that offers nothing —
+// the same "a node exists only if the code checks it" rule the rest of the pack
+// follows. `timeset` and `riderule` were both sitting here doing exactly that:
+// riderule went dead when /mount's optional pair was corrected, and timeset
+// never worked because `/time set` takes a number OR a word and a parameter
+// cannot be both.
+{
+    const named = new Set(COMMANDS.flatMap(c => (c.params ?? []).map(p => p[3]).filter(Boolean)))
+    check("no enum is defined without a parameter naming it",
+        Object.keys(ENUMS).filter(k => !named.has(k)), [])
+}
 check("every enum value is a bare identifier",
     Object.entries(ENUMS).flatMap(([k, v]) => v.filter(x => !/^[a-z_0-9]+$/.test(x)).map(x => `${k}:${x}`)), [])
 

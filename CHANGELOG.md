@@ -57,6 +57,23 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.1.20 — 2026-09-11
+
+**Two enums were being registered with Bedrock and offered to nobody.** Found by
+asking a simple question — "did we have a `/time`?" — and checking rather than
+answering from memory.
+
+`riderule` went dead in 2.1.19 when `/mount`'s optional pair was corrected to
+the ones vanilla actually takes. `timeset` never worked at all: `/time set`
+accepts a NUMBER or a word, one parameter cannot be both, so the value is a
+String and a day/noon/sunset vocabulary could only ever be registered and never
+reached.
+
+Both are gone, with a note where they sat saying why. This is the same rule the
+rest of the pack follows — *a node exists only if the code checks it* — and
+`tests/vanillacmds.test.js` now fails if an enum is defined without a parameter
+naming it, so it cannot happen again quietly.
+
 ## 2.1.19 — 2026-09-10
 
 **All 55 vanilla commands have now been read against Microsoft's reference.**
