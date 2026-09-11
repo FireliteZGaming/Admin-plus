@@ -125,11 +125,20 @@ check("the table still marks selectors, so render() can find them",
 const vanillaCode = vanillaSrc.split("\n")
     .filter(line => !line.trim().startsWith("//") && !line.trim().startsWith("*"))
     .join("\n")
-check("the registration does NOT downgrade selectors to String",
-    vanillaCode.includes("type: SELECTOR_TYPES.has(type) ? P.String : type"), false)
-check("so the engine resolves them and hands back entities",
+// Selectors are registered as String and resolved by US, through the script
+// API. Not a preference — a parameter registered as EntitySelector is expanded
+// by the ENGINE at the command's declared permission level, which is `Any`, and
+// every `@` form is refused there. `/slay @e[family=monster]`,
+// `/gift @p iron_leggings` and `/ench @p` all failed that way, with a BARE
+// error carrying no `[Admin+]` prefix — proof it happened before this file's
+// handler ran, so nothing downstream could have helped.
+check("the registration downgrades selectors to String",
+    vanillaCode.includes("type: SELECTOR_TYPES.has(type) ? P.String : type"), true)
+check("and the handler resolves the text itself",
+    vanillaCode.includes("resolveSelector(resolved[i], player"), true)
+check("the entity-tagging path survives for what comes back",
     vanillaCode.includes("[tag=${tag}]"), true)
-check("and the selector head depends on the parameter type",
+check("and the selector head still depends on the parameter type",
     vanillaCode.includes('type === P.PlayerSelector ? "@a" : "@e"'), true)
 
 console.log("\n— a player parameter gets @a, an entity parameter gets @e —")

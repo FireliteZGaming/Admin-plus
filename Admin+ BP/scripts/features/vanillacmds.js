@@ -4,6 +4,7 @@ import { ok, err } from "../core/util.js"
 import { record } from "../core/logs.js"
 import { runAsServer, runOnEach, checkCommand } from "../core/execute.js"
 import { hasEntityRoute, runEntityRoute } from "../core/entityapi.js"
+import { resolveSelector, SELECTOR_HELP } from "../core/selector.js"
 import { COMMANDS, ENUMS, SELECTOR_TYPES, codenameFor } from "../core/vanillaparams.js"
 
 // The vanilla command set, typed, without operator.
@@ -215,27 +216,29 @@ for (const spec of COMMANDS) {
         // name must be the registered enum's namespaced name, not a label of our
         // choosing. Getting this wrong registers a command whose enum silently
         // offers nothing.
-        // Every parameter keeps its REAL type, selectors included. That is the
-        // entire reason this file exists: the game then does the completion
-        // itself, exactly as it does for its own commands. `/slay ` offers
-        // `@a @e @p @r @s` and every filter; a Location offers `~ ~ ~` and the
-        // coordinates of the block you are looking at; item and block names
-        // complete. None of that is reproducible from script.
+        // Every parameter keeps its real type EXCEPT selectors, and that one
+        // exception is forced. A parameter registered as EntitySelector or
+        // PlayerSelector is expanded BY THE ENGINE at the command's declared
+        // permission level — `Any`, because these exist for people without
+        // operator — and every `@` form is refused there:
         //
-        // 2.1.13 downgraded selectors to String to dodge "insufficient
-        // permissions for selector expansion", and that cure was worse than
-        // the disease — it turned the argument into a blank text box, which is
-        // no use at all to somebody who does not already know selector syntax.
-        // That is most of the audience for a command set whose whole purpose is
-        // handing power to people who are not operators.
+        //     <insufficient permissions for selector expansion>
         //
-        // If the refusal comes back for a non-op, the fallback is still here
-        // and this is the one line to change:
-        //     : { name, type: SELECTOR_TYPES.has(type) ? P.String : type }
-        // render() handles both shapes, so nothing else moves.
+        // printed with NO `[Admin+]` prefix, because it happens before this
+        // file's handler runs. `/slay @e[family=monster]`, `/gift @p iron_leggings`
+        // and `/ench @p` all died that way; `/exp 100 Steve` worked, because a
+        // literal name is not a selector and needs no expansion.
+        //
+        // So the picker the engine offers is a lie: it suggests `@a @e @p @r
+        // @s` and then refuses all five. A plain String with the vocabulary in
+        // the description is worse than a working picker and better than a
+        // lying one. core/selector.js resolves the text through the script
+        // API's own query instead — no parser, no permission, nothing to
+        // refuse. Location, ItemType, BlockType and the enums keep their types
+        // and still complete.
         const entry = type === P.Enum
             ? { name: enumName[enumKey], type }
-            : { name, type }
+            : { name, type: SELECTOR_TYPES.has(type) ? P.String : type }
         ;(isOptional ? optional : mandatory).push(entry)
     }
 
@@ -246,9 +249,16 @@ for (const spec of COMMANDS) {
         // Name the vanilla command when the registration is called something
         // else, so `/a:count` says out loud that it is `testfor` and nobody
         // has to come and read this file to find that out.
-        description: registered === spec.name
-            ? `${spec.help} — operator-level, logged`
-            : `${spec.help} (vanilla /${spec.name}) — operator-level, logged`,
+        // The selector vocabulary rides in the description for any command that
+        // takes one, because the engine no longer offers it as you type — see
+        // the registration note below. A description is the only surface left
+        // that can say `@e[family=monster]` is a thing you may write.
+        description: [
+            spec.help,
+            registered === spec.name ? "" : `(vanilla /${spec.name})`,
+            (spec.params ?? []).some(p => SELECTOR_TYPES.has(p[1])) ? `· ${SELECTOR_HELP}` : "",
+            "— operator-level, logged"
+        ].filter(Boolean).join(" "),
         mandatory,
         optional,
         run: (player, args) => {
@@ -258,6 +268,33 @@ for (const spec of COMMANDS) {
             // running even though /a:zsummon is still a word the game knows.
             const gate = checkCommand(spec.name)
             if (!gate.ok) return err(player, gate.reason)
+
+            // Selector arguments arrive as TEXT and are resolved here, through
+            // the script API rather than the command parser — see
+            // core/selector.js for why. Everything downstream expects the same
+            // Entity[] the engine used to hand over, so this is the only place
+            // that changes.
+            const resolved = [...args]
+            for (let i = 0; i < (spec.params ?? []).length; i++) {
+                const [, type] = spec.params[i]
+                if (!SELECTOR_TYPES.has(type)) continue
+                if (resolved[i] === undefined || resolved[i] === null) continue
+
+                const found = resolveSelector(resolved[i], player, type === P.PlayerSelector)
+                if (!found.ok) return err(player, found.reason)
+                if (!found.entities.length) {
+                    return err(player, `nothing matched §f${resolved[i]}§c.`)
+                }
+                // A filter we cannot honour is REPORTED, never dropped: losing
+                // `r=10` off a /slay is the difference between the mobs beside
+                // you and every mob loaded.
+                if (found.unsupported?.length) {
+                    return err(player,
+                        `I can't apply §f${found.unsupported.join(", ")}§c — refusing rather than ignoring it.`)
+                }
+                resolved[i] = found.entities
+            }
+            args = resolved
 
             const tag = tempTag()
             const cleanup = []

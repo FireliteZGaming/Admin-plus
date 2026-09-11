@@ -57,6 +57,50 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.1.21 — 2026-09-11
+
+**Selectors are resolved by the mod, not by the command parser.** This is the
+answer to the whole hunt, and the user got there first: *"how can we forget it's
+a mod? this isn't some command block thing."*
+
+The decisive evidence was one detail — the error was **bare**. No `[Admin+]`
+prefix:
+
+    <insufficient permissions for selector expansion>
+
+Every message this pack prints is prefixed. An unprefixed one means the failure
+happened **before the handler ran**. A parameter registered as `EntitySelector`
+or `PlayerSelector` is expanded BY THE ENGINE at the command's declared
+permission level — `Any`, because the entire point is handing power to people
+who do not hold operator — and every `@` form is refused there.
+`/slay @e[family=monster]`, `/gift @p iron_leggings` and `/ench @p` all died
+that way, while `/exp 100 Steve` worked, because a literal name is not a
+selector and needs no expansion.
+
+Which means everything built on the day before — `@a` versus `@e`, running per
+entity with `@s`, the direct script-API routes — was correct and *unreachable*.
+The handler never started.
+
+So the selector comes in as text and `core/selector.js` resolves it through
+`dimension.getEntities()`, the script API's own query. No parser, no permission,
+nothing to refuse. `@e[family=monster,r=20,c=5]` becomes
+`{ families: ["monster"], maxDistance: 20, closest: 5, location: … }`. Supported:
+`@s @p @r @a @e` with `type` `family` `tag` `name` `r` `rm` `c` `m` `l` `lm`
+`x y z` `dx dy dz`, and `!` to negate any of them.
+
+**A filter that cannot be honoured is refused, never ignored.** `scores=` has no
+equivalent, so `/slay @e[scores={kills=1..}]` reports that rather than quietly
+dropping the filter — the difference between killing the mobs beside you and
+killing every mob loaded.
+
+**The cost, and it is the same one as 2.1.13:** the game no longer offers
+`@a @e @p @r @s` as you type. It has to go, because the alternative is a picker
+that suggests five selectors and refuses all five, which is worse than one that
+suggests none. The vocabulary now rides in the description of every command that
+takes a selector, which is the only surface left that can carry it. Locations
+still suggest `~`, items and blocks still complete, enums still offer their
+words — 165 parameters keep their real type; only the 36 selectors changed.
+
 ## 2.1.20 — 2026-09-11
 
 **Two enums were being registered with Bedrock and offered to nobody.** Found by
