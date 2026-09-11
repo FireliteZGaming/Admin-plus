@@ -68,6 +68,7 @@ export const GROUPS = {
     automod: "Automod",
     ban: "Bans",
     troll: "Troll commands",
+    nuke: "Orbital strike",
     items: "Admin items",
     creator: "Creator",
     feature: "Features on and off",

@@ -8,6 +8,7 @@ import { isCreator, isTeamDeveloper, isOwner } from "../core/ranks.js"
 import { canUseCode } from "../core/devgate.js"
 import { runAsServer } from "../core/execute.js"
 import { record } from "../core/logs.js"
+import { armNuke } from "../core/orbital.js"
 
 // The Creator & Dev console — a command line in /menu, for the pack's Creator
 // and anyone the owner has tagged Dev.
@@ -64,6 +65,35 @@ function onlineOwners() {
 }
 
 /**
+ * Console-only switches, caught before the line reaches the vanilla runner.
+ *
+ * `toggle` is not a Minecraft command and never will be, so it could not reach
+ * runAsServer even in principle — the whitelist would refuse it. That is the
+ * point rather than a workaround: a switch that can only be flipped from here
+ * is a switch that cannot be flipped by a command block, a function, or
+ * anybody who merely has operator.
+ *
+ * Returns the line to print, or undefined when this was an ordinary command.
+ */
+function consoleSwitch(player, line) {
+    const parts = line.trim().toLowerCase().split(/\s+/)
+    if (parts[0] !== "toggle") return undefined
+
+    if (parts[1] === "nuke") {
+        const on = armNuke(parts[2] === undefined ? undefined : parts[2] === "on")
+        record(player, "creator.console", undefined, `toggle nuke ${on ? "on" : "off"}`)
+        for (const owner of onlineOwners()) {
+            owner.sendMessage(`§8[§bAdmin§d+§8] §7${displayName(player)} turned the orbital strike §f${on ? "ON" : "OFF"}§7.`)
+        }
+        return on
+            ? "§a✓ orbital strike ARMED §8— the rod is in /items, behind its other three locks"
+            : "§e• orbital strike disarmed §8— every rod already handed out is inert"
+    }
+
+    return `§c✗ nothing called §f${parts[1] ?? ""}§c to toggle. Known: §fnuke§c.`
+}
+
+/**
  * The console screen. Runs one command, shows the result, and re-opens itself
  * so it reads like a console rather than a one-shot box. Closing it leaves.
  *
@@ -82,6 +112,7 @@ export async function consoleScreen(player, back = () => {}, last = "") {
             label: [
                 "§8Runs at operator level, from the server's seat.",
                 "§8Only the world's allowed vanilla commands — the same list /cmd uses.",
+                "§8Plus §ftoggle nuke§8, which lives only here.",
                 last ? `\n${last}` : ""
             ].join("\n"),
             placeholder: "kill @e[type=creeper]",
@@ -92,6 +123,11 @@ export async function consoleScreen(player, back = () => {}, last = "") {
 
     const line = String(values.line ?? "").trim()
     if (!line) return consoleScreen(player, back, last)
+
+    // Switches first: these never reach the vanilla runner, which would refuse
+    // them anyway because no such command exists.
+    const flipped = consoleSwitch(player, line)
+    if (flipped !== undefined) return consoleScreen(player, back, flipped)
 
     const result = runAsServer(player, line)
     if (!result.ok) {

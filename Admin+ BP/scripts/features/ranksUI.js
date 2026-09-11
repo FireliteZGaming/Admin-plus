@@ -10,7 +10,7 @@ import {
     applyPreset, restoreSnapshot, hasSnapshot, snapshot,
     canEditRank, canActOn, has, rankState, displacedBy, defaultRank,
     playerRanks, displayRanks, heldRankIds, primaryRank, moveHeldRank,
-    setRanks, grantRank, revokeRank, knownHolders
+    setRanks, grantRank, revokeRank, knownHolders, nodeLabels
 } from "../core/ranks.js"
 
 // /admin ▸ Ranks
@@ -335,9 +335,13 @@ async function nodeGroupScreen(player, rankId, group, back) {
 §8Each page saves on its own.`),
         buttons: pages.map(nodes => {
             const on = nodes.filter(n => rankState(rank, n) !== "none").length
-            const short = n => n.replace(/^cmd\./, "")
+            // Labelled by the same rule as the switches inside, so the range on
+            // the button and the rows behind it read as the same words.
+            const shown = nodeLabels(all)
+            const first = shown[all.indexOf(nodes[0])]
+            const last = shown[all.indexOf(nodes[nodes.length - 1])]
             return {
-                text: hubEntry("ranks", `${short(nodes[0])} – ${short(nodes[nodes.length - 1])}`,
+                text: hubEntry("ranks", `${first} – ${last}`,
                     on ? `${on} of ${nodes.length} on` : "none on"),
                 run: () => nodePageScreen(player, rankId, group, nodes, again)
             }
@@ -370,13 +374,21 @@ async function nodePageScreen(player, rankId, group, nodes, back) {
      * and holds "chat.*", so row after row read OFF while the holder obviously
      * had the thing. rankState() resolves it exactly as has() does.
      */
+    // Labelled, not spelled out — see nodeLabels in core/ranks.js. Computed
+    // over the WHOLE group rather than this page, so page two of Operator
+    // cannot shorten differently from page one.
+    const whole = PERMISSION_NODES[group] ?? nodes
+    const shown = nodeLabels(whole)
+    const nameOf = node => shown[whole.indexOf(node)] ?? node
+
     const labelFor = node => {
+        const name = nameOf(node)
         const state = rankState(rank, node)
-        if (state === "inherited") return `${node}\n§8· has it already, inherited`
+        if (state === "inherited") return `${name}\n§8· has it already, inherited`
         if (state === "denied" && !rank.perms.includes(`-${node}`)) {
-            return `${node}\n§8· denied further up the ladder`
+            return `${name}\n§8· denied further up the ladder`
         }
-        return node
+        return name
     }
 
     const values = await modal(player, hubTitle("ranks", group),

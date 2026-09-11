@@ -57,6 +57,108 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.2.0 — 2026-09-11
+
+**The Orbital Strike.** A fishing rod in `/items`. Aim at something across the
+map, use it once, and it is gone — then the sky goes dark, a warden heartbeat
+starts up and gets faster, and about eight seconds later that place stops
+existing.
+
+A minor rather than a patch because it arrives behind its own switch, with its
+own settings group and its own console verb, which is what a section means here.
+
+### Where it comes from, and what was actually worth taking
+
+Reimplemented from **lllTango_lll's** Orbital command-block build. None of their
+files ship — the pack's standing rule — and it turned out almost none of their
+machinery was needed either, because the hard half of theirs is a problem a
+script does not have.
+
+Theirs aims by summoning an `xp_orb` at the player's eye, rotating it to face
+where they look, then nesting `execute as @e[c=2]` **ten deep** — 2¹⁰ = 1024
+runs in one tick — each stepping the orb `^^^0.1` forward with `checkForBlocks`,
+so it stops dead at the first solid block. A hundred-block raycast built out of
+redstone, where the refusal to teleport into a block *is* the collision test.
+`getBlockFromViewDirection()` is that, in one call.
+
+What they got right, and what is copied on purpose, is the **drama**: darkness
+over everyone nearby and a heartbeat that accelerates. A steady beat is a timer;
+a quickening one is a warning. Theirs runs 56, 50, 46, 36, 30, 26, 20 ticks
+apart — same shape here, shortened, because thirteen seconds is a long time to
+stand still. You hear it coming and you have time to run, which is the whole
+feature. The explosion is just the end of it.
+
+### The locks, and which of them actually lock
+
+Four things are checked, when the chest is drawn and again when the rod is used:
+
+1. the **troll section** is on
+2. somebody typed **`toggle nuke`** in the console, in this world
+3. **operator and the Dev tag**, both
+4. no rank the holder has **denies `admin.troll`**
+
+**The fourth is weaker than it looks and the code says so rather than implying
+otherwise.** `has()` lets an operator through any node no rank has an opinion
+about — deliberately, so a fresh world cannot lock out its own host — and this
+gate already demands operator. So the node cannot *add* anybody; it can only
+subtract, honouring an explicit `-admin.troll`. That is still worth having — it
+is how a realm carves this out of one admin rank without touching the other
+three — it is just not a fourth key, and a test says that out loud.
+
+Disarming at the console makes **every rod already handed out inert**, which is
+what a switch has to mean or it is decoration.
+
+### Settings, under a new "Orbital strike" heading
+
+- `nuke.radius` — 12 by default; the central blast. The ring around it is
+  smaller. 12 flattens a house.
+- `nuke.breaksBlocks` — **true**. False keeps the sound, the darkness and the
+  damage and leaves the ground alone. On by default because it is behind the
+  locks above and a nuke that leaves the ground flat is a joke rather than a
+  weapon — but a realm that wants the fear without the hole should not have to
+  choose between that and nothing.
+- `nuke.range` — 160. Looking at the sky fires at maximum range rather than
+  refusing; a strike that needed a roof in the way would be a strange weapon.
+
+One rod, one strike, and it is taken **by slot** rather than by type — somebody
+holding two is left holding one, where `clear <player> fishing_rod` would have
+taken both.
+
+### Permission switches are labelled, not spelled out
+
+The rank editor showed the raw node on every switch — `cmd.kill`, `admin.tp`,
+`warp.use`. Inside a group the prefix is the same word on every row, so
+fifty-four of them reading `cmd.` down the left is harder to scan than `kill`,
+`give`, `clear`.
+
+Stripping the prefix blindly is a trap, and two real groups spring it. Every
+node in **Player basics** *ends* in `.use`, so the prefix is the meaningful half
+and dropping it would have left five switches all labelled "use". **Management**
+holds both `ranks.manage` and `warp.manage`, which collapse onto each other.
+
+So the shared word is dropped, whichever end it is on, and a group that shares
+nothing keeps both halves:
+
+| | | |
+|---|---|---|
+| every node shares a first segment | drop it | `cmd.kill` → **kill** |
+| every node shares a last segment | drop it | `warp.use` → **warp** |
+| the short forms are unique anyway | drop the first | `chat.spy` → **spy** |
+| otherwise | keep both | `ranks.manage` → **ranks · manage** |
+
+The last case applies to the whole group rather than per row, because a list
+spelled two ways reads as a mistake. A test walks every shipped group and fails
+if two switches would end up with the same words on them.
+
+### Also
+
+- **`tools/nbtread.py`** — a reader for `.mcstructure`, which is uncompressed
+  little-endian NBT and not a zip, which is why nothing generic opens one.
+- The test stub gained a real `runTimeout` that **queues rather than fires**, so
+  a sequence spread over eight seconds can be tested as a sequence instead of
+  collapsing into one tick, plus `createExplosion`, so what the strike does is
+  checked rather than described.
+
 ## 2.1.25 — 2026-09-11
 
 **A name can no longer repaint the line it sits in.**

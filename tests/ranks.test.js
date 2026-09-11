@@ -9,7 +9,7 @@ import {
     setRanks, grantRank, revokeRank, heldRankIds, playerRanks, displayRanks, primaryRank,
     moveHeldRank, onPlayerJoin, defaultRank, displacedBy, cooldownFor, saveRank as saveR, knownHolders,
     CREATOR_GAMERTAG, CREATOR_RANK, allRanks, rankState,
-    DEVELOPER_RANK, isTeamDeveloper, __setTeamDevelopers
+    DEVELOPER_RANK, isTeamDeveloper, __setTeamDevelopers, nodeLabels
 } from "../Admin+ BP/scripts/core/ranks.js"
 import { CONFIG } from "../Admin+ BP/scripts/config.js"
 
@@ -536,6 +536,47 @@ check("Creator outranks Dev when somebody is both",
     primaryRank(creator).id, "adminplus_creator")
 __setTeamDevelopers([])
 check("off the list, the badge goes with it", primaryRank(hired).id, defaultRank().id)
+
+
+console.log("\n— permission switches are labelled, not spelled out —")
+// The switches used to read `cmd.kill`, `admin.tp`, `warp.use`. Inside a group
+// the prefix is the same word on every row, so fifty-four of them reading
+// `cmd.` down the left is harder to scan than `kill`, `give`, `clear`.
+//
+// Stripping the prefix blindly is a trap and two real groups spring it, which
+// is why this is a rule with tests rather than a .replace() at the call site.
+check("a shared prefix is dropped",
+    nodeLabels(["cmd.kill", "cmd.give", "cmd.clear"]), ["kill", "give", "clear"])
+
+// Every node in Player basics ENDS in .use. The prefix is the meaningful half
+// there, and dropping it would leave five switches all labelled "use".
+check("a shared SUFFIX is dropped instead",
+    nodeLabels(["warp.use", "spawn.use", "tpa.use"]), ["warp", "spawn", "tpa"])
+
+// Mixed prefixes, but the tails are still distinct — Panel & info and Chat.
+check("mixed prefixes shorten when the tails are unique",
+    nodeLabels(["admin.panel", "admin.logs", "ranks.view"]), ["panel", "logs", "view"])
+
+// Management holds ranks.manage AND warp.manage, which collapse onto each
+// other. The whole group keeps both halves rather than some rows shortening
+// and others not — a list spelled two ways reads as a mistake.
+check("a collision keeps both halves, for the whole group",
+    nodeLabels(["ranks.grant", "ranks.manage", "warp.manage"]),
+    ["ranks · grant", "ranks · manage", "warp · manage"])
+
+check("one node alone is left as it is", nodeLabels(["admin.panel"]), ["admin.panel"])
+check("and nothing at all does not throw", nodeLabels(undefined), [])
+
+// The guarantee that actually matters on screen: whatever the rule does, two
+// switches in one group must never end up with the same words on them.
+for (const [group, nodes] of Object.entries(PERMISSION_NODES)) {
+    const labels = nodeLabels(nodes)
+    check(`${group}: every label is distinct`,
+        labels.length - new Set(labels).size, 0)
+    check(`${group}: a label for every node`, labels.length, nodes.length)
+    check(`${group}: none still carries a dot`,
+        labels.filter(l => l.includes(".")), [])
+}
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

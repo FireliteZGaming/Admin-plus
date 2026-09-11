@@ -155,6 +155,21 @@ export const DEFAULTS = {
         label: "Troll commands",
         help: "true / false · ships OFF. Turning it on is a deliberate act, not something a new world inherits."
     },
+    "nuke.radius": {
+        value: "12",
+        label: "Orbital strike size",
+        help: "blocks · the central blast; the ring around it is smaller. 12 flattens a house."
+    },
+    "nuke.breaksBlocks": {
+        value: "true",
+        label: "Orbital strike breaks blocks",
+        help: "true / false · false keeps the sound, the darkness and the damage and leaves the ground alone."
+    },
+    "nuke.range": {
+        value: "160",
+        label: "Orbital strike range",
+        help: "blocks · how far the rod can aim. Looking at the sky fires at maximum range."
+    },
     "troll.smiteFire": {
         value: "true",
         label: "Smite sets fires",

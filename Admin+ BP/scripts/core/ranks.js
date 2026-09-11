@@ -197,6 +197,54 @@ export const PERMISSION_NODES = {
     "Operator": OP_COMMANDS.map(name => `cmd.${name}`)
 }
 
+/**
+ * What a permission node should be CALLED on screen.
+ *
+ * The switches used to be labelled with the raw node — `cmd.kill`, `admin.tp`,
+ * `warp.use`. Inside a group the prefix is the same word over and over, so it
+ * is pure noise: fifty-four rows reading `cmd.` down the left is harder to scan
+ * than fifty-four reading `kill`, `give`, `clear`.
+ *
+ * But stripping the prefix blindly is a trap, and two groups spring it. Every
+ * node in "Player basics" ENDS in `.use`, so the prefix is the meaningful half
+ * and dropping it leaves five switches all labelled "use". "Management" holds
+ * both `ranks.manage` and `warp.manage`, which collapse onto each other.
+ *
+ * So the shared word is dropped, whichever end it is on, and a group that
+ * shares nothing keeps both halves:
+ *
+ *   every node shares a first segment   drop it     cmd.kill      -> kill
+ *   every node shares a last segment    drop it     warp.use      -> warp
+ *   the short forms are unique anyway   drop first  chat.spy      -> spy
+ *   otherwise                           keep both   ranks.manage  -> ranks · manage
+ *
+ * The last case applies to the WHOLE group rather than per node, so a screen
+ * never mixes two spellings — a list where some rows are shortened and others
+ * are not reads as a mistake.
+ *
+ * Labels only. The node itself is what gets written, and the form field is
+ * still keyed by it.
+ *
+ * @param {string[]} nodes one group's nodes
+ * @returns {string[]} a label per node, in the same order
+ */
+export function nodeLabels(nodes) {
+    const list = [...(nodes ?? [])]
+    if (list.length < 2) return list
+    const split = list.map(node => {
+        const at = String(node).indexOf(".")
+        return at === -1 ? [node, ""] : [node.slice(0, at), node.slice(at + 1)]
+    })
+
+    const allShare = (i) => split.every(parts => parts[i] === split[0][i]) && split[0][i] !== ""
+    if (allShare(0)) return split.map(parts => parts[1] || parts[0])
+    if (allShare(1)) return split.map(parts => parts[0])
+
+    const tails = split.map(parts => parts[1] || parts[0])
+    if (new Set(tails).size === tails.length) return tails
+    return split.map(parts => parts[1] ? `${parts[0]} · ${parts[1]}` : parts[0])
+}
+
 /** The permission node governing one vanilla command. */
 export function commandNode(name) {
     return `cmd.${String(name).trim().toLowerCase()}`

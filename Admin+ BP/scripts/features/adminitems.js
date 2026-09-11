@@ -10,6 +10,7 @@ import { hubTitle } from "../core/theme.js"
 import { isVanished } from "../core/vanish.js"
 import { worldToken, makeBanHammer, HAMMER_NAME } from "../core/banhammer.js"
 import { setting } from "../core/settings.js"
+import { canNuke, nukeBlockedBy, orbitalStrike } from "../core/orbital.js"
 
 // /items — grab an admin item without vanishing or opening /admin.
 //
@@ -33,6 +34,26 @@ const SIGIL = "§8Admin+ item"
  * rather than a backdoor.
  */
 const ITEMS = {
+    // The Orbital Strike rod. Look somewhere, use it once, and it is gone.
+    //
+    // A fishing rod because that is what the build this comes from used, and
+    // the gesture is right: you cast it at something across the map rather than
+    // standing on top of it. It breaks on use — one rod, one strike — which is
+    // the only reason a thing this size can exist in an item slot at all.
+    //
+    // FOUR locks, checked here and again at use: the troll section, the
+    // admin.troll node, operator-and-Dev, and `toggle nuke` at the console. See
+    // core/orbital.js for why each one is a different kind of claim.
+    orbital: {
+        slot: 9,
+        gate: p => canNuke(p),
+        make: () => signItem("minecraft:fishing_rod", "§4§lOrbital Strike",
+            "§7Aim at something far away and use it once."),
+        name: "§4§lOrbital Strike",
+        lines: ["§7Aim at something far away and use it once.",
+                "§8It breaks on use. You get one."],
+        typeId: "minecraft:fishing_rod"
+    },
     hammer: {
         slot: 11,
         // The Ban Hammer is minted by core/banhammer.js and caught by its own
@@ -278,12 +299,19 @@ export function installAdminItems() {
     if (beforeUse?.subscribe) {
         beforeUse.subscribe(event => {
             const player = event.source
-            if (!player || itemKey(event.itemStack) !== "eye") return
+            if (!player) return
+            const key = itemKey(event.itemStack)
+            // Neither of these may do what its vanilla self does: an ender eye
+            // flies off toward a stronghold, a fishing rod throws a bobber.
+            if (key !== "eye" && key !== "orbital") return
             event.cancel = true
             // Checked at USE time, not when it was handed over — an item that
             // outlives its holder's permission goes inert rather than becoming
             // a way round the ranks.
-            system.run(() => { if (has(player, "admin.tp")) openEye(player) })
+            system.run(() => {
+                if (key === "orbital") return fireOrbital(player)
+                if (has(player, "admin.tp")) openEye(player)
+            })
         })
         eyeHandled = true
     } else {
@@ -300,6 +328,7 @@ export function installAdminItems() {
             const player = event.source
             if (!player) return
             const key = itemKey(event.itemStack)
+            if (key === "orbital") { if (!eyeHandled) system.run(() => fireOrbital(player)); return }
             if (key !== "teleport" && (key !== "eye" || eyeHandled)) return
             if (!has(player, "admin.tp")) return
             system.run(() => key === "eye" ? openEye(player) : teleportToRandom(player))
@@ -437,6 +466,46 @@ async function jumpToCoordinates(player) {
     } catch (e) {
         err(player, `Couldn't jump there: ${e}`)
     }
+}
+
+/**
+ * Take one of these out of their hand.
+ *
+ * By slot rather than by `container.removeItem`, because what must be consumed
+ * is the ONE they just used — a staff member holding two should be left holding
+ * one, and clearing by type would take both.
+ */
+function consumeHeld(player) {
+    const container = safe(() => player.getComponent("minecraft:inventory")?.container)
+    if (!container) return false
+    const slot = player.selectedSlotIndex ?? 0
+    const held = safe(() => container.getItem(slot))
+    if (!held) return false
+    if (held.amount > 1) {
+        held.amount -= 1
+        return safe(() => { container.setItem(slot, held); return true }, false)
+    }
+    return safe(() => { container.setItem(slot, undefined); return true }, false)
+}
+
+/**
+ * Fire the rod: it breaks, then the sky answers.
+ *
+ * The gate is re-read here and not trusted from when the rod was handed over.
+ * An owner who turns the troll section off, or disarms it at the console, has
+ * disarmed every rod already in an inventory — which is what a switch has to
+ * mean, or it is decoration.
+ */
+function fireOrbital(player) {
+    const shut = nukeBlockedBy(player)
+    if (shut) return err(player, `That won't fire — ${shut}§c.`)
+
+    if (!consumeHeld(player)) return err(player, "Couldn't reach the rod in your hand.")
+    safe(() => player.dimension.playSound("random.break", player.location))
+
+    if (!orbitalStrike(player)) return err(player, "Couldn't call that in.")
+    record(player, "admin.orbital", player, "orbital strike")
+    info(player, "§7It's on its way. §8You may want to not be there.")
 }
 
 function jumpTo(player, target) {

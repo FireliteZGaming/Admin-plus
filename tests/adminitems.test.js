@@ -1,6 +1,7 @@
 import { ItemStack, __test } from "@minecraft/server"
 import { setting, setSetting, resetSetting, DEFAULTS } from "../Admin+ BP/scripts/core/settings.js"
 import { ITEMS, signItem, itemKey, knockback, coordinate, SIGIL, installAdminItems } from "../Admin+ BP/scripts/features/adminitems.js"
+import { armNuke } from "../Admin+ BP/scripts/core/orbital.js"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -30,9 +31,18 @@ check("its blurb says you pick who to jump to",
 check("and that looking somewhere still works",
     ITEMS.eye.lines.some(l => l.includes("looking at")), true)
 // Row two of a large chest is slots 9-17; these want to be spread across it
-// rather than bunched, because they are picked by eye.
-check("the four items sit evenly across one chest row",
-    defs.map(d => d.slot).sort((a, b) => a - b), [11, 13, 15, 17])
+// rather than bunched, because they are picked by eye. Written as the RULE
+// rather than as the current list, so adding a sixth item fails here for the
+// real reason — it no longer fits evenly — instead of failing on a number.
+{
+    const slots = defs.map(d => d.slot).sort((a, b) => a - b)
+    check("every item is in row two of a large chest",
+        slots.filter(s => s < 9 || s > 17), [])
+    const gaps = slots.slice(1).map((s, i) => s - slots[i])
+    check("and they are evenly spaced across it", new Set(gaps).size <= 1, true)
+    check("the row is centred — the same gap at each end",
+        slots[0] - 9, 17 - slots.at(-1))
+}
 check("no two items share an item type", new Set(defs.map(d => d.typeId)).size, defs.length)
 check("every item has a gate", defs.every(d => typeof d.gate === "function"), true)
 check("every item can be made", defs.every(d => typeof d.make === "function"), true)
@@ -205,6 +215,71 @@ check("and so is nothing at all", coordinate(undefined, 64), undefined)
 // Number("Infinity") is finite-looking until you check; a teleport there throws.
 check("infinity is refused", coordinate("Infinity", 64), undefined)
 check("as is a tilde offset of infinity", coordinate("~Infinity", 64), undefined)
+
+
+console.log("\n— one rod, one strike —")
+// The whole reason a thing this size can sit in an item slot: using it spends
+// it. A rod that survived its own strike would be an artillery battery.
+{
+    setSetting("feature.troll", "true")
+    armNuke(true)
+
+    const slots = new Map()
+    const container = {
+        size: 36,
+        getItem: (i) => slots.get(i),
+        setItem: (i, stack) => { if (stack) slots.set(i, stack); else slots.delete(i) },
+        addItem: () => undefined
+    }
+    const gunner = {
+        id: "gunner", name: "Gunner",
+        getTags: () => ["Dev", "ap:rank:Admin"],
+        commandPermissionLevel: 1,
+        selectedSlotIndex: 0,
+        location: { x: 0, y: 64, z: 0 },
+        dimension: __test.dimension,
+        getComponent: (id) => id === "minecraft:inventory" ? { container } : undefined,
+        getHeadLocation: () => ({ x: 0, y: 65.62, z: 0 }),
+        getViewDirection: () => ({ x: 0, y: 0, z: 1 }),
+        getBlockFromViewDirection: () => ({ block: { location: { x: 0, y: 64, z: 30 } } }),
+        addEffect: () => {}, removeEffect: () => {}, sendMessage: () => {}
+    }
+
+    // Two in the stack. Spending the WHOLE stack because one was used is the
+    // bug this is here to catch — `clear <player> fishing_rod` would do exactly
+    // that, which is why the code works by slot.
+    const stack = ITEMS.orbital.make()
+    stack.amount = 2
+    slots.set(0, stack)
+
+    __test.timers.length = 0
+    __test.explosions.length = 0
+    const event = __test.emitItemUse(gunner, slots.get(0))
+    check("using it is cancelled, so no bobber is ever cast", event.cancel, true)
+    check("one was spent", slots.get(0)?.amount, 1)
+    check("and the rest of the stack survives", !!slots.get(0), true)
+
+    __test.runTimers()
+    check("and the strike actually went out", __test.explosions.length > 0, true)
+
+    // The last one leaves the slot empty rather than sitting there at zero.
+    __test.timers.length = 0
+    __test.emitItemUse(gunner, slots.get(0))
+    check("spending the last one empties the slot", slots.get(0), undefined)
+
+    // Disarmed at the console: every rod already handed out goes inert, which
+    // is what a switch has to mean or it is decoration.
+    slots.set(0, ITEMS.orbital.make())
+    armNuke(false)
+    __test.timers.length = 0
+    __test.explosions.length = 0
+    __test.emitItemUse(gunner, slots.get(0))
+    check("a disarmed rod is not spent", slots.get(0)?.amount, 1)
+    __test.runTimers()
+    check("nor does it fire", __test.explosions.length, 0)
+
+    resetSetting("feature.troll")
+}
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)
