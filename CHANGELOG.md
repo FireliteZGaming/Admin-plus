@@ -57,6 +57,36 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.1.22 — 2026-09-11
+
+**The Ender Eye.** A new admin item in `/items`: look somewhere, use it, be
+there.
+
+It exists because of what the selector work turned up. Every other way to
+teleport needs a TARGET, and a target means a selector — and a custom command's
+selector parameter is expanded by the engine at a permission level these
+commands cannot have, so `@p` is refused before any of this pack's code runs.
+**An item has no arguments to refuse.** You point at a roof and you are on it.
+
+That suits who actually plays here better than the command ever did. Nobody has
+to know `@p` exists, or that it would not have worked.
+
+It lands on the UPPER face of whatever block the ray strikes, which is the one
+place guaranteed not to be inside something — look at a wall and you are on the
+wall, not embedded in it. Liquids and passable blocks are skipped, so looking
+across water puts you on the far bank rather than dropping you in, and a ray
+through tall grass does not stop at the grass. Your rotation is kept, because
+you are already facing the thing you wanted to reach.
+
+Range is `items.eyeRange` in Settings, 160 blocks by default; beyond it the eye
+says nothing is in range rather than dropping you somewhere arbitrary. It needs
+`admin.tp`, checked when you USE it and not only when you took it, so an item
+that outlives its holder's permission goes inert rather than becoming a way
+round the ranks.
+
+The chest row now reads `[Hammer] [Teleport] [Eye] [Knockback]`, evenly spread,
+because these are picked by eye rather than by name.
+
 ## 2.1.21 — 2026-09-11
 
 **Selectors are resolved by the mod, not by the command parser.** This is the

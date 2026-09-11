@@ -49,8 +49,27 @@ const ITEMS = {
         lines: ["§7Use it to jump to a random player."],
         typeId: "minecraft:compass"
     },
-    knockback: {
+    // The Ender Eye: look somewhere, use it, be there.
+    //
+    // It exists because every other way to teleport needs a TARGET, and a
+    // target means a selector — and a custom command's selector parameter is
+    // expanded by the engine at a permission level these commands cannot have,
+    // so `@p` and friends are refused before any of this pack's code runs. An
+    // item has no arguments to refuse. You point at a roof and you are on it.
+    //
+    // That is also why it suits the audience: nobody has to know that `@p`
+    // exists, or that it would not have worked.
+    eye: {
         slot: 15,
+        gate: p => has(p, "admin.tp"),
+        make: () => signItem("minecraft:ender_eye", "§d§lEnder Eye",
+            "§7Look somewhere and use it to jump there."),
+        name: "§d§lEnder Eye",
+        lines: ["§7Look somewhere and use it to jump there.", "§8No target needed — it goes where you look."],
+        typeId: "minecraft:ender_eye"
+    },
+    knockback: {
+        slot: 17,
         gate: p => has(p, "admin.staffmode"),
         make: () => signItem("minecraft:stick", "§c§lKnockback", "§7Hit somebody to send them flying."),
         name: "§c§lKnockback",
@@ -214,19 +233,66 @@ export function installAdminItems() {
     }
 
     // The Teleport compass, standalone (staff mode has its own; this one works
-    // without entering it).
+    // without entering it), and the Ender Eye beside it.
     const use = world.afterEvents?.itemUse
     if (use?.subscribe) {
         use.subscribe(event => {
             const player = event.source
             if (!player) return
-            if (itemKey(event.itemStack) !== "teleport") return
+            const key = itemKey(event.itemStack)
+            if (key !== "teleport" && key !== "eye") return
+            // Checked at USE time, not when it was handed over — an item that
+            // outlives its holder's permission goes inert rather than becoming
+            // a way round the ranks.
             if (!has(player, "admin.tp")) return
-            system.run(() => teleportToRandom(player))
+            system.run(() => key === "eye" ? blinkToLook(player) : teleportToRandom(player))
         })
     }
 
     return true
+}
+
+/**
+ * Put them on top of whatever they are looking at.
+ *
+ * Lands on the block's UPPER face rather than where the ray struck, which is
+ * what makes it safe: the space above a solid block is the one place you can
+ * always be certain is not inside one. Looking at a wall puts you on the wall
+ * rather than embedded in it — slightly surprising once, never suffocating.
+ *
+ * Liquids and passable blocks are skipped, so looking across water lands you on
+ * the far bank instead of dropping you in it, and a ray through tall grass does
+ * not stop at the grass.
+ *
+ * Rotation is kept. Teleporting somebody and spinning them round is
+ * disorienting, and the whole point is that they are already facing the thing
+ * they wanted to reach.
+ */
+function blinkToLook(player) {
+    const range = Number(setting("items.eyeRange"))
+    const maxDistance = Number.isFinite(range) && range > 0 ? range : 160
+
+    const hit = safe(() => player.getBlockFromViewDirection({
+        maxDistance,
+        includeLiquidBlocks: false,
+        includePassableBlocks: false
+    }))
+    if (!hit?.block) {
+        return info(player, `§7Nothing solid within §f${maxDistance}§7 blocks that way.`)
+    }
+
+    const at = hit.block.location
+    const destination = { x: at.x + 0.5, y: at.y + 1, z: at.z + 0.5 }
+    try {
+        player.teleport(destination, {
+            dimension: player.dimension,
+            rotation: safe(() => player.getRotation(), undefined),
+            keepVelocity: false
+        })
+        record(player, "mod.tpTo", player, `ender eye · ${Math.round(at.x)} ${Math.round(at.y)} ${Math.round(at.z)}`)
+    } catch (e) {
+        err(player, `Couldn't jump there: ${e}`)
+    }
 }
 
 function teleportToRandom(player) {

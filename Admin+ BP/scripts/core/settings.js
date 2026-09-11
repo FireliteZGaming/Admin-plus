@@ -160,6 +160,11 @@ export const DEFAULTS = {
         label: "Smite sets fires",
         help: "true / false · true spawns a real lightning bolt, which BURNS things. false is the flash and the damage only."
     },
+    "items.eyeRange": {
+        value: "160",
+        label: "Ender eye range",
+        help: "How far the Ender Eye looks for somewhere to land, in blocks. Beyond this it reports nothing in range rather than dropping you somewhere arbitrary."
+    },
     "items.knockback": {
         value: "12",
         label: "Knockback stick force",

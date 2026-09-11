@@ -12,6 +12,24 @@ function check(name, actual, expected) {
 console.log("\n— the catalogue is well formed —")
 const defs = Object.values(ITEMS)
 check("no two items share a slot", new Set(defs.map(d => d.slot)).size, defs.length)
+check("nor a type and name pair, which is how itemKey tells them apart",
+    new Set(defs.map(d => `${d.typeId}|${d.name}`)).size, defs.length)
+
+// The Ender Eye. It exists because every other teleport needs a TARGET, and a
+// target means a selector — and a custom command's selector parameter is
+// expanded by the engine at a permission level these commands cannot have, so
+// `@p` is refused before any of this pack's code runs. An item has no arguments
+// to refuse, which also means nobody has to know `@p` exists.
+check("the eye is an ender eye", ITEMS.eye.typeId, "minecraft:ender_eye")
+check("and answers to the teleport node, not staff mode",
+    ITEMS.eye.gate({ getTags: () => [], commandPermissionLevel: 0,
+                     name: "T", id: "t" }), false)
+check("its blurb says no target is needed",
+    ITEMS.eye.lines.some(l => l.includes("where you look")), true)
+// Row two of a large chest is slots 9-17; these want to be spread across it
+// rather than bunched, because they are picked by eye.
+check("the four items sit evenly across one chest row",
+    defs.map(d => d.slot).sort((a, b) => a - b), [11, 13, 15, 17])
 check("no two items share an item type", new Set(defs.map(d => d.typeId)).size, defs.length)
 check("every item has a gate", defs.every(d => typeof d.gate === "function"), true)
 check("every item can be made", defs.every(d => typeof d.make === "function"), true)
