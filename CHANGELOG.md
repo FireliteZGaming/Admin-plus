@@ -56,6 +56,30 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.4.4 — 2026-09-11
+
+**The Mirror Totem joins the Spectral Trident.** Both on the troll gate now:
+the same category seen from both ends — one is what you throw, the other is
+what you hold when somebody throws theirs. Splitting them would have meant a
+rank that can hand out the attack but not the answer to it.
+
+It was on ' + chr(96) + 'admin.staffmode' + chr(96) + ', which every staff member has.
+
+### A comment that was answering a different question
+
+The trident carried this, directly above its gate:
+
+> **canActOn, not canTrollOn.**
+
+That was true about the *hit* — which does ask the strict ladder, when it
+lands — and false about the line it sat on, which is ' + chr(96) + 'trollAllowed' + chr(96) + '. Two gates
+answer two different questions, and the comment only described one of them
+while appearing to describe the other.
+
+It now says both: **who may take it** is the troll section plus the ladder's
+troll node, and **who you may hit with it** is asked again at impact and is
+canActOn.
+
 ## 2.4.3 — 2026-09-11
 
 **The Mirror Totem.** Everything that hits you hits whoever swung it instead,

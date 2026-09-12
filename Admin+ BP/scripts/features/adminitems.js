@@ -125,11 +125,12 @@ const ITEMS = {
     trident: {
         barSlot: 5,
         slot: 14,
-        // **canActOn, not canTrollOn.** It was a light show when it only drew
-        // particles. It strips somebody's armour and pins them at half a heart
-        // now, and the rule this pack settled on is that a tool leaving a mark
-        // somebody has to appeal belongs on the strict ladder. Troll tools are
-        // for things you laugh about afterwards.
+        // TWO gates, and they answer different questions. This one is who may
+        // TAKE it — the combat toys, behind the troll section and the ladder's
+        // troll node. Who you may HIT with it is asked again when it lands, and
+        // that one is canActOn: stripping somebody's armour and pinning them at
+        // half a heart is not banter, and a tool leaving a mark somebody has to
+        // appeal belongs on the strict rule.
         gate: p => trollAllowed(p),
         make: () => loyalTrident(),
         name: "§c§lSpectral Trident",
@@ -151,7 +152,11 @@ const ITEMS = {
     mirror: {
         barSlot: 6,
         slot: 16,
-        gate: p => has(p, "admin.staffmode"),
+        // Same gate as the Spectral Trident, because they are the same
+        // category seen from both ends: one is what you throw, the other is
+        // what you hold when somebody throws theirs. Splitting them would mean
+        // a rank that can hand out the attack but not the answer to it.
+        gate: p => trollAllowed(p),
         make: () => mirrorTotem(FULL_CHARGE),
         name: "§b§lMirror Totem",
         lines: ["§7Everything that hits you hits them instead.",

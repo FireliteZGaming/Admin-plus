@@ -370,9 +370,14 @@ console.log("\n— one gate per item, and it is the rank's answer —")
 
     // The one that changed. Both switches, and the section switch is the
     // owner's — so it is tested from both sides.
-    check("the stick wants troll tools", gateOf("knockback", ["admin.troll"]), true)
-    check("staff mode alone no longer earns it",
-        gateOf("knockback", ["admin.staffmode"]), false)
+    // The combat set — what you throw, what you swing, and what you hold when
+    // somebody throws theirs — share one gate. Splitting them would let a rank
+    // hand out the attack but not the answer to it.
+    for (const key of ["knockback", "trident", "mirror"]) {
+        check(key + " wants troll tools", gateOf(key, ["admin.troll"]), true)
+        check("and " + key + " refuses on staff mode alone",
+            gateOf(key, ["admin.staffmode"]), false)
+    }
     setSetting("feature.troll", "false")
     check("and the owner's section switch takes it back",
         gateOf("knockback", ["admin.troll"]), false)
