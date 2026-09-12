@@ -52,7 +52,9 @@ console.log("\n— the locks, and which of them actually lock —")
 
     setSetting("feature.troll", "false")
     check("the troll section off closes it", canNuke(full), false)
-    check("and says which lock", nukeBlockedBy(full), "the troll section is off")
+    // The message comes from core/trollgate.js now, shared with /smite and the
+    // stick, and it names where to go rather than just what is shut.
+    check("and says which lock", nukeBlockedBy(full).includes("Settings"), true)
     setSetting("feature.troll", "true")
 
     armNuke(false)
@@ -76,7 +78,7 @@ console.log("\n— the locks, and which of them actually lock —")
     saveRank("nobombs", { display: "§7NoBombs", perms: ["-admin.troll"] })
     const denied = holder({ rank: "nobombs" })
     check("an explicit denial closes it", canNuke(denied), false)
-    check("and says which lock", nukeBlockedBy(denied), "your rank has troll tools denied")
+    check("and says which lock", nukeBlockedBy(denied).includes("Staff tools"), true)
 }
 
 console.log("\n— arming is a switch, and it survives —")

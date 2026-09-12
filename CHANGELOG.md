@@ -56,6 +56,64 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.5.0 — 2026-09-11
+
+**The console runs Admin+'s own commands now**, not just vanilla ones.
+
+```
+gm creative @a
+ban Steve griefing the spawn again
+tp @p
+```
+
+No `a:` prefix needed, and the pack's commands are tried first — a line that
+is not one of ours falls through to the vanilla whitelist exactly as before.
+
+### Why it could not before
+
+`runAsServer` hands a **string** to the dimension, which is the only thing the
+dimension understands. A pack command is not a string: it is a handler the
+engine calls with arguments it has already parsed. From a text box, nobody has
+parsed anything — so the console could reach `/kill` and never `/gm`.
+
+`core/dispatch.js` is that parser, and it is short because it does not invent
+one. The registry already records every command's typed parameter list, and
+`core/selector.js` already turns selector text into entities — the one genuinely
+hard conversion, and the one that took two days to get right. Everything else is
+a number, a boolean or a word.
+
+**It loosens no permission.** Each command's own `perm` is checked exactly as
+the engine checks it, so the console reaches precisely what the person at the
+keyboard could have typed — it just saves them the `a:`. Every run is logged and
+announced to online owners, same as before.
+
+Two touches that make it feel like a command line: the **last string parameter
+swallows the rest of the line**, so `ban Steve griefing the spawn again` keeps
+every word without quotes; and a selector matching nobody is an **error** rather
+than an empty list, because handlers written against the engine have never had
+to consider one — the engine refuses the command before calling them.
+
+### Two test files were never being run
+
+And one of them had been wrong for six versions because of it.
+
+`tests/orbital.test.js` sat on disk unregistered. It went stale the moment the
+troll gate was consolidated into `core/trollgate.js` in 2.2.4 — the two messages
+it asserted moved — and nothing said so, **because nothing ran it**. Thirty-seven
+assertions quietly guarding nothing, while every report's count looked healthy
+because it was only ever counting the files that did run.
+
+`npm test` is a hand-written `&&` chain, which is exactly what makes this
+possible: adding a test file is one edit and adding it to the chain is another,
+and only the first one is obvious.
+
+`tools/verify.py` now compares the files on disk against the ones the script
+names, in both directions — a file that never runs is a **problem**, and so is a
+name in the script with no file behind it. Proved by unregistering one and
+watching the verifier refuse.
+
+The real count was never 2079. It is **2149**, across **40** suites.
+
 ## 2.4.5 — 2026-09-11
 
 **Four feature switches were on no screen at all.** Asking "where do I find

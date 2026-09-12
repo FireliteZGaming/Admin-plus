@@ -7,6 +7,7 @@ import { displayName } from "../core/identity.js"
 import { isCreator, isTeamDeveloper, isOwner } from "../core/ranks.js"
 import { canUseCode } from "../core/devgate.js"
 import { runAsServer } from "../core/execute.js"
+import { runPackCommand } from "../core/dispatch.js"
 import { record } from "../core/logs.js"
 import { armNuke } from "../core/orbital.js"
 
@@ -111,11 +112,12 @@ export async function consoleScreen(player, back = () => {}, last = "") {
             type: "text",
             label: [
                 "§8Runs at operator level, from the server's seat.",
-                "§8Only the world's allowed vanilla commands — the same list /cmd uses.",
+                "§8Admin+ commands by name — §fgm creative Steve§8, §fban Alex§8 — no §fa:§8 needed.",
+                "§8Vanilla too, from the world's allowed list, the same one /cmd uses.",
                 "§8Plus §ftoggle nuke§8, which lives only here.",
                 last ? `\n${last}` : ""
             ].join("\n"),
-            placeholder: "kill @e[type=creeper]",
+            placeholder: "gm creative @a",
             default: ""
         }
     ])
@@ -128,6 +130,26 @@ export async function consoleScreen(player, back = () => {}, last = "") {
     // them anyway because no such command exists.
     const flipped = consoleSwitch(player, line)
     if (flipped !== undefined) return consoleScreen(player, back, flipped)
+
+    // The pack's OWN commands first. /gm, /tp, /ban and the rest are handlers
+    // the engine calls with parsed arguments — not strings the dimension knows
+    // — so runAsServer could never reach them, and the console could only ever
+    // run vanilla. core/dispatch.js parses the line the way the engine would,
+    // reusing the registry's typed parameter lists and the selector resolver.
+    //
+    // undefined means it was not one of ours, which is the cue to fall through
+    // rather than a failure. Each command still checks its own perm, so this
+    // reaches exactly what the person could have typed themselves.
+    const pack = runPackCommand(player, line)
+    if (pack) {
+        if (!pack.ok) return consoleScreen(player, back, `§c✗ ${pack.reason}`)
+        record(player, "creator.console", undefined, pack.command)
+        for (const owner of onlineOwners()) {
+            if (owner.id === player.id) continue
+            owner.sendMessage(`§8[§bAdmin§d+§8] §7${displayName(player)} ran §f/${pack.command}§7 from the console.`)
+        }
+        return consoleScreen(player, back, `§a✓ /${pack.command}`)
+    }
 
     const result = runAsServer(player, line)
     if (!result.ok) {

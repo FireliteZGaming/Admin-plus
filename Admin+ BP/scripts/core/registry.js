@@ -49,6 +49,16 @@ export function command(spec) { pending.push(spec) }
  *
  * @param {string} [group] only commands in this group; omit for ungrouped
  */
+/**
+ * Every command spec, whole — name, perm, typed parameters and handler.
+ *
+ * registeredCommands() returns only NAMES, which is all a listing screen wants.
+ * The console needs the rest: to run "gm creative Steve" it has to know that
+ * `player` is a PlayerSelector and hand the handler entities rather than
+ * the word. See core/dispatch.js.
+ */
+export function commandSpecs() { return [...pending] }
+
 export function registeredCommands(group) {
     return pending
         .filter(spec => (spec.group ?? undefined) === group)

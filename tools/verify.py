@@ -367,6 +367,35 @@ if dst.exists():
 else:
     note("no deployed copy found")
 
+# ------------------------------------------------------------- the test suite
+#
+# A test file that `npm test` never runs is worse than no test file.
+#
+# tests/orbital.test.js sat on disk unregistered. It went stale the moment the
+# troll gate was consolidated into core/trollgate.js — the two messages it
+# asserted moved — and nothing said so, because nothing ran it. Thirty-seven
+# assertions quietly guarding nothing, and the count in every report looked fine
+# because it was only ever counting the files that DID run.
+#
+# The suite is a hand-written `&&` chain in package.json, which is exactly what
+# makes this possible: adding a test file is one edit, adding it to the chain is
+# another, and only the first one is obvious.
+head("test suite")
+tests_on_disk = {f[:-8] for f in os.listdir("tests") if f.endswith(".test.js")} \
+    if os.path.isdir("tests") else set()
+pkg_text = io.open("package.json", encoding="utf-8").read()
+tests_listed = set(re.findall(r"tests/([A-Za-z]+)\.test\.js", pkg_text))
+
+never_run = sorted(tests_on_disk - tests_listed)
+if never_run:
+    fail("npm test never runs: " + ", ".join(f"tests/{n}.test.js" for n in never_run))
+ghosts = sorted(tests_listed - tests_on_disk)
+if ghosts:
+    fail("npm test names files that do not exist: "
+         + ", ".join(f"tests/{n}.test.js" for n in ghosts))
+if not never_run and not ghosts:
+    okline(f"all {len(tests_on_disk)} test files run")
+
 # ---------------------------------------------------------------------- done
 head("summary")
 print(f"  {len(problems)} problems, {len(notes)} notes")
