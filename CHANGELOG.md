@@ -56,6 +56,27 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.4.5 — 2026-09-11
+
+**Four feature switches were on no screen at all.** Asking "where do I find
+this?" about the troll section turned out to be the right question, because the
+answer was: nowhere.
+
+`feature.troll` gates `/smite` and three of the seven admin items — the
+Knockback stick, the Spectral Trident and the Mirror Totem — and it ships OFF.
+It was reachable only through **All values** or `< Code >`, one field among
+hundreds. A switch nobody can find is a section nobody can turn on, which is
+worse than not having the switch.
+
+It is on **Settings ▸ Configuration** now, with the rest. And the guard written
+to stop it happening again immediately found three more in the same state:
+**Private messages**, **Emotes** and **Ender chests** — all shipped, all
+toggleable, none of them on a screen. All four added.
+
+The test compares the Configuration screen against every `feature.*` key in
+DEFAULTS, in both directions: a key with no row fails, and a row naming a key
+that does not exist fails too, so the list cannot rot from either end.
+
 ## 2.4.4 — 2026-09-11
 
 **The Mirror Totem joins the Spectral Trident.** Both on the troll gate now:

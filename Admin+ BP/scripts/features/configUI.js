@@ -15,7 +15,15 @@ const FEATURES = [
     { key: "feature.spawn", label: "Spawn", detail: "/spawn and the spawn point" },
     { key: "feature.tpa", label: "Teleport requests", detail: "/tpa · /tpahere · /tpaccept · /tpadeny" },
     { key: "feature.reports", label: "Reports", detail: "/report and the pinned queue" },
-    { key: "feature.chat", label: "Chat channels", detail: "off = one plain chat for everyone" }
+    { key: "feature.chat", label: "Chat channels", detail: "off = one plain chat for everyone" },
+    // Added 2.4.5. It was missing, and it gates more than anything else here:
+    // /smite plus the Knockback stick, the Spectral Trident and the Mirror
+    // Totem in /items. It ships OFF, so a switch nobody could find meant a
+    // section nobody could turn on without going through All values.
+    { key: "feature.troll", label: "Troll commands", detail: "/smite · the Knockback stick, Spectral Trident and Mirror Totem" },
+    { key: "feature.pm", label: "Private messages", detail: "/pm · /msg · /r · /prchat" },
+    { key: "feature.emote", label: "Emotes", detail: "/emote · /me · /action" },
+    { key: "feature.enderchest", label: "Ender chests", detail: "/ec · /enderchest · ships OFF" }
 ]
 
 export async function configurationScreen(player, back) {

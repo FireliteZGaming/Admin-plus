@@ -298,5 +298,22 @@ console.log("\n— one place decides what a formatting code means —")
         ["core/identity.js"])
 }
 
+
+console.log("\n— every feature switch is reachable from the panel —")
+// feature.troll gates /smite and three of the seven admin items, ships OFF,
+// and was on NO screen — reachable only through All values or < Code >. A
+// switch nobody can find is a section nobody can turn on, which is worse than
+// not having the switch.
+{
+    const src = readFileSync(
+        new URL("../Admin+ BP/scripts/features/configUI.js", import.meta.url), "utf8")
+    const listed = [...src.matchAll(/key: "(feature\.[a-z]+)"/g)].map(m => m[1])
+    const shipped = Object.keys(DEFAULTS).filter(k => k.startsWith("feature."))
+    check("every feature. key has a row on the Configuration screen",
+        shipped.filter(k => !listed.includes(k)).sort(), [])
+    check("and no row names a key that does not exist",
+        listed.filter(k => !shipped.includes(k)).sort(), [])
+}
+
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)
