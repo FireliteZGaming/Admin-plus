@@ -56,6 +56,31 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.5.11 — 2026-09-12
+
+**"What is it inherited from? Literally nothing."** Reported from a world, and
+exactly right. The permission editor showed Manager as having ban *"inherited"*
+while its Inherits list was empty.
+
+`rankState` asked "does this rank say so itself" with an exact string match, so
+`admin.*` — sitting in Manager's OWN perms — missed it, fell through to the
+flattened own-plus-inherited list, matched `admin.ban` there, and got reported
+as inherited. Clearing inheritance changed nothing, because inheritance was
+never what granted it. **The permissions themselves were right the whole time;
+the screen explaining them was not**, which is the worse of the two to get
+wrong — a wrong answer you can check, a wrong explanation sends you hunting.
+
+- New state `wildcard`, separate from `inherited`, and the screen now names the
+  source either way: *"has it already, from its own admin.\*"* or *"inherited
+  from Admin"* or *"denied by Admin"*.
+- `rankGrant(rank, node)` returns `{ state, via }` — the pattern for a wildcard,
+  the rank object for anything inherited. `rankState` is now a wrapper on it.
+- Both sides are **scored** rather than own-first-wins, so an ancestor's exact
+  `-admin.ban` still beats this rank's broad `admin.*` — the screen and `has()`
+  must never diverge, and a test now pins them equal on that exact case.
+- The old test asserted a wildcard grant was `"inherited"`, which is how this
+  survived. Its own comment named the two as different things in the line above.
+
 ## 2.5.10 — 2026-09-12
 
 **A second rank was invisible everywhere.** Reported from a world: a rank was

@@ -852,24 +852,94 @@ function isOperator(player) {
  *
  * @returns {"own"|"inherited"|"denied"|"none"}
  */
-export function rankState(rankOrId, node) {
+/**
+ * The strongest pattern in a list that has an opinion about `node`.
+ *
+ * `>` not `>=`, so the FIRST pattern at a given strength wins — which is what
+ * makes this agree with has(), whose loop reads a rank's own perms before
+ * anything it inherits.
+ */
+function bestPattern(patterns, node) {
+    let best = 0
+    let winner
+    for (const pattern of patterns) {
+        const score = matchScore(pattern, node)
+        if (score > best) { best = score; winner = pattern }
+    }
+    return { score: best, pattern: winner }
+}
+
+/**
+ * The strongest opinion about `node` held ABOVE this rank, and whose it is.
+ *
+ * Scored rather than first-found: an ancestor's exact `-admin.ban` has to beat
+ * a nearer ancestor's broad `admin.*`, exactly as it does in has().
+ */
+function bestAncestor(rank, node, seen = new Set([rank.id])) {
+    let found = { score: 0 }
+    for (const parentId of rank.inherits ?? []) {
+        if (seen.has(parentId)) continue
+        seen.add(parentId)
+        const parent = ranksTable.get(parentId)
+        if (!parent) continue
+        for (const candidate of [
+            { ...bestPattern(parent.perms ?? [], node), rank: parent },
+            bestAncestor(parent, node, seen)
+        ]) {
+            if (candidate.score > found.score) found = candidate
+        }
+    }
+    return found
+}
+
+/**
+ * Where a rank's answer about one node actually COMES from.
+ *
+ * **A rank's own wildcard is not inheritance, and calling it that was a real
+ * bug.** Reported from a world: Manager showed "has it already, inherited" on
+ * ban while its Inherits list was empty — inheriting, as the user put it, from
+ * literally nothing. The cause is that the old check for "does this rank say so
+ * itself" was an exact string match, so `admin.*` sitting in Manager's OWN
+ * perms missed it, fell through to the flattened list, matched there, and got
+ * labelled inherited. Clearing inheritance changed nothing, because inheritance
+ * was never what granted it.
+ *
+ * Returns `{ state, via }`:
+ *   own        the exact node is in this rank's list          via: the node
+ *   wildcard   one of this rank's OWN patterns covers it      via: the pattern
+ *   inherited  an ancestor grants it                          via: that rank
+ *   denied     the strongest opinion is a denial              via: source
+ *   none       nothing has an opinion                         via: undefined
+ */
+export function rankGrant(rankOrId, node) {
     const rank = typeof rankOrId === "string" ? ranksTable.get(rankOrId) : rankOrId
-    if (!rank) return "none"
+    if (!rank) return { state: "none" }
 
     // What this rank says ITSELF comes first — that is what the switch writes,
     // so it has to be what the switch shows.
-    if (rank.perms.includes(node)) return "own"
-    if (rank.perms.includes(`-${node}`)) return "denied"
+    if (rank.perms.includes(node)) return { state: "own", via: node }
+    if (rank.perms.includes(`-${node}`)) return { state: "denied", via: `-${node}` }
 
-    let best = 0
-    let granted = false
-    for (const pattern of effectivePerms(rank)) {
-        const score = matchScore(pattern, node)
-        if (score > best) { best = score; granted = !pattern.startsWith("-") }
+    // Both sides scored, then compared — NOT own-first-wins. An ancestor's
+    // exact `-admin.ban` must still beat this rank's broad `admin.*`, or this
+    // screen would say "allowed" about something has() refuses.
+    const mine = bestPattern(rank.perms ?? [], node)
+    const theirs = bestAncestor(rank, node)
+    if (!mine.score && !theirs.score) return { state: "none" }
+
+    // Ties go to the rank itself, matching effectivePerms' own-first order.
+    const ownWins = mine.score >= theirs.score
+    const pattern = ownWins ? mine.pattern : theirs.pattern
+    if (pattern.startsWith("-")) {
+        return { state: "denied", via: ownWins ? pattern : theirs.rank }
     }
-    if (!best) return "none"
-    return granted ? "inherited" : "denied"
+    return ownWins
+        ? { state: "wildcard", via: pattern }
+        : { state: "inherited", via: theirs.rank }
 }
+
+/** Just the state, for callers that do not care where it came from. */
+export function rankState(rankOrId, node) { return rankGrant(rankOrId, node).state }
 
 /**
  * Is this node explicitly DENIED for this player?

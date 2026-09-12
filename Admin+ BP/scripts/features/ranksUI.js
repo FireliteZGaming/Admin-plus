@@ -4,11 +4,12 @@ import { hubTitle, hubButton, hubEntry } from "../core/theme.js"
 import { setting } from "../core/settings.js"
 import { record } from "../core/logs.js"
 import { ok, err, info } from "../core/util.js"
+import { stripCodes } from "../core/identity.js"
 import {
     ladder, getRank, saveRank, deleteRank, normaliseRankId, moveRank,
     PRESETS, BUNDLES, PERMISSION_NODES,
     applyPreset, restoreSnapshot, hasSnapshot, snapshot,
-    canEditRank, canActOn, has, rankState, displacedBy, defaultRank,
+    canEditRank, canActOn, has, rankState, rankGrant, displacedBy, defaultRank,
     playerRanks, displayRanks, heldRankIds, primaryRank, moveHeldRank,
     setRanks, grantRank, revokeRank, knownHolders, nodeLabels
 } from "../core/ranks.js"
@@ -383,10 +384,16 @@ async function nodePageScreen(player, rankId, group, nodes, back) {
 
     const labelFor = node => {
         const name = nameOf(node)
-        const state = rankState(rank, node)
-        if (state === "inherited") return `${name}\n§8· has it already, inherited`
+        // SAY WHERE IT CAME FROM. "inherited" on its own sent somebody hunting
+        // through an empty Inherits list for a rank that had been granting
+        // itself ban through its own `admin.*` the whole time.
+        const { state, via } = rankGrant(rank, node)
+        const rankName = r => stripCodes(String(r?.display ?? "")) || r?.id || "a rank above"
+        if (state === "wildcard") return `${name}\n§8· has it already, from its own ${via}`
+        if (state === "inherited") return `${name}\n§8· inherited from ${rankName(via)}`
         if (state === "denied" && !rank.perms.includes(`-${node}`)) {
-            return `${name}\n§8· denied further up the ladder`
+            const from = typeof via === "string" ? `its own ${via}` : rankName(via)
+            return `${name}\n§8· denied by ${from}`
         }
         return name
     }

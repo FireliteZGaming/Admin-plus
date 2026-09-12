@@ -8,7 +8,7 @@ import {
     PERMISSION_NODES,
     setRanks, grantRank, revokeRank, heldRankIds, playerRanks, displayRanks, primaryRank,
     moveHeldRank, onPlayerJoin, defaultRank, displacedBy, cooldownFor, saveRank as saveR, knownHolders,
-    CREATOR_GAMERTAG, CREATOR_RANK, allRanks, rankState,
+    CREATOR_GAMERTAG, CREATOR_RANK, allRanks, rankState, rankGrant,
     DEVELOPER_RANK, isTeamDeveloper, __setTeamDevelopers, nodeLabels, canTrollOn
 } from "../Admin+ BP/scripts/core/ranks.js"
 import { CONFIG } from "../Admin+ BP/scripts/config.js"
@@ -486,9 +486,16 @@ console.log("\n— what a rank REALLY says about a node —")
 // it the way has() does, rather than by a second copy of that logic.
 applyPreset("server")
 check("a node the rank states itself", rankState("admin", "admin.ban"), "own")
-check("one it gets through a wildcard — chat.* covers this",
-    rankState("admin", "chat.viewall"), "inherited")
+// **Its own wildcard is not inheritance**, and this assertion used to say it
+// was — the comment above already named them as two different things before
+// collapsing both into one word. Reported from a world: Manager read
+// "has it already, inherited" on ban while its Inherits list was empty.
+check("one it gets through its OWN wildcard — chat.* covers this",
+    rankState("admin", "chat.viewall"), "wildcard")
+check("and the label can name the pattern responsible",
+    rankGrant("admin", "chat.viewall").via, "chat.*")
 check("one it inherits from the rank below", rankState("admin", "admin.kick"), "inherited")
+check("which names the rank it came from", rankGrant("admin", "admin.kick").via.id, "mod")
 check("and one nothing grants at all", rankState("admin", "admin.commands"), "none")
 check("an unknown rank says nothing", rankState("nosuchrank", "admin.ban"), "none")
 
@@ -496,6 +503,42 @@ check("an unknown rank says nothing", rankState("nosuchrank", "admin.ban"), "non
 saveRank("admin", { perms: ["-admin.kick"] })
 check("an explicit denial wins over what it inherits",
     rankState("admin", "admin.kick"), "denied")
+
+console.log("\n— a rank inheriting from NOTHING cannot inherit anything —")
+// The report, verbatim: "what is it inherited from? literally nothing." Manager
+// carries `admin.*` in its OWN perms, so every admin node matched the flattened
+// list and got called inherited — while the Inherits list sat empty, which is
+// an unanswerable thing to be told.
+{
+    applyPreset("realm")
+    const mgr = getRank("manager")
+    saveRank("manager", { ...mgr, inherits: [] })
+    check("it still HAS ban, because its own admin.* grants it",
+        rankState("manager", "admin.ban"), "wildcard")
+    check("and says which pattern did it", rankGrant("manager", "admin.ban").via, "admin.*")
+    check("nothing it holds can claim to be inherited now",
+        PERMISSION_NODES["Moderation"].every(n => rankState("manager", n) !== "inherited"), true)
+
+    // The other half: this screen must never disagree with has(). An ancestor's
+    // exact denial outranks this rank's broad wildcard, so restoring the
+    // inheritance and taking ban away at Admin has to take it away here too.
+    applyPreset("realm")
+    const admin = getRank("admin")
+    saveRank("admin", {
+        ...admin,
+        perms: admin.perms.filter(p => p !== "admin.ban").concat("-admin.ban")
+    })
+    check("an ancestor's exact denial beats this rank's own wildcard",
+        rankState("manager", "admin.ban"), "denied")
+    check("and it names the rank that refused it",
+        rankGrant("manager", "admin.ban").via.id, "admin")
+
+    const holder = fakePlayer("Manager")
+    setRanks(holder.id, ["manager"], holder.name)
+    check("which is exactly what has() answers, or the screen would be lying",
+        has(holder, "admin.ban"), false)
+    applyPreset("realm")
+}
 applyPreset("server")
 
 console.log("\n— the team developer's badge —")
