@@ -1,4 +1,6 @@
-import { CustomCommandParamType } from "@minecraft/server"
+import { CustomCommandParamType, __test } from "@minecraft/server"
+import { resolveSelector } from "../Admin+ BP/scripts/core/selector.js"
+import { setNickname } from "../Admin+ BP/scripts/core/identity.js"
 import { COMMANDS, ENUMS, SELECTOR_TYPES, CODENAME, codenameFor, GAME_OWNED } from "../Admin+ BP/scripts/core/vanillaparams.js"
 import { buildLine, tempTag } from "../Admin+ BP/scripts/features/vanillacmds.js"
 import { DEFAULTS } from "../Admin+ BP/scripts/core/settings.js"
@@ -406,6 +408,96 @@ for (let i = 0; i < 500; i++) tags.add(tempTag())
 check("500 tags, 500 distinct", tags.size, 500)
 check("and none of them could be a player's own tag",
     [...tags].every(t => t.startsWith("apcmd_")), true)
+
+
+console.log("\n— a name is whatever is on the screen, nickname included —")
+// Admin+ shows a nicknamed player as their nickname everywhere: the list, the
+// nametag, chat. That is the name staff read off the screen and type back in,
+// so matching only the gamertag answered "nobody here is called Starlight"
+// about somebody standing in front of them wearing exactly that name.
+{
+    const players = __test.players
+    const before = players.length
+    const make = (id, name) => ({
+        id, name, typeId: "minecraft:player",
+        getTags: () => [], commandPermissionLevel: 0,
+        location: { x: 0, y: 64, z: 0 }, dimension: __test.dimension
+    })
+    const cass = make("p-cass", "CassRunner")
+    const dana = make("p-dana", "DanaBuilds")
+    players.push(cass, dana)
+    setNickname(cass, "§dStarlight")
+
+    check("the gamertag still resolves",
+        resolveSelector("CassRunner", cass, true).entities.map(p => p.id), ["p-cass"])
+    check("and so does the nickname now",
+        resolveSelector("Starlight", cass, true).entities.map(p => p.id), ["p-cass"])
+    check("case does not matter",
+        resolveSelector("starLIGHT", cass, true).entities.map(p => p.id), ["p-cass"])
+    // The codes are not something anybody can type, and the plain form is what
+    // was on screen.
+    check("the formatting codes are not part of the name",
+        resolveSelector("§dStarlight", cass, true).ok, false)
+
+    // The gamertag wins when both could match: it is the name that cannot be
+    // changed by the person answering to it, so a moderator typing a gamertag
+    // they looked up must never reach somebody else.
+    setNickname(dana, "CassRunner")
+    check("a nickname cannot steal somebody else's gamertag",
+        resolveSelector("CassRunner", cass, true).entities.map(p => p.id), ["p-cass"])
+
+    check("and an unknown name says it looked at both",
+        resolveSelector("Nobody", cass, true).reason.includes("nicknamed"), true)
+
+    setNickname(cass, "")
+    setNickname(dana, "")
+    players.length = before
+}
+
+
+console.log("\n— how many commands still ask the engine to expand a selector —")
+// Every command in this pack registers at CommandPermissionLevel.Any — the
+// pack's own and the 54 passthroughs alike, see core/registry.js — and the
+// engine refuses to expand ANY `@` form at that level, before the handler runs.
+// So a PlayerSelector or EntitySelector parameter on a registration is a
+// parameter that works for a typed name and refuses `@p`.
+//
+// The passthroughs were fixed in 2.1.21 and /a:tp in 2.2.2. The rest were found
+// at the same time as /a:tp and are NOT fixed. This counts them rather than
+// listing them as prose, so the number goes down as they are converted and
+// nobody has to remember the list.
+//
+// **Lowering this number means fixing a command. Raising it means somebody
+// wrote a new one with the broken shape.** Either way the test should be
+// touched deliberately.
+{
+    const dir = new URL("../Admin+ BP/scripts/features/", import.meta.url)
+    const sources = [
+        ...readdirSync(dir)
+            .filter(f => f.endsWith(".js") && f !== "vanillacmds.js")
+            .map(f => [f, readFileSync(new URL(f, dir), "utf8")]),
+        ["main.js", readFileSync(new URL("../Admin+ BP/scripts/main.js", import.meta.url), "utf8")]
+    ]
+
+    const exposed = []
+    for (const [file, text] of sources) {
+        // Comment lines describe the problem; they are not the problem.
+        const code = text.split("\n").filter(l => !l.trim().startsWith("//")).join("\n")
+        const count = [...code.matchAll(/CustomCommandParamType\.(Player|Entity)Selector/g)].length
+        if (count) exposed.push(`${file}:${count}`)
+    }
+
+    check("main.js no longer declares one — /a:tp was converted",
+        exposed.filter(e => e.startsWith("main.js")), [])
+    // The standing count. When this fails because it went DOWN, delete the name
+    // from the list and lower the number; that is the fix landing.
+    check("the rest are known, counted, and still to do",
+        exposed.sort(),
+        ["enderchest.js:1", "gamemode.js:2", "grant.js:1", "invsee.js:1",
+         "modcommands.js:3", "nick.js:1", "privatechat.js:5", "reports.js:1",
+         "staffmode.js:1", "sudo.js:1", "tpa.js:2", "troll.js:1", "vanish.js:1",
+         "warn.js:2"])
+}
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

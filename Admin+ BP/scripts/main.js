@@ -5,6 +5,8 @@ import { onPlayerJoin, refreshNameTag, canActOn, has, ladder, ranksTable } from 
 import { detectServerPreset } from "./core/serverPresets.js"
 import { tableReport } from "./core/storage.js"
 import { ok, err, msg } from "./core/util.js"
+import { resolveSelector, SELECTOR_HELP } from "./core/selector.js"
+import { displayName } from "./core/identity.js"
 import { openPanel } from "./features/panel.js"
 import "./features/gamemode.js"
 import "./features/modcommands.js"
@@ -53,41 +55,69 @@ command({
     run: (player) => openPanel(player)
 })
 
-// Vanilla-shaped teleport: same argument grammar as /tp, so muscle memory and
-// tab-completion both carry over.
+// Teleport, resolved here rather than by the parser.
+//
 //   /a:tp <destination>            move yourself to them
 //   /a:tp <victim> <destination>   move them to the destination
+//
+// **`/tp @p` never worked**, and the reason is the one the 54 passthroughs hit
+// first: a custom command's PlayerSelector parameter is expanded by the ENGINE
+// at the command's declared permission level, core/registry.js declares `Any`
+// for everything, and every `@` form is refused there — before this handler
+// runs. A literal name got through, which is exactly why the breakage looked
+// random: `/tp Steve` worked and `/tp @p` did not.
+//
+// **This is NOT the last one.** Roughly two dozen of the pack's own commands
+// still declare PlayerSelector — /ban, /mute, /warn, /nick, /invsee, /smite,
+// /sudo, /tpa, /vanish and the rest — and every one of them refuses `@p` today
+// for exactly this reason. Nobody noticed because people type a name or leave
+// the argument off, which are the two cases that work. They want the same fix;
+// this one went first because teleport is typed hardest.
+//
+// So both arguments are plain text now and core/selector.js resolves them
+// through the script API, the same route the 54 vanilla passthroughs take. The
+// cost is the same one they pay: the game no longer offers `@a @e @p` as you
+// type. The description carries the vocabulary instead, and a NAME — gamertag
+// or nickname — still works, which is what most people type anyway.
 command({
     name: "tp",
-    description: "Teleport players (same grammar as vanilla /tp)",
+    description: `Teleport players — /a:tp <who> [destination] · ${SELECTOR_HELP}`,
     perm: "admin.tp",
-    mandatory: [{ name: "target", type: CustomCommandParamType.PlayerSelector }],
-    optional: [{ name: "destination", type: CustomCommandParamType.PlayerSelector }],
-    run: (player, [first, second]) => {
-        const targets = first ?? []
-        const destinations = second ?? []
+    mandatory: [{ name: "target", type: CustomCommandParamType.String }],
+    optional: [{ name: "destination", type: CustomCommandParamType.String }],
+    run: (player, [firstText, secondText]) => {
+        const first = resolveSelector(firstText, player, true)
+        if (!first.ok) return err(player, first.reason)
+        if (first.unsupported?.length) {
+            return err(player, `I can't apply §f${first.unsupported.join(", ")}§c — refusing rather than ignoring it.`)
+        }
+        if (!first.entities.length) return err(player, `Nothing matched §f${firstText}§c.`)
 
         // One argument: the selector IS the destination, and the player moves.
-        if (!destinations.length) {
-            const destination = targets[0]
-            if (!destination) return err(player, "No player matched that selector.")
-            if (targets.length > 1) return err(player, "That selector matched more than one player.")
+        if (secondText === undefined || secondText === null || secondText === "") {
+            if (first.entities.length > 1) return err(player, "That matched more than one player.")
+            const destination = first.entities[0]
             player.teleport(destination.location, { dimension: destination.dimension })
-            return ok(player, `Teleported you to §f${destination.name}§a.`)
+            return ok(player, `Teleported you to §f${displayName(destination)}§a.`)
         }
 
-        if (destinations.length > 1) return err(player, "The destination selector matched more than one player.")
-        const destination = destinations[0]
-        if (!targets.length) return err(player, "No player matched that selector.")
+        const second = resolveSelector(secondText, player, true)
+        if (!second.ok) return err(player, second.reason)
+        if (second.unsupported?.length) {
+            return err(player, `I can't apply §f${second.unsupported.join(", ")}§c — refusing rather than ignoring it.`)
+        }
+        if (!second.entities.length) return err(player, `Nothing matched §f${secondText}§c.`)
+        if (second.entities.length > 1) return err(player, "The destination matched more than one player.")
 
+        const destination = second.entities[0]
         const moved = []
         const blocked = []
-        for (const target of targets) {
-            if (!canActOn(player, target)) { blocked.push(target.name); continue }
+        for (const target of first.entities) {
+            if (!canActOn(player, target)) { blocked.push(displayName(target)); continue }
             target.teleport(destination.location, { dimension: destination.dimension })
-            moved.push(target.name)
+            moved.push(displayName(target))
         }
-        if (moved.length) ok(player, `Teleported §f${moved.join(", ")}§a to §f${destination.name}§a.`)
+        if (moved.length) ok(player, `Teleported §f${moved.join(", ")}§a to §f${displayName(destination)}§a.`)
         if (blocked.length) err(player, `Outranked you, skipped: §f${blocked.join(", ")}`)
     }
 })

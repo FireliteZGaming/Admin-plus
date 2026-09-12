@@ -57,6 +57,62 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.2.2 — 2026-09-11
+
+**`/tp @p` works, and a name now means the name you can see.** Two fixes in the
+three commands that get typed hardest — kill, effect, teleport.
+
+### `/a:tp` was still asking the parser
+
+It was the pack's own teleport, and it still declared its arguments as
+`PlayerSelector`, which is the shape the 54 passthroughs were moved off in
+2.1.21. The engine expands a selector parameter at the command's declared
+permission level — `core/registry.js` declares `Any` for everything — and every
+`@` form is refused there, before the handler runs. A literal name got through,
+which is exactly why the breakage looked random: `/tp Steve` worked and
+`/tp @p` did not.
+
+Both arguments are plain text now and `core/selector.js` resolves them through
+the script API, the same route everything else takes. `@s @p @r @a` all work,
+with filters. The cost is the one the passthroughs already pay: the game no
+longer offers the selector list as you type, so the vocabulary rides in the
+command's description instead.
+
+### A name now includes a nickname
+
+`core/selector.js` matched the gamertag and nothing else, so `/eff Starlight
+speed` answered *"nobody here is called Starlight"* about somebody standing in
+front of you wearing exactly that name. Admin+ shows a nicknamed player as their
+nickname in every list, nametag and chat line — that is the name staff read off
+the screen and type back in.
+
+The **gamertag wins** when both could match. It is the name that cannot be
+changed by the person answering to it, so a moderator typing a gamertag they
+looked up in the ban list can never be redirected onto somebody who nicknamed
+themselves that. Nicknames are compared with their formatting codes stripped,
+because the codes are not something anybody can type.
+
+Several matches come back as several — a shared nickname is a real situation,
+and silently picking one of two people is the worse answer.
+
+### And the thing that turned up while fixing it
+
+`/slay` and `/eff` were traced end to end and are sound: both take the direct
+script-API route — `entity.kill()`, `entity.addEffect()` — with no command text
+and no parser anywhere, which is the route `/gm` has always taken.
+
+But **`/a:tp` was not the only one left.** Roughly two dozen of the pack's own
+commands still declare `PlayerSelector` — `/ban`, `/mute`, `/warn`, `/nick`,
+`/invsee`, `/smite`, `/sudo`, `/tpa`, `/vanish`, `/ec`, `/gm`, `/msg` and the
+rest — and every one of them refuses `@p` today, for exactly the same reason.
+Nobody noticed because people type a name or leave the argument off, and those
+are the two cases that work.
+
+They are not fixed in this version. They are **counted** in
+`tests/vanillacmds.test.js`, file by file, so the number goes down as they are
+converted and nobody has to hold the list in their head. Lowering it means a fix
+landed; raising it means somebody wrote a new command with the broken shape.
+
 ## 2.2.1 — 2026-09-11
 
 **The Ender Eye's Location screen picks a world too.** A dropdown above the

@@ -1,4 +1,5 @@
 import { world, GameMode } from "@minecraft/server"
+import { displayName } from "./identity.js"
 
 // Resolving `@e[type=cow,r=10]` ourselves, without asking the command parser.
 //
@@ -35,10 +36,34 @@ import { world, GameMode } from "@minecraft/server"
 // five selectors and refuses all five, which is worse than one that offers
 // none. The command descriptions carry the vocabulary instead.
 
-/** Bare-name lookups are common enough to be worth not scanning for. */
+/**
+ * Find a player by what somebody TYPED, which is not always their gamertag.
+ *
+ * Nicknames are the reason. Admin+ shows a nicknamed player as their nickname
+ * everywhere — the list, the nametag, chat — so that is the name staff read off
+ * the screen and type back in. Matching only the gamertag meant `/eff Starlight
+ * speed` answered "nobody here is called Starlight" about somebody standing in
+ * front of them wearing exactly that name.
+ *
+ * The gamertag wins when both could match. It is the name that cannot be
+ * changed by the person answering to it, so if one player's gamertag is another
+ * player's nickname, the gamertag is the safer read — and a moderator typing a
+ * gamertag they looked up in the ban list must never reach somebody else.
+ *
+ * Nicknames are compared with their formatting codes stripped, because the
+ * codes are not something anybody can type: displayName() already returns the
+ * plain form, which is also what was on screen.
+ *
+ * Several matches come back as several. A shared nickname is a real situation
+ * and the caller already reports how many it affected; silently picking one of
+ * two people would be the worse answer.
+ */
 function playerNamed(name) {
     const wanted = String(name).toLowerCase()
-    return world.getAllPlayers().filter(p => p.name.toLowerCase() === wanted)
+    const everyone = world.getAllPlayers()
+    const byGamertag = everyone.filter(p => p.name.toLowerCase() === wanted)
+    if (byGamertag.length) return byGamertag
+    return everyone.filter(p => displayName(p).toLowerCase() === wanted)
 }
 
 /**
@@ -173,7 +198,7 @@ export function resolveSelector(text, player, playersOnly = false) {
     if (!raw.startsWith("@")) {
         // A plain name. Players are the only thing you can name.
         const found = playerNamed(raw)
-        if (!found.length) return { ok: false, entities: [], reason: `nobody here is called "${raw}".` }
+        if (!found.length) return { ok: false, entities: [], reason: `nobody here is called or nicknamed "${raw}".` }
         return { ok: true, entities: found }
     }
 
