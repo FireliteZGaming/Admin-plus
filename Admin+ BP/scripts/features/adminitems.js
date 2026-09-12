@@ -1,4 +1,4 @@
-import { world, system, ItemStack } from "@minecraft/server"
+import { world, system, ItemStack, EnchantmentTypes } from "@minecraft/server"
 import { command } from "../core/registry.js"
 import { ok, err, info } from "../core/util.js"
 import { has, isStaff, canActOn, canTrollOn, primaryRank } from "../core/ranks.js"
@@ -12,6 +12,10 @@ import { worldToken, makeBanHammer, HAMMER_NAME } from "../core/banhammer.js"
 import { setting } from "../core/settings.js"
 import { canNuke, nukeBlockedBy, orbitalStrike } from "../core/orbital.js"
 import { trollAllowed } from "../core/trollgate.js"
+import {
+    TRIDENT_TAG, noteThrow, claimThrow, forgetThrows, beginStorm,
+    installTridentEffects
+} from "../core/trident.js"
 
 // /items — grab an admin item without vanishing or opening /admin.
 //
@@ -47,7 +51,7 @@ const ITEMS = {
     // core/orbital.js for why each one is a different kind of claim.
     orbital: {
         barSlot: 3,
-        slot: 9,
+        slot: 11,
         gate: p => canNuke(p),
         make: () => signItem("minecraft:fishing_rod", "§4§lOrbital Strike",
             "§7Aim at something far away and use it once."),
@@ -58,7 +62,7 @@ const ITEMS = {
     },
     hammer: {
         barSlot: 4,
-        slot: 11,
+        slot: 12,
         // The Ban Hammer is minted by core/banhammer.js and caught by its own
         // global handler; /items only hands it over. Only for people allowed to
         // ban permanently, exactly as in the /mm bar.
@@ -93,7 +97,7 @@ const ITEMS = {
     // `/port` hands one over; so does /items.
     eye: {
         barSlot: 1,
-        slot: 15,
+        slot: 14,
         gate: p => has(p, "admin.tp"),
         make: () => signItem("minecraft:ender_eye", "§d§lEnder Eye",
             "§7Use it to pick who you jump to."),
@@ -101,9 +105,32 @@ const ITEMS = {
         lines: ["§7Use it to pick who you jump to.", "§8Or a location, or whatever you are looking at."],
         typeId: "minecraft:ender_eye"
     },
+    // The Spectral Trident. Throw it; red dust turns around it in the air, and
+    // whatever it strikes wears a storm of it.
+    //
+    // A trident because a trident IS the item. An arrow is ammunition — the bow
+    // picks a stack, consumes it, and spawns a generic arrow carrying none of
+    // the name or lore, so you can neither tell which arrow was fired nor
+    // choose which one goes. You throw the trident in your hand, so there is
+    // nothing to pick and nothing to guess, and Loyalty proves the stack
+    // survives the flight because returning that exact trident is what Loyalty
+    // does.
+    //
+    // Loyalty III so it always comes back, and never Riptide — Riptide throws
+    // YOU instead of the trident, which would leave the whole thing inert.
+    trident: {
+        barSlot: 5,
+        slot: 15,
+        gate: p => trollAllowed(p),
+        make: () => loyalTrident(),
+        name: "§c§lSpectral Trident",
+        lines: ["§7Throw it. It comes back.",
+                "§8Red dust swirls around whatever it hits."],
+        typeId: "minecraft:trident"
+    },
     knockback: {
         barSlot: 2,
-        slot: 17,
+        slot: 16,
         // A troll tool, and gated as one since 2.2.4. It used to answer to
         // admin.staffmode, which meant every staff member got it whatever the
         // ladder said and switching the troll section off did not take it away.
@@ -124,6 +151,29 @@ function signItem(typeId, name, blurb) {
     const stack = new ItemStack(typeId, 1)
     stack.nameTag = name
     stack.setLore([blurb, `${SIGIL} · #${worldToken()}`])
+    return stack
+}
+
+/**
+ * A signed trident that always comes home.
+ *
+ * Loyalty is applied here rather than left to the holder, because the item's
+ * whole promise is that you get it back — one without it is a trident you throw
+ * off a cliff once. Level 3 is the fastest return vanilla offers.
+ *
+ * The enchantment is best-effort: if this runtime names loyalty differently the
+ * trident is still a signed, working Spectral Trident that simply has to be
+ * walked to. Losing the effect over a missing enchantment would be the worse
+ * failure.
+ */
+function loyalTrident() {
+    const stack = signItem("minecraft:trident", "§c§lSpectral Trident",
+        "§7Throw it. It comes back.")
+    safe(() => {
+        const enchantable = stack.getComponent("minecraft:enchantable")
+        const type = EnchantmentTypes.get("loyalty") ?? EnchantmentTypes.get("minecraft:loyalty")
+        if (enchantable && type) enchantable.addEnchantment({ type, level: 3 })
+    })
     return stack
 }
 
@@ -355,6 +405,65 @@ export function installAdminItems() {
             system.run(() => key === "eye" ? openEye(player) : teleportToRandom(player))
         })
     }
+
+    // ---------------------------------------------------------- the trident
+    //
+    // Three events, because a throw and its consequences are three separate
+    // facts the engine never joins up for you:
+    //
+    //   release   the trident is still IN THEIR HAND, so this is the only
+    //             moment its signature can be read at all
+    //   spawn     the thrown entity appears, carrying nothing — tagged here,
+    //             off the back of the release we just saw
+    //   hit       the tag says it was ours, so the storm is ours to start
+    const release = world.afterEvents?.itemReleaseUse
+    if (release?.subscribe) {
+        release.subscribe(event => {
+            if (itemKey(event.itemStack) !== "trident") return
+            if (!trollAllowed(event.source)) return
+            noteThrow(event.source, system.currentTick ?? 0)
+        })
+    } else {
+        console.warn("[Admin+] itemReleaseUse unavailable — the Spectral Trident will fly plain")
+    }
+
+    const spawned = world.afterEvents?.entitySpawn
+    if (spawned?.subscribe) {
+        spawned.subscribe(event => {
+            const entity = event.entity
+            if (entity?.typeId !== "minecraft:thrown_trident") return
+            const thrower = claimThrow(entity, world.getAllPlayers(), system.currentTick ?? 0)
+            if (!thrower) return
+            safe(() => entity.addTag(TRIDENT_TAG))
+        })
+    }
+
+    // Both hit events, because a trident that lands in the ground and one that
+    // lands in somebody are the same throw. The storm follows a victim if there
+    // is one and sits where it struck if there is not.
+    for (const [name, victimOf] of [
+        ["projectileHitEntity", event => safe(() => event.getEntityHit?.()?.entity)],
+        ["projectileHitBlock", () => undefined]
+    ]) {
+        const hit = world.afterEvents?.[name]
+        if (!hit?.subscribe) continue
+        hit.subscribe(event => {
+            const projectile = event.projectile
+            if (projectile?.typeId !== "minecraft:thrown_trident") return
+            if (!safe(() => projectile.hasTag(TRIDENT_TAG), false)) return
+            const victim = victimOf(event)
+            system.run(() => {
+                if (victim) beginStorm(victim)
+                else beginStorm({
+                    location: event.location ?? projectile.location,
+                    dimension: event.dimension ?? projectile.dimension,
+                    isValid: false
+                })
+            })
+        })
+    }
+
+    installTridentEffects()
 
     return true
 }

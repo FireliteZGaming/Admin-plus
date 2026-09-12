@@ -56,6 +56,72 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.4.1 — 2026-09-11
+
+**The Spectral Trident.** Throw it and red dust turns around it in the air;
+whatever it strikes wears a storm of it. Loyalty III, so it always comes back.
+
+### Why a trident and not an arrow
+
+An arrow is **ammunition**, and that ruins it twice over. The bow picks a stack
+out of your inventory, consumes it, and spawns a generic `minecraft:arrow` that
+carries none of the item's name or lore — so you cannot tell which arrow was
+fired. Worse, *you cannot choose which one the bow takes*, so somebody carrying
+both normal and special arrows would fire them at random. "Reload with normal
+arrows and nothing happens" cannot be built on that.
+
+A trident **is** the item. You throw the one in your hand, so there is nothing
+to pick and nothing to guess — and Loyalty proves the stack survives the flight,
+because returning that exact trident with its enchantments is what Loyalty does.
+
+No custom item was needed: it is a signed vanilla trident, like the Ban Hammer.
+
+### How it knows
+
+Three events, because a throw and its consequences are three facts the engine
+never joins up:
+
+1. **release** — the trident is still in their hand, the only moment its
+   signature can be read at all
+2. **spawn** — the thrown entity appears carrying nothing, so it is **tagged**
+   here, off the back of the release just seen
+3. **hit** — the tag says it was ours
+
+Same trick `buildLine` uses to pin a selector's matches to what the engine
+actually resolved.
+
+### The dust
+
+`minecraft:redstone_wire_dust_particle` — the id three Soulbound souls already
+draw with, so it is proven on this engine and proven to render in open air.
+
+The technique is Soulbound's too: a `phase` driven by the clock so the ring
+genuinely **turns** rather than sitting still, points spaced evenly around the
+circle, and every `spawnParticle` wrapped, because one in an unloaded chunk
+throws and a lost frame must not take the effect with it.
+
+**In flight**, six points a tick — enough to read as a ring at the speed a
+trident moves, cheap enough to run on several at once.
+
+**On impact**, ten swirls for about two seconds. Each gets its radius, height,
+speed and *direction* fixed when the storm starts rather than re-rolled per
+frame: re-rolling every tick is a fog of unrelated dots, while fixing them means
+ten things that visibly **orbit**, at odds with each other — which is what reads
+as erratic. A wobble on top stops them looking like clockwork, and the whole
+thing tightens as it runs so it closes in rather than just stopping.
+
+Ten particles a tick, inside the budget Soulbound's spiral works to. The storm
+**follows the victim**, and falls back to where they were standing if they die
+or log out mid-swirl rather than vanishing.
+
+### Also
+
+The `/items` chest holds six now, so the row moved to 11–16. Six items cannot
+sit evenly *and* symmetrically in a nine-wide row, so the layout test asks for
+centred **to within one slot** — otherwise it would fail on every even count
+rather than on a real mistake. It caught the sixth item landing outside the row,
+which is exactly what it was written for.
+
 ## 2.4.0 — 2026-09-11
 
 **Automod stops watching and starts acting.** It mutes spammers on a ladder,

@@ -1,4 +1,8 @@
-import { ItemStack, __test } from "@minecraft/server"
+import { ItemStack, system, __test } from "@minecraft/server"
+import {
+    TRIDENT_TAG, beginStorm, liveStorms, tickStorms, clearStorms,
+    stormPoints, renderStorm, renderFlight, STORM_TICKS
+} from "../Admin+ BP/scripts/core/trident.js"
 import { setting, setSetting, resetSetting, DEFAULTS } from "../Admin+ BP/scripts/core/settings.js"
 import { ITEMS, signItem, itemKey, knockback, coordinate, SIGIL, installAdminItems,
          worldLabels, worldIndex, worldHeight, heightProblem } from "../Admin+ BP/scripts/features/adminitems.js"
@@ -43,8 +47,11 @@ check("and that looking somewhere still works",
         slots.filter(s => s < 9 || s > 17), [])
     const gaps = slots.slice(1).map((s, i) => s - slots[i])
     check("and they are evenly spaced across it", new Set(gaps).size <= 1, true)
-    check("the row is centred — the same gap at each end",
-        slots[0] - 9, 17 - slots.at(-1))
+    // Centred to within one slot. A row nine wide cannot hold an EVEN number
+    // of items with the same gap at both ends, so demanding exact symmetry
+    // would fail on every even count rather than on a real layout mistake.
+    check("the row is centred, as near as the count allows",
+        Math.abs((slots[0] - 9) - (17 - slots.at(-1))) <= 1, true)
 }
 check("no two items share an item type", new Set(defs.map(d => d.typeId)).size, defs.length)
 check("every item has a gate", defs.every(d => typeof d.gate === "function"), true)
@@ -415,6 +422,116 @@ console.log("\n— the eye's menu: who, or where —")
     const firstMove = swap.indexOf(".teleport(")
     check("a swap reads both positions before moving anybody",
         mineAt < firstMove && theirsAt < firstMove, true)
+}
+
+
+console.log("\n— the Spectral Trident: thrown, tagged, and answered —")
+// A trident because a trident IS the item. An arrow is ammunition: the bow
+// picks a stack, consumes it, and spawns a generic arrow carrying none of the
+// name or lore — you can neither tell which arrow went nor choose which one
+// does. Here you throw the one in your hand.
+//
+// But the flying entity still carries nothing, so identity is TAGGED onto it
+// from the throw we just saw. That chain is what these exercise: release,
+// spawn, hit.
+{
+    setSetting("feature.troll", "true")
+    const thrower = {
+        id: "trident-thrower", name: "Thrower",
+        getTags: () => ["Dev", "ap:rank:Owner"],
+        commandPermissionLevel: 1,
+        location: { x: 0, y: 64, z: 0 },
+        dimension: __test.dimension,
+        sendMessage: () => {}
+    }
+    setRanks(thrower.id, ["Admin"], thrower.name)
+    // claimThrow scans the world for who is owed the trident that just
+    // appeared, so the thrower has to actually be in it.
+    __test.players.push(thrower)
+    // Its OWN tag set per trident. Sharing one meant clearing it before the
+    // second throw silently untagged the first, and the storm then "failed"
+    // for a reason that had nothing to do with the code under test.
+    const flying = () => {
+        const tags = new Set()
+        return {
+            typeId: "minecraft:thrown_trident",
+            location: { x: 0, y: 64, z: 1 },
+            dimension: __test.dimension,
+            addTag: t => tags.add(t), hasTag: t => tags.has(t),
+            isValid: true
+        }
+    }
+
+    check("the trident is a trident", ITEMS.trident.typeId, "minecraft:trident")
+    check("and it says it comes back",
+        ITEMS.trident.lines.some(l => l.includes("comes back")), true)
+
+    // Loyalty is applied when it is minted — the item's whole promise is that
+    // you get it back, and one without it is a trident you throw off a cliff
+    // once.
+    const made = ITEMS.trident.make()
+    const ench = made.getComponent("minecraft:enchantable")?.getEnchantments?.() ?? []
+    check("it is minted with loyalty", ench.some(e => e.level === 3), true)
+
+    // Throw it: release (still in hand, so readable) then spawn (carries
+    // nothing, so tagged).
+    clearStorms()
+    const inAir = flying()
+    __test.emitTridentThrow(thrower, made, inAir)
+    check("the thrown entity is tagged as ours", inAir.hasTag(TRIDENT_TAG), true)
+
+    // A plain trident somebody else threw is not.
+    const plain = flying()
+    __test.emitTridentThrow(thrower, new ItemStack("minecraft:trident", 1), plain)
+    check("an unsigned trident is left alone", plain.hasTag(TRIDENT_TAG), false)
+
+    // Landing in somebody starts the storm, and it is OURS that does it.
+    clearStorms()
+    const victim = { id: "hit-me", name: "Victim", isValid: true,
+                     location: { x: 5, y: 64, z: 5 }, dimension: __test.dimension }
+    __test.emitProjectileHit(plain, victim)
+    check("an untagged trident starts nothing", liveStorms(), 0)
+    __test.emitProjectileHit(inAir, victim)
+    check("ours starts a storm", liveStorms(), 1)
+
+    // And it ends on its own rather than swirling forever.
+    let ticks = 0
+    for (let t = 1; t <= STORM_TICKS + 5; t++) { ticks = tickStorms((system.currentTick ?? 0) + t) }
+    check("the storm finishes", liveStorms(), 0)
+
+    clearStorms()
+    __test.players.pop()
+    resetSetting("feature.troll")
+}
+
+console.log("\n— ten swirls, each its own —")
+// Each swirl gets its radius, speed and direction fixed when the storm starts
+// rather than re-rolled per frame. Re-rolling every tick is a fog of unrelated
+// dots; fixing them means ten things that visibly ORBIT, at odds with each
+// other, which is what reads as erratic.
+{
+    let n = 0
+    const fixed = () => { n += 0.07; return n % 1 }
+    const points = stormPoints(fixed)
+    check("there are ten of them", points.length, 10)
+    check("every one has a real radius", points.every(p => p.radius > 0), true)
+    check("and a real speed", points.every(p => p.speed > 0), true)
+    check("they turn both ways", new Set(points.map(p => p.dir)).size, 2)
+    check("and no two share a starting angle",
+        new Set(points.map(p => p.offset)).size, 10)
+
+    // The frame draws one particle per swirl — ten a tick, which is inside the
+    // budget Soulbound's spiral works to (~14-28/tick at its peak).
+    let drawn = 0
+    const dim = { spawnParticle: () => { drawn++ } }
+    renderStorm(dim, { x: 0, y: 64, z: 0 }, points, 5, 0.5)
+    check("one particle per swirl per frame", drawn, 10)
+
+    // The trail is cheaper still, because it runs on every trident in the air.
+    let trail = 0
+    renderFlight({ location: { x: 0, y: 64, z: 0 },
+                   dimension: { spawnParticle: () => { trail++ } } }, 3)
+    check("the trail is six a tick", trail, 6)
 }
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
