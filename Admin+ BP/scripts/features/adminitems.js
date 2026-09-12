@@ -1,7 +1,7 @@
 import { world, system, ItemStack } from "@minecraft/server"
 import { command } from "../core/registry.js"
 import { ok, err, info } from "../core/util.js"
-import { has, isStaff, canActOn, primaryRank } from "../core/ranks.js"
+import { has, isStaff, canTrollOn, primaryRank } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
 import { record } from "../core/logs.js"
 import { ChestForm, chestUIAvailable } from "../core/chestUI.js"
@@ -293,7 +293,9 @@ export function installAdminItems() {
             // it is asked, and the two must agree — fixing only the chest would
             // hand somebody an item that does nothing when they swing it.
             if (!trollAllowed(attacker)) return
-            if (!canActOn(attacker, victim)) return
+            // canTrollOn, not canActOn: being knocked about by a peer is
+            // banter, not a moderation decision. See core/ranks.js.
+            if (!canTrollOn(attacker, victim)) return
 
             system.run(() => {
                 if (knockback(attacker, victim)) {

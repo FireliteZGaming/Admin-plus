@@ -1,7 +1,7 @@
 import { CustomCommandParamType, EntityDamageCause } from "@minecraft/server"
 import { command } from "../core/registry.js"
 import { ok, err, info } from "../core/util.js"
-import { canActOn } from "../core/ranks.js"
+import { canTrollOn } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
 import { flag } from "../core/settings.js"
 import { trollBlockedBy } from "../core/trollgate.js"
@@ -69,7 +69,7 @@ command({
         const struck = []
         const blocked = []
         for (const target of targets) {
-            if (target.id !== player.id && !canActOn(player, target)) {
+            if (target.id !== player.id && !canTrollOn(player, target)) {
                 blocked.push(displayName(target))
                 continue
             }

@@ -9,7 +9,7 @@ import {
     setRanks, grantRank, revokeRank, heldRankIds, playerRanks, displayRanks, primaryRank,
     moveHeldRank, onPlayerJoin, defaultRank, displacedBy, cooldownFor, saveRank as saveR, knownHolders,
     CREATOR_GAMERTAG, CREATOR_RANK, allRanks, rankState,
-    DEVELOPER_RANK, isTeamDeveloper, __setTeamDevelopers, nodeLabels
+    DEVELOPER_RANK, isTeamDeveloper, __setTeamDevelopers, nodeLabels, canTrollOn
 } from "../Admin+ BP/scripts/core/ranks.js"
 import { CONFIG } from "../Admin+ BP/scripts/config.js"
 
@@ -579,7 +579,7 @@ for (const [group, nodes] of Object.entries(PERMISSION_NODES)) {
 }
 
 
-console.log("\n— the ladder: equals yes, above you never —")
+console.log("\n— the ladder: nothing above you, and no peer punishes a peer —")
 // Nothing pinned the equal case before 2.2.5, which is how the rule could be
 // changed from strictly-above to equal-or-below without a single test noticing.
 {
@@ -597,13 +597,13 @@ console.log("\n— the ladder: equals yes, above you never —")
     const mid = who("lad-mid", "lad_mid")
     const peer = who("lad-peer", "lad_midtoo")
     const high = who("lad-high", "lad_high")
-
     check("below you, yes", canActOn(mid, low), true)
     check("above you, never", canActOn(mid, high), false)
-    // The change. A peer can ban a peer, deliberately — the ladder is how you
-    // stop it, by making the untouchable people heavier rather than equal.
-    check("the same rank, yes", canActOn(mid, peer), true)
-    check("the same weight on a different rank, still yes", canActOn(peer, mid), true)
+    // A peer cannot ban a peer. Two moderators are not each other's
+    // moderators — that is what the rank above them is for, and a punishment
+    // one equal hands another has no authority behind it.
+    check("the same rank, NO", canActOn(mid, peer), false)
+    check("the same weight on a different rank, also no", canActOn(peer, mid), false)
     check("yourself, always", canActOn(mid, mid), true)
 
     // Operators act on anyone. This is what "all OPs can use it on anyone"
@@ -611,6 +611,21 @@ console.log("\n— the ladder: equals yes, above you never —")
     const opLow = who("lad-oplow", "lad_low", true)
     check("an operator on a heavier rank, yes", canActOn(opLow, high), true)
     check("but a non-operator on the same pairing, no", canActOn(low, high), false)
+
+    console.log("\n— and the looser rule, for jokes rather than punishments —")
+    // The knockback stick and /smite. Being knocked about by a peer is banter;
+    // being BANNED by a peer is a decision neither has the standing to make.
+    // 2.2.5 briefly made one rule of both, off the strength of the stick, and
+    // the result was that a peer could ban a peer.
+    check("a peer may knock a peer about", canTrollOn(mid, peer), true)
+    check("and the other way round", canTrollOn(peer, mid), true)
+    check("below you, still yes", canTrollOn(mid, low), true)
+    check("above you, still never", canTrollOn(mid, high), false)
+    check("an operator, still anyone", canTrollOn(opLow, high), true)
+    // The two rules differ in exactly one place and nowhere else.
+    check("the ONLY difference from canActOn is the equal case",
+        [[mid, low], [mid, high], [mid, mid], [opLow, high], [low, high]]
+            .filter(([a, b]) => canActOn(a, b) !== canTrollOn(a, b)), [])
 }
 
 
@@ -639,11 +654,19 @@ console.log("\n— everything that acts on a player consults the ladder —")
     const unprotected = []
     for (const file of files) {
         const text = readFileSync(new URL(file, dir), "utf8")
-        const code = text.split("\n").filter(l => !l.trim().startsWith("//")).join("\n")
+        // BLOCK comments as well as line ones. A /** … */ paragraph explaining
+        // why canActOn is the wrong question somewhere would otherwise read as
+        // the check itself — the same trap that has twice made a test in this
+        // repo agree with its own prose instead of with the code.
+        const code = text
+            .replace(/\/\*[\s\S]*?\*\//g, "")
+            .split("\n").filter(l => !l.trim().startsWith("//")).join("\n")
         const targets = /CustomCommandParamType\.(Player|Entity)Selector/.test(code)
             || /resolveSelector\(/.test(code)
         if (!targets) continue
-        if (/canActOn\s*\(/.test(code)) continue
+        // canTrollOn is the ladder too — the looser rule, for tools that are a
+        // joke rather than a punishment.
+        if (/can(ActOn|TrollOn)\s*\(/.test(code)) continue
         if (file in exempt) continue
         unprotected.push(file)
     }
@@ -655,10 +678,10 @@ console.log("\n— everything that acts on a player consults the ladder —")
     check("every exemption names a file that exists",
         Object.keys(exempt).filter(f => !files.includes(f)), [])
     // And each one still actually needs it — if a file on this list grew a
-    // canActOn call, the exemption is stale and should go.
+    // ladder check, the exemption is stale and should go.
     check("and none of them has since grown the check",
         Object.keys(exempt).filter(f =>
-            /canActOn\s*\(/.test(readFileSync(new URL(f, dir), "utf8"))), [])
+            /can(ActOn|TrollOn)\s*\(/.test(readFileSync(new URL(f, dir), "utf8"))), [])
 }
 
 console.log(`\n${passed} passed, ${failed} failed\n`)

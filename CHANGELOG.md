@@ -56,7 +56,38 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.2.6 — 2026-09-11
 
+**A peer cannot ban a peer.** 2.2.5 made one rule out of two different
+questions, and this splits them again.
+
+The reasoning that went wrong is worth writing down: the Knockback stick
+obviously should work between equals, so `canActOn` was loosened to
+equal-or-below — and that quietly meant a moderator could ban another
+moderator. One example, generalised into a rule that covered punishments.
+
+The difference is not how much a thing hurts. It is whether it is an exercise of
+authority or a bit of noise between peers:
+
+- **`canActOn` is strictly below you again.** Bans, kicks, mutes, warns,
+  freezes, rank changes, the Ban Hammer, and all 54 vanilla passthroughs. Two
+  moderators are not each other's moderators — that is what the rank above them
+  is for, and a punishment one equal hands another has no authority behind it.
+- **`canTrollOn` is equal-or-below**, and only the Knockback stick and `/smite`
+  use it. Nothing punitive does, and nothing punitive should: if a tool leaves a
+  mark somebody has to appeal, it belongs on the strict rule.
+
+Both keep the same two exemptions — a config owner acts on anyone and is acted
+on by nobody, an operator acts on anyone but a config owner — and a test pins
+that the equal case is the **only** place the two rules disagree.
+
+### The coverage guard learned two things
+
+It accepts `canTrollOn` as asking the ladder, which it is. And it strips
+**block** comments as well as line comments before looking: a `/** … */`
+paragraph explaining why `canActOn` is the wrong question somewhere would
+otherwise have read as the check itself. That is the third time a test here has
+been at risk of agreeing with its own prose instead of with the code.
 ## 2.2.5 — 2026-09-11
 
 **Nothing reaches above you.** The ladder is now asked by everything that acts

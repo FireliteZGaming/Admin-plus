@@ -906,22 +906,23 @@ export function isStaff(player) {
 }
 
 /**
- * Hierarchy protection: **you may act on your equals and everybody below you,
- * and never on anybody above you.**
+ * Hierarchy protection for anything DONE TO somebody: strictly below you.
  *
- * Equals were excluded until 2.2.5 — it was strictly-greater — which meant two
- * moderators could not moderate each other and a mod could not knock a peer
- * about. Equal-or-below is the stated rule now, and the consequence is worth
- * saying out loud: **a peer can ban a peer.** That is deliberate; the ladder is
- * how you stop it, by giving the people who should be untouchable a heavier
- * rank rather than an equal one.
+ * A peer cannot ban a peer. Two moderators are not each other's moderators —
+ * that is what the rank above them is for — and a punishment one equal can
+ * hand another is a punishment with no authority behind it.
  *
- * Two exemptions, both unchanged:
+ * 2.2.5 briefly made this equal-or-below, on the strength of the knockback
+ * stick being fine between peers. That was one example generalised into a rule,
+ * and it quietly meant a peer could ban a peer. The stick is not the thing to
+ * reason from: see canTrollOn below, which is where equals belong.
+ *
+ * Two exemptions:
  *   - a config OWNER acts on anyone and is acted on by nobody, online or not
  *   - an OPERATOR acts on anyone but a config owner
  *
- * Note the asymmetry with canSeeActionsOf, which is also equal-or-below but
- * asks a different question — whether you may SEE what somebody did.
+ * canSeeActionsOf is equal-or-below and asks something different — whether you
+ * may SEE what somebody did. Acting is strict; watching is not.
  */
 export function canActOn(actor, targetPlayerOrId) {
     if (isOwner(actor)) return true
@@ -931,7 +932,31 @@ export function canActOn(actor, targetPlayerOrId) {
     if (isOwner(targetPlayerOrId)) return false
     // Operators outrank the ladder, but never a config owner (handled above).
     if (isOperator(actor)) return true
-    return topWeight(actor) >= topWeight(targetId ?? targetPlayerOrId)
+    return topWeight(actor) > topWeight(targetId ?? targetPlayerOrId)
+}
+
+/**
+ * The looser rule, for tools that are a JOKE rather than a punishment: equals
+ * included.
+ *
+ * Two moderators knocking each other about with the stick is banter. Two
+ * moderators BANNING each other is a moderation decision neither has the
+ * authority to make over the other, which is what `canActOn` is strict for. The
+ * difference is not how much it hurts — it is whether it is an exercise of
+ * authority or a bit of noise between peers.
+ *
+ * Everything above you is still off limits, and the same two exemptions apply,
+ * so this is exactly `canActOn` with equals let in and nothing else changed.
+ *
+ * Used by the Knockback stick and `/smite`. Nothing punitive uses it, and
+ * nothing should: if a tool leaves a mark somebody has to appeal, it belongs on
+ * `canActOn`.
+ */
+export function canTrollOn(actor, targetPlayerOrId) {
+    if (canActOn(actor, targetPlayerOrId)) return true
+    if (isOwner(targetPlayerOrId)) return false
+    const targetId = typeof targetPlayerOrId === "string" ? targetPlayerOrId : targetPlayerOrId?.id
+    return topWeight(actor) === topWeight(targetId ?? targetPlayerOrId)
 }
 
 /**
