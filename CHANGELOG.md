@@ -56,6 +56,42 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.5.1 — 2026-09-11
+
+**A guard on the version number itself**, because the rule for it was ignored
+four times in one day.
+
+CLAUDE.md has said since 2.0.0 that a **minor is a whole new SECTION behind its
+own toggle** — the troll section is the archetype — and that a major is a
+milestone. Everything else, which is nearly everything, is a patch: a command, a
+fix, a tweak.
+
+Today the Orbital Strike took 2.2.0 while being one item *inside* the existing
+troll section. A leak fix took 2.3.0. Automod changing its mind took 2.4.0. The
+console parser took 2.5.0. Each one felt big while it was being written, and
+**"felt big" is not the rule.**
+
+Those numbers stand. Nothing is tagged or pushed, and renumbering six deployed
+versions to correct a digit would cost more than the digit does. What changes is
+that it cannot happen by habit again: `tools/setversion.py` refuses a minor
+without `--section` and a major without `--milestone`, and the refusal names the
+patch you probably meant:
+
+```
+refusing 2.6.0: a MINOR is a whole new SECTION behind its
+  own toggle (the troll section is the archetype) — not a feature, not a fix,
+  not a policy change. Nearly everything is a patch.
+  Did you mean 2.5.1?
+```
+
+A flag is a sentence you have to be willing to write down. A rule in a file is
+one you can drift past.
+
+Same shape as the other three guards this project now runs on: `check_bumped()`
+refusing an unbumped deploy, the stale-count test, and the verifier refusing a
+test file that never runs. The pattern is consistent enough to state plainly —
+**a rule I can forget should be a tool that refuses.**
+
 ## 2.5.0 — 2026-09-11
 
 **The console runs Admin+'s own commands now**, not just vanilla ones.

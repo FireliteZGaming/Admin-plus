@@ -66,10 +66,52 @@ def set_config(version):
     return text
 
 
+def current():
+    """What config.js says right now, as a tuple."""
+    raw = io.open(ROOT / "Admin+ BP/scripts/config.js", encoding="utf-8").read()
+    found = re.search(r'ADMINPLUS_VERSION = "([\d.]+)"', raw)
+    return parse(found.group(1)) if found else (0, 0, 0)
+
+
+def guard_size(old, new):
+    """Refuse a minor or major bump that has not been argued for.
+
+    CLAUDE.md is explicit and has been since 2.0.0: **a minor is a whole new
+    SECTION behind its own toggle** — the troll section is the archetype — and a
+    major is a milestone. Everything else, which is nearly everything, is a
+    patch: a command, a fix, a tweak.
+
+    It was ignored four times in one day anyway. The Orbital Strike took 2.2.0
+    while being one item INSIDE the existing troll section; a leak fix took
+    2.3.0; automod changing its mind took 2.4.0; the console parser took 2.5.0.
+    Each felt big while it was being written, and "felt big" is not the rule.
+
+    So the rule stops being something to remember. A minor or major bump now
+    needs --section or --milestone, which is a sentence you have to be willing
+    to write down rather than a habit you can drift into.
+    """
+    if new[0] > old[0]:
+        if "--milestone" not in sys.argv:
+            raise SystemExit(
+                f"refusing {'.'.join(map(str, new))}: a MAJOR is a milestone, not a big day.\n"
+                "  If it truly is one, say so: tools/setversion.py X.0.0 --milestone")
+        return
+    if new[1] > old[1]:
+        if "--section" not in sys.argv:
+            raise SystemExit(
+                f"refusing {'.'.join(map(str, new))}: a MINOR is a whole new SECTION behind its\n"
+                "  own toggle (the troll section is the archetype) — not a feature, not a fix,\n"
+                "  not a policy change. Nearly everything is a patch.\n"
+                f"  Did you mean {old[0]}.{old[1]}.{old[2] + 1}?\n"
+                "  If it really is a new section: tools/setversion.py X.Y.0 --section")
+
+
 def main():
-    if len(sys.argv) != 2:
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    if len(args) != 1:
         raise SystemExit(__doc__)
-    version = parse(sys.argv[1])
+    version = parse(args[0])
+    guard_size(current(), version)
     text = set_config(version)
     print(f"config.js       -> {text}")
     for folder in NAMES:
