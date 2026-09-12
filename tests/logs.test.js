@@ -1,6 +1,6 @@
 import { __test } from "@minecraft/server"
 import { onPlayerJoin, setRanks, heldRankIds, grantRank } from "../Admin+ BP/scripts/core/ranks.js"
-import { applyUndo } from "../Admin+ BP/scripts/features/logsUI.js"
+import { applyUndo, dayLabel, clockOf, readLine } from "../Admin+ BP/scripts/features/logsUI.js"
 import { ban, isBanned, mute, isMuted } from "../Admin+ BP/scripts/core/moderation.js"
 import { setNickname, getNickname } from "../Admin+ BP/scripts/core/identity.js"
 import { setSetting, setting, overrides, replaceOverrides } from "../Admin+ BP/scripts/core/settings.js"
@@ -128,5 +128,40 @@ check("the newest survived", recent(1)[0].detail, "spam 319")
 check("the oldest were dropped", search("spam 0").length, 0)
 
 clear()
+
+console.log("\n— logs read as text, grouped by day —")
+// They used to be a wall of buttons, one per entry, the text in §8 on a grey
+// button face — the thing you were trying to read was the least legible part of
+// the screen. The entries live in the form body now, the way Credits does it.
+{
+    const now = Date.now()
+    const day = 864e5
+    check("today is named, not dated", dayLabel(now), "Today")
+    check("so is yesterday", dayLabel(now - day), "Yesterday")
+    // Anything older gets a date. Checked as a shape rather than a literal, so
+    // this does not fail once a day forever.
+    check("older entries get a day and a month",
+        /^\d{1,2} [A-Z][a-z]{2}$/.test(dayLabel(now - 5 * day)), true)
+    // Local time, deliberately: the person reading is standing in the world and
+    // "yesterday" should mean their yesterday, not UTC's.
+    const noon = new Date(); noon.setHours(14, 5, 0, 0)
+    check("the clock is local and zero-padded", clockOf(noon.getTime()), "14:05")
+
+    // The palette is the actual complaint. §8 for the timestamp is fine — it is
+    // a label — but the sentence must not be §8, and neither must the actor.
+    const entry = { at: now, actor: { name: "Alex" }, action: "mod.ban",
+                    detail: "griefing", summary: "Banned Steve" }
+    const [first, second] = readLine(entry)
+    check("the time is dim", first.startsWith("§8"), true)
+    check("but the sentence is white", first.includes("§f"), true)
+    check("and the actor is §7, not §8 — that was the part that vanished",
+        second.includes("§7Alex"), true)
+    check("an undone entry says so", readLine({ ...entry, undone: true })[0].includes("undone"), true)
+    check("a console entry names the console",
+        readLine({ ...entry, actor: undefined })[1].includes("console"), true)
+    check("no detail means no trailing separator",
+        readLine({ ...entry, detail: "" })[1].includes("·"), false)
+}
+
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

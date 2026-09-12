@@ -56,6 +56,59 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.2.8 — 2026-09-11
+
+**Logs read as text now, grouped by day.**
+
+They were a wall of buttons — one per entry, its text in `§8`, which is dark
+grey on a grey button face. **The thing you were trying to read was the least
+legible part of the screen.** Buttons are for doing things; a log is for
+reading.
+
+So the entries live in the form's *body* now, the way the Credits screen puts
+its text, under a day heading:
+
+```
+Today
+20:32 Banned Steve
+  Alex · griefing · permanent
+20:22 Muted Kai
+  Alex · 10m
+
+Yesterday
+20:20 Gave Kai Moderator (undone)
+  Alex
+```
+
+"Today" and "Yesterday" are named rather than dated, and the clock is **local**
+— the person reading is standing in the world, so yesterday should mean their
+yesterday, not UTC's. Anything older gets a day and a month.
+
+The palette is the actual fix. `§8` is fine for a timestamp because a timestamp
+is a label, but the sentence is `§f` and the actor is `§7` — that second one is
+what had vanished into the button.
+
+Buttons are down to what buttons are for: **▲ Newer**, **▼ Older**, and **Open
+an entry** for when you want the detail or an undo. Tapping an entry is not
+lost, just moved behind one button instead of being the only way to see
+anything.
+
+### Chat especially
+
+The action log says who did what *to* somebody; the chat log says what was
+actually said — and a conversation split one-line-per-button is the one thing
+you cannot follow. Run together under a day heading it reads the way it was
+said:
+
+```
+Today
+19:41 [global] Kai: who broke the bridge
+19:41 [global] Steve: not me
+```
+
+Both screens share one reading view, so they cannot drift into two
+different-looking answers to the same question.
+
 ## 2.2.7 — 2026-09-11
 
 **The Ender Eye has a menu now, not a list.** Two doors:

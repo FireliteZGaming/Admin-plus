@@ -59,15 +59,131 @@ function line(entry) {
     const undone = entry.undone ? " §8(undone)" : ""
     return `§8[${clock}] §r${summarise(entry)}§r${undone}\n§8${entry.actor?.name ?? "console"} · ${entry.detail || entry.action}`
 }
+// ---------------------------------------------------------- the reading view
+//
+// Logs are READ far more often than they are acted on, and they used to be a
+// wall of buttons — one per entry, its text in §8 on a button face, which is
+// dark grey on grey. The thing you were trying to read was the least legible
+// part of the screen.
+//
+// So the entries live in the form's BODY now, the way the Credits screen puts
+// its text: grouped under a day heading, newest first, nothing competing with
+// them. Buttons are for moving and for acting, which is what buttons are for.
+//
+// Tapping an entry still matters — that is how an undo is reached — so it is
+// not lost, just moved behind one button rather than being the only way to see
+// anything.
+
+/** Entries per page. A form body scrolls, so this is about reading comfort. */
+const READ_PAGE = 14
+
+/**
+ * "Today", "Yesterday", or a date. Local time on purpose: the person reading is
+ * standing in the world, and "yesterday" should mean their yesterday.
+ */
+export function dayLabel(at) {
+    const when = new Date(at)
+    const today = new Date()
+    const sameDay = (a, b) => a.getFullYear() === b.getFullYear()
+        && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+    if (sameDay(when, today)) return "Today"
+    const yesterday = new Date(today.getTime() - 864e5)
+    if (sameDay(when, yesterday)) return "Yesterday"
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    return `${when.getDate()} ${months[when.getMonth()]}`
+}
+
+export function clockOf(at) {
+    const when = new Date(at)
+    const pad = n => String(n).padStart(2, "0")
+    return `${pad(when.getHours())}:${pad(when.getMinutes())}`
+}
+
+/**
+ * One screen of entries, grouped by day and rendered as text.
+ *
+ * `renderOne` returns the lines for a single entry, already coloured. The
+ * grouping and the paging are this function's job so that the action log and the
+ * chat log cannot drift into two different-looking screens.
+ */
+async function readingView(player, spec) {
+    const page = spec.page ?? 0
+    const pages = Math.max(1, Math.ceil(spec.entries.length / READ_PAGE))
+    const slice = spec.entries.slice(page * READ_PAGE, (page + 1) * READ_PAGE)
+
+    const body = []
+    let lastDay
+    for (const entry of slice) {
+        const day = dayLabel(entry.at)
+        if (day !== lastDay) {
+            if (body.length) body.push("")
+            body.push(`§e§l${day}`)
+            lastDay = day
+        }
+        body.push(...spec.renderOne(entry))
+    }
+    if (pages > 1) {
+        body.push("", `§8page ${page + 1} of ${pages} · ${spec.entries.length} total`)
+    }
+
+    const buttons = []
+    // Newer first, because the list is newest-first and "back up" is the commoner
+    // move when you are reading down through an incident.
+    if (page > 0) {
+        buttons.push({ text: "§f▲ Newer", run: () => readingView(player, { ...spec, page: page - 1 }) })
+    }
+    if (page < pages - 1) {
+        buttons.push({ text: "§f▼ Older", run: () => readingView(player, { ...spec, page: page + 1 }) })
+    }
+    if (spec.onPick) {
+        buttons.push({
+            text: "§6Open an entry\n§8To see the detail, or undo it",
+            run: () => pagedMenu(player, {
+                title: hubTitle(spec.hub, spec.title),
+                body: subtitle("Pick the one you want."),
+                items: slice,
+                render: entry => ({ text: line(entry) }),
+                onPick: entry => spec.onPick(entry, () => readingView(player, { ...spec, page })),
+                back: () => readingView(player, { ...spec, page })
+            })
+        })
+    }
+
+    return menu(player, {
+        title: hubTitle(spec.hub, spec.title),
+        body: body.join("\n"),
+        buttons,
+        back: spec.back
+    })
+}
+
+/**
+ * One entry, as reading text.
+ *
+ * The old button version put everything in §8 — dark grey, on a grey button
+ * face. What you were trying to read was the least legible thing on screen.
+ * Here the weight goes where the meaning is: the time is dim because it is a
+ * label, the sentence is white because it is the point, and who did it is §7
+ * rather than §8 so it is a quiet line and not an invisible one.
+ */
+export function readLine(entry) {
+    const undone = entry.undone ? " §8(undone)" : ""
+    const detail = entry.detail ? ` §8· ${entry.detail}` : ""
+    return [
+        `§8${clockOf(entry.at)} §f${summarise(entry)}§r${undone}`,
+        `  §7${entry.actor?.name ?? "console"}${detail}`
+    ]
+}
 
 async function listScreen(player, title, entries, back) {
     if (!entries.length) { info(player, "Nothing logged there yet."); return back() }
-    return pagedMenu(player, {
-        title: hubTitle("settings", title),
-        body: subtitle(`${entries.length} entr${entries.length === 1 ? "y" : "ies"}.`),
-        items: entries,
-        render: entry => ({ text: line(entry) }),
-        onPick: entry => entryScreen(player, entry.id, () => listScreen(player, title, entries, back)),
+    return readingView(player, {
+        hub: "settings",
+        title,
+        entries,
+        renderOne: readLine,
+        onPick: (entry, home) => entryScreen(player, entry.id, home),
         back
     })
 }
@@ -79,25 +195,27 @@ async function listScreen(player, title, entries, back) {
 // other half of most moderation decisions — an argument gets reported twenty
 // minutes late and otherwise the only honest answer is "I wasn't there".
 //
+// This is the screen the reading view suits best. Chat is a CONVERSATION, and a
+// conversation split one-line-per-button is the one thing you cannot follow;
+// run together under a day heading it reads the way it was said.
+//
 // Private messages are not in here. They never pass through the channel funnel
 // this reads from, and players can switch them off in their own settings — a
 // log that kept them anyway would make that preference a lie.
 
-/** One line, as it was typed rather than as it was decorated. */
-function chatLine(entry) {
-    const when = formatDate(entry.at)
-    const where = entry.channel ? ` §8· ${entry.channel}` : ""
-    return `§f${entry.name}§r${where}\n§7${entry.text}\n§8${when}`
+/** One line, as it was said: name and words on one row, like chat itself. */
+function chatReadLine(entry) {
+    const where = entry.channel ? `§8[${entry.channel}] ` : ""
+    return [`§8${clockOf(entry.at)} ${where}§f${entry.name}§7: §r${entry.text}`]
 }
 
 async function chatListScreen(player, title, lines, back) {
     if (!lines.length) { info(player, "No chat recorded there yet."); return back() }
-    return pagedMenu(player, {
-        title: hubTitle("chat", title),
-        body: subtitle(`${lines.length} line${lines.length === 1 ? "" : "s"}, newest first.`),
-        items: lines,
-        render: entry => ({ text: chatLine(entry) }),
-        onPick: () => chatListScreen(player, title, lines, back),
+    return readingView(player, {
+        hub: "chat",
+        title,
+        entries: lines,
+        renderOne: chatReadLine,
         back
     })
 }
