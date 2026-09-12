@@ -56,6 +56,63 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.5.5 — 2026-09-12
+
+**The trident works, and the orbital strike is real TNT now.** Both from
+playtest reports, and the first one was the more useful.
+
+### The trident did nothing at all
+
+Not a missing trail and a missing storm — **one failure**. If the tag never
+lands on the thrown entity, the hit handler sees an ordinary trident and every
+downstream thing is correctly skipped. No trail, no storm, no error.
+
+It hung on **two events firing**: `itemReleaseUse` to notice the throw, and
+`entitySpawn` to catch the entity it made. Which of the four use-events a
+trident raises is undocumented — `itemReleaseUse` is the least used of them
+across the 74 packs installed here, six against twenty-one for `itemStopUse` —
+and whether `entitySpawn` fires for a projectile was a second guess stacked on
+the first.
+
+**Neither is used now.** The tick loop already ran every tick for the storms; it
+also watches who is *holding* one, and adopts any thrown trident that turns up
+beside somebody who was. Every step is a poll, so no event has to fire for any
+of it.
+
+The old test passed the whole time, because **it fired those events itself** —
+testing that the handlers worked, never that anything would call them. The loop
+body is exported and driven directly now, which is what would have caught this.
+
+### The orbital strike drops TNT
+
+The first version was a handful of `createExplosion` calls: an effect that
+*looked* like a strike. The real thing is hundreds of primed TNT hanging in the
+sky in a spiral, coming down together — and you can watch them fall. No number
+of scripted blasts gets there.
+
+Around two hundred shells, five arms, winding two and a half turns out to
+twenty-two blocks, dropped from sixty-two up. **That height is the timing:**
+nothing in Bedrock can set a TNT fuse, so the fall is what lines them up to
+land as one detonation rather than a shower of airbursts.
+
+Density is at the centre, which is what the reference looks like — `r` grows
+linearly with the step so the inner and outer halves hold the same *number* of
+shells while the inner half is a quarter of the area. Using `sqrt(t)` would even
+that out and draw a flat disc instead of a galaxy.
+
+Spawning is spread across ticks, because hundreds of entities in one tick is how
+a server stutters. And the route is not assumed: `spawnEntity` is tried first
+and `summon` second, with the winner logged — nothing installed here spawns
+primed TNT from script, so it was not something to take on faith.
+
+**Block damage still decides, but it now picks which strike you get.** TNT
+cannot be told not to break things, so a server that wants the sound and the
+fear without the hole keeps the scripted version.
+
+Found while testing: `arms: 0` in config produced an empty spiral and therefore
+**no TNT at all** — one mis-typed setting silently disarming the whole thing.
+Clamped, so a bad number gives a plain strike and never none.
+
 ## 2.5.4 — 2026-09-12
 
 **`/info`, and gating you can actually follow.**

@@ -46,7 +46,17 @@ export const TRIDENT_TAG = "ap:spectral"
  * in the same tick, and nobody else's trident spawns inside your arm.
  */
 const pending = new Map()   // playerId -> expiry tick
-const CLAIM_TICKS = 10
+
+/**
+ * How long after holding one you can still be credited with the throw.
+ *
+ * Was 10, which assumed the throw was ANNOUNCED by an event a tick before the
+ * entity appeared. It is not announced reliably — see installTridentEffects —
+ * so the window now has to cover the gap between the last poll that saw the
+ * trident in somebody's hand and the entity turning up. A trident charge takes
+ * about ten ticks on its own.
+ */
+const CLAIM_TICKS = 25
 
 export function noteThrow(player, tick) {
     if (player?.id) pending.set(player.id, tick + CLAIM_TICKS)
@@ -315,19 +325,97 @@ export function tickStorms(now) {
 
 export function clearStorms() { storms.length = 0 }
 
+/** How often to look at what people are holding. */
+const POLL_EVERY = 4
 
-export function installTridentEffects() {
-    system.runInterval(() => {
-        const now = system.currentTick ?? 0
-        tickStorms(now)
-        // The trail, for every one of ours in the air.
-        for (const dimension of loadedDimensions()) {
-            let flying = []
-            try { flying = dimension.getEntities({ type: "minecraft:thrown_trident", tags: [TRIDENT_TAG] }) }
-            catch { continue }
-            for (const entity of flying) renderFlight(entity, now)
+/**
+ * Watch the whole thing without relying on an event firing.
+ *
+ * The first version hung on TWO events: `itemReleaseUse` to notice the throw,
+ * and `entitySpawn` to catch the entity it made. In a real world the trident
+ * did nothing at all — no trail, no storm — and those are not two bugs. They
+ * are one: if the tag never lands, the hit handler sees an ordinary trident and
+ * every downstream thing is correctly skipped.
+ *
+ * Which of the four use-events a trident raises is not documented and not worth
+ * guessing at — `itemReleaseUse` is the least used of them across the packs
+ * installed here, six against twenty-one for `itemStopUse`. And whether
+ * `entitySpawn` fires for a projectile is a second guess stacked on the first.
+ *
+ * So neither is used. The loop already runs every tick for the storms; it now
+ * also:
+ *
+ *   1. remembers who is HOLDING one of ours, sampled every few ticks
+ *   2. looks for thrown tridents that are not tagged yet, and tags any that
+ *      appeared beside somebody who was holding ours a moment ago
+ *   3. draws the trail on the tagged ones
+ *
+ * Every step is a poll. No event has to fire for any of it, which is the point.
+ *
+ * @param isOurs  reads an ItemStack and says whether it is a Spectral Trident.
+ *                Passed in because the signature lives with the item catalogue.
+ */
+let announcedFirstTag = false
+
+/**
+ * One tick of it: remember who is holding one, adopt any trident they threw,
+ * draw the trail on ours, and advance the storms.
+ *
+ * Exported and given its `now` rather than reading the clock, because a tick
+ * loop that can only be driven by the engine can only be tested by describing
+ * it. This one gets driven.
+ *
+ * @returns how many of ours are in the air, for a test to look at.
+ */
+export function tickTridents(now, isOurs) {
+    tickStorms(now)
+
+    if (typeof isOurs === "function" && now % POLL_EVERY === 0) {
+        for (const player of world.getAllPlayers()) {
+            if (holdingOurs(player, isOurs)) noteThrow(player, now)
         }
-    }, 1)
+    }
+
+    const players = world.getAllPlayers()
+    let ours = 0
+    for (const dimension of loadedDimensions()) {
+        let flying = []
+        try { flying = dimension.getEntities({ type: "minecraft:thrown_trident" }) }
+        catch { continue }
+        for (const entity of flying) {
+            let mine = safe(() => entity.hasTag(TRIDENT_TAG), false)
+            if (!mine) {
+                // Not ours YET. It is ours if it turned up beside somebody who
+                // was holding one — claimThrow spends the claim, so one throw
+                // can only ever adopt one trident.
+                if (!claimThrow(entity, players, now)) continue
+                mine = safe(() => { entity.addTag(TRIDENT_TAG); return true }, false)
+                if (mine && !announcedFirstTag) {
+                    announcedFirstTag = true
+                    console.log("[Admin+] spectral trident: first throw tagged in flight")
+                }
+                if (!mine) continue
+            }
+            renderFlight(entity, now)
+            ours++
+        }
+    }
+    return ours
+}
+
+export function installTridentEffects(isOurs) {
+    system.runInterval(() => tickTridents(system.currentTick ?? 0, isOurs), 1)
+}
+
+/** Either hand — a trident is thrown from whichever one holds it. */
+function holdingOurs(player, isOurs) {
+    const equippable = safe(() => player.getComponent("minecraft:equippable"))
+    if (!equippable) return false
+    for (const slot of [EquipmentSlot.Mainhand, EquipmentSlot.Offhand]) {
+        const held = safe(() => equippable.getEquipment(slot))
+        if (held && safe(() => isOurs(held), false)) return true
+    }
+    return false
 }
 
 function loadedDimensions() {

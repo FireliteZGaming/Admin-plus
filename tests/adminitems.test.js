@@ -1,7 +1,7 @@
 import { ItemStack, system, __test } from "@minecraft/server"
 import {
     TRIDENT_TAG, beginStorm, liveStorms, tickStorms, clearStorms,
-    stormPoints, renderStorm, renderFlight, STORM_TICKS,
+    stormPoints, renderStorm, renderFlight, STORM_TICKS, tickTridents,
     GRIND_TICKS, FLOOR_HEALTH, drainTo, drainCurve, shatterArmour
 } from "../Admin+ BP/scripts/core/trident.js"
 import {
@@ -285,8 +285,12 @@ console.log("\n— one rod, one strike —")
     check("one was spent", slots.get(0)?.amount, 1)
     check("and the rest of the stack survives", !!slots.get(0), true)
 
+    __test.spawned.length = 0
     __test.runTimers()
-    check("and the strike actually went out", __test.explosions.length > 0, true)
+    // TNT, not scripted blasts — the strike drops real primed TNT now, and the
+    // rod firing means that TNT is in the sky.
+    check("and the strike actually went out",
+        __test.spawned.filter(e => e.typeId === "minecraft:tnt").length > 0, true)
 
     // The last one leaves the slot empty rather than sitting there at zero.
     __test.timers.length = 0
@@ -301,8 +305,10 @@ console.log("\n— one rod, one strike —")
     __test.explosions.length = 0
     __test.emitItemUse(gunner, slots.get(0))
     check("a disarmed rod is not spent", slots.get(0)?.amount, 1)
+    __test.spawned.length = 0
     __test.runTimers()
-    check("nor does it fire", __test.explosions.length, 0)
+    check("nor does it fire",
+        __test.spawned.filter(e => e.typeId === "minecraft:tnt").length, 0)
 
 }
 
@@ -452,36 +458,10 @@ console.log("\n— the Spectral Trident: thrown, tagged, and answered —")
 // name or lore — you can neither tell which arrow went nor choose which one
 // does. Here you throw the one in your hand.
 //
-// But the flying entity still carries nothing, so identity is TAGGED onto it
-// from the throw we just saw. That chain is what these exercise: release,
-// spawn, hit.
+// But the flying entity carries nothing either, so identity is TAGGED onto it
+// in the air. Nothing about that chain depends on an event firing, and these
+// drive the real loop to prove it.
 {
-    const thrower = {
-        id: "trident-thrower", name: "Thrower",
-        getTags: () => ["Dev", "ap:rank:Owner"],
-        commandPermissionLevel: 1,
-        location: { x: 0, y: 64, z: 0 },
-        dimension: __test.dimension,
-        sendMessage: () => {}
-    }
-    setRanks(thrower.id, ["Admin"], thrower.name)
-    // claimThrow scans the world for who is owed the trident that just
-    // appeared, so the thrower has to actually be in it.
-    __test.players.push(thrower)
-    // Its OWN tag set per trident. Sharing one meant clearing it before the
-    // second throw silently untagged the first, and the storm then "failed"
-    // for a reason that had nothing to do with the code under test.
-    const flying = () => {
-        const tags = new Set()
-        return {
-            typeId: "minecraft:thrown_trident",
-            location: { x: 0, y: 64, z: 1 },
-            dimension: __test.dimension,
-            addTag: t => tags.add(t), hasTag: t => tags.has(t),
-            isValid: true
-        }
-    }
-
     check("the trident is a trident", ITEMS.trident.typeId, "minecraft:trident")
     check("and it says it comes back",
         ITEMS.trident.lines.some(l => l.includes("comes back")), true)
@@ -493,23 +473,74 @@ console.log("\n— the Spectral Trident: thrown, tagged, and answered —")
     const ench = made.getComponent("minecraft:enchantable")?.getEnchantments?.() ?? []
     check("it is minted with loyalty", ench.some(e => e.level === 3), true)
 
-    // Throw it: release (still in hand, so readable) then spawn (carries
-    // nothing, so tagged).
-    clearStorms()
-    const inAir = flying()
-    __test.emitTridentThrow(thrower, made, inAir)
-    check("the thrown entity is tagged as ours", inAir.hasTag(TRIDENT_TAG), true)
+    // ---------------------------------------------------------------------
+    // **The whole chain, driven a tick at a time.**
+    //
+    // The first version hung on two events firing — itemReleaseUse to notice
+    // the throw, entitySpawn to catch the entity — and in a real world the
+    // trident did NOTHING: no trail, no storm. That is one failure, not two.
+    // An untagged trident is correctly ignored by everything downstream.
+    //
+    // The old test passed anyway, because it fired those events itself. It was
+    // testing that the handlers worked, never that anything would call them.
+    // This drives the real loop instead.
+    const isOurs = stack => itemKey(stack) === "trident"
+    const held = new Map()
+    const thrower = {
+        id: "trident-thrower", name: "Thrower", typeId: "minecraft:player",
+        getTags: () => ["ap:rank:Owner"], commandPermissionLevel: 1,
+        location: { x: 0, y: 64, z: 0 }, dimension: __test.dimension,
+        getComponent: id => id === "minecraft:equippable"
+            ? { getEquipment: s => held.get(s), setEquipment: (s, v) => held.set(s, v) }
+            : undefined,
+        sendMessage: () => {}
+    }
+    setRanks(thrower.id, ["Admin"], thrower.name)
+    __test.players.push(thrower)
 
-    // A plain trident somebody else threw is not.
-    const plain = flying()
-    __test.emitTridentThrow(thrower, new ItemStack("minecraft:trident", 1), plain)
-    check("an unsigned trident is left alone", plain.hasTag(TRIDENT_TAG), false)
+    const flying = () => {
+        const tags = new Set()
+        return {
+            typeId: "minecraft:thrown_trident",
+            location: { x: 0, y: 64, z: 1 },
+            dimension: __test.dimension,
+            addTag: t => tags.add(t), hasTag: t => tags.has(t),
+            isValid: true
+        }
+    }
+
+    // Nobody is holding anything: a trident in the air is not ours.
+    clearStorms()
+    __test.spawned.length = 0
+    const stranger = flying()
+    __test.spawned.push(stranger)
+    tickTridents(0, isOurs)
+    check("a trident nobody threw is left alone", stranger.hasTag(TRIDENT_TAG), false)
+    __test.spawned.length = 0
+
+    // Now they hold ours. The poll notices — no event needed.
+    held.set("mainhand", made)
+    tickTridents(0, isOurs)          // tick 0 polls
+    const inAir = flying()
+    __test.spawned.push(inAir)
+    tickTridents(1, isOurs)          // and the next tick adopts it
+    check("a trident thrown by somebody holding ours is tagged",
+        inAir.hasTag(TRIDENT_TAG), true)
+
+    // One throw adopts ONE trident, not every trident in the sky.
+    const second = flying()
+    __test.spawned.push(second)
+    tickTridents(2, isOurs)
+    check("and only one — a claim is spent when it is used",
+        second.hasTag(TRIDENT_TAG), false)
+    __test.spawned.length = 0
+    held.clear()
 
     // Landing in somebody starts the storm, and it is OURS that does it.
     clearStorms()
     const victim = { id: "hit-me", name: "Victim", isValid: true,
                      location: { x: 5, y: 64, z: 5 }, dimension: __test.dimension }
-    __test.emitProjectileHit(plain, victim)
+    __test.emitProjectileHit(stranger, victim)
     check("an untagged trident starts nothing", liveStorms(), 0)
     __test.emitProjectileHit(inAir, victim)
     check("ours starts a storm", liveStorms(), 1)

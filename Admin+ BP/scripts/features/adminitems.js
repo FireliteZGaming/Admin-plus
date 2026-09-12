@@ -527,27 +527,12 @@ export function installAdminItems() {
     //   spawn     the thrown entity appears, carrying nothing — tagged here,
     //             off the back of the release we just saw
     //   hit       the tag says it was ours, so the storm is ours to start
-    const release = world.afterEvents?.itemReleaseUse
-    if (release?.subscribe) {
-        release.subscribe(event => {
-            if (itemKey(event.itemStack) !== "trident") return
-            if (!trollAllowed(event.source)) return
-            noteThrow(event.source, system.currentTick ?? 0)
-        })
-    } else {
-        console.warn("[Admin+] itemReleaseUse unavailable — the Spectral Trident will fly plain")
-    }
-
-    const spawned = world.afterEvents?.entitySpawn
-    if (spawned?.subscribe) {
-        spawned.subscribe(event => {
-            const entity = event.entity
-            if (entity?.typeId !== "minecraft:thrown_trident") return
-            const thrower = claimThrow(entity, world.getAllPlayers(), system.currentTick ?? 0)
-            if (!thrower) return
-            safe(() => entity.addTag(TRIDENT_TAG))
-        })
-    }
+    // No release event, no spawn event. Both were subscribed and the trident did
+    // nothing at all in a real world — not a missing trail and a missing storm,
+    // but one failure: an untagged trident is correctly ignored by everything
+    // downstream. Which use-event a trident raises is undocumented, and whether
+    // entitySpawn fires for a projectile was a second guess on top. The tick
+    // loop in core/trident.js polls for all of it instead.
 
     // Both hit events, because a trident that lands in the ground and one that
     // lands in somebody are the same throw. The storm follows a victim if there
@@ -590,7 +575,9 @@ export function installAdminItems() {
         })
     }
 
-    installTridentEffects()
+    // The predicate goes in, because the signature lives here with the
+    // catalogue while the watching lives in core/trident.js.
+    installTridentEffects(stack => itemKey(stack) === "trident")
     installMirror()
 
     return true

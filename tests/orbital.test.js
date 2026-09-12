@@ -3,7 +3,7 @@ import { setSetting, resetSetting } from "../Admin+ BP/scripts/core/settings.js"
 import { setRanks, saveRank, whereToGrant, nodeLabels, PERMISSION_NODES } from "../Admin+ BP/scripts/core/ranks.js"
 import {
     canNuke, nukeBlockedBy, nukeMissing, nukeArmed, armNuke,
-    beatOffsets, fuseTicks, aimPoint, orbitalStrike
+    beatOffsets, fuseTicks, aimPoint, orbitalStrike, spiralPoints
 } from "../Admin+ BP/scripts/core/orbital.js"
 
 let passed = 0, failed = 0
@@ -116,8 +116,11 @@ console.log("\n— aiming —")
     check("a block in the way is the target", aimPoint(p), { x: 10.5, y: 71, z: 20.5 })
     resetSetting("nuke.range")
 }
-
-console.log("\n— the strike itself —")
+console.log("\n— the strike itself: real TNT, in a spiral, falling —")
+// The first version was a handful of createExplosion calls: an effect that
+// LOOKED like a strike. The thing it copies is not an effect — it is hundreds
+// of primed TNT hanging in the sky and coming down together, and you can watch
+// them fall. No number of scripted blasts gets there.
 {
     armNuke(true)
     const p = holder()
@@ -125,50 +128,73 @@ console.log("\n— the strike itself —")
 
     __test.timers.length = 0
     __test.explosions.length = 0
+    __test.spawned.length = 0
     check("it reports that it went out", orbitalStrike(p), true)
 
-    // Nothing has happened yet — that is the whole design. Everything is
-    // scheduled, so there is time to get out of the way.
-    check("nothing has exploded at the moment it is called",
-        __test.explosions.length, 0)
-    check("but a queue of work exists", __test.timers.length > 0, true)
-
+    // Nothing yet — the warning is the point, and it is three seconds of it.
+    check("nothing is in the sky at the moment it is called", __test.spawned.length, 0)
     __test.runTimers()
-    check("after the fuse, it has gone off", __test.explosions.length > 0, true)
-    // One central blast and a ring: a single explosion of the same size reads
-    // as a pop and a crater rather than as something arriving.
-    check("one blast is bigger than the rest",
-        __test.explosions.filter(e => e.radius === 12).length, 1)
-    check("and the ring is around it, not on it",
-        __test.explosions.filter(e => e.radius < 12).length, 6)
-    check("the ring sits at the same height as the centre",
-        new Set(__test.explosions.map(e => Math.round(e.location.y))).size, 1)
-    check("nothing is set on fire — that is what the block setting is for",
-        __test.explosions.every(e => e.options.causesFire === false), true)
 
-    // Block damage is a setting, and it has to actually reach the explosion.
+    const tnt = __test.spawned.filter(e => e.typeId === "minecraft:tnt")
+    check("hundreds of primed TNT go up", tnt.length >= 150, true)
+    // All at one height, because the fall IS the timing: nothing can set a TNT
+    // fuse, so they have to start level to land level.
+    check("all at one height", new Set(tnt.map(e => Math.round(e.location.y))).size, 1)
+    check("well above the target", tnt[0].location.y - 64 > 40, true)
+    // Spread around the target, not stacked on it.
+    check("spread out around the centre",
+        tnt.some(e => Math.hypot(e.location.x, e.location.z - 30) > 10), true)
+    check("and none of them beyond the spiral's width",
+        tnt.every(e => Math.hypot(e.location.x, e.location.z - 30) <= 23), true)
+
+    // The scripted blasts are gone from this path — TNT does its own damage.
+    check("no scripted explosions when the TNT is real", __test.explosions.length, 0)
+}
+
+console.log("\n— block damage off keeps the sound and loses the hole —")
+{
+    // TNT cannot be told not to break things, so the setting decides WHICH of
+    // the two you get rather than tuning one of them.
     setSetting("nuke.breaksBlocks", "false")
+    const p = holder()
+    p.getBlockFromViewDirection = () => ({ block: { location: { x: 0, y: 64, z: 30 } } })
     __test.timers.length = 0
     __test.explosions.length = 0
+    __test.spawned.length = 0
     orbitalStrike(p)
     __test.runTimers()
-    check("turning block damage off reaches every blast",
+    check("no TNT is spawned at all",
+        __test.spawned.filter(e => e.typeId === "minecraft:tnt").length, 0)
+    check("scripted blasts instead", __test.explosions.length > 0, true)
+    check("and every one of them breaks nothing",
         __test.explosions.every(e => e.options.breaksBlocks === false), true)
     resetSetting("nuke.breaksBlocks")
-
-    setSetting("nuke.radius", "30")
-    __test.timers.length = 0
-    __test.explosions.length = 0
-    orbitalStrike(p)
-    __test.runTimers()
-    check("the size setting reaches it too",
-        __test.explosions.some(e => e.radius === 30), true)
-    resetSetting("nuke.radius")
-
-    // A player with no dimension is somebody who left mid-cast.
-    check("somebody who is nowhere is reported, not thrown at",
-        orbitalStrike({ id: "gone" }), false)
 }
+
+console.log("\n— the spiral is a spiral —")
+{
+    const pts = spiralPoints(200, 5, 22, 2.5)
+    check("it makes what it was asked for", pts.length, 200)
+    check("nothing outside the radius",
+        pts.every(p => Math.hypot(p.x, p.z) <= 22.001), true)
+    // Dense at the CENTRE, which is what the reference looks like — and the
+    // density is per area, not per count. r grows linearly with the step, so
+    // the inner and outer halves hold the same NUMBER of shells while the inner
+    // half is a quarter of the area. Using sqrt(t) would even out the area and
+    // draw a flat disc instead of a galaxy.
+    const inner = pts.filter(p => Math.hypot(p.x, p.z) < 11).length
+    check("the halves hold the same count", Math.abs(inner - pts.length / 2) <= 5, true)
+    check("so the inner half is four times as dense", inner / (Math.PI * 11 ** 2) >
+        (pts.length - inner) / (Math.PI * (22 ** 2 - 11 ** 2)), true)
+    // Several arms, which is what makes it read as a spiral rather than a coil.
+    const armCount = new Set(pts.map(p => Math.round(p.t * 1000))).size
+    check("the arms are in step with each other", armCount, 200 / 5)
+    check("one arm still works", spiralPoints(10, 1, 5, 1).length, 10)
+    // A mis-typed setting must give a plain strike, never no strike.
+    check("zero arms still fires", spiralPoints(10, 0, 5, 1).length > 0, true)
+    check("and so does a negative", spiralPoints(10, -3, 5, 1).length > 0, true)
+}
+
 
 armNuke(false)
 

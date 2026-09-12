@@ -176,6 +176,25 @@ export const DEFAULTS = {
         label: "Orbital strike breaks blocks",
         help: "true / false · false keeps the sound, the darkness and the damage and leaves the ground alone."
     },
+    "nuke.tnt": {
+        value: "200",
+        label: "Orbital strike: TNT",
+        help: "how many primed TNT fall. Hundreds is the look; it is also the cost, so lower it if the server stutters."
+    },
+    "nuke.spiralArms": {
+        value: "5", label: "Orbital strike: spiral arms", help: "how many arms wind out from the centre"
+    },
+    "nuke.spiralRadius": {
+        value: "22", label: "Orbital strike: spiral width", help: "blocks · how far the outermost shells sit from the centre"
+    },
+    "nuke.spiralTurns": {
+        value: "2.5", label: "Orbital strike: spiral turns", help: "how many times each arm winds round"
+    },
+    "nuke.height": {
+        value: "62",
+        label: "Orbital strike: drop height",
+        help: "blocks above the target. This IS the timing — nothing can set a TNT fuse, so the fall is what lines them up to land together."
+    },
     "nuke.range": {
         value: "160",
         label: "Orbital strike range",
