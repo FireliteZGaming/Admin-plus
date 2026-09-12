@@ -4,8 +4,12 @@ import {
     stormPoints, renderStorm, renderFlight, STORM_TICKS,
     GRIND_TICKS, FLOOR_HEALTH, drainTo, drainCurve, shatterArmour
 } from "../Admin+ BP/scripts/core/trident.js"
+import {
+    FULL_CHARGE, chargesOf, spendCharge, mirrorHand, reflect,
+    duringReflection, isReflecting
+} from "../Admin+ BP/scripts/core/mirror.js"
 import { setting, setSetting, resetSetting, DEFAULTS } from "../Admin+ BP/scripts/core/settings.js"
-import { ITEMS, signItem, itemKey, knockback, coordinate, SIGIL, installAdminItems,
+import { ITEMS, signItem, itemKey, knockback, coordinate, SIGIL, installAdminItems, mirrorTotem, isMirrorTotem,
          worldLabels, worldIndex, worldHeight, heightProblem } from "../Admin+ BP/scripts/features/adminitems.js"
 import { armNuke } from "../Admin+ BP/scripts/core/orbital.js"
 import { setRanks, saveRank } from "../Admin+ BP/scripts/core/ranks.js"
@@ -640,6 +644,110 @@ console.log("\n— a storm on a place harms nobody —")
     check("and draws the whole thing", particles > 0, true)
     check("then finishes", liveStorms(), 0)
     clearStorms()
+}
+
+
+console.log("\n— the Mirror Totem: charges that ride on the item —")
+// A totem is not a tool, so there is no damage component and no bar. The count
+// lives in the LORE and the stack is re-minted, which means the charge travels
+// with the ITEM — drop it, trade it, leave it in a chest, and it is the same
+// totem with the same charges. A count kept against a player id in storage
+// would be none of those, because an item has no identity to key on.
+{
+    check("a fresh one is an iron helmet's worth", FULL_CHARGE, 165)
+    const fresh = ITEMS.mirror.make()
+    check("it is a totem", fresh.typeId, "minecraft:totem_of_undying")
+    check("and it carries its count", chargesOf(fresh), { left: 165, max: 165 })
+
+    // Absent means NOT ONE OF OURS — never "full". A totem found in a chest
+    // must not read as a fresh mirror.
+    const plain = new ItemStack("minecraft:totem_of_undying", 1)
+    check("a plain totem carries no count", chargesOf(plain), undefined)
+    check("nor does nothing at all", chargesOf(undefined), undefined)
+
+    // The serial and the count are separate lore lines on purpose: re-minting
+    // changes the count without ever touching the thing that proves it is ours.
+    check("it is still signed after a spend",
+        itemKey(spendCharge(fresh, (l, m) => mirrorTotem(l, m)).stack), "mirror")
+}
+
+console.log("\n— spending, and what it becomes at zero —")
+{
+    const mint = (left, max) => mirrorTotem(left, max)
+    let stack = ITEMS.mirror.make()
+    const one = spendCharge(stack, mint)
+    check("a hit costs one", one.left, FULL_CHARGE - 1)
+    check("and it is still a mirror", chargesOf(one.stack)?.left, FULL_CHARGE - 1)
+
+    // At zero it is no longer the same item — it becomes an ordinary totem of
+    // undying, which still saves your life once and is a fine thing to be left
+    // holding.
+    let low = mint(1, FULL_CHARGE)
+    const last = spendCharge(low, mint)
+    check("the last charge spends it out", last.spent_out, true)
+    check("and leaves a plain totem", last.stack.typeId, "minecraft:totem_of_undying")
+    check("with no count on it", chargesOf(last.stack), undefined)
+    check("so it stops being one of ours", itemKey(last.stack), undefined)
+
+    // Something that was never ours cannot be spent.
+    check("a plain totem has nothing to spend",
+        spendCharge(new ItemStack("minecraft:totem_of_undying", 1), mint).spent, false)
+}
+
+console.log("\n— it reflects, and never volleys —")
+{
+    // Applying the reflected damage raises the same event again. If the
+    // attacker is holding a mirror too, the two would bounce the hit between
+    // them until something gave — and what gives is the server.
+    let dealt = 0
+    const attacker = { applyDamage: n => { dealt += n; return true } }
+    check("the same number goes back", reflect(attacker, 7) && dealt, 7)
+    check("a zero hit reflects nothing", reflect(attacker, 0), false)
+    check("and nobody to hit is not an error", reflect(undefined, 5), false)
+
+    check("normally it is not mid-reflection", isReflecting(), false)
+    let sawInside
+    duringReflection(() => { sawInside = isReflecting() })
+    check("inside a reflection it says so", sawInside, true)
+    check("and it clears afterwards", isReflecting(), false)
+    // Even if the reflection throws, the flag must clear, or every later hit
+    // is silently ignored for the rest of the session.
+    try { duringReflection(() => { throw new Error("boom") }) } catch { /* expected */ }
+    check("it clears even when the reflection throws", isReflecting(), false)
+}
+
+console.log("\n— which hand, and the two event paths —")
+{
+    // Totems work from either hand in vanilla, so this does too.
+    const held = new Map()
+    const holder = {
+        getComponent: id => id === "minecraft:equippable"
+            ? { getEquipment: s => held.get(s), setEquipment: (s, v) => held.set(s, v) }
+            : undefined
+    }
+    const mine = ITEMS.mirror.make()
+    check("nothing held is no mirror", mirrorHand(holder, isMirrorTotem), undefined)
+    held.set("offhand", mine)
+    check("the offhand counts", mirrorHand(holder, isMirrorTotem)?.slot, "offhand")
+    held.clear()
+    held.set("mainhand", mine)
+    check("so does the main hand", mirrorHand(holder, isMirrorTotem)?.slot, "mainhand")
+
+    const src = readFileSync(
+        new URL("../Admin+ BP/scripts/features/adminitems.js", import.meta.url), "utf8")
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, "")
+        .split("\n").filter(l => !l.trim().startsWith("//")).join("\n")    // Sliced from each subscription rather than searched with a character
+    // window. The first `event.cancel = true` in this file belongs to the
+    // ENDER EYE, so a window anchored on the wrong side of it finds the wrong
+    // cancel — or, as it did here, none at all.
+    const beforeBlock = code.slice(code.indexOf("beforeEvents?.entityHurt"))
+    check("it prefers refusing the damage outright",
+        /event\.cancel = true/.test(beforeBlock.slice(0, 500)), true)
+    const afterBlock = code.slice(code.indexOf("afterEvents?.entityHurt"))
+    check("and falls back to healing it back",
+        /setCurrentValue/.test(afterBlock.slice(0, 900)), true)
+    check("both paths refuse to run inside a reflection",
+        (code.match(/if \(isReflecting\(\)\) return/g) ?? []).length, 2)
 }
 
 console.log(`\n${passed} passed, ${failed} failed\n`)

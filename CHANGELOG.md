@@ -56,6 +56,59 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.4.3 — 2026-09-11
+
+**The Mirror Totem.** Everything that hits you hits whoever swung it instead,
+and you take none of it. 165 charges — an unenchanted iron helmet's worth — and
+when they run out it becomes an ordinary totem of undying.
+
+Two problems, and the second is the interesting one.
+
+### A totem has no durability
+
+`minecraft:totem_of_undying` is not a tool, so there is no damage component to
+decrement and no bar to draw. The count is written into the **lore** instead,
+beside the serial, and the stack is re-minted on every hit.
+
+That is better than the alternative rather than a workaround: the charge travels
+with the **item**. Drop it, trade it, leave it in a chest — it is the same totem
+with the same charges left. A count kept in world storage against a player id
+would be none of those things, because an item has no identity to key on.
+
+The serial and the count are separate lore lines on purpose, so re-minting
+changes the number without ever touching the thing that proves it is ours. And
+an absent count means *not one of ours* rather than "full", so a totem somebody
+found in a chest never reads as a fresh mirror.
+
+### Mirroring the hit that kills you is a question about order
+
+Healing the damage back afterwards is too late. They are already dead, and a
+corpse cannot be topped up. The only way to survive a lethal hit is for the
+damage **never to land**.
+
+So it refuses the hit in `beforeEvents.entityHurt` — the same two-tier shape
+spawn protection has used in `features/warps.js` all along: cancel it where the
+runtime allows, heal it back where it does not. On the preferred path *all*
+damage is mirrored, lethal included, exactly as asked. On the fallback path
+everything survivable is mirrored exactly and a killing blow still kills — and
+the item is honest about that, because it is a real totem of undying and
+vanilla's own mechanic catches that one.
+
+### It never volleys
+
+Applying the reflected damage raises the same event again. If the attacker is
+holding a mirror too, the two would bounce the hit between them until something
+gave — and what gives is the server. A reflection never reflects: one bounce,
+then it stops. The guard clears even if the reflection throws, because a flag
+stuck on would silently ignore every hit for the rest of the session.
+
+It works from either hand, the way a totem does in vanilla.
+
+### The chest
+
+Seven items now, so the row is 10–16 — which is dead centre, one blank at each
+end. The layout test wanted that within one slot and got it exactly.
+
 ## 2.4.2 — 2026-09-11
 
 **The Spectral Trident does something now.** Three acts, eighty-four ticks.

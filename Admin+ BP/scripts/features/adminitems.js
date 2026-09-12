@@ -16,6 +16,10 @@ import {
     TRIDENT_TAG, noteThrow, claimThrow, forgetThrows, beginStorm,
     installTridentEffects
 } from "../core/trident.js"
+import {
+    FULL_CHARGE, chargesOf, chargeLine, spendCharge, mirrorHand,
+    reflect, duringReflection, isReflecting
+} from "../core/mirror.js"
 
 // /items — grab an admin item without vanishing or opening /admin.
 //
@@ -51,7 +55,7 @@ const ITEMS = {
     // core/orbital.js for why each one is a different kind of claim.
     orbital: {
         barSlot: 3,
-        slot: 11,
+        slot: 10,
         gate: p => canNuke(p),
         make: () => signItem("minecraft:fishing_rod", "§4§lOrbital Strike",
             "§7Aim at something far away and use it once."),
@@ -62,7 +66,7 @@ const ITEMS = {
     },
     hammer: {
         barSlot: 4,
-        slot: 12,
+        slot: 11,
         // The Ban Hammer is minted by core/banhammer.js and caught by its own
         // global handler; /items only hands it over. Only for people allowed to
         // ban permanently, exactly as in the /mm bar.
@@ -74,7 +78,7 @@ const ITEMS = {
     },
     teleport: {
         barSlot: 0,
-        slot: 13,
+        slot: 12,
         gate: p => has(p, "admin.tp"),
         make: () => signItem("minecraft:compass", "§b§lTeleport", "§7Use it to jump to a random player."),
         name: "§b§lTeleport",
@@ -97,7 +101,7 @@ const ITEMS = {
     // `/port` hands one over; so does /items.
     eye: {
         barSlot: 1,
-        slot: 14,
+        slot: 13,
         gate: p => has(p, "admin.tp"),
         make: () => signItem("minecraft:ender_eye", "§d§lEnder Eye",
             "§7Use it to pick who you jump to."),
@@ -120,7 +124,7 @@ const ITEMS = {
     // YOU instead of the trident, which would leave the whole thing inert.
     trident: {
         barSlot: 5,
-        slot: 15,
+        slot: 14,
         // **canActOn, not canTrollOn.** It was a light show when it only drew
         // particles. It strips somebody's armour and pins them at half a heart
         // now, and the rule this pack settled on is that a tool leaving a mark
@@ -133,9 +137,30 @@ const ITEMS = {
                 "§8Red dust swirls around whatever it hits."],
         typeId: "minecraft:trident"
     },
+    // The Mirror Totem. Everything that hits you hits whoever swung it.
+    //
+    // A totem has no durability — it is not a tool, so there is no damage
+    // component and no bar — so the count rides in the LORE and the stack is
+    // re-minted each time. The charge therefore travels with the ITEM: drop it,
+    // trade it, leave it in a chest, and it is the same totem with the same
+    // charges. A count kept against a player id in storage would be none of
+    // those, because an item has no identity to key on.
+    //
+    // At zero it becomes an ordinary totem of undying, which still saves your
+    // life once and is a fine thing to be left holding.
+    mirror: {
+        barSlot: 6,
+        slot: 16,
+        gate: p => has(p, "admin.staffmode"),
+        make: () => mirrorTotem(FULL_CHARGE),
+        name: "§b§lMirror Totem",
+        lines: ["§7Everything that hits you hits them instead.",
+                `§8${FULL_CHARGE} charges, then it is just a totem.`],
+        typeId: "minecraft:totem_of_undying"
+    },
     knockback: {
         barSlot: 2,
-        slot: 16,
+        slot: 15,
         // A troll tool, and gated as one since 2.2.4. It used to answer to
         // admin.staffmode, which meant every staff member got it whatever the
         // ladder said and switching the troll section off did not take it away.
@@ -180,6 +205,29 @@ function loyalTrident() {
         if (enchantable && type) enchantable.addEnchantment({ type, level: 3 })
     })
     return stack
+}
+
+/**
+ * A mirror totem with `left` charges on it.
+ *
+ * Signed like everything else, with the count as a THIRD lore line so the
+ * serial check and the charge read stay independent — re-minting changes the
+ * count without ever touching the thing that proves it is ours.
+ */
+function mirrorTotem(left, max = FULL_CHARGE) {
+    const stack = new ItemStack("minecraft:totem_of_undying", 1)
+    stack.nameTag = "§b§lMirror Totem"
+    stack.setLore([
+        "§7Everything that hits you hits them instead.",
+        `${SIGIL} · #${worldToken()}`,
+        chargeLine(left, max)
+    ])
+    return stack
+}
+
+/** Is this a live mirror totem — ours, and with charges left? */
+function isMirrorTotem(stack) {
+    return itemKey(stack) === "mirror" && (chargesOf(stack)?.left ?? 0) > 0
 }
 
 /** Is this the /items version of one of ours, and which key? */
@@ -485,8 +533,93 @@ export function installAdminItems() {
     }
 
     installTridentEffects()
+    installMirror()
 
     return true
+}
+
+/**
+ * Spend a charge and write the stack back into the hand it came from.
+ *
+ * The stack is REPLACED rather than edited, because lore is read back as a
+ * whole and an in-place edit of an ItemStack the engine handed us is not
+ * guaranteed to stick. Re-minting is also what makes the count visible: the
+ * player watches the number on the item go down.
+ */
+function burnCharge(player, hand) {
+    const result = spendCharge(hand.stack, (left, max) => mirrorTotem(left, max))
+    if (!result.spent) return
+    const equippable = safe(() => player.getComponent("minecraft:equippable"))
+    if (!equippable) return
+    safe(() => equippable.setEquipment(hand.slot, result.stack))
+    if (result.spent_out) {
+        info(player, "§bYour Mirror Totem is spent.§7 It is an ordinary totem now.")
+    }
+}
+
+/**
+ * Reflect a hit, and charge for it.
+ *
+ * `duringReflection` is the loop guard: applying the damage to the attacker can
+ * raise this very event again, and if THEY are holding a mirror the two would
+ * volley the hit between them until something gave. One bounce, then it stops.
+ */
+function mirrorHit(victim, attacker, amount, hand) {
+    duringReflection(() => reflect(attacker, amount))
+    burnCharge(victim, hand)
+}
+
+function installMirror() {
+    // Preferred: refuse the damage before it lands.
+    //
+    // This is the only path that can mirror a LETHAL hit. Healing the damage
+    // back afterwards is too late — they are already dead, and a corpse cannot
+    // be topped up. Same two-tier shape spawn protection uses in warps.js.
+    const before = world.beforeEvents?.entityHurt
+    if (before?.subscribe) {
+        before.subscribe(event => {
+            if (isReflecting()) return
+            const victim = event.hurtEntity
+            const attacker = event.damageSource?.damagingEntity
+            const amount = event.damage
+            if (!victim || !(amount > 0)) return
+            const hand = mirrorHand(victim, isMirrorTotem)
+            if (!hand) return
+            event.cancel = true
+            system.run(() => mirrorHit(victim, attacker, amount, hand))
+        })
+        console.log("[Admin+] mirror totem armed — damage refused before it lands")
+        return
+    }
+
+    // Fallback: give the health straight back. Everything survivable is
+    // mirrored exactly; a hit that would have killed them still kills them,
+    // because by the time this runs it already has. The totem is a real totem
+    // of undying, so vanilla's own mechanic catches that one — which is the
+    // honest best this runtime allows.
+    const after = world.afterEvents?.entityHurt
+    if (!after?.subscribe) {
+        console.warn("[Admin+] entityHurt unavailable — the Mirror Totem will not reflect")
+        return
+    }
+    after.subscribe(event => {
+        if (isReflecting()) return
+        const victim = event.hurtEntity
+        const attacker = event.damageSource?.damagingEntity
+        const amount = event.damage
+        if (!victim || !(amount > 0)) return
+        const hand = mirrorHand(victim, isMirrorTotem)
+        if (!hand) return
+        system.run(() => {
+            const health = safe(() => victim.getComponent("minecraft:health"))
+            if (health) {
+                safe(() => health.setCurrentValue(
+                    Math.min(health.effectiveMax, health.currentValue + amount)))
+            }
+            mirrorHit(victim, attacker, amount, hand)
+        })
+    })
+    console.log("[Admin+] mirror totem armed — damage healed back (no before-event on this runtime)")
 }
 
 // ------------------------------------------------------------ the eye
@@ -925,4 +1058,4 @@ function teleportToRandom(player) {
     }
 }
 
-export { ITEMS, signItem, itemKey, knockback, coordinate, SIGIL }
+export { ITEMS, signItem, itemKey, knockback, coordinate, SIGIL, mirrorTotem, isMirrorTotem }
