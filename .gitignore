@@ -31,3 +31,9 @@ releases/*.mcaddon
 # Written by tools/deploy.py: what went out last, so a changed build under an
 # already-installed version can be refused. A fact about THIS working copy.
 .deployed.json
+
+# A scaffold, not code: an empty mirror of the source tree with one-line stubs,
+# plus three docs generated from the real files. It belongs with notes/ rather
+# than in history — 63 empty files and 88 placeholders would be noise. Nothing
+# is deleted by ignoring it; what it is FOR is still an open question.
+rework/
