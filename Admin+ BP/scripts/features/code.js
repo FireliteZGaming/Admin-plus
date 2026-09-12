@@ -66,6 +66,7 @@ export const GROUPS = {
     audit: "Staff action announcements",
     cleanup: "Lag clear",
     automod: "Automod",
+    filter: "Chat screening",
     ban: "Bans",
     troll: "Troll commands",
     nuke: "Orbital strike",

@@ -56,6 +56,66 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.6.0 — 2026-09-12
+
+**Chat screening, in the shape of Twitch's AutoMod.** A minor, because it is a
+whole section behind its own switch with its own settings group and its own
+screen — not one feature.
+
+Four categories, each with its own sensitivity: **discrimination, sexual
+content, hostility, profanity**. A flagged message is **held for a moderator**
+at `/admin ▸ Held messages` — approve and it posts where it was going, deny and
+it is dropped.
+
+### What was taken from Twitch, and it is the good part
+
+**The message is held, not punished, and the sender is never told.** They see
+their own line echoed back as if it posted. That is the cleverest part of
+Twitch's design: a troll who cannot see which words were stopped has nothing to
+iterate against. It also means a false positive costs a moderator one tap
+rather than costing an innocent player ten minutes.
+
+It keeps faith with the rule this pack already had — automod punishes what it
+**counts** (flooding) and only ever alerts on what it **guesses**. A term filter
+is a guess, so it holds.
+
+### What was NOT taken, because we cannot
+
+Twitch's AutoMod is a machine-learning classifier: it scores a message and reads
+context, which is why "I hate this block" survives where the same words aimed at
+a person do not. **Scripts here have no network at all** — `@minecraft/server-net`
+is dedicated-server only — so this matches TERMS. It cannot read intent and does
+not pretend to.
+
+### Evasion, and the thing that will misfire
+
+Both the message and the term list are folded the same way: case, zero-width
+characters, Cyrillic lookalikes, then leet (`sh1t`, `b4d`) and stutter
+(`fuuuuck`) at level 2, and every separator removed at level 3 (`f.u.c.k`).
+
+Which brings the Scunthorpe problem. **Levels 1 and 2 match whole words** for
+exactly that reason; only level 3 looks inside them, and it comes with an allow
+list. Allowed words are *removed from the message* before matching rather than
+consulted — the first version excused every occurrence in the line, so typing
+one innocent word bought you the real one for free. Its own test caught that.
+
+### Choices worth knowing
+
+- **Discrimination ships with no terms at all.** A slur list belongs to a
+  community and a language, and this pack will not pick yours. Fill in
+  `Terms: discrimination` and it works; leave it and that category catches
+  nothing. Honest, where a token list pretending to cover the subject would not
+  be.
+- **Profanity ships OFF.** Holding every "shit" buries the queue, and the queue
+  only works if somebody can face reading it.
+- **Staff bypass by default**, as Twitch exempts its moderators.
+- **It can act, not only flag.** `What a flagged message costs` takes
+  `hold` / `warn` / `mute`. Hold is the default and the message is held
+  whichever you pick — punishing never replaces the queue, because a false
+  positive has to stay undoable.
+- Approve and deny are **never announced**. An audit line saying "X denied your
+  message" would tell the sender they were filtered and undo the whole design.
+
 ## 2.5.15 — 2026-09-12
 
 **What people write on signs is in the log now.** Asked for directly, and it

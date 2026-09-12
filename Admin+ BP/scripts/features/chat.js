@@ -3,7 +3,11 @@ import { noteChat } from "../core/chatlog.js"
 import { CONFIG } from "../config.js"
 import { primaryRank, isStaff, renderTags } from "../core/ranks.js"
 import { displayName, nameTokens, stripCodes } from "../core/identity.js"
-import { render } from "../core/settings.js"
+import { render, flag } from "../core/settings.js"
+import { screen } from "../core/chatfilter.js"
+import { hold } from "../core/heldchat.js"
+// One voice for anything automatic — see alertStaff.
+import { alertStaff, actOnFilter } from "./automod.js"
 import { isMuted, muteRecord, syncMuteTag } from "../core/moderation.js"
 import { formatDuration } from "../core/util.js"
 import { activeChannel, visibleTo, audienceFor, isChannelMuted, channelMute } from "../core/channels.js"
@@ -100,6 +104,29 @@ export function installChat() {
         eventData.cancel = true
         const message = eventData.message
         const channel = activeChannel(player)
+
+        // **Screened, and held rather than punished.** See core/chatfilter.js.
+        // Sits after the mute (a muted player is already going nowhere) and
+        // before routing, because the message must not reach a channel first.
+        //
+        // The sender is shown their own line as if it posted. That is Twitch's
+        // trick and it is the reason this is worth doing: a troll who cannot
+        // see which words were stopped has nothing to iterate against.
+        if (!(flag("filter.staffBypass") && isStaff(player))) {
+            const flagged = screen(message)
+            if (flagged) {
+                system.run(() => {
+                    hold(player, message, channel?.id, flagged)
+                    player.sendMessage(formatChatLine(player, message, channel, false))
+                    // Held first, always — a punishment must stay
+                    // recoverable, and the queue is what shows a
+                    // moderator the setting is too aggressive.
+                    actOnFilter(player, flagged)
+                    alertStaff(`Held a message from §f${player.name}§r §8(${flagged.label})§r — §7/admin ▸ Automod ▸ Held§r`)
+                })
+                return
+            }
+        }
 
         // A /prchat session swallows everything you type, which is what makes
         // it a session rather than a prefix you have to remember. It sits ABOVE

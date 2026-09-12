@@ -3,7 +3,7 @@ import { modal } from "../core/ui.js"
 import { hubTitle } from "../core/theme.js"
 import { ok, err } from "../core/util.js"
 import { has, isStaff } from "../core/ranks.js"
-import { setSetting, flag } from "../core/settings.js"
+import { setSetting, flag, setting } from "../core/settings.js"
 import { record } from "../core/logs.js"
 import {
     config, noteOre, noteBreak, noteChat, drainFinishedVeins,
@@ -42,9 +42,53 @@ function reportVein(vein) {
         `${describeVein(vein)} vein`)
 }
 
+/**
+ * What to DO about a screened message, beyond holding it.
+ *
+ * **Ships as hold-only, and that is not timidity.** A term filter is a GUESS —
+ * it matches words, it cannot read intent, and this pack's standing rule is
+ * that automod punishes what it COUNTS and only alerts on what it guesses.
+ * Turning this up is choosing to punish on a guess, which is a real choice a
+ * realm is entitled to make, so the switch exists.
+ *
+ * **The message is held either way.** Punishing does not replace the queue: a
+ * false positive has to stay recoverable, and a moderator seeing what was
+ * caught is the only thing that tells you the setting is too aggressive.
+ *
+ * Its own action, not the spam ladder. Flooding chat and saying a slur are
+ * different offences, and sharing a strike counter would push somebody who
+ * spammed once straight up the ladder for saying something unrelated.
+ */
+export function actOnFilter(player, flagged) {
+    const action = String(setting("filter.action") ?? "hold").trim().toLowerCase()
+    if (action === "warn") {
+        try {
+            addWarning({ name: "Automod" }, player,
+                `${flagged.label} in chat`, `matched "${flagged.term}"`)
+        } catch { /* warnings storage unavailable */ }
+        alertStaff(`§f${displayName(player)}§7 warned — §f${flagged.label}§7 in chat`)
+        return "warn"
+    }
+    if (action === "mute") {
+        const seconds = Math.max(1, Math.floor(Number(setting("filter.muteSeconds"))) || 300)
+        mute(player, seconds * 1000, `${flagged.label} in chat (automod)`, undefined)
+        player.sendMessage(`${TAG}§cYou were muted for §f${seconds}s§c: ${flagged.label} in chat.`)
+        alertStaff(`§f${displayName(player)}§7 muted §f${seconds}s§7 — §f${flagged.label}§7 in chat`)
+        return "mute"
+    }
+    return "hold"
+}
+
 const TAG = "§6§l[Automod] §r"
 
-function alertStaff(text) {
+/**
+ * One line to every staff member who can act on automod.
+ *
+ * Exported so the chat screen speaks with the SAME voice: the tag lives
+ * in one place, because two copies of a sentinel that must agree is how
+ * the multiline form quietly stopped being multiline.
+ */
+export function alertStaff(text) {
     for (const player of world.getAllPlayers()) {
         if (has(player, "admin.automod")) {
             player.sendMessage(`${TAG}${text}`)

@@ -15,6 +15,7 @@ import { teleportTuningScreen } from "./tuning.js"
 import { logsScreen } from "./logsUI.js"
 import { configurationScreen } from "./configUI.js"
 import { automodScreen } from "./automod.js"
+import { heldScreen, heldWaiting } from "./heldUI.js"
 import { serverPresetsScreen } from "./serverPresets.js"
 import { hologramsScreen } from "./holograms.js"
 import { creditsScreen } from "./credits.js"
@@ -131,6 +132,11 @@ async function settingsScreen(player, back) {
         buttons: [
             has(player, "admin.automod")
                 ? { text: hubButton("settings", "Automod", "Ore alerts, break rate, chat flooding"), run: () => automodScreen(player, again) }
+                : null,
+            // Only when something is actually waiting: a queue nobody is filling
+            // is a button that teaches people the panel is full of dead ends.
+            has(player, "admin.automod") && heldWaiting()
+                ? { text: hubButton("moderation", `Held messages (${heldWaiting()})`, "Chat the screen stopped — approve or drop"), run: () => heldScreen(player, again) }
                 : null,
             { text: hubButton("settings", "Configuration", "Turn features on and off"), run: () => configurationScreen(player, again) },
             has(player, "chat.manage")

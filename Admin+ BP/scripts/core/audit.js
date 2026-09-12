@@ -69,7 +69,16 @@ const SILENT = new Set([
     // is not something done to the other player — mod.bring, which moves them,
     // is announced. The distinction is the same one the audience rule makes:
     // the line exists for the person it happened to.
-    "mod.tpTo"
+    "mod.tpTo",
+    // **The held-chat decisions, and this one is load-bearing rather than
+    // tidy.** The screen's whole design is that the sender is never told their
+    // message was withheld — a troll who cannot see which words were stopped
+    // has nothing to iterate against. An audit line saying "X denied your
+    // message" would hand them exactly that, and undo the feature from inside.
+    // Approving is the same: the message simply appears, as if it always had.
+    "chat.approve",
+    "chat.deny",
+    "chat.denyAll"
 ])
 
 /** Actions whose stripped name would read badly. */

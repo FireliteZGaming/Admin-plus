@@ -165,6 +165,67 @@ export const DEFAULTS = {
         label: "Keep a chat log",
         help: "true / false · records public chat so staff can read it back. Private messages are never recorded."
     },
+    // Chat screening. Levels are 0 off · 1 whole words · 2 + leet and stutter
+    // (`sh1t`, `fuuuck`) · 3 anywhere in the message, which also finds words
+    // inside innocent ones. See core/chatfilter.js.
+    "filter.enabled": {
+        value: "true",
+        label: "Screen chat before it posts",
+        help: "true / false · a flagged message is HELD for a moderator, never auto-punished, and the sender is not told"
+    },
+    "filter.discrimination": {
+        value: "2",
+        label: "Screen: discrimination",
+        help: "0 off · 1 whole words · 2 catches sh1t / fuuuck · 3 anywhere, more false positives. Ships with NO terms — add your own below."
+    },
+    "filter.sexual": {
+        value: "2", label: "Screen: sexual content", help: "0-3, as above"
+    },
+    "filter.aggression": {
+        value: "2", label: "Screen: hostility and threats", help: "0-3, as above · catches kys and go die out of the box"
+    },
+    "filter.profanity": {
+        value: "0",
+        label: "Screen: ordinary swearing",
+        help: "0-3 · OFF by default, because holding every 'shit' buries the queue and most servers do not want it"
+    },
+    "filter.terms.discrimination": {
+        value: "",
+        label: "Terms: discrimination",
+        help: "Comma separated. **Ships empty on purpose** — a slur list belongs to a community and a language, and this pack will not pick yours for you. Nothing is caught here until you fill it in."
+    },
+    "filter.terms.sexual": {
+        value: "", label: "Terms: sexual content", help: "Comma separated · added to the built-in list"
+    },
+    "filter.terms.aggression": {
+        value: "", label: "Terms: hostility", help: "Comma separated · added to the built-in list"
+    },
+    "filter.terms.profanity": {
+        value: "", label: "Terms: swearing", help: "Comma separated · added to the built-in list"
+    },
+    "filter.allow": {
+        value: "class, classic, assassin, bass, pass, grass, assess, scunthorpe, cocktail, shiitake",
+        label: "Never flag these words",
+        help: "Comma separated · innocent words that contain a flagged one. Only matters at level 3, where matching looks inside words."
+    },
+    "filter.staffBypass": {
+        value: "true",
+        label: "Staff skip the screen",
+        help: "true / false · Twitch exempts its moderators too. Off means staff are screened like everyone else."
+    },
+    "filter.action": {
+        value: "hold",
+        label: "What a flagged message costs",
+        help: "hold / warn / mute · hold is queue-only. The message is HELD whichever you pick — punishing never replaces the queue, because a false positive has to stay undoable."
+    },
+    "filter.muteSeconds": {
+        value: "300", label: "Filter mute length", help: "seconds · only used when the setting above is 'mute'"
+    },
+    "filter.holdCap": {
+        value: "50",
+        label: "Held messages kept",
+        help: "How many wait in the queue before the oldest fall off"
+    },
     "logs.signs": {
         value: "true",
         label: "Log what is written on signs",

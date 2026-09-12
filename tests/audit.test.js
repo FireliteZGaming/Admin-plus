@@ -153,7 +153,9 @@ check("nor each item taken out of an ender chest",
     audienceFor(admin, member, "mod.enderchest.take"), [])
 check("but opening someone's ender chest IS announced",
     names(audienceFor(admin, member, "mod.enderchest")).length > 0, true)
-check("the silent list is exactly those twelve", SILENT.size, 12)
+// Fifteen now: the three held-chat decisions joined, because announcing one
+// would tell the sender they had been filtered and undo the feature.
+check("the silent list is exactly those fifteen", SILENT.size, 15)
 
 console.log("\n— actions with nobody on one end —")
 check("no actor, no line", audienceFor(undefined, member, "automod.ore"), [])
