@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs"
 import { __test, ItemStack } from "@minecraft/server"
 import {
     enter, exit, inStaffMode, needsRebuild, staffModeList,
@@ -266,6 +267,43 @@ exit(own)
 const nobody = fakePlayer("Nobody")
 check("marking somebody who never entered fails", markVanished(nobody, true), false)
 check("and asking about them is false, not a throw", vanishedByStaffMode(nobody), false)
+
+
+console.log("\n— staff mode without vanish —")
+// Staff mode is three things at once: your things put away, your tools to hand,
+// and you out of sight. It used to demand all three or nothing, so a rank given
+// admin.staffmode but NOT admin.vanish opened /mm and went invisible anyway —
+// the one part somebody might deliberately withhold, because a moderator you
+// want visible while they work is a real thing to want.
+{
+    const src = readFileSync(
+        new URL("../Admin+ BP/scripts/features/staffmode.js", import.meta.url), "utf8")
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, "")
+        .split("\n").filter(l => !l.trim().startsWith("//")).join("\n")
+
+    check("vanishing is asked for, not assumed",
+        /const mayVanish = has\(player, "admin\.vanish"\)/.test(code), true)
+    check("and it gates the vanish call",
+        /if \(mayVanish && !isVanished\(player\)\)/.test(code), true)
+
+    // The other two halves must NOT be behind it — the whole point is that
+    // staff mode still works.
+    const enterBlock = code.slice(code.indexOf("function startStaffMode"),
+                                 code.indexOf("function stopStaffMode"))
+    const stowAt = enterBlock.indexOf("enter(player, barFor(player))")
+    const vanishAt = enterBlock.indexOf("mayVanish")
+    check("the inventory is stowed before vanish is even considered",
+        stowAt !== -1 && stowAt < vanishAt, true)
+
+    // Silently not vanishing looks like a bug, so it says so.
+    check("it tells you when you stayed visible",
+        /still visible/.test(src), true)
+
+    // Coming back out only un-vanishes people staff mode vanished, which was
+    // already true and matters more now that some people never were.
+    check("leaving still only undoes what it did",
+        /const weVanished = vanishedByStaffMode\(player\)/.test(code), true)
+}
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

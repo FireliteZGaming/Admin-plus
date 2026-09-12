@@ -1,4 +1,4 @@
-import { has } from "./ranks.js"
+import { has, whereToGrant } from "./ranks.js"
 
 // One answer to "may this person use a troll tool", for everything that is one.
 //
@@ -27,8 +27,10 @@ export function trollAllowed(player) {
 
 /** Why not, phrased for the person who just tried — or undefined. */
 export function trollBlockedBy(player) {
+    // Phrased the way every other locked item is, and pointing at the switch by
+    // the name the rank editor puts on the button.
     if (!has(player, "admin.troll")) {
-        return "Your rank doesn't hold troll tools. Settings ▸ Ranks ▸ Staff tools ▸ troll."
+        return `Needs §f${whereToGrant("admin.troll")}`
     }
     return undefined
 }

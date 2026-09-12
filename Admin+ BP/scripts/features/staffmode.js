@@ -133,7 +133,17 @@ function startStaffMode(player) {
     const result = enter(player, barFor(player))
     if (!result.ok) return err(player, result.reason)
 
-    if (!isVanished(player)) {
+    // **Vanishing answers to its own node.** Staff mode is three things at
+    // once — your things put away, your tools to hand, and you out of sight —
+    // and it used to demand all three or nothing. A rank given admin.staffmode
+    // but not admin.vanish could open /mm and then be invisible anyway, which
+    // is the one part somebody might deliberately withhold: a moderator you
+    // want visible while they work.
+    //
+    // So the first two happen regardless and the third is asked for. Said out
+    // loud either way, because silently not vanishing looks like a bug.
+    const mayVanish = has(player, "admin.vanish")
+    if (mayVanish && !isVanished(player)) {
         const vanished = vanish(player)
         if (vanished?.ok !== false) {
             markVanished(player, true)
@@ -145,7 +155,9 @@ function startStaffMode(player) {
 
     record(player, "admin.staffmode", player, `on · stowed ${result.stowed} stack(s)`)
     ok(player, "§7Staff mode on. Your things are put away.")
-    info(player, "§8/mm again gives everything back.")
+    info(player, mayVanish
+        ? "§8/mm again gives everything back."
+        : "§8You are still visible — your rank doesn't hold vanish. §8/mm again gives everything back.")
 }
 
 function stopStaffMode(player) {

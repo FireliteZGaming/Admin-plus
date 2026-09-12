@@ -1,8 +1,8 @@
 import { __test } from "@minecraft/server"
 import { setSetting, resetSetting } from "../Admin+ BP/scripts/core/settings.js"
-import { setRanks, saveRank } from "../Admin+ BP/scripts/core/ranks.js"
+import { setRanks, saveRank, whereToGrant, nodeLabels, PERMISSION_NODES } from "../Admin+ BP/scripts/core/ranks.js"
 import {
-    canNuke, nukeBlockedBy, nukeArmed, armNuke,
+    canNuke, nukeBlockedBy, nukeMissing, nukeArmed, armNuke,
     beatOffsets, fuseTicks, aimPoint, orbitalStrike
 } from "../Admin+ BP/scripts/core/orbital.js"
 
@@ -171,6 +171,55 @@ console.log("\n— the strike itself —")
 }
 
 armNuke(false)
+
+
+console.log("\n— a locked item says everything it needs, and where —")
+// Reporting one lock per attempt is what made the Orbital Strike maddening: you
+// were told it was not armed, armed it, and were then told about developer mode
+// — a second errand you could have run at the same time if anybody had said so.
+{
+    const who = (tags, op) => ({
+        id: `lock-${tags.join()}-${op}`, name: "W", typeId: "minecraft:player",
+        getTags: () => tags, commandPermissionLevel: op ? 1 : 0
+    })
+    const plain = who([], false)
+    const op = who([], true)
+    const dev = who(["Dev"], true)
+
+    // A member is missing all three, and hears about all three.
+    check("a member is told every lock at once", nukeMissing(plain).length, 3)
+    // An operator holds the troll node already (has() passes an op through any
+    // node no rank denies), so they are down to two.
+    check("an operator is told the two that are left", nukeMissing(op).length, 2)
+    check("with the Dev tag, only arming remains", nukeMissing(dev).length, 1)
+    check("and arming it clears the list", (armNuke(true), nukeMissing(dev)), [])
+    armNuke(false)
+
+    // Every line has to be actionable — it names the switch, not the symptom.
+    for (const line of nukeMissing(plain)) {
+        check(`"${line.replace(/§./g, "").slice(0, 28)}…" says where to go`,
+            /Ranks ▸|\/mode|Console|operator/.test(line), true)
+    }
+}
+
+console.log("\n— and it names the switch the way the editor does —")
+// "Ranks ▸ Staff tools ▸ troll", not "admin.troll". The node id is what the
+// code says; the label is what somebody hunting for the switch reads on the
+// button, and those stopped being the same thing when the editor started
+// shortening them. Derived from nodeLabels so it cannot drift.
+{
+    check("a staff node", whereToGrant("admin.troll"), "Ranks ▸ Staff tools ▸ troll")
+    check("a moderation node", whereToGrant("admin.banperm"), "Ranks ▸ Moderation ▸ banperm")
+    check("a vanilla command node", whereToGrant("cmd.kill"), "Ranks ▸ Operator ▸ kill")
+    // Every label it can produce must be one the editor would actually show.
+    for (const [group, nodes] of Object.entries(PERMISSION_NODES)) {
+        const labels = nodeLabels(nodes)
+        const wrong = nodes.filter((n, i) => whereToGrant(n) !== `Ranks ▸ ${group} ▸ ${labels[i]}`)
+        check(`${group}: every node points at its real button`, wrong, [])
+    }
+    // A node nobody lists still gets a usable answer rather than a crash.
+    check("an unknown node does not throw", whereToGrant("made.up"), "Ranks ▸ made.up")
+}
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

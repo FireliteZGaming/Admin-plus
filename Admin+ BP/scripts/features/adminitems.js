@@ -1,7 +1,7 @@
 import { world, system, ItemStack, EnchantmentTypes } from "@minecraft/server"
 import { command } from "../core/registry.js"
 import { ok, err, info } from "../core/util.js"
-import { has, isStaff, canActOn, canTrollOn, primaryRank } from "../core/ranks.js"
+import { has, isStaff, canActOn, canTrollOn, primaryRank, whereToGrant } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
 import { record } from "../core/logs.js"
 import { ChestForm, chestUIAvailable } from "../core/chestUI.js"
@@ -10,7 +10,7 @@ import { hubTitle } from "../core/theme.js"
 import { isVanished } from "../core/vanish.js"
 import { worldToken, makeBanHammer, HAMMER_NAME } from "../core/banhammer.js"
 import { setting } from "../core/settings.js"
-import { canNuke, nukeBlockedBy, orbitalStrike } from "../core/orbital.js"
+import { canNuke, nukeBlockedBy, nukeMissing, orbitalStrike } from "../core/orbital.js"
 import { trollAllowed, trollBlockedBy } from "../core/trollgate.js"
 import {
     TRIDENT_TAG, noteThrow, claimThrow, forgetThrows, beginStorm,
@@ -177,25 +177,39 @@ const ITEMS = {
     }
 }
 
+/** Which node each item answers to, for saying where to go and switch it on. */
+const ITEM_NODE = {
+    hammer: "admin.banperm",
+    teleport: "admin.tp",
+    eye: "admin.tp",
+    trident: "admin.troll",
+    knockback: "admin.troll",
+    mirror: "admin.troll"
+    // orbital is not here: it has three locks, and nukeMissing lists them.
+}
+
 /**
- * Why this person cannot take that item, in a sentence — or undefined.
+ * Everything standing between this person and that item. Empty means it is
+ * theirs.
  *
- * The chest used to LEAVE OUT anything you could not take, which read as "there
- * are three admin items" — a statement about the pack, and false. An operator
- * saw three of seven with nothing to tell them the rest existed.
+ * **All of it at once, not the first one.** Reporting one lock per attempt is
+ * what made the Orbital Strike maddening: you were told it was not armed, armed
+ * it, and were then told about developer mode — a second errand you could have
+ * run at the same time if anybody had said so.
  *
- * Every reason names the switch rather than the symptom, because the point of
- * showing a locked row at all is that you can go and unlock it.
+ * And each line says WHERE, in the words the rank editor puts on the button —
+ * "Ranks ▸ Staff tools ▸ troll", not "admin.troll". The point of showing a
+ * locked row is that you can go and unlock it.
  */
-function lockedReason(player, key) {
+function lockedReasons(player, key) {
     const def = ITEMS[key]
-    if (!def || def.gate(player)) return undefined
-    if (key === "orbital") return nukeBlockedBy(player) ?? "it isn't armed"
-    const troll = trollBlockedBy(player)
-    if (troll) return troll
-    if (key === "hammer") return "your rank can't ban permanently"
-    if (key === "teleport" || key === "eye") return "your rank doesn't hold teleport"
-    return "your rank doesn't allow it"
+    if (!def || def.gate(player)) return []
+    if (key === "orbital") {
+        const missing = nukeMissing(player)
+        return missing.length ? missing : ["Locked."]
+    }
+    const node = ITEM_NODE[key]
+    return [node ? `Needs §f${whereToGrant(node)}` : "Your rank doesn't allow it."]
 }
 
 function safe(fn, fallback) {
@@ -299,9 +313,9 @@ command({
         // so there was nothing to follow. A greyed row with the reason on it is
         // the whole difference.
         const rows = Object.entries(ITEMS).map(([key, def]) => ({
-            key, def, locked: lockedReason(player, key)
+            key, def, locked: lockedReasons(player, key)
         }))
-        if (rows.every(row => row.locked)) {
+        if (rows.every(row => row.locked.length)) {
             return err(player, "You don't have permission to use any admin items. §7Ask an owner for a tool node under Settings ▸ Ranks ▸ Staff tools.")
         }
 
@@ -313,8 +327,8 @@ command({
         for (const { key, def, locked } of rows) {
             chest.button(
                 def.slot,
-                locked ? `§8${def.name.replace(/§./g, "")}` : def.name,
-                locked ? [`§c${locked}`] : def.lines,
+                locked.length ? `§8${def.name.replace(/§./g, "")}` : def.name,
+                locked.length ? locked.map(line => `§c${line}`) : def.lines,
                 def.typeId)
             bySlot.set(def.slot, key)
         }
@@ -326,8 +340,12 @@ command({
             // Re-asked rather than trusted from when the window was drawn: it
             // may have been open a while, and a locked row must not become a
             // way in just because somebody left it sitting there.
-            const locked = lockedReason(player, key)
-            if (locked) return info(player, `§7${ITEMS[key].name}§7 — §c${locked}`)
+            const locked = lockedReasons(player, key)
+            if (locked.length) {
+                info(player, `§7${ITEMS[key].name}§7 needs:`)
+                for (const line of locked) info(player, `§8 · §c${line}`)
+                return
+            }
             give(player, key)
         }).catch(e => console.warn(`[Admin+] /items form failed: ${e}`))
     }
@@ -1014,8 +1032,14 @@ function consumeHeld(player) {
  * mean, or it is decoration.
  */
 function fireOrbital(player) {
-    const shut = nukeBlockedBy(player)
-    if (shut) return err(player, `That won't fire — ${shut}§c.`)
+    // Every lock still shut, not just the first — somebody holding a rod that
+    // will not fire wants the whole list, not a trail of one-at-a-time errands.
+    const shut = nukeMissing(player)
+    if (shut.length) {
+        err(player, "That won't fire yet — it needs:")
+        for (const line of shut) err(player, `§8 · §c${line}`)
+        return
+    }
 
     if (!consumeHeld(player)) return err(player, "Couldn't reach the rod in your hand.")
     safe(() => player.dimension.playSound("random.break", player.location))

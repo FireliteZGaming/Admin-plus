@@ -2,7 +2,7 @@ import { system } from "@minecraft/server"
 import { Table } from "./storage.js"
 import { setting, flag } from "./settings.js"
 import { trollAllowed, trollBlockedBy } from "./trollgate.js"
-import { canUseCode } from "./devgate.js"
+import { canUseCode, hasOperator } from "./devgate.js"
 
 // The orbital strike: aim it by looking, and it falls out of the sky.
 //
@@ -77,6 +77,27 @@ export function canNuke(player) {
 }
 
 /** Which lock is shut, for a message that says something useful. */
+/**
+ * EVERY lock still shut, not just the first.
+ *
+ * Reporting one at a time is what made this maddening: an operator was told it
+ * was not armed, armed it, and was then told about developer mode — a second
+ * errand they could have run at the same time if anybody had said so. Three
+ * locks reported one per attempt is three trips.
+ */
+export function nukeMissing(player) {
+    const out = []
+    const troll = trollBlockedBy(player)
+    if (troll) out.push(troll)
+    if (!canUseCode(player)) {
+        out.push(hasOperator(player)
+            ? "Turn on developer mode — §f/mode developer"
+            : "Needs operator, and developer mode with it")
+    }
+    if (!nukeArmed()) out.push("Arm it — type §ftoggle nuke§r in §f/menu§r ▸ Console")
+    return out
+}
+
 export function nukeBlockedBy(player) {
     // The troll gate speaks for itself — its two switches need different
     // sentences, and duplicating them here is how they drifted last time.

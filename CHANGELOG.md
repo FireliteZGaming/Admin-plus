@@ -56,6 +56,64 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.5.4 — 2026-09-12
+
+**`/info`, and gating you can actually follow.**
+
+### /info
+
+Written for somebody who has never used a mod — the ten-year-old who joined a
+realm, saw a coloured tag next to their name and wanted to know what was going
+on. Three rules for every line of it:
+
+- **Say what it does, not what it is.** Not "a permission node gating the
+  teleport subsystem" — *"lets you go to people"*.
+- **Show, don't describe.** Every command comes with a real example that works
+  if you type it.
+- **Only what they can use.** A member reading a list of staff commands learns
+  nothing except that the mod is not for them. What staff *can do* gets its own
+  page — including how to report one who is misusing it — and the detail appears
+  only when you can actually use it.
+
+Five pages: the commands you can use, what a rank is, how chat works, the staff
+(either "here are yours" or "here is what to expect"), and what this mod is.
+
+### Every lock, at once
+
+The Orbital Strike has three, and it reported them **one per attempt**. You were
+told it was not armed, armed it, and were then told about developer mode — a
+second errand you could have run at the same time if anybody had said so.
+
+Locked items now list everything outstanding, in the words the rank editor puts
+on the button:
+
+```
+Orbital Strike
+  Needs Ranks ▸ Staff tools ▸ troll
+  Turn on developer mode — /mode developer
+  Arm it — type toggle nuke in /menu ▸ Console
+```
+
+`whereToGrant()` derives that path from `nodeLabels`, the same function the
+editor uses, so a message can never name a switch that does not exist under that
+name. A test walks every node in every group and checks the two agree.
+
+The Orbital stays the one thing an operator cannot casually reach — that is the
+point of it — but the route in is now written down rather than discovered one
+refusal at a time.
+
+### Staff mode without vanish
+
+`/mm` is three things at once: your things put away, your tools to hand, and you
+out of sight. It demanded all three or nothing, so a rank holding
+`admin.staffmode` but **not** `admin.vanish` went invisible anyway — and that is
+the one part somebody might deliberately withhold, because a moderator you want
+*visible* while they work is a real thing to want.
+
+The first two happen regardless; the third is asked for. And it says so, because
+silently not vanishing looks like a bug. Leaving still only un-vanishes people
+staff mode vanished, which matters more now that some never were.
+
 ## 2.5.3 — 2026-09-12
 
 **One switch for troll tools, and the chest stops hiding things.** Found by

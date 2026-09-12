@@ -245,6 +245,25 @@ export function nodeLabels(nodes) {
     return split.map(parts => parts[1] ? `${parts[0]} · ${parts[1]}` : parts[0])
 }
 
+/**
+ * Where to go to switch a node on, in the words the screen actually uses.
+ *
+ * "Ranks ▸ Staff tools ▸ troll" rather than "admin.troll". The node id is what
+ * the code says; the label is what the person hunting for the switch will read
+ * on the button, and those stopped being the same thing when the editor started
+ * shortening them. Derived from nodeLabels so it cannot drift from the editor —
+ * a message naming a switch that does not exist under that name is worse than
+ * no message.
+ */
+export function whereToGrant(node) {
+    for (const [group, nodes] of Object.entries(PERMISSION_NODES)) {
+        const at = nodes.indexOf(node)
+        if (at === -1) continue
+        return `Ranks ▸ ${group} ▸ ${nodeLabels(nodes)[at]}`
+    }
+    return `Ranks ▸ ${node}`
+}
+
 /** The permission node governing one vanilla command. */
 export function commandNode(name) {
     return `cmd.${String(name).trim().toLowerCase()}`
