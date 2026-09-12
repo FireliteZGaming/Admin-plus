@@ -244,7 +244,13 @@ const NO_AUDIENCE = new Set([
     "config.serverPreset",
     "hologram.create", "hologram.edit", "hologram.move", "hologram.delete", "hologram.clear",
     "rank.delete", "rank.preset",
-    "warp.create", "warp.move", "warp.delete", "warp.access", "warp.spawnSet", "warp.spawnEdit"
+    "warp.create", "warp.move", "warp.delete", "warp.access", "warp.spawnSet", "warp.spawnEdit",
+    // A sign is not a person, so there is no target to notify — same shape as a
+    // warp. And it stays unannounced on purpose even though there IS an actor:
+    // a survival world writes signs constantly, for shops and labels and
+    // directions, and announcing each one would bury staff chat in furniture.
+    // The log is the record; you go and read it when you have a reason to.
+    "sign.written", "sign.edited"
 ])
 
 check("the scan actually found the actions", RECORDED.size > 25, true)

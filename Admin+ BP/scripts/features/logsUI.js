@@ -32,7 +32,8 @@ const BRANCHES = [
     { id: "warp", label: "Warps", hint: "created and deleted" },
     { id: "report", label: "Reports", hint: "filed and handled" },
     { id: "config", label: "Config", hint: "< Code > edits and resets" },
-    { id: "player", label: "Player tools", hint: "sudo" }
+    { id: "player", label: "Player tools", hint: "sudo" },
+    { id: "sign", label: "Signs", hint: "what players wrote on them" }
 ]
 
 export async function logsScreen(player, back) {

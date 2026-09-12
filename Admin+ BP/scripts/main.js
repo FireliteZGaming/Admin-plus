@@ -27,6 +27,7 @@ import "./features/cleanup.js"
 import "./features/vanish.js"
 import "./features/online.js"
 import { installPresence } from "./features/presence.js"
+import { installSignLog } from "./features/signlog.js"
 import { installVanish } from "./core/vanish.js"
 import "./features/reports.js"
 import "./features/warn.js"
@@ -150,6 +151,7 @@ installSpawnProtection()
 installAutomod()
 installVanish()
 installPresence()
+installSignLog()
 installBanHammer()
 installStaffMode()
 installAdminItems()

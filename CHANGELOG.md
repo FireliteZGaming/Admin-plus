@@ -56,6 +56,42 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.5.15 — 2026-09-12
+
+**What people write on signs is in the log now.** Asked for directly, and it
+closes a real gap: chat is logged, names are logged, commands are logged — and
+sign text, the one thing a player can put in front of everyone permanently, was
+invisible to any staff member who was not standing there when it went up.
+
+`/admin ▸ Logs ▸ Signs`, with the text, who wrote it, and coordinates to walk to.
+
+### Bedrock has no sign-edited event, so this is a watch
+
+A sign is placed **blank** and the words arrive afterwards, typed into a
+client-side screen no script can see, with no callback when it closes. Checked
+against all 40+ behaviour packs installed here: not one sign-specific event
+between them, and the only pack that reads sign text does it on
+`playerInteractWithBlock` — which answers "somebody touched a sign", a different
+question entirely.
+
+So the block is watched and read back, at 2, 5, 10 and 20 seconds. Repeated
+looks because there is no signal for when somebody stops typing, and it is one
+component read on one block.
+
+- **Two entries, not one.** `sign.written` for a fresh sign; `sign.edited` for
+  an existing one changed, which carries the old text too — a place-only hook
+  would have missed editing somebody else's sign entirely, and that is the more
+  suspicious case.
+- **Blank signs are never recorded**, and merely reading a sign records nothing.
+- **`§` codes are stripped.** Hiding a word behind `§0` on a black sign is
+  exactly the trick this exists to catch, and a stray `§` would repaint the log
+  line around it besides.
+- **Recorded, never announced.** A survival world writes signs constantly, for
+  shops and labels and directions; announcing each one would bury staff chat in
+  furniture. The log is the record.
+- Switched off with **Log what is written on signs**. The watch list is capped
+  at 64, so a sign farm cannot grow it without end.
+
 ## 2.5.14 — 2026-09-12
 
 **`< Code >` refused an edit and explained nothing.** Reported from a world:

@@ -165,6 +165,11 @@ export const DEFAULTS = {
         label: "Keep a chat log",
         help: "true / false · records public chat so staff can read it back. Private messages are never recorded."
     },
+    "logs.signs": {
+        value: "true",
+        label: "Log what is written on signs",
+        help: "true / false · sign text is the one thing a player can put in front of everyone that nothing else records"
+    },
     "logs.chatCap": {
         value: "200",
         label: "Chat lines kept",
