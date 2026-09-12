@@ -11,6 +11,7 @@ import { isVanished } from "../core/vanish.js"
 import { worldToken, makeBanHammer, HAMMER_NAME } from "../core/banhammer.js"
 import { setting } from "../core/settings.js"
 import { canNuke, nukeBlockedBy, orbitalStrike } from "../core/orbital.js"
+import { trollAllowed } from "../core/trollgate.js"
 
 // /items — grab an admin item without vanishing or opening /admin.
 //
@@ -45,6 +46,7 @@ const ITEMS = {
     // admin.troll node, operator-and-Dev, and `toggle nuke` at the console. See
     // core/orbital.js for why each one is a different kind of claim.
     orbital: {
+        barSlot: 3,
         slot: 9,
         gate: p => canNuke(p),
         make: () => signItem("minecraft:fishing_rod", "§4§lOrbital Strike",
@@ -55,6 +57,7 @@ const ITEMS = {
         typeId: "minecraft:fishing_rod"
     },
     hammer: {
+        barSlot: 4,
         slot: 11,
         // The Ban Hammer is minted by core/banhammer.js and caught by its own
         // global handler; /items only hands it over. Only for people allowed to
@@ -66,6 +69,7 @@ const ITEMS = {
         typeId: "minecraft:mace"
     },
     teleport: {
+        barSlot: 0,
         slot: 13,
         gate: p => has(p, "admin.tp"),
         make: () => signItem("minecraft:compass", "§b§lTeleport", "§7Use it to jump to a random player."),
@@ -88,6 +92,7 @@ const ITEMS = {
     //
     // `/port` hands one over; so does /items.
     eye: {
+        barSlot: 1,
         slot: 15,
         gate: p => has(p, "admin.tp"),
         make: () => signItem("minecraft:ender_eye", "§d§lEnder Eye",
@@ -97,8 +102,12 @@ const ITEMS = {
         typeId: "minecraft:ender_eye"
     },
     knockback: {
+        barSlot: 2,
         slot: 17,
-        gate: p => has(p, "admin.staffmode"),
+        // A troll tool, and gated as one since 2.2.4. It used to answer to
+        // admin.staffmode, which meant every staff member got it whatever the
+        // ladder said and switching the troll section off did not take it away.
+        gate: p => trollAllowed(p),
         make: () => signItem("minecraft:stick", "§c§lKnockback", "§7Hit somebody to send them flying."),
         name: "§c§lKnockback",
         lines: ["§7Hit somebody to send them flying."],
@@ -140,7 +149,12 @@ function mainhandOf(player) {
 command({
     name: "items",
     description: "Open the admin item chest — /items",
-    perm: "admin.staffmode",
+    // Deliberately NO perm of its own. It used to demand admin.staffmode, which
+    // locked out a rank that holds only teleport — somebody entitled to the
+    // compass and the eye could not reach the chest they were in. The ITEMS
+    // decide instead: hold one and it opens, hold none and it refuses. One
+    // question asked once, rather than a door and a cupboard with different
+    // keys. (An operator passes every gate anyway — see has() in core/ranks.js.)
     run: (player) => {
         if (!chestUIAvailable()) {
             return err(player, "The item chest can't draw on this runtime.")
@@ -149,9 +163,12 @@ command({
         // Only the slots this person is allowed to take. An empty chest means
         // their rank grants none of them, which is worth saying rather than
         // showing a blank window.
+        // Nothing allowed is a REFUSAL, not an empty cupboard. An empty chest
+        // reads as "there are no items", which is a statement about the pack;
+        // the true statement is about this rank.
         const offered = Object.entries(ITEMS).filter(([, def]) => def.gate(player))
         if (!offered.length) {
-            return info(player, "§7There are no admin items your rank can take.")
+            return err(player, "You don't have permission to use any admin items. §7Ask an owner for a tool node under Settings ▸ Ranks ▸ Staff tools.")
         }
 
         const chest = new ChestForm("large").title("Admin items")
@@ -272,8 +289,10 @@ export function installAdminItems() {
             if (itemKey(mainhandOf(attacker)) !== "knockback") return
 
             // Checked at swing time, like the hammer: the stick answers to the
-            // node now, not to when it was handed out.
-            if (!has(attacker, "admin.staffmode")) return
+            // gate now, not to when it was handed out. This is the SECOND place
+            // it is asked, and the two must agree — fixing only the chest would
+            // hand somebody an item that does nothing when they swing it.
+            if (!trollAllowed(attacker)) return
             if (!canActOn(attacker, victim)) return
 
             system.run(() => {

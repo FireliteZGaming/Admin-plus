@@ -4,6 +4,7 @@ import {
     serializeStack, buildStack, snapshotOf, countItems, liveInventory,
     containerOf, __forgetLive, markVanished, vanishedByStaffMode
 } from "../Admin+ BP/scripts/core/staffmode.js"
+import { ITEMS } from "../Admin+ BP/scripts/features/adminitems.js"
 import {
     TOOLS, makeTool, toolFor, toolBar, HAMMER_SLOT, HAMMER_NAME
 } from "../Admin+ BP/scripts/features/staffmode.js"
@@ -97,7 +98,8 @@ check("the tools are in place", TOOLS.map(t => mod._slots[t.slot]?.typeId), TOOL
 console.log("\n— entering twice does nothing —")
 const again = enter(mod, tools)
 check("the second attempt is refused", again.ok, false)
-check("and the tools are still the only thing held", mod._slots[0].typeId, TOOLS[0].id)
+check("and the tools are still the only thing held",
+    mod._slots[TOOLS[0].slot].typeId, TOOLS[0].id)
 
 console.log("\n— leaving gives back the ORIGINAL objects —")
 const stopped = exit(mod)
@@ -172,25 +174,65 @@ check("every tool declares what it aims at",
 check("every tool sits in the hotbar",
     TOOLS.every(t => t.slot >= 0 && t.slot < 9), true)
 
-console.log("\n— the Ban Hammer rides in the bar, for some people —")
-const plainBar = toolBar(false)
-const armedBar = toolBar(true)
-check("without permanent-ban permission the bar is just the tools",
-    plainBar.length, TOOLS.length)
-check("and holds no mace",
-    plainBar.some(entry => entry.stack.typeId === "minecraft:mace"), false)
-check("with it, one more thing is in the bar", armedBar.length, TOOLS.length + 1)
-const hammerEntry = armedBar.find(entry => entry.slot === HAMMER_SLOT)
-check("and that thing is the hammer", hammerEntry?.stack?.typeId, "minecraft:mace")
-check("named as the hammer", hammerEntry?.stack?.nameTag, HAMMER_NAME)
-check("the hammer's slot does not collide with a tool",
-    TOOLS.some(t => t.slot === HAMMER_SLOT), false)
-check("every bar entry sits in the hotbar",
-    armedBar.every(entry => entry.slot >= 0 && entry.slot < 9), true)
-// The hammer is not an itemUse tool and must never be mistaken for one, or a
-// right-click would run a tool action while holding the thing that bans people.
-check("the hammer is not recognised as an itemUse tool",
-    toolFor(hammerEntry.stack), undefined)
+console.log("\n— the bar is every admin item you are allowed, and nothing else —")
+// It used to be a fixed list of two, plus the hammer if you could ban forever.
+// Everything else in the bar ignored your rank entirely. The bar is built from
+// the SAME catalogue /items offers now, through the SAME gates, so the two can
+// never disagree and turning a permission off takes the tool from both.
+{
+    const barPlayer = (perms) => ({
+        id: `bar-${perms.join("-") || "none"}`,
+        name: "Bar",
+        commandPermissionLevel: 0,
+        getTags: () => [],
+        __perms: perms
+    })
+    // has() resolves through ranks, so drive the gates directly rather than
+    // standing up a ladder per case — the gates themselves are tested where
+    // they live. What is under test here is that the bar CONSULTS them.
+    const barWith = (allowed) => {
+        const saved = new Map()
+        for (const [key, def] of Object.entries(ITEMS)) {
+            saved.set(key, def.gate)
+            def.gate = () => allowed.includes(key)
+        }
+        try { return toolBar({ id: "x", name: "X" }) }
+        finally { for (const [key, gate] of saved) ITEMS[key].gate = gate }
+    }
+
+    const none = barWith([])
+    check("with nothing allowed the bar is just the way out", none.length, TOOLS.length)
+    check("and holds no mace", none.some(e => e.stack.typeId === "minecraft:mace"), false)
+
+    const withHammer = barWith(["hammer"])
+    check("allowing the hammer puts one more in", withHammer.length, TOOLS.length + 1)
+    const hammerEntry = withHammer.find(e => e.slot === HAMMER_SLOT)
+    check("and that thing is the hammer", hammerEntry?.stack?.typeId, "minecraft:mace")
+    check("named as the hammer", hammerEntry?.stack?.nameTag, HAMMER_NAME)
+
+    const everything = barWith(Object.keys(ITEMS))
+    check("allowing everything carries the whole catalogue",
+        everything.length, TOOLS.length + Object.keys(ITEMS).length)
+    check("every bar entry sits in the hotbar",
+        everything.every(e => e.slot >= 0 && e.slot < 9), true)
+    check("and no two things land in the same slot",
+        new Set(everything.map(e => e.slot)).size, everything.length)
+
+    check("the hammer's slot does not collide with a tool",
+        TOOLS.some(t => t.slot === HAMMER_SLOT), false)
+    check("every catalogue item declares a hotbar slot",
+        Object.values(ITEMS).filter(d => typeof d.barSlot !== "number"), [])
+
+    // The two item sets carry different sigils SO THAT they cannot trigger each
+    // other's handlers. toolFor used to check only the world serial, which both
+    // carry — so an /items compass, identical in type and name to the staff one,
+    // matched here as well and a single right-click fired both handlers.
+    check("an /items item is not mistaken for a staff tool",
+        toolFor(ITEMS.teleport.make()), undefined)
+    check("the hammer is not recognised as an itemUse tool",
+        toolFor(hammerEntry.stack), undefined)
+    check("a real staff tool still is", toolFor(makeTool(TOOLS[0]))?.key, TOOLS[0].key)
+}
 
 console.log("\n— who vanished you, remembered across a reload —")
 // Found by playtest, 2.0.0: reload the world while in staff mode and you came

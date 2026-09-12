@@ -57,6 +57,68 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.2.4 — 2026-09-11
+
+**Every admin item answers to your rank, and `/mm` hands you the same set
+`/items` offers.** Four gates were checked; two were wrong and one door was
+locked against the people meant to come through it.
+
+| item | answers to |
+|---|---|
+| Ban Hammer | permanent-ban |
+| Teleport compass | teleport |
+| Ender Eye | teleport |
+| Knockback stick | **troll tools** — was staff mode |
+| Orbital Strike | troll tools, armed, operator + Dev |
+
+**The Knockback stick was on `admin.staffmode`.** Every staff member got it
+whatever the ladder said about troll tools, and switching the whole troll
+section off did not take it away. It answers to troll now — and troll means
+*both* switches: the owner's `feature.troll` and the rank's `admin.troll`,
+which sits in Settings ▸ Ranks ▸ Staff tools as **troll**.
+
+It was asked in **two** places — when the chest is drawn and again when the
+stick is swung — so fixing one would have handed somebody an item that did
+nothing when they hit with it. `core/trollgate.js` is now the single answer, and
+`/smite` and the Orbital Strike use it too. Three troll tools had three
+different answers to one question.
+
+### `/mm` carries the whole catalogue
+
+The staff-mode bar was a fixed list of two, plus the hammer if you could ban
+forever; nothing else in it consulted your rank at all. It is built from the
+same catalogue `/items` offers now, through the same gates, so the two can never
+disagree and turning a permission off takes the tool from both.
+
+That surfaced a **duplicate**: the bar carried its own Teleport compass, same
+type and same name as the `/items` one, with no permission gate. It is gone —
+the catalogue's version replaces it, gated. What is left in the bar's own list
+is the Leave clock, which is the only thing that exists solely inside staff
+mode.
+
+### The bug that duplicate was hiding
+
+`toolFor()` decided whether an item was a staff tool by looking for the world
+serial — which **both** signatures carry. The two sigils exist precisely so the
+two item sets cannot trigger each other's handlers, and this was the check not
+reading them. An `/items` compass held in staff mode matched here as well, so
+one right-click fired both handlers and teleported you twice, to two different
+people. It checks the sigil now.
+
+### `/items` refuses instead of opening empty
+
+It demanded `admin.staffmode` to open, which locked out a rank holding only
+teleport — somebody entitled to the compass and the eye could not reach the
+chest they were sitting in. The command has no permission of its own now; the
+items decide. Hold one and it opens, hold none and it says so:
+
+> You don't have permission to use any admin items.
+
+An empty chest reads as "there are no items", which is a statement about the
+pack. The true statement is about the rank. (An operator passes every gate
+regardless — that is `has()` keeping a fresh world's host from locking
+themselves out.)
+
 ## 2.2.3 — 2026-09-11
 
 **A verification pass, and what the engine had been saying all along.**

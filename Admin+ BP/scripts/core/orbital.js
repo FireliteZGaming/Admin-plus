@@ -1,7 +1,7 @@
 import { system } from "@minecraft/server"
 import { Table } from "./storage.js"
 import { setting, flag } from "./settings.js"
-import { has } from "./ranks.js"
+import { trollAllowed, trollBlockedBy } from "./trollgate.js"
 import { canUseCode } from "./devgate.js"
 
 // The orbital strike: aim it by looking, and it falls out of the sky.
@@ -71,17 +71,18 @@ export function armNuke(on) {
  * outlives any one of them goes inert rather than becoming a way round the lot.
  */
 export function canNuke(player) {
-    if (!flag("feature.troll")) return false
+    if (!trollAllowed(player)) return false
     if (!nukeArmed()) return false
-    if (!has(player, "admin.troll")) return false
     return canUseCode(player)
 }
 
 /** Which lock is shut, for a message that says something useful. */
 export function nukeBlockedBy(player) {
-    if (!flag("feature.troll")) return "the troll section is off"
+    // The troll gate speaks for itself — its two switches need different
+    // sentences, and duplicating them here is how they drifted last time.
+    const shut = trollBlockedBy(player)
+    if (shut) return shut
     if (!nukeArmed()) return "it isn't armed — type §ftoggle nuke§c in the console"
-    if (!has(player, "admin.troll")) return "your rank has troll tools denied"
     if (!canUseCode(player)) return "you need operator and developer mode"
     return undefined
 }

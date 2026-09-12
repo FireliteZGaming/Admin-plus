@@ -4,6 +4,7 @@ import { ok, err, info } from "../core/util.js"
 import { canActOn } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
 import { flag } from "../core/settings.js"
+import { trollBlockedBy } from "../core/trollgate.js"
 import { record } from "../core/logs.js"
 
 // Troll commands — off by default, behind one switch.
@@ -59,9 +60,8 @@ command({
     perm: "admin.troll",
     mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     run: (player, [selected]) => {
-        if (!flag("feature.troll")) {
-            return err(player, "Troll commands are switched off. An owner turns them on in Settings ▸ Troll commands.")
-        }
+        const shut = trollBlockedBy(player)
+        if (shut) return err(player, shut)
 
         const targets = selected ?? []
         if (!targets.length) return err(player, "No player matched that selector.")

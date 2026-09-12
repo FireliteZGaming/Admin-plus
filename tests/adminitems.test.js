@@ -3,6 +3,7 @@ import { setting, setSetting, resetSetting, DEFAULTS } from "../Admin+ BP/script
 import { ITEMS, signItem, itemKey, knockback, coordinate, SIGIL, installAdminItems,
          worldLabels, worldIndex, worldHeight, heightProblem } from "../Admin+ BP/scripts/features/adminitems.js"
 import { armNuke } from "../Admin+ BP/scripts/core/orbital.js"
+import { setRanks, saveRank } from "../Admin+ BP/scripts/core/ranks.js"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -322,6 +323,57 @@ check("heights come from the engine where it will say",
     worldHeight(1), { id: "minecraft:nether", label: "Nether", min: 0, max: 128 })
 check("and an index out of range is the Overworld, not a crash",
     worldHeight(99).label, "Overworld")
+
+
+console.log("\n— one gate per item, and it is the rank's answer —")
+// Which node each item answers to, stated once. These are not decoration: the
+// Knockback stick answered to admin.staffmode until 2.2.4, so every staff
+// member got it whatever the ladder said about troll tools, and switching the
+// whole troll section off did not take it away.
+{
+    const P = (perms, op = false) => ({
+        id: `g-${perms.join("-")}-${op}`, name: "G",
+        commandPermissionLevel: op ? 1 : 0,
+        getTags: () => []
+    })
+    const gateOf = (key, perms, op) => {
+        const p = P(perms, op)
+        setRanks(p.id, ["Member"], p.name)
+        saveRank("gatetest", { display: "§7GateTest", perms })
+        setRanks(p.id, ["gatetest"], p.name)
+        return ITEMS[key].gate(p)
+    }
+
+    setSetting("feature.troll", "true")
+    check("the hammer wants permanent-ban", gateOf("hammer", ["admin.banperm"]), true)
+    check("and refuses without it", gateOf("hammer", ["admin.staffmode"]), false)
+
+    check("the compass wants teleport", gateOf("teleport", ["admin.tp"]), true)
+    check("and staff mode is not enough", gateOf("teleport", ["admin.staffmode"]), false)
+
+    check("the eye wants teleport too", gateOf("eye", ["admin.tp"]), true)
+    check("and staff mode is not enough for it either",
+        gateOf("eye", ["admin.staffmode"]), false)
+
+    // The one that changed. Both switches, and the section switch is the
+    // owner's — so it is tested from both sides.
+    check("the stick wants troll tools", gateOf("knockback", ["admin.troll"]), true)
+    check("staff mode alone no longer earns it",
+        gateOf("knockback", ["admin.staffmode"]), false)
+    setSetting("feature.troll", "false")
+    check("and the owner's section switch takes it back",
+        gateOf("knockback", ["admin.troll"]), false)
+    resetSetting("feature.troll")
+
+    // Nothing allowed means /items refuses rather than opening empty — the
+    // command has no perm of its own, so this filter IS the permission check.
+    const nobody = P(["chat.staff"])
+    setRanks(nobody.id, ["Member"], nobody.name)
+    saveRank("noitems", { display: "§7NoItems", perms: ["chat.staff"] })
+    setRanks(nobody.id, ["noitems"], nobody.name)
+    check("a rank with no tool node is offered nothing",
+        Object.values(ITEMS).filter(d => d.gate(nobody)).length, 0)
+}
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

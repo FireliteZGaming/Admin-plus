@@ -6,7 +6,8 @@ import { displayName } from "../core/identity.js"
 import { record } from "../core/logs.js"
 import { enter, exit, inStaffMode, needsRebuild, staffModeList, markVanished, vanishedByStaffMode } from "../core/staffmode.js"
 import { isVanished, vanish, unvanish } from "../core/vanish.js"
-import { worldToken, makeBanHammer, HAMMER_NAME } from "../core/banhammer.js"
+import { worldToken, HAMMER_NAME } from "../core/banhammer.js"
+import { ITEMS } from "./adminitems.js"
 import { announceJoin, announceLeave } from "./presence.js"
 
 // /mm — staff mode.
@@ -35,11 +36,6 @@ const SIGIL = "§8Admin+ staff tool"
 /** `aim: "none"` — these act on use, with nothing to point at. */
 const TOOLS = [
     {
-        key: "teleport", slot: 0, aim: "none",
-        id: "minecraft:compass", name: "§b§lTeleport",
-        blurb: "§7Use it to jump to a random player."
-    },
-    {
         key: "leave", slot: 8, aim: "none",
         id: "minecraft:clock", name: "§7§lLeave staff mode",
         blurb: "§7Use it to get your things back."
@@ -47,8 +43,10 @@ const TOOLS = [
 ]
 
 /** The Ban Hammer's slot. Not in TOOLS: it fires on a SWING, not on use, and
- *  core/banhammer.js mints it with its own signature that its own check reads. */
-const HAMMER_SLOT = 4
+ *  core/banhammer.js mints it with its own signature that its own check reads.
+ *  It is ITEMS.hammer.barSlot now — this name is kept because tests and the
+ *  panel read it, and two numbers that must agree are one number. */
+const HAMMER_SLOT = ITEMS.hammer.barSlot
 
 /* We vanished them, so we un-vanish them; somebody who was ALREADY vanished
  * when they entered stays vanished on the way out.
@@ -66,31 +64,60 @@ function makeTool(def) {
     return stack
 }
 
-/** Is this the tool this world issued, and which one? */
+/**
+ * Is this the tool this world issued, and which one?
+ *
+ * **The sigil is checked, not just the serial.** It used to test only for
+ * `#<token>`, which both signatures carry — so an `/items` compass, identical in
+ * type and name to the staff-mode one, matched here as well. Holding one in
+ * staff mode fired BOTH handlers off a single right-click and teleported you
+ * twice, to two different people. The two sigils exist precisely so the two
+ * item sets cannot trigger each other, and this is the check that was not
+ * reading them.
+ */
 function toolFor(stack) {
     if (!stack?.typeId) return undefined
     let lore = []
     try { lore = stack.getLore() ?? [] } catch { return undefined }
-    if (!lore.some(line => String(line).includes(`#${worldToken()}`))) return undefined
+    if (!lore.some(line => String(line).includes(`${SIGIL} · #${worldToken()}`))) return undefined
     return TOOLS.find(def => def.id === stack.typeId && def.name === stack.nameTag)
 }
 
 /**
- * The bar, from one yes/no. Split from barFor so the hammer rule can be tested
- * without standing up a rank ladder.
+ * The bar: every admin item this person is allowed, plus the way out.
  *
- * The Ban Hammer rides with staff mode and only for somebody allowed to ban
- * permanently — which is exactly what the hammer does, so the permission and
- * the tool say the same thing.
+ * It used to be a fixed list of two plus the hammer, and the hammer was the
+ * only thing anybody's permissions affected. Now the bar is built from the SAME
+ * catalogue `/items` offers, through the SAME gates — so what staff mode hands
+ * you and what the chest offers you can never disagree, and turning a
+ * permission off takes the tool away from both.
+ *
+ * The items are minted by features/adminitems.js and answer to its handlers,
+ * which is why they are not in TOOLS: TOOLS is the set that only exists inside
+ * staff mode, and after this that is just the way out.
+ *
+ * @param {object} player  whose permissions decide the bar
  */
-export function toolBar(withHammer) {
+export function toolBar(player) {
     const bar = TOOLS.map(def => ({ slot: def.slot, stack: makeTool(def) }))
-    if (withHammer) bar.push({ slot: HAMMER_SLOT, stack: makeBanHammer() })
+    for (const def of Object.values(ITEMS)) {
+        if (typeof def.barSlot !== "number") continue
+        if (!def.gate(player)) continue
+        bar.push({ slot: def.barSlot, stack: def.make() })
+    }
     return bar
 }
 
+/**
+ * The bar this particular person gets.
+ *
+ * A thin pass-through now: every gate lives on the item in the catalogue, so
+ * this cannot drift from what /items offers the same person. It used to ask one
+ * question — may they ban permanently — and hand everyone else an identical
+ * bar whatever their rank said.
+ */
 export function barFor(player) {
-    return toolBar(has(player, "admin.banperm"))
+    return toolBar(player)
 }
 
 function mainhandOf(player) {
@@ -177,23 +204,9 @@ command({
 
 // ------------------------------------------------------------------ the tools
 
-function useTeleport(player) {
-    const candidates = world.getAllPlayers()
-        .filter(other => other.id !== player.id && !isStaff(other))
-    if (!candidates.length) return info(player, "§7Nobody to jump to.")
-    const target = candidates[Math.floor(Math.random() * candidates.length)]
-    try {
-        player.teleport(target.location, { dimension: target.dimension })
-        info(player, `§7Jumped to §f${displayName(target)}§7.`)
-    } catch (e) {
-        err(player, `Couldn't teleport: ${e}`)
-    }
-}
-
 /** One tool, fired. Exported so a test can drive it without an event. */
 export function runTool(player, tool) {
     if (!tool) return
-    if (tool.key === "teleport") return useTeleport(player)
     if (tool.key === "leave") return stopStaffMode(player)
 }
 
