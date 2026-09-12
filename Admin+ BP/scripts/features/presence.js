@@ -37,6 +37,40 @@ export function announceLeave(name, nickname) {
     world.sendMessage(render("format.leave", nameTokens(name, nickname)))
 }
 
+/**
+ * How long after spawning the greeting lands, in ticks.
+ *
+ * Not straight away. The join line, the world's own messages and everything
+ * else that fires on spawn arrive in one burst, and a line inside a burst is a
+ * line nobody reads. Three seconds puts it on its own, which is the only
+ * reason it gets read at all.
+ */
+export const GREETING_DELAY = 60
+
+/**
+ * The one line a newcomer gets, and only them.
+ *
+ * `/info` is written for somebody who has never used a mod before — and until
+ * now nothing anywhere told them it was there, which made it exactly as
+ * undiscoverable as the thing it exists to explain. This is the pointer.
+ *
+ * **To them, not to the world.** It is the answer to "what is all this", and
+ * everybody else already asked it. Broadcasting would make every join cost
+ * everyone a line.
+ *
+ * Returns what was sent, or undefined when nothing was, so silence and a blank
+ * line can be told apart.
+ */
+export function greet(player) {
+    if (!flag("presence.greet")) return undefined
+    const line = render("format.greeting", nameTokens(player))
+    // Blanking the text is the other way to turn it off, and a realm that has
+    // its own welcome system should not have to find the switch to stop ours.
+    if (!line.trim()) return undefined
+    player.sendMessage(line)
+    return line
+}
+
 export function installPresence() {
     world.afterEvents.playerSpawn.subscribe(({ player, initialSpawn }) => {
         if (!initialSpawn) return
@@ -45,6 +79,14 @@ export function installPresence() {
             if (isVanished(player)) return
             announceJoin(player)
         })
+        // Theirs alone, and a moment later — see greet(). Outside the vanish
+        // check on purpose: a line only one person can see gives nothing away,
+        // so hiding does not mean going without.
+        system.runTimeout(() => {
+            // Three seconds is long enough to leave in.
+            if (!player.isValid) return
+            greet(player)
+        }, GREETING_DELAY)
     })
 
     world.afterEvents.playerLeave?.subscribe(({ playerId, playerName }) => {

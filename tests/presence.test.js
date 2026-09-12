@@ -3,7 +3,7 @@ import { onPlayerJoin, setRanks } from "../Admin+ BP/scripts/core/ranks.js"
 import { setSetting, resetSetting, setting } from "../Admin+ BP/scripts/core/settings.js"
 import { setNickname } from "../Admin+ BP/scripts/core/identity.js"
 import { vanish, unvanish } from "../Admin+ BP/scripts/core/vanish.js"
-import { announceJoin, announceLeave } from "../Admin+ BP/scripts/features/presence.js"
+import { announceJoin, announceLeave, greet, GREETING_DELAY } from "../Admin+ BP/scripts/features/presence.js"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -22,7 +22,9 @@ function fakePlayer(name) {
     const p = {
         id: `pr${nextId++}`, name, nameTag: name, commandPermissionLevel: 0, effects: new Set(),
         getTags: () => [...tags], addTag: t => tags.add(t), removeTag: t => tags.delete(t),
-        sendMessage: () => {}, addEffect: (e) => p.effects.add(e), removeEffect: (e) => p.effects.delete(e),
+        got: [],
+        sendMessage: (m) => p.got.push(m),
+        addEffect: (e) => p.effects.add(e), removeEffect: (e) => p.effects.delete(e),
         runCommand: () => ({ successCount: 1 })
     }
     __test.players.push(p)
@@ -98,6 +100,55 @@ resetSetting("presence.announce")
 sent.length = 0
 announceJoin(nova)
 check("and back on again", sent.length, 1)
+
+console.log("\n— a newcomer is told where to look, and nobody else hears it —")
+// /info is written for somebody who has never used a mod, and nothing anywhere
+// told them it existed. One line on join fixes that. What makes it bearable
+// rather than spam is who hears it: them, and only them.
+{
+    const newbie = fakePlayer("Newbie")
+    onPlayerJoin(newbie)
+    sent.length = 0
+    newbie.got.length = 0
+
+    const line = greet(newbie)
+    check("it says something", typeof line, "string")
+    check("and it lands on them", newbie.got.at(-1), line)
+    check("nobody else hears it", sent.length, 0)
+    // The whole point of the line. If this fails the feature is decorative.
+    check("it names the command it exists to point at", line.includes("/info"), true)
+    check("and calls them by name", line.includes("Newbie"), true)
+
+    // A nickname is what they chose to be called, so the greeting uses it.
+    setNickname(newbie.id, "§bSparks")
+    newbie.got.length = 0
+    check("a nickname wins", greet(newbie).includes("Sparks"), true)
+    setNickname(newbie.id, "")
+
+    // Late, not instant: the join burst is where a line goes to be missed.
+    check("it waits for the join noise to pass", GREETING_DELAY >= 20, true)
+    check("but not so long they have wandered off", GREETING_DELAY <= 200, true)
+
+    // Two ways to silence it, because a realm with its own welcome system
+    // should not have to hunt for the switch.
+    setSetting("presence.greet", "false")
+    newbie.got.length = 0
+    check("the switch silences it", greet(newbie), undefined)
+    check("and it really sent nothing", newbie.got.length, 0)
+    resetSetting("presence.greet")
+
+    setSetting("format.greeting", "")
+    newbie.got.length = 0
+    check("so does blanking the line", greet(newbie), undefined)
+    check("also without sending", newbie.got.length, 0)
+    resetSetting("format.greeting")
+    check("and it comes back", typeof greet(newbie), "string")
+
+    // The shipped default has to be the useful one — a test on greet() alone
+    // would pass just as happily with the pointer edited out of it.
+    check("the default that ships points at /info",
+        setting("format.greeting").includes("/info"), true)
+}
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

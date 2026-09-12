@@ -56,6 +56,26 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.5.9 — 2026-09-12
+
+**Nothing ever told anybody that `/info` existed.**
+
+`/info` is written for the ten-year-old who joined a realm, saw a coloured tag
+next to their name and wanted to know what was going on — and the only way to
+find it was to already know it was there. Same hole `/eff` had in 2.5.7, one
+level up: the help was fine, the pointer was missing.
+
+- A newcomer now gets one line a few seconds after they join, **sent to them
+  and nobody else** — broadcasting it would make every join cost everyone a
+  line, which is how a good idea becomes spam.
+- Three seconds late on purpose. The join line, the world's own messages and
+  everything else that fires on spawn arrive together, and a line inside that
+  burst is a line nobody reads.
+- `Point newcomers at /info` switches it off; `Greeting line` rewrites it, with
+  `{NAME}` and `{NICKNAME}` like the join and leave lines. Blanking the text
+  also silences it, so a realm with its own welcome system does not have to go
+  looking for the switch.
+
 ## 2.5.8 — 2026-09-12
 
 **The orbital strike went off too high, and the reason was arithmetic.**

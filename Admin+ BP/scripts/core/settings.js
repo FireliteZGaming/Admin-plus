@@ -62,6 +62,16 @@ export const DEFAULTS = {
         label: "Leave line",
         help: "Tokens: {NAME} {NICKNAME} · /vanish prints this, which is what makes it convincing"
     },
+    "presence.greet": {
+        value: "true",
+        label: "Point newcomers at /info",
+        help: "true / false · one line, a few seconds after they join, that only THEY see"
+    },
+    "format.greeting": {
+        value: "§7Hi {NICKNAME}§7 — type §f/info§7 to see everything you can do here.",
+        label: "Greeting line",
+        help: "Tokens: {NAME} {NICKNAME} · sent to the player alone, never broadcast · blank it to say nothing"
+    },
     "vanish.hideFromLists": {
         value: "true",
         label: "Vanished players hidden from /online",
