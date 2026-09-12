@@ -387,19 +387,53 @@ export function replaceOverrides(obj) { store.replace(obj) }
  */
 export function renderTag(rank) {
     if (!rank) return setting("format.noRankTag")
+    // **A rank with no name renders NOTHING, not empty brackets.**
+    //
+    // Reported from CurseForge: somebody clearing the rank names to switch the
+    // prefixes off was left with `§8[]` in dark grey on every line, and no way
+    // to get rid of it — because the brackets are decoration around a name, and
+    // the code drew them whether or not there was a name to decorate.
+    //
+    // Blanking the name is a reasonable way to ask for no tag, so it now means
+    // that. `format.tag` is still there for anybody who wants a different shape
+    // entirely.
+    const display = String(rank.display ?? "")
+    if (!stripFormatting(display).trim()) return ""
     return setting("format.tag")
         .replaceAll("{OPEN}", setting("bracket.open"))
         .replaceAll("{CLOSE}", setting("bracket.close"))
-        .replaceAll("{RANK}", rank.display)
+        .replaceAll("{RANK}", display)
+}
+
+/** A string with its § codes taken out, for asking whether it says anything. */
+function stripFormatting(text) {
+    return String(text ?? "").replace(/§./g, "")
 }
 
 /** Apply a format string. `\n` in a stored value becomes a real line break. */
 export function render(key, tokens) {
     let out = setting(key).replaceAll("\\n", "\n")
+
+    // An EMPTY token takes the gap around it with it.
+    //
+    // Same report as renderTag above: with the tag blanked, `{TAG} {NICKNAME}`
+    // left a stray space and the line began adrift. Marking the empty ones and
+    // collapsing afterwards keeps that tidying away from the MESSAGE, which is
+    // somebody's own text and must survive exactly as typed — "hello    there"
+    // stays "hello    there".
+    const GAP = "\u0000"
     for (const [token, value] of Object.entries(tokens)) {
-        out = out.replaceAll(`{${token}}`, value ?? "")
+        const text = value ?? ""
+        out = out.replaceAll(`{${token}}`,
+            stripFormatting(String(text)).trim() ? String(text) : GAP)
     }
-    return out
+    out = out.replace(new RegExp(`[ \t]*${GAP}[ \t]*`, "g"), " ")
+    // A line that is now only separators and spaces had nothing in it to begin
+    // Trim only. A global space-collapse was tried here and was WRONG: it ran
+    // over the MESSAGE too, so "hello     there" arrived as "hello there".
+    // Somebody's own text survives exactly as typed; only the gaps left by
+    // empty tokens close, and the sentinel above already closed those.
+    return out.trim()
 }
 
 /** Read a setting as a boolean. Anything but "false"/"0"/"off"/"no" is true. */

@@ -315,5 +315,48 @@ console.log("\n— every feature switch is reachable from the panel —")
         listed.filter(k => !shipped.includes(k)).sort(), [])
 }
 
+
+console.log("\n— blanking a rank name removes the tag, brackets and all —")
+// Reported on CurseForge against the released build: somebody clearing the rank
+// names to switch the prefixes off was left with "§8[]" in dark grey on every
+// line and no way to remove it. The brackets are decoration around a NAME, and
+// the code drew them whether or not there was a name to decorate.
+{
+    check("a real rank still gets its brackets",
+        renderTag({ display: "§7Member" }).includes("Member"), true)
+    check("an empty name renders nothing at all", renderTag({ display: "" }), "")
+    // Colour codes are not a name. A display of just "§8" says nothing, and was
+    // the likeliest thing to be left behind by somebody deleting the word.
+    check("nor does a name that is only colour codes", renderTag({ display: "§8" }), "")
+    check("or whitespace", renderTag({ display: "   " }), "")
+    check("and a missing display is not a crash", renderTag({}), "")
+}
+
+console.log("\n— an empty token takes its gap with it —")
+{
+    const plain = t => t.replace(/§./g, "")
+    // With the tag gone the line used to begin with a stray space.
+    check("no tag means no leading gap",
+        plain(render("format.chat", { TAG: "", NICKNAME: "Steve", MSG: "hello" })),
+        "Steve » hello")
+    check("a tag still sits in front",
+        plain(render("format.chat", { TAG: "§7[Mod]", NICKNAME: "Steve", MSG: "hi" })),
+        "[Mod] Steve » hi")
+
+    // **The message is somebody's own text and survives exactly as typed.** A
+    // global space-collapse was tried here first and turned "hello     there"
+    // into "hello there", which is the pack quietly editing what somebody said.
+    check("runs of spaces inside the message are untouched",
+        plain(render("format.chat", { TAG: "", NICKNAME: "Steve", MSG: "hello     there" })),
+        "Steve » hello     there")
+    // "Empty" means says-nothing, and that is deliberately judged the same way
+    // for every token: whitespace and bare colour codes count as empty. A
+    // message nobody typed should not hold a gap open either.
+    check("a whitespace-only token counts as empty, message included",
+        render("format.chat", { TAG: "", NICKNAME: "S", MSG: "   " }).includes("   "), false)
+    check("but one real character is a message",
+        render("format.chat", { TAG: "", NICKNAME: "S", MSG: "k" }).endsWith("k"), true)
+}
+
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

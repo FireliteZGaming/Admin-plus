@@ -56,6 +56,39 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.5.2 — 2026-09-11
+
+**Blanking a rank name now actually removes the tag.** Reported on CurseForge
+against the released build:
+
+> how can i disable the chat prefixes. Like the `General | [Member]` ones. I
+> tried removing the names from settings but it still shows `| []:` in dark grey
+
+They did the reasonable thing and the pack ignored them. `renderTag` built
+`[` + name + `]` whether or not there was a name to decorate, so clearing a rank
+left **`§8[]`** on every line — empty brackets in dark grey, and nothing in the
+settings that would take them away.
+
+A rank whose display says nothing now renders nothing. Whitespace and bare
+colour codes count as nothing too, since a half-deleted `§8` is exactly what
+gets left behind.
+
+And an **empty token takes its gap with it**, so the line does not start adrift
+where the tag used to be.
+
+**The message is never touched.** A global space-collapse was tried here first
+and turned `hello     there` into `hello there` — the pack quietly editing what
+somebody said. Only gaps left by empty tokens close; what a player typed
+survives exactly as typed, and a test pins that.
+
+### What is still manual
+
+The `|` in `General | [Member]` is a literal in `format.chatChannel`, not a
+token, so blanking names cannot remove it. For a plain line, set `format.chat`
+and `format.chatChannel` to `{NICKNAME}§7: §r{MSG}` in **Settings ▸ All
+values** — or turn **Chat channels** off in Settings ▸ Configuration, which
+switches from the channel format to the plain one.
+
 ## 2.5.1 — 2026-09-11
 
 **A guard on the version number itself**, because the rule for it was ignored
