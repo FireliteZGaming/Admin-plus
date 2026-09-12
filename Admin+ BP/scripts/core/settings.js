@@ -191,9 +191,9 @@ export const DEFAULTS = {
         value: "3", label: "Orbital strike: spiral turns", help: "how many times each arm winds round"
     },
     "nuke.height": {
-        value: "78",
+        value: "68",
         label: "Orbital strike: drop height",
-        help: "blocks above the target. This IS the timing — nothing can set a TNT fuse, so the fall is what lines them up to land together."
+        help: "blocks above the target. This IS the timing — nothing can set a TNT fuse, so the fall is what decides where they go off. Over about 70 they go off on the way down; from 80 they never land in time at all."
     },
     "nuke.range": {
         value: "300",

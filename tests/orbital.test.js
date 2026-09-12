@@ -3,7 +3,8 @@ import { setSetting, resetSetting, setting } from "../Admin+ BP/scripts/core/set
 import { setRanks, saveRank, whereToGrant, nodeLabels, PERMISSION_NODES } from "../Admin+ BP/scripts/core/ranks.js"
 import {
     canNuke, nukeBlockedBy, nukeMissing, nukeArmed, armNuke,
-    beatOffsets, fuseTicks, aimPoint, orbitalStrike, spiralPoints
+    beatOffsets, fuseTicks, aimPoint, orbitalStrike, spiralPoints,
+    fallTicks, TNT_FUSE, DROP_HEIGHT
 } from "../Admin+ BP/scripts/core/orbital.js"
 
 let passed = 0, failed = 0
@@ -202,6 +203,56 @@ console.log("\n— the spiral is a spiral —")
 
 armNuke(false)
 
+
+console.log("\n— they land before the fuse runs out, which is the whole trick —")
+// Reported from a world: "it only skins the surface". That was arithmetic, not
+// taste. A TNT fuse is 80 ticks and nothing can set it, so the drop height is
+// the only way to choose WHERE a shell goes off — and the old 78 blocks takes
+// 79 ticks to fall, so they detonated at the instant they arrived.
+//
+// So this asserts the RELATIONSHIP rather than the number: whatever the height
+// is set to, the fall has to finish with fuse left over. Pinning 68 would only
+// prove nobody changed it.
+{
+    // The old height, pinned as the thing that was wrong: 78 blocks is a
+    // 79-tick fall, one tick inside the fuse. And 80 blocks does not make it
+    // at all, which is why there is no room to simply drop it from higher.
+    check("the fall is modelled, not guessed: 78 blocks took 79 ticks",
+        fallTicks(78), 79)
+    check("and 80 blocks never lands in time", fallTicks(80) > TNT_FUSE, true)
+    check("the first blocks are slow, because it accelerates", fallTicks(1), 7)
+
+    const height = Number(setting("nuke.height"))
+    const landed = fallTicks(height)
+    check("the shells reach the ground before the fuse ends", landed < TNT_FUSE, true)
+    check("with enough left to be sitting on it, not skimming past",
+        TNT_FUSE - landed >= 5, true)
+    // The other end: a shell that lands with half its fuse to spare is a lit
+    // stick of TNT lying in the open for two seconds, which anyone can outrun.
+    check("but not so much that you could walk away from it",
+        TNT_FUSE - landed <= 20, true)
+    check("the shipped default is what the setting says", height, DROP_HEIGHT)
+    // High enough that you watch it come down. Below this it is a dropped
+    // block, not a strike.
+    check("and still a fall worth watching", height >= 40, true)
+
+    // The real path agrees with the arithmetic — the spawn height is what
+    // fallTicks was asked about, not a second number that drifted.
+    armNuke(true)
+    const p = holder()
+    p.getBlockFromViewDirection = () => ({ block: { location: { x: 0, y: 64, z: 30 } } })
+    __test.timers.length = 0
+    __test.spawned.length = 0
+    orbitalStrike(p)
+    __test.runTimers()
+    const tnt = __test.spawned.filter(e => e.typeId === "minecraft:tnt")
+    // Measured from the aim point, which sits ON the block rather than in it —
+    // that surface is the ground the shells are falling towards.
+    check("and the shells really do go up that far",
+        Math.round(tnt[0].location.y - aimPoint(p).y), height)
+    // Put the switch back the way the next section expects to find it.
+    armNuke(false)
+}
 
 console.log("\n— a locked item says everything it needs, and where —")
 // Reporting one lock per attempt is what made the Orbital Strike maddening: you

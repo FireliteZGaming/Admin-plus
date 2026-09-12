@@ -265,24 +265,62 @@ export function dropTnt(dimension, at) {
 }
 
 /**
+ * A primed TNT's fuse, in ticks. Bedrock exposes no way to change it, so this
+ * is a fact about the game rather than a knob.
+ */
+export const TNT_FUSE = 80
+
+/**
+ * How many ticks it takes a dropped entity to fall `blocks` blocks.
+ *
+ * Bedrock's falling motion is `v = (v + 0.04) * 0.98` every tick — it
+ * accelerates towards a terminal 1.96 b/t and takes most of a minute getting
+ * there, so the fall is nothing like `½gt²` and guessing at it is how the
+ * height went wrong in the first place.
+ */
+export function fallTicks(blocks) {
+    let speed = 0
+    let fallen = 0
+    for (let t = 1; t <= TNT_FUSE * 4; t++) {
+        speed = (speed + 0.04) * 0.98
+        fallen += speed
+        if (fallen >= blocks) return t
+    }
+    return Infinity
+}
+
+/**
+ * How high the shells start. **This is the timing, not a look.**
+ *
+ * Nothing sets a TNT fuse, so the only way to choose where a shell goes off is
+ * to choose how long it falls. The first number here was 78, which takes 79
+ * ticks to fall against an 80-tick fuse: the shells detonated at the instant
+ * they arrived, or a shade before, which is why the strike was reported as
+ * "only skins the surface". 68 lands them with about seven ticks of fuse left,
+ * so they are sitting ON the ground when they go — the same arrival, a crater
+ * instead of an airburst. `fallTicks` is what keeps the two honest, and the
+ * test asserts the margin rather than the number.
+ */
+export const DROP_HEIGHT = 68
+
+/**
  * Sow the spiral above a place, a slice at a time.
  *
  * Spread over several ticks because hundreds of entities appearing in one tick
  * is how a server stutters — and the reference strike takes a moment to bloom
  * anyway, which is better than instant.
  *
- * The height is chosen so the fall roughly matches a primed TNT's own fuse:
- * they arrive at the ground about when they were going to go off regardless,
- * which is what makes it land as ONE detonation rather than a shower of
- * airbursts. Nothing sets the fuse — Bedrock gives no API for it — so the
- * height IS the timing.
+ * The height is chosen so the fall lands them just INSIDE a primed TNT's own
+ * fuse: they arrive with a few ticks to spare and go off where they landed,
+ * which is what makes it read as ONE detonation rather than a shower of
+ * airbursts. See DROP_HEIGHT.
  */
 export function sowSpiral(dimension, target, opts = {}) {
     const count = opts.count ?? 320
     const arms = opts.arms ?? 5
     const radius = opts.radius ?? 48
     const turns = opts.turns ?? 3
-    const height = opts.height ?? 78
+    const height = opts.height ?? DROP_HEIGHT
     const perTick = opts.perTick ?? 25
 
     const points = spiralPoints(count, arms, radius, turns)
@@ -343,7 +381,7 @@ function detonate(dimension, target) {
             arms: Math.round(tuning("nuke.spiralArms", 5)),
             radius: tuning("nuke.spiralRadius", 48),
             turns: tuning("nuke.spiralTurns", 3),
-            height: tuning("nuke.height", 78)
+            height: tuning("nuke.height", DROP_HEIGHT)
         })
         safe(() => dimension.playSound("ambient.weather.lightning.impact", target))
         return shells

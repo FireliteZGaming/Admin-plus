@@ -56,6 +56,29 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.5.8 — 2026-09-12
+
+**The orbital strike went off too high, and the reason was arithmetic.**
+Reported from a world: it "only skins the surface".
+
+A primed TNT's fuse is 80 ticks and Bedrock gives no way to set it, so the drop
+height is not a look — it IS the timing, and it is the only say anyone has over
+where a shell detonates. The height was 78 blocks. A falling entity accelerates
+0.04 b/t against 0.98 drag, so 78 blocks takes **79 ticks**: the shells were
+going off at the instant they arrived, or a shade before. That is a surface
+burst.
+
+- Drop height **78 → 68**, which lands them with about seven ticks of fuse
+  left, so they are sitting ON the ground when they go.
+- The fall is now modelled rather than guessed: `fallTicks(blocks)` and
+  `TNT_FUSE` live in `core/orbital.js`, and the test asserts the MARGIN between
+  them — that the shells land with fuse to spare, but not so much you could
+  walk away — instead of pinning the number 68, which would only prove nobody
+  had changed it.
+- One constant, `DROP_HEIGHT`, behind both places that used to carry 78. The
+  `Orbital strike: drop height` setting still overrides it, and its help now
+  says where the airburst line is.
+
 ## 2.5.7 — 2026-09-12
 
 **`/eff` told nobody how to use it.** The target box was blank, offered nothing,
