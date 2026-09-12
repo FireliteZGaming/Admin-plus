@@ -3,6 +3,7 @@ import { menu, pagedMenu, modal, confirm, subtitle } from "../core/ui.js"
 import { hubTitle, hubButton, hubEntry } from "../core/theme.js"
 import { ok, err, info, formatDate, formatDuration } from "../core/util.js"
 import { has, canActOn, setRanks, restoreSnapshot } from "../core/ranks.js"
+import { allChannels, canUse } from "../core/channels.js"
 import { unban, unmute, setFrozen, setTpaClosed } from "../core/moderation.js"
 import { setNickname } from "../core/identity.js"
 import { replaceOverrides } from "../core/settings.js"
@@ -220,6 +221,41 @@ async function chatListScreen(player, title, lines, back) {
     })
 }
 
+/**
+ * May this person read a line back?
+ *
+ * **You can read back what you could have heard.** Channels are not all public
+ * — the comment in core/channels.js says so outright: a channel made later
+ * gates on its own node, "which is what lets a manager run a room most staff
+ * cannot read". Those lines were going into the log all the same, and the log
+ * asked only for `admin.logs`. So a moderator read back a room they cannot
+ * enter, off a screen captioned "Public chat only".
+ *
+ * Matched by id where the entry has one. Entries written before 2.3.0 do not,
+ * so their display name is matched against the live channels instead; a line
+ * from a channel that no longer exists is treated as restricted, because the
+ * one thing that must not happen is defaulting an unknown room to readable.
+ */
+function canReadChatLine(player, entry) {
+    const channels = allChannels()
+    const byId = entry.channelId
+        ? channels.find(c => c.id === entry.channelId)
+        : undefined
+    const found = byId ?? (entry.channel
+        ? channels.find(c => String(c.display ?? "").replace(/§./g, "") === entry.channel)
+        : undefined)
+    // No channel at all on the entry means the world had none when it was
+    // said — single-channel worlds log a bare line, and that IS the public one.
+    if (!entry.channel && !entry.channelId) return true
+    if (!found) return has(player, "chat.viewall")
+    return canUse(player, found)
+}
+
+/** The lines this person is allowed to see, in the order they came. */
+function readableChat(player, entries) {
+    return entries.filter(entry => canReadChatLine(player, entry))
+}
+
 async function chatScreen(player, back) {
     const again = () => chatScreen(player, back)
     const kept = chatLogSize()
@@ -228,10 +264,10 @@ async function chatScreen(player, back) {
         title: hubTitle("chat", "Chat log"),
         body: [
             subtitle(kept ? `${kept} lines kept.` : "Nothing recorded yet."),
-            "§8Public chat only — private messages are never recorded."
+            "§8Private messages are never recorded, and you only see rooms you can enter."
         ].join("\n"),
         buttons: [
-            { text: hubEntry("chat", "Recent", "Everything said, newest first"), run: () => chatListScreen(player, "Recent chat", recentChat(150), again) },
+            { text: hubEntry("chat", "Recent", "Everything said, newest first"), run: () => chatListScreen(player, "Recent chat", readableChat(player, recentChat(150)), again) },
             { text: hubEntry("chat", "Search", "Find a word, or everything one person said"), run: () => chatSearchScreen(player, again) },
             has(player, "admin.settings")
                 ? { text: hubEntry("actions", "Clear the chat log", "Throws away every line kept"), run: () => clearChatScreen(player, again) }
@@ -248,7 +284,7 @@ async function chatSearchScreen(player, back) {
     if (!values) return back()
     const text = String(values.text ?? "").trim()
     if (!text) return back()
-    return chatListScreen(player, `Chat · "${text}"`, searchChat(text, 150), back)
+    return chatListScreen(player, `Chat · "${text}"`, readableChat(player, searchChat(text, 150)), back)
 }
 
 async function clearChatScreen(player, back) {
@@ -277,7 +313,7 @@ async function peopleScreen(player, back) {
 async function personScreen(player, person, back) {
     const received = about(person.id)
     const did = by(person.id)
-    const said = chatBy(person.id, 150)
+    const said = readableChat(player, chatBy(person.id, 150))
     return menu(player, {
         title: hubTitle("settings", person.name),
         body: [

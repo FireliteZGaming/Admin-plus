@@ -61,6 +61,10 @@ export function noteChat(sender, message, channel) {
         who: sender?.id,
         name: sender?.name ?? "?",
         channel: String(channel?.display ?? "").replace(/§./g, "") || undefined,
+        // The ID as well as the display name, because who may READ a line back
+        // is decided by which room it was said in — and a display name is a
+        // label an owner can rename, while the id is what canUse() answers on.
+        channelId: channel?.id,
         text
     }
     log.set("lines", [entry, ...lines()].slice(0, cap()))

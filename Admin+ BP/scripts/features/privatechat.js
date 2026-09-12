@@ -2,7 +2,7 @@ import { world, CustomCommandParamType } from "@minecraft/server"
 import { command } from "../core/registry.js"
 import { CONFIG } from "../config.js"
 import { ok, err, info } from "../core/util.js"
-import { has, primaryRank, isStaff } from "../core/ranks.js"
+import { has, primaryRank, isStaff, canSeeActionsOf } from "../core/ranks.js"
 import { displayName, nameTokens } from "../core/identity.js"
 import { isMuted } from "../core/moderation.js"
 import { pref, PREFS } from "../core/prefs.js"
@@ -124,6 +124,16 @@ command({
  * Never to the two people already in the conversation, and never to a spy who
  * has since lost the node — the toggle is persisted, so a demoted moderator
  * would otherwise keep reading.
+ *
+ * **And never upward.** `chat.spy` used to be the whole test, so a moderator
+ * holding it read an OWNER's private messages — the same leak the staff notices
+ * had, except carrying actual conversation rather than a notification.
+ *
+ * A conversation has two ends and BOTH must be visible to the watcher. An owner
+ * messaging a member is not readable by a moderator just because the member is
+ * beneath them: the line contains what the owner said. Hence canSeeActionsOf on
+ * each participant — the seeing rule, equal-or-below, so peers still watch each
+ * other and only what is above you closes.
  */
 function spy(from, to, text, kind) {
     const label = kind === "prchat" ? "prchat" : "pm"
@@ -138,6 +148,7 @@ function spy(from, to, text, kind) {
         if (viewer.id === from.id || viewer.id === to.id) continue
         if (!watching.has(viewer.id)) continue
         if (!has(viewer, "chat.spy")) continue
+        if (!canSeeActionsOf(viewer, from) || !canSeeActionsOf(viewer, to)) continue
         viewer.sendMessage(line)
     }
     console.log(`[Admin+] [${label}] ${from.name} -> ${to.name}: ${text}`)

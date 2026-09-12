@@ -56,6 +56,54 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.3.0 — 2026-09-11
+
+**Two ways a moderator could read upward, both closed.** The question that found
+them: *can a mod see a prchat between an owner and a member?* The answer was
+yes.
+
+A minor rather than a patch because the chat log now records a field it did not
+have, and reading it back is gated where it never was.
+
+### Social spy looked in every direction
+
+`spy()` checked `chat.spy` and nothing else, so a moderator holding it read an
+**owner's** private messages and `/prchat` sessions, live. Same leak the staff
+notices had before 2.1.x — except carrying the actual conversation rather than a
+notification about one.
+
+**A conversation has two ends, and both must be visible to the watcher.** An
+owner messaging a member is not readable by a moderator just because the member
+is beneath them: the line contains what the owner said. So both participants go
+through `canSeeActionsOf` — the seeing rule, equal-or-below, so peers still
+watch each other and only what is above you closes.
+
+This is why the audit in 2.2.9 let `/prchat` and `/pm` through with "a message
+is not something done *to* somebody". That was true about **sending** one. It
+said nothing about **watching** one, and watching was the hole.
+
+### The chat log gave back rooms you cannot enter
+
+Channels are not all public. `core/channels.js` says it outright — a channel
+made later gates on its own node, *"which is what lets a manager run a room most
+staff cannot read"*. Those lines went into the log all the same, and the log
+asked only for `admin.logs`. So a moderator read back a manager-only room, off a
+screen captioned **"Public chat only"**.
+
+You can read back what you could have heard. Every one of the three doors into
+the stored chat filters now — Recent, Search, and one person's own history —
+because a single unfiltered door is the whole leak.
+
+Entries record the channel's **id** as well as its display name, since a display
+name is a label an owner can rename while the id is what `canUse()` answers on.
+Lines written before this version have no id, so their display name is matched
+against the live channels instead — and a line from a room that no longer exists
+is treated as **restricted**, because the one thing that must not happen is
+defaulting an unknown room to readable.
+
+The caption now says what is true: private messages are never recorded, and you
+only see rooms you can enter.
+
 ## 2.2.9 — 2026-09-11
 
 **Every command audited against the hierarchy rules.** All 55 pack commands

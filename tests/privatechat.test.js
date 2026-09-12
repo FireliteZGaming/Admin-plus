@@ -1,5 +1,6 @@
 import { __test } from "@minecraft/server"
-import { onPlayerJoin, setRanks, has, applyPreset, PERMISSION_NODES } from "../Admin+ BP/scripts/core/ranks.js"
+import { onPlayerJoin, setRanks, has, applyPreset, PERMISSION_NODES, canSeeActionsOf } from "../Admin+ BP/scripts/core/ranks.js"
+import { readFileSync } from "node:fs"
 import {
     setReplyTarget, replyTarget, rememberExchange, clearReplyTarget,
     isSpying, setSpying, toggleSpying, spyIds,
@@ -141,6 +142,63 @@ check("and names both ends", setting("format.spy").includes("{TO}"), true)
 // are indistinguishable.
 check("the session line names both people", setting("format.prchat").includes("{PAIR}"), true)
 check("and carries the speaker's rank tag", setting("format.prchat").includes("{TAG}"), true)
+
+
+console.log("\n— watching a private conversation never looks upward —")
+// chat.spy used to be the whole test, so a moderator holding it read an
+// OWNER's private messages and /prchat sessions. Same leak the staff notices
+// had, except carrying actual conversation instead of a notification.
+//
+// A conversation has two ends and BOTH have to be visible: an owner messaging
+// a member is not readable by a moderator just because the member is beneath
+// them, because the line contains what the OWNER said.
+{
+    const src = readFileSync(
+        new URL("../Admin+ BP/scripts/features/privatechat.js", import.meta.url), "utf8")
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, "")
+        .split("\n").filter(l => !l.trim().startsWith("//")).join("\n")
+
+    check("the node alone no longer decides who sees a PM",
+        /canSeeActionsOf\(viewer, from\)/.test(code), true)
+    check("and BOTH ends are checked, not just the sender",
+        /canSeeActionsOf\(viewer, to\)/.test(code), true)
+    // The rule itself, exercised rather than described.
+    const owner = { id: "spy-own", name: "Own", getTags: () => [], commandPermissionLevel: 1 }
+    const mod = { id: "spy-mod", name: "Mod", getTags: () => [], commandPermissionLevel: 0 }
+    setRanks(mod.id, ["Member"], mod.name)
+    check("a moderator cannot see an operator's side", canSeeActionsOf(mod, owner), false)
+    check("but an operator sees theirs", canSeeActionsOf(owner, mod), true)
+}
+
+console.log("\n— and the chat log only gives back rooms you could enter —")
+// Channels are not all public: core/channels.js says a channel made later
+// gates on its own node, "which is what lets a manager run a room most staff
+// cannot read". Those lines went into the log all the same, and the log asked
+// only for admin.logs — so a moderator read back a room they cannot enter,
+// off a screen captioned "Public chat only".
+{
+    const src = readFileSync(
+        new URL("../Admin+ BP/scripts/features/logsUI.js", import.meta.url), "utf8")
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, "")
+        .split("\n").filter(l => !l.trim().startsWith("//")).join("\n")
+
+    // Three doors reach the stored chat, and every one of them has to filter —
+    // Recent, Search, and the per-player screen. One unfiltered door is the
+    // whole leak.
+    // Counted by the SOURCE each door reads from rather than by the helper's
+    // name — the definition is readableChat(player, entries) and would
+    // otherwise count itself as a fourth door.
+    check("every door into the chat log filters",
+        (code.match(/readableChat\(player, (recentChat|searchChat|chatBy)/g) ?? []).length, 3)
+    check("recent is filtered", /readableChat\(player, recentChat/.test(code), true)
+    check("search is filtered", /readableChat\(player, searchChat/.test(code), true)
+    check("and so is one person's own history",
+        /readableChat\(player, chatBy/.test(code), true)
+    check("an unknown room is treated as restricted, not as readable",
+        /if \(!found\) return has\(player, "chat.viewall"\)/.test(code), true)
+    check("the caption no longer claims public chat only",
+        code.includes("Public chat only"), false)
+}
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)
