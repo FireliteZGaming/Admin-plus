@@ -44,18 +44,10 @@ console.log("\n— the locks, and which of them actually lock —")
 // The node is the exception, and the tests below say so out loud rather than
 // letting the count read as four independent keys.
 {
-    setSetting("feature.troll", "true")
     armNuke(true)
     const full = holder()
-    check("all four present, and it fires", canNuke(full), true)
+    check("everything present, and it fires", canNuke(full), true)
     check("with nothing to report", nukeBlockedBy(full), undefined)
-
-    setSetting("feature.troll", "false")
-    check("the troll section off closes it", canNuke(full), false)
-    // The message comes from core/trollgate.js now, shared with /smite and the
-    // stick, and it names where to go rather than just what is shut.
-    check("and says which lock", nukeBlockedBy(full).includes("Settings"), true)
-    setSetting("feature.troll", "true")
 
     armNuke(false)
     check("disarmed closes it", canNuke(full), false)
@@ -127,7 +119,6 @@ console.log("\n— aiming —")
 
 console.log("\n— the strike itself —")
 {
-    setSetting("feature.troll", "true")
     armNuke(true)
     const p = holder()
     p.getBlockFromViewDirection = () => ({ block: { location: { x: 0, y: 64, z: 30 } } })
@@ -179,7 +170,6 @@ console.log("\n— the strike itself —")
         orbitalStrike({ id: "gone" }), false)
 }
 
-resetSetting("feature.troll")
 armNuke(false)
 
 console.log(`\n${passed} passed, ${failed} failed\n`)

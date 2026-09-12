@@ -9,10 +9,12 @@ import { record } from "../core/logs.js"
 
 // Troll commands — off by default, behind one switch.
 //
-// The whole section answers to `feature.troll`, and it ships FALSE. A pack that
-// arrives with troll commands live is a pack that hands a new owner a way to
-// annoy people before they have decided they want one. Turning it on is a
-// deliberate act in Settings ▸ Troll commands.
+// The whole section answers to `admin.troll`, on the rank. A world that wants
+// no troll tools gives that node to nobody, which is the same decision a
+// separate world-level switch used to ask for a second time — in a different
+// screen, with different words, and with an operator silently passing one half
+// and failing the other. One switch, where people already go to decide who may
+// do what.
 //
 // `/smite` is the first of them, and the most recognisable troll command there
 // is — it is the one Skeppy is known for. It also has a real consequence, which

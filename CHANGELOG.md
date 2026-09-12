@@ -56,6 +56,61 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.5.3 — 2026-09-12
+
+**One switch for troll tools, and the chest stops hiding things.** Found by
+opening `/items` as an operator and seeing three of seven, bunched in a clump.
+
+### The world switch is gone
+
+`feature.troll` was a second gate beside the rank node, and it was the wrong
+shape twice over.
+
+It confused exactly the person it was meant to protect. `has()` lets an operator
+through any rank node, so the ladder half passed and the world half failed —
+**silently**. The four missing items did not look switched off, they looked like
+they did not exist, and the switch that would have brought them back was not in
+that window.
+
+And it asked a question the ranks already answer. *"Does this world have troll
+tools"* is not separate from *"which ranks may use them"*: a world that wants
+none gives the node to nobody. Same decision, made once, in the place people
+already go to decide who may do what.
+
+So there is one switch: **`admin.troll`**, in Settings ▸ Ranks ▸ the rank ▸ Staff
+tools. No shipped preset grants it, so out of the box troll tools reach owners
+and operators only — the same protection the old default-off switch gave.
+
+`/sudo` came along too. It had **its own `admin.sudo` node** on the theory that
+an owner might hand out troll tools while withholding that one — a distinction
+nobody asked for, guarding a hypothetical, and a second thing to find and
+understand for no gain. It answers to `admin.troll` now, and the dead node is
+out of the node list, the bundles, and the two shipped ladders that granted it.
+(That last one touches the presets, which are normally left alone — but a grant
+for a node nothing checks is a lie in a list people read.)
+
+### The chest shows everything, and says why
+
+Leaving out what you cannot take read as *"there are three admin items"* — a
+statement about the pack, and false. Locked rows now appear greyed with the
+reason on them, and the reason names the switch rather than the symptom, because
+the point of showing a locked row is that you can go and unlock it. The check is
+re-asked when you tap, so a window left open is not a way in.
+
+### And they are spread out
+
+Seven in one nine-wide row had to sit shoulder to shoulder. They are on **two
+rows** now, grouped by what the thing is and spaced two apart:
+
+```
+. . H . T . E . .      hammer · teleport · eye
+. O . T . K . M .      orbital · trident · knockback · mirror
+```
+
+The layout test asks for the rule — on a row, evenly spaced, gaps of at least
+two, centred — rather than for a list of numbers, so a new item fails it for a
+real reason instead of for changing a constant.
+
 ## 2.5.2 — 2026-09-11
 
 **Blanking a rank name now actually removes the tag.** Reported on CurseForge

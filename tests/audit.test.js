@@ -116,11 +116,21 @@ console.log("\n— sudo is narrower than everything else —")
 // A Mod2 is level with Mod and outranks a Member, so it would normally hear
 // about a kick. Sudo is the exception: anyone who learns of it can simply tell
 // the target, which ends the command's usefulness, so it is limited to holders
-// of admin.sudo.
+// of admin.troll.
+//
+// It used to have its own admin.sudo node. That was a second switch guarding a
+// distinction nobody asked for — "hand out troll tools but not this one" — so
+// it went, and sudo answers to the node that gates every other prank.
+//
+// No shipped preset grants admin.troll, so out of the box this reaches owners
+// and operators only. That is the same protection the old world-level
+// feature.troll switch gave, expressed once and in the place people already go
+// to decide who may do what.
 check("the Mod hears about a kick", names(audienceFor(mod, member, "mod.kick")).includes("Mod2"), true)
 check("but not about a sudo", names(audienceFor(admin, member, "player.sudo")).includes("Mod"), false)
-check("holders of admin.sudo do", names(audienceFor(admin, member, "player.sudo")), ["Admin2", "Owner"])
-check("mod genuinely lacks the node", has(mod, "admin.sudo"), false)
+check("and by default only an owner does", names(audienceFor(admin, member, "player.sudo")), ["Owner"])
+check("mod genuinely lacks the node", has(mod, "admin.troll"), false)
+check("and so does an admin, until somebody grants it", has(admin, "admin.troll"), false)
 
 console.log("\n— things that are never announced —")
 check("a report does not double-announce", audienceFor(member, mod, "report.filed"), [])

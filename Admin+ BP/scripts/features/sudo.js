@@ -5,7 +5,7 @@ import { canActOn } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
 import { postToChannel } from "./chat.js"
 import { activeChannel } from "../core/channels.js"
-import { flag } from "../core/settings.js"
+import { trollBlockedBy } from "../core/trollgate.js"
 import { record } from "../core/logs.js"
 import { phraseFor } from "../core/audit.js"
 
@@ -15,10 +15,11 @@ import { phraseFor } from "../core/audit.js"
 //   /sudo Nova "hi everyone"     they say it, indistinguishable from typing it
 //   /sudo Nova "/kill @s"        they RUN it, at their own permission level
 //
-// It is a TROLL command, and answers to `feature.troll` like the rest of that
-// section — off by default. The speak form is a prank by definition, so the
-// switch that gates the pranks gates this too; keeping its own admin.sudo node
-// means an owner still chooses WHO may use it once the section is on.
+// It is a TROLL command and answers to `admin.troll`, the same node as the
+// rest of them. It used to carry `admin.sudo` as well, on the theory that an
+// owner might want to hand out troll tools while withholding this one — a
+// distinction nobody asked for, guarding a hypothetical, and a second switch to
+// find and understand for no gain. One node.
 //
 // Two things keep this honest rather than dangerous:
 //   * rank protection — you cannot sudo anyone at or above your own ladder row,
@@ -28,7 +29,7 @@ import { phraseFor } from "../core/audit.js"
 //
 // Every use is written to the content log, and senior staff are told in chat —
 // through core/audit.js, which gives sudo a NARROWER audience than any other
-// action: holders of admin.sudo only. Anyone else who read "X used sudo on Y"
+// action: holders of admin.troll only. Anyone else who read "X used sudo on Y"
 // could simply go and tell Y, which would end the command's usefulness.
 
 const MAX_LENGTH = 256
@@ -36,15 +37,14 @@ const MAX_LENGTH = 256
 command({
     name: "sudo",
     description: 'Make a player say something — /sudo <player> "message"',
-    perm: "admin.sudo",
+    perm: "admin.troll",
     mandatory: [
         { name: "player", type: CustomCommandParamType.PlayerSelector },
         { name: "message", type: CustomCommandParamType.String }
     ],
     run: (player, [selected, message]) => {
-        if (!flag("feature.troll")) {
-            return err(player, "Troll commands are switched off. An owner turns them on in Settings ▸ Troll commands.")
-        }
+        const shut = trollBlockedBy(player)
+        if (shut) return err(player, shut)
 
         const targets = selected ?? []
         if (!targets.length) return err(player, "No player matched that selector.")

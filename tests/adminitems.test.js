@@ -41,22 +41,34 @@ check("and answers to the teleport node, not staff mode",
 check("its blurb says you pick who to jump to",
     ITEMS.eye.lines.some(l => l.includes("pick who you jump to")), true)
 check("and that looking somewhere still works",
-    ITEMS.eye.lines.some(l => l.includes("looking at")), true)
-// Row two of a large chest is slots 9-17; these want to be spread across it
-// rather than bunched, because they are picked by eye. Written as the RULE
-// rather than as the current list, so adding a sixth item fails here for the
-// real reason — it no longer fits evenly — instead of failing on a number.
+    ITEMS.eye.lines.some(l => l.includes("looking at")), true)// The chest is TWO rows now, grouped by what the thing is: the everyday tools
+// on one, the combat set on the other. Seven items in one nine-wide row had to
+// sit shoulder to shoulder, and with half of them locked they bunched into a
+// clump — which is what it looked like in the world.
+//
+// Written as the rule, so a new item fails here for a real reason: it landed
+// outside a row, or it broke the spacing of the row it joined.
 {
-    const slots = defs.map(d => d.slot).sort((a, b) => a - b)
-    check("every item is in row two of a large chest",
-        slots.filter(s => s < 9 || s > 17), [])
-    const gaps = slots.slice(1).map((s, i) => s - slots[i])
-    check("and they are evenly spaced across it", new Set(gaps).size <= 1, true)
-    // Centred to within one slot. A row nine wide cannot hold an EVEN number
-    // of items with the same gap at both ends, so demanding exact symmetry
-    // would fail on every even count rather than on a real layout mistake.
-    check("the row is centred, as near as the count allows",
-        Math.abs((slots[0] - 9) - (17 - slots.at(-1))) <= 1, true)
+    const rowOf = slot => Math.floor(slot / 9)
+    const byRow = new Map()
+    for (const def of defs) {
+        const row = rowOf(def.slot)
+        byRow.set(row, [...(byRow.get(row) ?? []), def.slot])
+    }
+
+    check("the items live on two rows", byRow.size, 2)
+    for (const [row, slots] of byRow) {
+        const start = row * 9
+        const sorted = [...slots].sort((a, b) => a - b)
+        check(`row ${row + 1}: nothing spills out of it`,
+            sorted.filter(s => s < start || s > start + 8), [])
+        const gaps = sorted.slice(1).map((s, i) => s - sorted[i])
+        check(`row ${row + 1}: evenly spaced`, new Set(gaps).size <= 1, true)
+        // Spread out, not shoulder to shoulder — that was the complaint.
+        check(`row ${row + 1}: with a gap between them`, gaps.every(g => g >= 2), true)
+        check(`row ${row + 1}: centred, as near as the count allows`,
+            Math.abs((sorted[0] - start) - (start + 8 - sorted.at(-1))) <= 1, true)
+    }
 }
 check("no two items share an item type", new Set(defs.map(d => d.typeId)).size, defs.length)
 check("every item has a gate", defs.every(d => typeof d.gate === "function"), true)
@@ -236,7 +248,6 @@ console.log("\n— one rod, one strike —")
 // The whole reason a thing this size can sit in an item slot: using it spends
 // it. A rod that survived its own strike would be an artillery battery.
 {
-    setSetting("feature.troll", "true")
     armNuke(true)
 
     const slots = new Map()
@@ -293,7 +304,6 @@ console.log("\n— one rod, one strike —")
     __test.runTimers()
     check("nor does it fire", __test.explosions.length, 0)
 
-    resetSetting("feature.troll")
 }
 
 
@@ -357,7 +367,6 @@ console.log("\n— one gate per item, and it is the rank's answer —")
         return ITEMS[key].gate(p)
     }
 
-    setSetting("feature.troll", "true")
     check("the hammer wants permanent-ban", gateOf("hammer", ["admin.banperm"]), true)
     check("and refuses without it", gateOf("hammer", ["admin.staffmode"]), false)
 
@@ -378,10 +387,12 @@ console.log("\n— one gate per item, and it is the rank's answer —")
         check("and " + key + " refuses on staff mode alone",
             gateOf(key, ["admin.staffmode"]), false)
     }
-    setSetting("feature.troll", "false")
-    check("and the owner's section switch takes it back",
-        gateOf("knockback", ["admin.troll"]), false)
-    resetSetting("feature.troll")
+    // There is no second switch any more. A world that wants no troll tools
+    // gives the node to nobody — the same decision, made once, in the place
+    // people already go to decide who may do what. The world-level
+    // feature.troll made an operator pass one half and fail the other, so the
+    // items read as missing rather than as switched off.
+    check("the node is the only switch", gateOf("knockback", []), false)
 
     // Nothing allowed means /items refuses rather than opening empty — the
     // command has no perm of its own, so this filter IS the permission check.
@@ -445,7 +456,6 @@ console.log("\n— the Spectral Trident: thrown, tagged, and answered —")
 // from the throw we just saw. That chain is what these exercise: release,
 // spawn, hit.
 {
-    setSetting("feature.troll", "true")
     const thrower = {
         id: "trident-thrower", name: "Thrower",
         getTags: () => ["Dev", "ap:rank:Owner"],
@@ -526,7 +536,6 @@ console.log("\n— the Spectral Trident: thrown, tagged, and answered —")
 
     clearStorms()
     __test.players.pop()
-    resetSetting("feature.troll")
 }
 
 console.log("\n— ten swirls, each its own —")

@@ -166,11 +166,6 @@ export const DEFAULTS = {
         label: "Creator & Dev console",
         help: "true / false · lets the pack's Creator and anyone with the Dev tag open a command console in /menu. Bounded by the vanilla-command whitelist below, cannot /op, and every use is logged to the owner. On by default; turn it off to close it."
     },
-    "feature.troll": {
-        value: "false",
-        label: "Troll commands",
-        help: "true / false · ships OFF. Turning it on is a deliberate act, not something a new world inherits."
-    },
     "nuke.radius": {
         value: "12",
         label: "Orbital strike size",
@@ -264,7 +259,7 @@ export const DEFAULTS = {
     "audit.announce": {
         value: "true",
         label: "Announce staff actions in chat",
-        help: "true / false · seen only by staff who outrank the target, never by the target. Sudo is narrower still — only holders of admin.sudo."
+        help: "true / false · seen only by staff who outrank the target, never by the target. Sudo goes only to holders of admin.troll."
     },
     "invsee.iconOffset": {
         value: "0",

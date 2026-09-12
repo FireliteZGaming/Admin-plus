@@ -11,7 +11,7 @@ import { isVanished } from "../core/vanish.js"
 import { worldToken, makeBanHammer, HAMMER_NAME } from "../core/banhammer.js"
 import { setting } from "../core/settings.js"
 import { canNuke, nukeBlockedBy, orbitalStrike } from "../core/orbital.js"
-import { trollAllowed } from "../core/trollgate.js"
+import { trollAllowed, trollBlockedBy } from "../core/trollgate.js"
 import {
     TRIDENT_TAG, noteThrow, claimThrow, forgetThrows, beginStorm,
     installTridentEffects
@@ -55,7 +55,7 @@ const ITEMS = {
     // core/orbital.js for why each one is a different kind of claim.
     orbital: {
         barSlot: 3,
-        slot: 10,
+        slot: 28,
         gate: p => canNuke(p),
         make: () => signItem("minecraft:fishing_rod", "§4§lOrbital Strike",
             "§7Aim at something far away and use it once."),
@@ -78,7 +78,7 @@ const ITEMS = {
     },
     teleport: {
         barSlot: 0,
-        slot: 12,
+        slot: 13,
         gate: p => has(p, "admin.tp"),
         make: () => signItem("minecraft:compass", "§b§lTeleport", "§7Use it to jump to a random player."),
         name: "§b§lTeleport",
@@ -101,7 +101,7 @@ const ITEMS = {
     // `/port` hands one over; so does /items.
     eye: {
         barSlot: 1,
-        slot: 13,
+        slot: 15,
         gate: p => has(p, "admin.tp"),
         make: () => signItem("minecraft:ender_eye", "§d§lEnder Eye",
             "§7Use it to pick who you jump to."),
@@ -124,7 +124,7 @@ const ITEMS = {
     // YOU instead of the trident, which would leave the whole thing inert.
     trident: {
         barSlot: 5,
-        slot: 14,
+        slot: 30,
         // TWO gates, and they answer different questions. This one is who may
         // TAKE it — the combat toys, behind the troll section and the ladder's
         // troll node. Who you may HIT with it is asked again when it lands, and
@@ -151,7 +151,7 @@ const ITEMS = {
     // life once and is a fine thing to be left holding.
     mirror: {
         barSlot: 6,
-        slot: 16,
+        slot: 34,
         // Same gate as the Spectral Trident, because they are the same
         // category seen from both ends: one is what you throw, the other is
         // what you hold when somebody throws theirs. Splitting them would mean
@@ -165,7 +165,7 @@ const ITEMS = {
     },
     knockback: {
         barSlot: 2,
-        slot: 15,
+        slot: 32,
         // A troll tool, and gated as one since 2.2.4. It used to answer to
         // admin.staffmode, which meant every staff member got it whatever the
         // ladder said and switching the troll section off did not take it away.
@@ -175,6 +175,27 @@ const ITEMS = {
         lines: ["§7Hit somebody to send them flying."],
         typeId: "minecraft:stick"
     }
+}
+
+/**
+ * Why this person cannot take that item, in a sentence — or undefined.
+ *
+ * The chest used to LEAVE OUT anything you could not take, which read as "there
+ * are three admin items" — a statement about the pack, and false. An operator
+ * saw three of seven with nothing to tell them the rest existed.
+ *
+ * Every reason names the switch rather than the symptom, because the point of
+ * showing a locked row at all is that you can go and unlock it.
+ */
+function lockedReason(player, key) {
+    const def = ITEMS[key]
+    if (!def || def.gate(player)) return undefined
+    if (key === "orbital") return nukeBlockedBy(player) ?? "it isn't armed"
+    const troll = trollBlockedBy(player)
+    if (troll) return troll
+    if (key === "hammer") return "your rank can't ban permanently"
+    if (key === "teleport" || key === "eye") return "your rank doesn't hold teleport"
+    return "your rank doesn't allow it"
 }
 
 function safe(fn, fallback) {
@@ -271,11 +292,16 @@ command({
         // Only the slots this person is allowed to take. An empty chest means
         // their rank grants none of them, which is worth saying rather than
         // showing a blank window.
-        // Nothing allowed is a REFUSAL, not an empty cupboard. An empty chest
-        // reads as "there are no items", which is a statement about the pack;
-        // the true statement is about this rank.
-        const offered = Object.entries(ITEMS).filter(([, def]) => def.gate(player))
-        if (!offered.length) {
+        // **Everything is shown; what you cannot take says why.**
+        //
+        // Hiding the locked ones made a switch you have not flipped look like a
+        // feature that does not exist — and the switch is not in this window,
+        // so there was nothing to follow. A greyed row with the reason on it is
+        // the whole difference.
+        const rows = Object.entries(ITEMS).map(([key, def]) => ({
+            key, def, locked: lockedReason(player, key)
+        }))
+        if (rows.every(row => row.locked)) {
             return err(player, "You don't have permission to use any admin items. §7Ask an owner for a tool node under Settings ▸ Ranks ▸ Staff tools.")
         }
 
@@ -284,8 +310,12 @@ command({
         // INDEX, and ChestForm lays buttons out one per slot in order, so the
         // index is the slot number.
         const bySlot = new Map()
-        for (const [key, def] of offered) {
-            chest.button(def.slot, def.name, def.lines, def.typeId)
+        for (const { key, def, locked } of rows) {
+            chest.button(
+                def.slot,
+                locked ? `§8${def.name.replace(/§./g, "")}` : def.name,
+                locked ? [`§c${locked}`] : def.lines,
+                def.typeId)
             bySlot.set(def.slot, key)
         }
 
@@ -293,6 +323,11 @@ command({
             if (res.canceled || typeof res.selection !== "number") return
             const key = bySlot.get(res.selection)
             if (!key) return
+            // Re-asked rather than trusted from when the window was drawn: it
+            // may have been open a while, and a locked row must not become a
+            // way in just because somebody left it sitting there.
+            const locked = lockedReason(player, key)
+            if (locked) return info(player, `§7${ITEMS[key].name}§7 — §c${locked}`)
             give(player, key)
         }).catch(e => console.warn(`[Admin+] /items form failed: ${e}`))
     }
