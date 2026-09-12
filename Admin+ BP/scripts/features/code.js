@@ -426,8 +426,20 @@ async function blockScreen(player, back) {
     }
 
     if (blockHasNoConfig(values.block)) {
+        // **Say what probably happened, not just what did.** Reported from a
+        // world: somebody changed one token, got "no config in it", and had no
+        // way to know the box had not been a real editor. The commonest cause
+        // is by far the likeliest thing to be wrong — this screen is only a
+        // multi-line editor because the RESOURCE pack overrides the form, so
+        // without it the document arrives as one line and comes back mangled.
         err(player, "That came back with no config in it — nothing was saved.")
-        info(player, "§7To clear every change on purpose: §fSettings ▸ Factory Reset§7.")
+        info(player, [
+            "§7Was the box one line instead of a tall editor? Then the Admin+",
+            "§7§oresource§r§7 pack is not on in this world — it is what makes this",
+            "§7screen an editor at all. Turn it on, or use §fSettings ▸ All values§7,",
+            "§7which edits the same keys one field at a time and needs no pack.",
+            "§8To clear every change on purpose: Settings ▸ Factory Reset."
+        ].join("\n"))
         return back()
     }
 

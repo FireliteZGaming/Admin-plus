@@ -56,6 +56,22 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.5.14 — 2026-09-12
+
+**`< Code >` refused an edit and explained nothing.** Reported from a world:
+changing `{NICKNAME}` to `{NAME}` came back as *"That came back with no config
+in it — nothing was saved."*
+
+The guard was right and the config was never at risk — that message exists so a
+mangled document cannot silently factory-reset every setting. What it did not
+say is the one thing worth knowing: **this screen is only a multi-line editor
+because the RESOURCE pack overrides the form.** Without the RP on — a world
+running only the behaviour pack, for instance — it falls back to a plain
+one-line box, and a sixty-line document does not survive that.
+
+The refusal now says so, and points at `Settings ▸ All values`, which edits the
+same keys one field at a time and needs no resource pack at all.
+
 ## 2.5.13 — 2026-09-12
 
 **The player picker is back on the moderation commands.** Asked for directly:
