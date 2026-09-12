@@ -57,6 +57,70 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.2.5 — 2026-09-11
+
+**Nothing reaches above you.** The ladder is now asked by everything that acts
+on a player, and it answers the same way everywhere: **your equals and everyone
+below you, yes. Anyone above you, never. Operators, anyone.**
+
+### The rule changed: equals are in
+
+`canActOn` was strictly-above, so two moderators could not moderate each other
+and a mod could not knock a peer about. It is equal-or-below now.
+
+The consequence is worth stating plainly rather than discovering: **a peer can
+ban a peer.** That is the stated rule, and the ladder is how you change it — give
+the people who should be untouchable a heavier rank, not an equal one. A config
+owner is still immune to everyone, online or not, and an operator still acts on
+anyone but a config owner.
+
+Nothing failed when this changed, because **no test pinned the equal case** —
+which is how a rule can be inverted without anything noticing. It is pinned now,
+both directions, plus the operator bypass.
+
+### The 54 vanilla passthroughs had no rank protection at all
+
+This is the real hole. Every command in the panel and every pack command checked
+`canActOn`. The passthroughs checked **nothing** — so a moderator could `/slay`
+an owner, `/eff` them poison, `/dmg` them, `/label` them or `/move` them into
+the void. The permission node said who may use `/slay`; nothing said who they
+may use it *on*.
+
+One filter, at the point the selector is resolved, covers all 54. Mobs are
+untouched — a zombie has no rank — so `/slay @e[family=monster]` behaves exactly
+as before. When a selector matches people you may not touch:
+
+- **all of them outrank you** — refused outright, so the command cannot report a
+  cheerful "0 affected" for what was a permission failure
+- **some of them do** — the rest go through and you are told who was skipped.
+  Silently trimming the set would make `/slay @a` look like it worked on
+  everybody.
+
+### The Ban Hammer was protecting the wrong people
+
+It had one guard, and it was not the ladder: anybody who *also* held
+permanent-ban permission was immune. Two things were wrong with that. It let a
+moderator strike an **owner** who happened not to hold that node, because it
+never asked who outranked whom — and it was a rule nothing else used, so the
+hammer protected a different set of people from every other way of banning
+somebody. It asks the ladder now, like everything else.
+
+### A guard, so this cannot come back
+
+A test walks every feature file. Anything that takes a player as a command
+argument must either call `canActOn` or be named in a short list with the reason
+it does not:
+
+| exempt | why |
+|---|---|
+| `privatechat.js` | a message is not something done *to* somebody — a moderator may PM an owner |
+| `reports.js` | reporting upward is the entire point; a member must be able to report staff |
+| `tpa.js` | a request, not an act — the other person accepts or declines |
+
+Adding a command that targets somebody and forgetting the check fails the suite.
+The list is checked too: a name on it for a file that no longer exists, or one
+that has since grown the check, is flagged rather than left to rot.
+
 ## 2.2.4 — 2026-09-11
 
 **Every admin item answers to your rank, and `/mm` hands you the same set

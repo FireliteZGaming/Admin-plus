@@ -1,6 +1,8 @@
 import { CustomCommandParamType } from "@minecraft/server"
 import { command, defineEnum } from "../core/registry.js"
-import { ok, err } from "../core/util.js"
+import { ok, err, info } from "../core/util.js"
+import { canActOn } from "../core/ranks.js"
+import { displayName } from "../core/identity.js"
 import { record } from "../core/logs.js"
 import { runAsServer, runOnEach, checkCommand } from "../core/execute.js"
 import { hasEntityRoute, runEntityRoute } from "../core/entityapi.js"
@@ -291,6 +293,36 @@ for (const spec of COMMANDS) {
                 if (found.unsupported?.length) {
                     return err(player,
                         `I can't apply §f${found.unsupported.join(", ")}§c — refusing rather than ignoring it.`)
+                }
+                // **The ladder, applied to all 54 of them in one place.**
+                //
+                // Until 2.2.5 these had no rank protection whatsoever. Every
+                // command that acts on a player through the panel or a pack
+                // command checked canActOn; the vanilla passthroughs checked
+                // nothing, so a moderator could `/slay` an owner, `/eff` them
+                // poison, `/dmg` them, `/label` them or `/move` them into the
+                // void. The permission node said who may use /slay. Nothing
+                // said who they may use it ON.
+                //
+                // Mobs are untouched — a zombie has no rank — so `/slay
+                // @e[family=monster]` behaves exactly as before. Only players
+                // in the resolved set are filtered.
+                const protectedFrom = found.entities.filter(e =>
+                    e?.typeId === "minecraft:player" && !canActOn(player, e))
+                if (protectedFrom.length) {
+                    const allowed = found.entities.filter(e => !protectedFrom.includes(e))
+                    const names = protectedFrom.map(e => displayName(e)).join(", ")
+                    // Everything matched outranks them: refuse outright, so the
+                    // command does not report a cheerful "0 affected" for what
+                    // was actually a permission failure.
+                    if (!allowed.length) {
+                        return err(player, `§f${names}§c outrank${protectedFrom.length === 1 ? "s" : ""} you.`)
+                    }
+                    // Some of it did: carry on with the rest and SAY who was
+                    // skipped. Silently trimming the set would make `/slay @a`
+                    // look like it worked on everybody.
+                    info(player, `§7Skipped §f${names}§7 — above your rank.`)
+                    found.entities = allowed
                 }
                 resolved[i] = found.entities
             }

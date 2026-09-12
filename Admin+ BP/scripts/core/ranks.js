@@ -906,9 +906,22 @@ export function isStaff(player) {
 }
 
 /**
- * Hierarchy protection: staff may only act on players strictly below them, and
- * may only touch ranks lighter than their own. Config owners are immune and
- * unrestricted.
+ * Hierarchy protection: **you may act on your equals and everybody below you,
+ * and never on anybody above you.**
+ *
+ * Equals were excluded until 2.2.5 — it was strictly-greater — which meant two
+ * moderators could not moderate each other and a mod could not knock a peer
+ * about. Equal-or-below is the stated rule now, and the consequence is worth
+ * saying out loud: **a peer can ban a peer.** That is deliberate; the ladder is
+ * how you stop it, by giving the people who should be untouchable a heavier
+ * rank rather than an equal one.
+ *
+ * Two exemptions, both unchanged:
+ *   - a config OWNER acts on anyone and is acted on by nobody, online or not
+ *   - an OPERATOR acts on anyone but a config owner
+ *
+ * Note the asymmetry with canSeeActionsOf, which is also equal-or-below but
+ * asks a different question — whether you may SEE what somebody did.
  */
 export function canActOn(actor, targetPlayerOrId) {
     if (isOwner(actor)) return true
@@ -918,7 +931,7 @@ export function canActOn(actor, targetPlayerOrId) {
     if (isOwner(targetPlayerOrId)) return false
     // Operators outrank the ladder, but never a config owner (handled above).
     if (isOperator(actor)) return true
-    return topWeight(actor) > topWeight(targetId ?? targetPlayerOrId)
+    return topWeight(actor) >= topWeight(targetId ?? targetPlayerOrId)
 }
 
 /**

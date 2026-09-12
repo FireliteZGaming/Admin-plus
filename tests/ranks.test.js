@@ -578,5 +578,88 @@ for (const [group, nodes] of Object.entries(PERMISSION_NODES)) {
         labels.filter(l => l.includes(".")), [])
 }
 
+
+console.log("\n— the ladder: equals yes, above you never —")
+// Nothing pinned the equal case before 2.2.5, which is how the rule could be
+// changed from strictly-above to equal-or-below without a single test noticing.
+{
+    saveRank("lad_low", { display: "§7Low", weight: 10 })
+    saveRank("lad_mid", { display: "§7Mid", weight: 50 })
+    saveRank("lad_midtoo", { display: "§7MidToo", weight: 50 })
+    saveRank("lad_high", { display: "§7High", weight: 90 })
+
+    const who = (id, rank, op = false) => {
+        const p = { id, name: id, getTags: () => [], commandPermissionLevel: op ? 1 : 0 }
+        setRanks(id, [rank], id)
+        return p
+    }
+    const low = who("lad-low", "lad_low")
+    const mid = who("lad-mid", "lad_mid")
+    const peer = who("lad-peer", "lad_midtoo")
+    const high = who("lad-high", "lad_high")
+
+    check("below you, yes", canActOn(mid, low), true)
+    check("above you, never", canActOn(mid, high), false)
+    // The change. A peer can ban a peer, deliberately — the ladder is how you
+    // stop it, by making the untouchable people heavier rather than equal.
+    check("the same rank, yes", canActOn(mid, peer), true)
+    check("the same weight on a different rank, still yes", canActOn(peer, mid), true)
+    check("yourself, always", canActOn(mid, mid), true)
+
+    // Operators act on anyone. This is what "all OPs can use it on anyone"
+    // means, and it is resolved before the ladder is consulted at all.
+    const opLow = who("lad-oplow", "lad_low", true)
+    check("an operator on a heavier rank, yes", canActOn(opLow, high), true)
+    check("but a non-operator on the same pairing, no", canActOn(low, high), false)
+}
+
+
+console.log("\n— everything that acts on a player consults the ladder —")
+// The permission node says who may use a command. It says nothing about who
+// they may use it ON, and that second question was answered in some files and
+// not others. The vanilla passthroughs answered it NOWHERE until 2.2.5: a
+// moderator could /slay an owner, /eff them poison, /dmg them or /move them
+// into the void, because the ladder was never asked.
+//
+// So: any feature that takes a player as a command argument must either call
+// canActOn, or be named below with the reason it does not. Adding a command
+// that targets somebody and forgetting the check fails here.
+{
+    const dir = new URL("../Admin+ BP/scripts/features/", import.meta.url)
+    const files = readdirSync(dir).filter(f => f.endsWith(".js"))
+
+    // Acting on somebody is not the same as SPEAKING to them or ASKING them.
+    // These three take a player and deliberately do not check rank:
+    const exempt = {
+        "privatechat.js": "a message is not something done TO somebody — a moderator may PM an owner",
+        "reports.js": "reporting upward is the entire point; a member must be able to report staff",
+        "tpa.js": "a request, not an act — the other person accepts or declines it"
+    }
+
+    const unprotected = []
+    for (const file of files) {
+        const text = readFileSync(new URL(file, dir), "utf8")
+        const code = text.split("\n").filter(l => !l.trim().startsWith("//")).join("\n")
+        const targets = /CustomCommandParamType\.(Player|Entity)Selector/.test(code)
+            || /resolveSelector\(/.test(code)
+        if (!targets) continue
+        if (/canActOn\s*\(/.test(code)) continue
+        if (file in exempt) continue
+        unprotected.push(file)
+    }
+    check("no feature targets a player without asking the ladder", unprotected, [])
+
+    // The exemptions are real files, not a list that rotted. A name here for a
+    // file that no longer exists would silently excuse nothing while looking
+    // like it excused something.
+    check("every exemption names a file that exists",
+        Object.keys(exempt).filter(f => !files.includes(f)), [])
+    // And each one still actually needs it — if a file on this list grew a
+    // canActOn call, the exemption is stale and should go.
+    check("and none of them has since grown the check",
+        Object.keys(exempt).filter(f =>
+            /canActOn\s*\(/.test(readFileSync(new URL(f, dir), "utf8"))), [])
+}
+
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

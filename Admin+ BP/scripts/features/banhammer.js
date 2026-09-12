@@ -1,6 +1,6 @@
 import { world, system, EquipmentSlot } from "@minecraft/server"
 import { err, info } from "../core/util.js"
-import { has } from "../core/ranks.js"
+import { has, canActOn } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
 import { ban, isBanned } from "../core/moderation.js"
 import { record } from "../core/logs.js"
@@ -62,10 +62,22 @@ export async function swing(attacker, victim) {
         return { ok: false, reason: "not allowed to ban permanently" }
     }
 
-    if (has(victim, "admin.banperm")) {
-        err(attacker, `${displayName(victim)}§c can ban permanently too — the hammer will not fall on them.`)
-        trace(attacker, victim, "refused — the target can also ban permanently")
-        return { ok: false, reason: "mutual immunity" }
+    // The LADDER decides, like everything else that acts on a player.
+    //
+    // This used to be a mutual-immunity rule — anybody who could also ban
+    // permanently was safe — and it was the only protection the hammer had.
+    // Two things were wrong with it. It let a moderator strike an OWNER who
+    // happened not to hold the node, because it never asked who outranked whom;
+    // and it was a rule nothing else in the pack used, so the hammer protected
+    // a different set of people from every other way of banning somebody.
+    //
+    // canActOn is equal-or-below, so a peer CAN hammer a peer. That is the
+    // stated rule and the ladder is how you change it: make the people who
+    // should be untouchable heavier, not equal.
+    if (!canActOn(attacker, victim)) {
+        err(attacker, `${displayName(victim)}§c outranks you — the hammer will not fall on them.`)
+        trace(attacker, victim, "refused — the target outranks the swinger")
+        return { ok: false, reason: "outranked" }
     }
 
     if (isBanned(victim)) {
