@@ -56,6 +56,64 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.3.1 — 2026-09-11
+
+**The whole observe class, swept.** The audit two versions ago looked for
+commands that *target* a player and had no idea a command could *watch* one.
+Watching was where everything left was hiding.
+
+### The action log remembered what the notice refused to say
+
+`core/audit.js` has refused since 2.1.x to tell a moderator that an operator
+opened somebody's ender chest. **The stored log then remembered it and showed
+them anyway**, off a screen asking only for `admin.logs`. The leak was never
+closed — it was delayed.
+
+Both ends of an entry are checked now, the way the live notice checks both ends
+of an action: the **actor** — whose action it was, the half the notice was
+missing in 2.1.x and the log was missing entirely — and the **target**. Filtered
+inside `listScreen`, which all five doors funnel through (Recent, a branch, a
+search, and both halves of one person's history), because a funnel is only a
+funnel if nothing goes round it. The People screen's *counts* are filtered too:
+a count is smaller than a line and leaks the same fact.
+
+Anything you were part of stays yours to read, whichever end you were on. An
+entry about you is how an appeal starts.
+
+### Reports needed a category, and a rule about who hears
+
+Reporting upward is the point — **being told about it is not.** A report about
+an owner alerted every moderator: upward gossip they could not act on, and the
+queue kept showing it to them.
+
+But that rule alone was too blunt, because **staff misconduct is not the same
+report.** The other four categories are about a player and go to staff; this one
+is about staff and has to go over their head. So there is an `abuse` category
+now, and the picker spells out what it is for:
+
+> **Staff abuse** · a staff member misusing their tools
+
+"Abuse" on its own would not tell a member that this is where you report a staff
+member — they would file it under Other, and it would read as a complaint about
+a player. Every category has its own written line for the same reason.
+
+**And the person reported never sees the report.** `canSeeActionsOf` answers
+*true* when the viewer is the subject — right for reading your own audit trail,
+catastrophic here: the reported staff member would have been shown the report
+against them, with the reporter's name on it. An `abuse` report is exactly the
+case where being tipped off *is* the harm. The target is refused before the
+seeing rule is consulted, and a test pins that order.
+
+### A guard that knows about watching
+
+The old one counted commands that target a player. The new one asks which files
+**read one player's history and show it to another** — chat, the action log,
+warnings, reports, spy — and fails unless each consults the ladder or is named
+with a reason. The stores themselves are exempt and say why: they hand back rows
+and have no viewer to check against.
+
+It was tested by deleting the check from the action log and watching it fail.
+
 ## 2.3.0 — 2026-09-11
 
 **Two ways a moderator could read upward, both closed.** The question that found

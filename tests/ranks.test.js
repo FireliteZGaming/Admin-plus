@@ -764,5 +764,58 @@ console.log("\n— the hierarchy audit, command by command —")
             targeting.find(c => c.name === n)?.checksHere).sort(), [])
 }
 
+
+console.log("\n— surfaces that SHOW you another player, not just act on one —")
+// The audit that missed all of this looked for commands that TARGET a player.
+// It had no idea a command could OBSERVE one, and observing was where every
+// remaining leak lived: social spy, the chat log, warnings, the action log and
+// the reports queue all showed a moderator things an owner did or had done to
+// them.
+//
+// So this guard asks a different question: which files READ one player's
+// record or conversation and show it to another? Each must consult
+// canSeeActionsOf, or be named with a reason.
+{
+    const dir = new URL("../Admin+ BP/scripts/features/", import.meta.url)
+    const core = new URL("../Admin+ BP/scripts/core/", import.meta.url)
+    const read = url => readFileSync(url, "utf8")
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .split("\n").filter(l => !l.trim().startsWith("//")).join("\n")
+
+    // The readers, by the function they call to fetch somebody else's history.
+    const OBSERVERS = /\b(recentChat|searchChat|chatBy|recent|about|by|branch|search|getEntry|pendingReports|handledReports|getReport|warningsFor|spyIds)\s*\(/
+
+    const watching = []
+    for (const [where, base] of [["features", dir], ["core", core]]) {
+        for (const file of readdirSync(base).filter(f => f.endsWith(".js"))) {
+            const code = read(new URL(file, base))
+            if (!OBSERVERS.test(code)) continue
+            watching.push({ file: `${where}/${file}`, sees: /canSeeActionsOf\s*\(/.test(code) })
+        }
+    }
+
+    // Files that read somebody's history and deliberately do not rank-filter.
+    const exempt = {
+        // The stores themselves. They hand back rows; the SCREENS decide who
+        // may see them, which is the only layer that knows who is asking.
+        "core/logs.js": "the store, not a screen — it has no viewer to check against",
+        "core/chatlog.js": "same",
+        "core/reports.js": "same",
+        "core/warnings.js": "same",
+        "core/privatechat.js": "same — spyIds() is who has the toggle on, not a view of anything",
+        // Reading your own.
+        "features/warn.js": "checks canSeeActionsOf on the command path; tellOwn reads only your own record"
+    }
+
+    const unchecked = watching
+        .filter(w => !w.sees && !(w.file in exempt))
+        .map(w => w.file)
+    check("every screen that shows one player's history to another checks the ladder",
+        unchecked.sort(), [])
+
+    check("every exemption names a file that still reads a history",
+        Object.keys(exempt).filter(f => !watching.find(w => w.file === f)).sort(), [])
+}
+
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

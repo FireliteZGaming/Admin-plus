@@ -2,7 +2,7 @@ import { world } from "@minecraft/server"
 import { menu, pagedMenu, modal, confirm, subtitle } from "../core/ui.js"
 import { hubTitle, hubButton, hubEntry } from "../core/theme.js"
 import { ok, err, info, formatDate, formatDuration } from "../core/util.js"
-import { has, canActOn, setRanks, restoreSnapshot } from "../core/ranks.js"
+import { has, canActOn, canSeeActionsOf, setRanks, restoreSnapshot } from "../core/ranks.js"
 import { allChannels, canUse } from "../core/channels.js"
 import { unban, unmute, setFrozen, setTpaClosed } from "../core/moderation.js"
 import { setNickname } from "../core/identity.js"
@@ -177,7 +177,51 @@ export function readLine(entry) {
     ]
 }
 
+/**
+ * May this person read this entry back?
+ *
+ * **The live notice has had a rank rule since 2.1.x; the stored log never got
+ * one.** core/audit.js refuses to tell a moderator that an operator opened
+ * somebody's ender chest — and then the log remembered it and showed it to them
+ * anyway, off a screen asking only for `admin.logs`. The leak was not closed,
+ * it was delayed.
+ *
+ * The principle is the one the chat log uses: **you can read back what you
+ * could have been told.** So both ends of the entry are checked, the way the
+ * notice checks both ends of an action:
+ *
+ *   the ACTOR   whose action it was. This is the half the notice was missing
+ *               in 2.1.x, and the half the log was missing entirely.
+ *   the TARGET  who it happened to. An entry names them, and often names what
+ *               was done to them.
+ *
+ * `canSeeActionsOf` on both — the SEEING rule, equal-or-below — rather than the
+ * notice's stricter `canActOn` on the target. A log is a reading surface, and
+ * every reading surface in this pack answers the same way: peers yes, above you
+ * never.
+ *
+ * Anything you were part of is always yours to read, whichever end you were on.
+ * An entry about you is how an appeal starts.
+ */
+function canReadEntry(player, entry) {
+    if (!entry) return false
+    if (entry.actor?.id === player.id || entry.target?.id === player.id) return true
+    if (entry.actor?.id && !canSeeActionsOf(player, entry.actor.id)) return false
+    if (entry.target?.id && !canSeeActionsOf(player, entry.target.id)) return false
+    return true
+}
+
+/** The entries this person is allowed to see, in the order they came. */
+function readableLog(player, entries) {
+    return (entries ?? []).filter(entry => canReadEntry(player, entry))
+}
+
 async function listScreen(player, title, entries, back) {
+    // Filtered HERE rather than at the five call sites that reach it — Recent,
+    // a branch, a search, and both halves of one person's history. A funnel is
+    // only a funnel if nothing goes round it.
+    entries = readableLog(player, entries)
+
     if (!entries.length) { info(player, "Nothing logged there yet."); return back() }
     return readingView(player, {
         hub: "settings",
@@ -304,15 +348,18 @@ async function peopleScreen(player, back) {
         title: hubTitle("settings", "Logs · players"),
         body: subtitle("Everyone the log has touched, either side."),
         items: seen,
-        render: person => ({ text: `§f${person.name}§r\n§8${about(person.id).length} received · ${by(person.id).length} did` }),
+        render: person => ({
+            text: `§f${person.name}§r\n§8${readableLog(player, about(person.id)).length} received`
+                + ` · ${readableLog(player, by(person.id)).length} did`
+        }),
         onPick: person => personScreen(player, person, () => peopleScreen(player, back)),
         back
     })
 }
 
 async function personScreen(player, person, back) {
-    const received = about(person.id)
-    const did = by(person.id)
+    const received = readableLog(player, about(person.id))
+    const did = readableLog(player, by(person.id))
     const said = readableChat(player, chatBy(person.id, 150))
     return menu(player, {
         title: hubTitle("settings", person.name),
@@ -362,6 +409,13 @@ async function searchScreen(player, back) {
 async function entryScreen(player, entryId, back) {
     const entry = getEntry(entryId)
     if (!entry) { info(player, "That entry has aged out of the log."); return back() }
+    // Checked again here, not only in the list that led here. This screen is
+    // reachable by id and it is where an UNDO lives — the one place where being
+    // able to read an entry turns into being able to change what it did.
+    if (!canReadEntry(player, entry)) {
+        err(player, "That entry is above your rank.")
+        return back()
+    }
 
     const body = [
         `§f${entry.action}`,

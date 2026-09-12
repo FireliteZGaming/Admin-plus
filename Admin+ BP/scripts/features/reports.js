@@ -12,6 +12,7 @@ import {
     markRead, isUnreadBy, unreadCount, handleReport, reportStaff
 } from "../core/reports.js"
 import { record } from "../core/logs.js"
+import { canSeeActionsOf } from "../core/ranks.js"
 import { openActionsFor } from "./actions.js"
 
 // /report <player> [category] <reason>
@@ -95,7 +96,7 @@ export async function reportForm(player, preset, error) {
             id: "detail",
             type: "text",
             label: "What happened §8· required",
-            placeholder: "broke into my base and took the enchanting table"
+            placeholder: "broke into my base — or, for staff abuse, what they did and when"
         }
     ])
     if (!values) return
@@ -119,11 +120,57 @@ export async function reportForm(player, preset, error) {
     alertStaff(result.report)
 }
 
-/** Sentence case for the picker; CATEGORIES stays the stored vocabulary. */
-const CATEGORY_LABELS = CATEGORIES.map(c => c[0].toUpperCase() + c.slice(1))
+/**
+ * What each category is called on the picker. CATEGORIES stays the stored
+ * vocabulary — these are only what a person reads.
+ *
+ * Written out rather than derived by capitalising the id, because one of them
+ * needs more than its own word: "Abuse" does not tell a member that this is
+ * where you report a STAFF MEMBER, and somebody who does not know that will
+ * file it under Other and it will read as a complaint about a player.
+ */
+const CATEGORY_TEXT = {
+    griefing: "Griefing §8· broke or took something",
+    cheating: "Cheating §8· hacks, exploits, unfair advantage",
+    chat: "Chat §8· what somebody said",
+    abuse: "Staff abuse §8· a staff member misusing their tools",
+    other: "Other §8· none of these"
+}
+const CATEGORY_LABELS = CATEGORIES.map(c => CATEGORY_TEXT[c] ?? (c[0].toUpperCase() + c.slice(1)))
+
+/**
+ * Who hears about a report, and who can read it back.
+ *
+ * **Reporting upward is the point — being told about it is not.** A member must
+ * be able to report an owner, and `/report` is deliberately un-gated for that
+ * reason. But the ALERT went to every holder of `admin.reports`, so a moderator
+ * learned that somebody had reported the owner: upward gossip they could not
+ * act on, and the queue then kept showing it to them.
+ *
+ * canSeeActionsOf on the person reported — the seeing rule, equal-or-below —
+ * so a peer can still pick up a report about a peer and escalate it, and only
+ * what is above you closes. The report itself is never dropped: it is stored
+ * either way, and whoever outranks them sees it.
+ */
+function canSeeReport(viewer, report) {
+    if (!report?.target?.id) return true
+    // **Never the person reported.** canSeeActionsOf answers true when the
+    // viewer IS the subject — which is right for reading your own audit trail
+    // and catastrophic here: the reported staff member would be shown the
+    // report against them, complete with who filed it. An `abuse` report is
+    // exactly the case where being tipped off is the harm.
+    if (report.target.id === viewer.id) return false
+    if (report.reporter?.id === viewer.id) return true
+    return canSeeActionsOf(viewer, report.target.id)
+}
+
+/** The reports this person may see, from any list of them. */
+function readableReports(player, reports) {
+    return (reports ?? []).filter(report => canSeeReport(player, report))
+}
 
 function alertStaff(report) {
-    const staff = reportStaff()
+    const staff = reportStaff().filter(member => canSeeReport(member, report))
     for (const member of staff) {
         member.sendMessage(
             `§c§l[REPORT] §r§f${report.reporter.name}§7 reported §f${report.target.name}` +
@@ -138,7 +185,7 @@ function alertStaff(report) {
 /** Label for the pinned panel entry, or undefined when there is nothing to show. */
 export function reportsBadge(player) {
     if (!has(player, "admin.reports")) return undefined
-    const pending = pendingReports().length
+    const pending = readableReports(player, pendingReports()).length
     if (!pending) return undefined
     const unread = unreadCount(player)
     return `§c§lReports§r §8(${pending}${unread ? `, §c${unread} new§8` : ""})`
@@ -146,13 +193,13 @@ export function reportsBadge(player) {
 
 export async function reportsScreen(player, back) {
     if (!has(player, "admin.reports")) { err(player, "You can't read reports."); return back() }
-    const pending = pendingReports()
+    const pending = readableReports(player, pendingReports())
 
     if (!pending.length) {
         return menu(player, {
             title: hubTitle("actions", "Reports"),
             body: "§7Nothing waiting.\n\n§8Reports arrive here the moment a player files one.",
-            buttons: handledReports().length
+            buttons: readableReports(player, handledReports()).length
                 ? [{ text: hubEntry("about", "Recently handled", "The last few, and who closed them"), run: () => historyScreen(player, () => reportsScreen(player, back)) }]
                 : [],
             back
@@ -167,7 +214,7 @@ export async function reportsScreen(player, back) {
             text: `${isUnreadBy(player, report) ? "§c§l" : "§7"}${report.target.name}§r\n§8${report.category} · ${ago(report.at)} · by ${report.reporter.name}`
         }),
         onPick: report => reportScreen(player, report.id, () => reportsScreen(player, back)),
-        extra: handledReports().length
+        extra: readableReports(player, handledReports()).length
             ? [{ text: hubEntry("about", "Recently handled"), run: () => historyScreen(player, () => reportsScreen(player, back)) }]
             : [],
         back
@@ -183,6 +230,12 @@ async function reportScreen(player, reportId, back) {
     // Opening marks it read FOR THIS VIEWER only — it stays in everyone's queue.
     markRead(player, reportId)
     const report = getReport(reportId)
+    // Re-checked here: this screen is reachable by id, and the second of the
+    // two is where a report gets HANDLED — where reading turns into acting.
+    if (report && !canSeeReport(player, report)) {
+        err(player, "That report is above your rank.")
+        return back()
+    }
     if (!report) { info(player, "That report is gone."); return back() }
 
     if (report.handled) {
@@ -230,6 +283,12 @@ async function reportScreen(player, reportId, back) {
 /** Closing is what removes it from everyone's queue — reading never does. */
 async function closeScreen(player, reportId, outcome, back) {
     const report = getReport(reportId)
+    // Re-checked here: this screen is reachable by id, and the second of the
+    // two is where a report gets HANDLED — where reading turns into acting.
+    if (report && !canSeeReport(player, report)) {
+        err(player, "That report is above your rank.")
+        return back()
+    }
     if (!report || report.handled) { info(player, "Already closed."); return back() }
 
     const values = await modal(player, hubTitle("actions", outcome === "action" ? "Close report" : "Dismiss report"), [
@@ -257,7 +316,7 @@ function notifyReporter(report) {
 }
 
 async function historyScreen(player, back) {
-    const handled = handledReports()
+    const handled = readableReports(player, handledReports())
     return pagedMenu(player, {
         title: hubTitle("about", "Handled reports"),
         body: subtitle("The last few, and who closed them."),

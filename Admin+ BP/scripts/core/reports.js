@@ -20,7 +20,18 @@ const KEEP_HANDLED = 25          // recent handled reports kept for context
 
 const reports = new Table(REPORTS_KEY, {})
 
-export const CATEGORIES = ["griefing", "cheating", "chat", "other"]
+// `abuse` is staff misconduct — an admin using their tools on somebody rather
+// than for them. It is its own category because it is not the same report: the
+// other four are about a PLAYER and go to staff, and this one is about STAFF
+// and must go over their head. Named as a bare word because it is registered as
+// a Bedrock Enum, which refuses anything but [a-z0-9_].
+//
+// `other` stays last, so the dropdown reads as a list of real things with a
+// fallback at the end rather than a list beginning in vagueness.
+export const CATEGORIES = ["griefing", "cheating", "chat", "abuse", "other"]
+
+/** Categories that accuse a staff member rather than a player. */
+export const STAFF_CATEGORIES = new Set(["abuse"])
 
 const idOf = p => typeof p === "string" ? p : p?.id
 

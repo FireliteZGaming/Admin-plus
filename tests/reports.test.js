@@ -2,8 +2,10 @@ import { __test } from "@minecraft/server"
 import { onPlayerJoin, setRanks } from "../Admin+ BP/scripts/core/ranks.js"
 import {
     fileReport, pendingReports, handledReports, getReport,
-    markRead, isUnreadBy, unreadCount, handleReport, reportStaff
+    markRead, isUnreadBy, unreadCount, handleReport, reportStaff,
+    CATEGORIES, STAFF_CATEGORIES
 } from "../Admin+ BP/scripts/core/reports.js"
+import { readFileSync } from "node:fs"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -85,6 +87,56 @@ for (const target of [alex, griefer, modB, modA]) {
 }
 check("capped at three pending per reporter", filed, 3)
 check("the fourth is refused, not silently dropped", fileReport(alex, nova, "test").ok, false)
+
+
+console.log("\n— reporting staff is its own kind of report —")
+// The other four categories are about a PLAYER and go to staff. This one is
+// about STAFF and has to go over their head — which makes who can SEE it the
+// whole design, not a detail.
+{
+    check("there is a category for staff misconduct", CATEGORIES.includes("abuse"), true)
+    check("it is a bare word, because it registers as a Bedrock Enum",
+        CATEGORIES.every(c => /^[a-z0-9_]+$/.test(c)), true)
+    check("other stays last, so the list does not open on vagueness",
+        CATEGORIES.at(-1), "other")
+    check("and it is marked as accusing staff", STAFF_CATEGORIES.has("abuse"), true)
+
+    const src = readFileSync(
+        new URL("../Admin+ BP/scripts/features/reports.js", import.meta.url), "utf8")
+    // "Abuse" alone does not tell a member this is where you report a STAFF
+    // member; somebody who does not know that files it under Other, and it
+    // reads as a complaint about a player.
+    check("the picker spells out what it is for", src.includes("Staff abuse"), true)
+    check("every category has text written for it",
+        CATEGORIES.filter(c => !new RegExp(`${c}:\\s*"`).test(src)), [])
+}
+
+console.log("\n— and the person reported never sees the report —")
+// canSeeActionsOf answers TRUE when the viewer is the subject, which is right
+// for reading your own audit trail and catastrophic here: the reported staff
+// member would be shown the report against them, with the reporter's name on
+// it. An abuse report is exactly the case where being tipped off IS the harm.
+{
+    const src = readFileSync(
+        new URL("../Admin+ BP/scripts/features/reports.js", import.meta.url), "utf8")
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, "")
+        .split("\n").filter(l => !l.trim().startsWith("//")).join("\n")
+    check("the target is refused before the seeing rule is consulted",
+        /if \(report\.target\.id === viewer\.id\) return false/.test(code), true)
+    const refuse = code.indexOf("report.target.id === viewer.id")
+    const see = code.indexOf("canSeeActionsOf(viewer, report.target.id)")
+    check("and refused FIRST, or the seeing rule would let them through",
+        refuse !== -1 && refuse < see, true)
+
+    // Every door re-asks, including the two reachable by id — one of which is
+    // where a report gets handled, which is where reading turns into acting.
+    // Counted by the REFUSAL each door prints rather than by the helper name:
+    // readableReports calls canSeeReport too and would count itself.
+    check("both by-id doors refuse",
+        (code.match(/That report is above your rank/g) ?? []).length, 2)
+    check("and the alert itself filters its audience",
+        /reportStaff\(\)\.filter\(member => canSeeReport\(member, report\)\)/.test(code), true)
+}
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)
