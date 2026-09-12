@@ -56,6 +56,50 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.2.7 — 2026-09-11
+
+**The Ender Eye has a menu now, not a list.** Two doors:
+
+- **Players** — everyone online, with how far away they are or which dimension
+- **Location** — the world dropdown and coordinates, as before
+
+and **Where I'm looking** kept beside them, because it answers neither question
+and needs no argument at all: it is the only one that reaches a place nobody is
+standing and you cannot name.
+
+### Picking a player gives you four things
+
+| | |
+|---|---|
+| **Go to** | jump to them |
+| **Bring here** | move them to you |
+| **Teleport** | send *them* to coordinates |
+| **Swap places** | trade positions |
+
+**Going to somebody is not something done to them, so it needs no rank check.
+Moving them is.** Go to is always there; the other three appear greyed with
+"outranks you" for anybody above you, because a missing button reads as a broken
+menu while a greyed one reads as a rule.
+
+The coordinate form is the same form either way — one box, one set of refusals,
+one place to get the height rule right. It opens on the **subject's** position
+rather than yours: sending somebody ten blocks up means ten above where *they*
+stand, and a box pre-filled with your coordinates would quietly mean somewhere
+else. The rank is checked again after the form closes, because it was open for
+as long as they took to type.
+
+A swap reads **both** positions before moving anybody. Teleporting one and then
+asking where the other is would send the second to where the first no longer
+stands.
+
+### `bring` came off the dropped list
+
+It was removed on purpose in an earlier life, alongside homes and fly, and
+CLAUDE.md said not to build it unasked. It was asked for. That note now records
+the reversal so the rule does not quietly delete it again — and it is a menu
+entry rather than a command, which is what the standing "no command sprawl"
+decision wants anyway. The audit log already had a phrase for it.
+
 ## 2.2.6 — 2026-09-11
 
 **A peer cannot ban a peer.** 2.2.5 made one rule out of two different

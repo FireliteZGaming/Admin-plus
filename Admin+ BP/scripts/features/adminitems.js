@@ -1,11 +1,11 @@
 import { world, system, ItemStack } from "@minecraft/server"
 import { command } from "../core/registry.js"
 import { ok, err, info } from "../core/util.js"
-import { has, isStaff, canTrollOn, primaryRank } from "../core/ranks.js"
+import { has, isStaff, canActOn, canTrollOn, primaryRank } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
 import { record } from "../core/logs.js"
 import { ChestForm, chestUIAvailable } from "../core/chestUI.js"
-import { pagedMenu, modal, subtitle } from "../core/ui.js"
+import { menu, pagedMenu, modal, subtitle } from "../core/ui.js"
 import { hubTitle } from "../core/theme.js"
 import { isVanished } from "../core/vanish.js"
 import { worldToken, makeBanHammer, HAMMER_NAME } from "../core/banhammer.js"
@@ -391,35 +391,140 @@ function whereIs(player, other) {
     const dz = other.location.z - player.location.z
     return `§8${Math.round(Math.hypot(dx, dy, dz))} blocks away`
 }
-
 /**
- * The picker. A list of people, plus the look-and-jump the eye shipped with.
+ * The eye, top level: two doors and a shortcut.
  *
- * Everything discoverable in one place was the point: a separate gesture for
- * "where I am looking" would be a thing nobody finds.
+ * Players and Location are the two real questions — who, or where. Looking is
+ * kept beside them because it answers neither and needs no argument at all: it
+ * is the only one that reaches a place nobody is standing and you cannot name.
  */
 function openEye(player) {
-    const targets = jumpTargets(player)
-    pagedMenu(player, {
+    const others = jumpTargets(player)
+    menu(player, {
         title: hubTitle("warps", "Ender Eye"),
-        body: subtitle(targets.length
-            ? `${targets.length} player${targets.length === 1 ? "" : "s"} to jump to.`
-            : "Nobody else is online — but you can still jump to what you see."),
+        body: subtitle("Pick somebody, or a place."),
+        buttons: [
+            {
+                text: others.length
+                    ? `§bPlayers\n§8${others.length} online`
+                    : "§8Players\n§8nobody else is online",
+                run: () => others.length
+                    ? eyePlayers(player, () => openEye(player))
+                    : info(player, "§7Nobody else is online.")
+            },
+            {
+                text: "§bLocation\n§8Type coordinates and go there",
+                run: () => jumpToCoordinates(player, player, () => openEye(player))
+            },
+            {
+                text: "§dWhere I'm looking\n§8Jump to the block in your crosshair",
+                run: () => blinkToLook(player)
+            }
+        ]
+    }).catch(e => console.warn(`[Admin+] Ender Eye form failed: ${e}`))
+}
+
+/** Everyone you could reach, one per row. */
+function eyePlayers(player, back) {
+    const targets = jumpTargets(player)
+    return pagedMenu(player, {
+        title: hubTitle("warps", "Players"),
+        body: subtitle(`${targets.length} player${targets.length === 1 ? "" : "s"} online.`),
         items: targets,
         render: other => {
             const rank = primaryRank(other)
             const hidden = isVanished(other) ? " §8(vanished)" : ""
             return { text: `${rank ? rank.display + "§r " : ""}§a${displayName(other)}§r${hidden}\n${whereIs(player, other)}` }
         },
-        onPick: other => jumpTo(player, other),
-        extra: [{
-            text: "§bLocation\n§8Type coordinates and go there",
-            run: () => jumpToCoordinates(player)
-        }, {
-            text: "§dWhere I'm looking\n§8Jump to the block in your crosshair",
-            run: () => blinkToLook(player)
-        }]
-    }).catch(e => console.warn(`[Admin+] Ender Eye form failed: ${e}`))
+        onPick: other => eyePlayerActions(player, other, () => eyePlayers(player, back)),
+        back
+    })
+}
+
+/**
+ * What you can do with one person.
+ *
+ * **Going to somebody is not something done TO them, so it needs no rank check.
+ * Moving them is.** That is the split: the first entry is always there, the
+ * other three appear only for somebody you outrank — shown greyed with the
+ * reason rather than hidden, because a missing button reads as a broken menu
+ * while a greyed one reads as a rule.
+ *
+ * `bring` was on this pack's dropped list — removed on purpose in an earlier
+ * life, alongside homes and fly — and is back because it was asked for. The
+ * audit log already had a phrase for it.
+ */
+function eyePlayerActions(player, target, back) {
+    const name = displayName(target)
+    const allowed = canActOn(player, target)
+    const denied = () => err(player, `${name}§c outranks you.`)
+
+    const act = (text, hint, run) => ({
+        text: allowed ? `${text}\n§8${hint}` : `§8${text}\n§8outranks you`,
+        run: allowed ? run : denied
+    })
+
+    return menu(player, {
+        title: hubTitle("warps", name),
+        body: subtitle(whereIs(player, target).replace(/^§8/, "")),
+        buttons: [
+            {
+                text: `§aGo to\n§8Jump to ${name}`,
+                run: () => jumpTo(player, target)
+            },
+            act("§eBring here", `Move ${name} to you`, () => bringHere(player, target)),
+            act("§bTeleport", "Send them to coordinates",
+                () => jumpToCoordinates(player, target, () => eyePlayerActions(player, target, back))),
+            act("§dSwap places", `Trade positions with ${name}`, () => swapWith(player, target))
+        ],
+        back
+    })
+}
+
+/** Re-read somebody from the world; the menu was drawn from a snapshot. */
+function stillHere(player, target) {
+    const live = world.getAllPlayers().find(p => p.id === target.id)
+    if (!live) info(player, `§7${displayName(target)} left before you got there.`)
+    return live
+}
+
+function bringHere(player, target) {
+    const live = stillHere(player, target)
+    if (!live) return
+    if (!canActOn(player, live)) return err(player, `${displayName(live)}§c outranks you.`)
+    try {
+        live.teleport(player.location, { dimension: player.dimension })
+        record(player, "mod.bring", live, "ender eye")
+        info(player, `§7Brought §f${displayName(live)}§7 to you.`)
+        info(live, `§7${displayName(player)}§7 brought you to them.`)
+    } catch (e) {
+        err(player, `Couldn't bring them: ${e}`)
+    }
+}
+
+/**
+ * Trade positions.
+ *
+ * Both ends are read BEFORE either moves. Teleporting one and then asking where
+ * the other is would send the second to where the first no longer stands.
+ */
+function swapWith(player, target) {
+    const live = stillHere(player, target)
+    if (!live) return
+    if (!canActOn(player, live)) return err(player, `${displayName(live)}§c outranks you.`)
+    const mine = { ...player.location }
+    const theirs = { ...live.location }
+    const myDim = player.dimension
+    const theirDim = live.dimension
+    try {
+        player.teleport(theirs, { dimension: theirDim })
+        live.teleport(mine, { dimension: myDim })
+        record(player, "mod.bring", live, "ender eye · swap")
+        info(player, `§7Swapped places with §f${displayName(live)}§7.`)
+        info(live, `§7${displayName(player)}§7 swapped places with you.`)
+    } catch (e) {
+        err(player, `Couldn't swap: ${e}`)
+    }
 }
 
 /**
@@ -499,67 +604,81 @@ function coordinate(text, origin) {
 // The world border. Past it a teleport does nothing at all, so it is better to
 // say so than to press the button and appear not to have moved.
 const FAR = 30000000
-
 /**
- * Type a place and go there.
+ * Type a place, and send somebody to it.
+ *
+ * `subject` is who MOVES — yourself from the Location door, or the player you
+ * picked from Players ▸ Teleport. The form is identical either way, which is
+ * the point: one coordinate box, one set of refusals, one place to get the
+ * height rule right.
+ *
+ * It opens on the SUBJECT's position, not yours. Sending somebody ten blocks up
+ * means ten above where THEY stand, and a box pre-filled with your coordinates
+ * would quietly mean somewhere else entirely.
  *
  * The world first, then where in it, because that is the order the question
- * gets asked in. It opens on the world you are standing in, so a jump within
- * the same one needs nothing but a number.
- *
- * The three fields open holding where you are standing, so the format is shown
- * rather than explained and changing only the height is a one-character edit —
- * which is most of what an admin actually wants from a coordinate teleport.
+ * gets asked in.
  */
-async function jumpToCoordinates(player) {
-    const here = player.location
-    const from = worldIndex(player.dimension?.id)
+async function jumpToCoordinates(player, subject = player, back) {
+    const moving = subject ?? player
+    const self = moving.id === player.id
+    const here = moving.location
+    const from = worldIndex(moving.dimension?.id)
     const round = n => String(Math.round(n))
-    const answer = await modal(player, hubTitle("warps", "Jump to a location"), [
+    const who = displayName(moving)
+
+    const answer = await modal(player,
+        hubTitle("warps", self ? "Jump to a location" : `Send ${who}`), [
         { id: "world", type: "dropdown", label: "§7World", options: worldLabels(), default: from },
         { id: "x", type: "text", label: "§7X", placeholder: "~", default: round(here.x) },
         { id: "y", type: "text", label: "§7Y  §8(height)", placeholder: "~", default: round(here.y) },
         { id: "z", type: "text", label: "§7Z", placeholder: "~", default: round(here.z) }
     ])
-    if (!answer) return
+    if (!answer) return back ? back() : undefined
 
     const x = coordinate(answer.x, here.x)
     const y = coordinate(answer.y, here.y)
     const z = coordinate(answer.z, here.z)
     const bad = [["X", x], ["Y", y], ["Z", z]].filter(pair => pair[1] === undefined).map(pair => pair[0])
     if (bad.length) {
-        return err(player, `${bad.join(" and ")} ${bad.length > 1 ? "are not numbers" : "is not a number"}. Type a number, or §f~§c for where you are now.`)
+        return err(player, `${bad.join(" and ")} ${bad.length > 1 ? "are not numbers" : "is not a number"}. Type a number, or §f~§c for where ${self ? "you are" : "they are"} now.`)
     }
     if (Math.abs(x) > FAR || Math.abs(z) > FAR) {
         return err(player, "That is outside the world — X and Z stop at 30 million.")
     }
 
     // Picking a world is what makes the height dangerous. `~` in the Y box means
-    // where you are NOW, and 200 in the Overworld is inside the Nether's bedrock
-    // roof — somewhere you do not walk out of. Named and refused, never clamped:
-    // silently moving somebody 73 blocks from where they asked is worse than
-    // telling them the number was wrong.
+    // where they are NOW, and 200 in the Overworld is inside the Nether's
+    // bedrock roof — somewhere you do not walk out of. Named and refused, never
+    // clamped: silently moving somebody 73 blocks from where they asked is worse
+    // than telling them the number was wrong.
     const to = Number(answer.world) || 0
     const wrongHeight = heightProblem(y, to)
     if (wrongHeight) return err(player, wrongHeight)
 
-    const target = worldHeight(to)
-    const dimension = safe(() => world.getDimension(target.id))
-    if (!dimension) return err(player, `Couldn't reach the §f${target.label}§c.`)
+    const world_ = worldHeight(to)
+    const dimension = safe(() => world.getDimension(world_.id))
+    if (!dimension) return err(player, `Couldn't reach the §f${world_.label}§c.`)
+
+    // Re-checked here, not only when the menu was drawn: the form was open for
+    // as long as they took to type, and a rank can change in that time.
+    if (!self && !canActOn(player, moving)) return err(player, `${who}§c outranks you.`)
+    const live = self ? player : stillHere(player, moving)
+    if (!live) return
 
     try {
-        player.teleport({ x, y, z }, {
+        live.teleport({ x, y, z }, {
             dimension,
-            rotation: safe(() => player.getRotation(), undefined),
+            rotation: safe(() => live.getRotation(), undefined),
             keepVelocity: false
         })
         const where = `${Math.round(x)} ${Math.round(y)} ${Math.round(z)}`
-        record(player, "mod.tpTo", player, `ender eye · ${target.label} ${where}`)
-        info(player, to === from
-            ? `§7Jumped to §f${where}§7.`
-            : `§7Jumped to §f${where}§7 in the §f${target.label}§7.`)
+        const place = to === from ? where : `${where} in the ${world_.label}`
+        record(player, self ? "mod.tpTo" : "mod.bring", live, `ender eye · ${world_.label} ${where}`)
+        info(player, self ? `§7Jumped to §f${place}§7.` : `§7Sent §f${who}§7 to §f${place}§7.`)
+        if (!self) info(live, `§7${displayName(player)}§7 sent you to §f${place}§7.`)
     } catch (e) {
-        err(player, `Couldn't jump there: ${e}`)
+        err(player, `Couldn't ${self ? "jump" : "send them"} there: ${e}`)
     }
 }
 

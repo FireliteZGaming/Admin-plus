@@ -4,6 +4,7 @@ import { ITEMS, signItem, itemKey, knockback, coordinate, SIGIL, installAdminIte
          worldLabels, worldIndex, worldHeight, heightProblem } from "../Admin+ BP/scripts/features/adminitems.js"
 import { armNuke } from "../Admin+ BP/scripts/core/orbital.js"
 import { setRanks, saveRank } from "../Admin+ BP/scripts/core/ranks.js"
+import { readFileSync } from "node:fs"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -373,6 +374,47 @@ console.log("\n— one gate per item, and it is the rank's answer —")
     setRanks(nobody.id, ["noitems"], nobody.name)
     check("a rank with no tool node is offered nothing",
         Object.values(ITEMS).filter(d => d.gate(nobody)).length, 0)
+}
+
+
+console.log("\n— the eye's menu: who, or where —")
+// Two doors and a shortcut. The shape is pinned in source because the screens
+// themselves need a form to open; what matters is that the four player actions
+// exist, and that the three which MOVE somebody else ask the ladder while the
+// one that moves only you does not.
+{
+    const eye = readFileSync(
+        new URL("../Admin+ BP/scripts/features/adminitems.js", import.meta.url), "utf8")
+    const code = eye.replace(/\/\*[\s\S]*?\*\//g, "")
+        .split("\n").filter(l => !l.trim().startsWith("//")).join("\n")
+
+    for (const label of ["§bPlayers", "§bLocation", "§dWhere I'm looking"]) {
+        check(`the top level offers ${label.slice(2)}`, code.includes(label), true)
+    }
+    for (const action of ["Go to", "§eBring here", "§bTeleport", "§dSwap places"]) {
+        check(`a player offers ${action.replace(/§./g, "")}`, code.includes(action), true)
+    }
+
+    // Going to somebody is not something done TO them — the Teleport compass
+    // has always worked that way. Moving them is, and all three that do it
+    // check, including inside the coordinate form where the check is repeated
+    // after the box closes because a rank can change while somebody types.
+    check("bringing somebody asks the ladder",
+        /function bringHere[\s\S]*?canActOn\(player, live\)/.test(code), true)
+    check("swapping asks the ladder",
+        /function swapWith[\s\S]*?canActOn\(player, live\)/.test(code), true)
+    check("and sending them to coordinates asks again after the form closes",
+        /!self && !canActOn\(player, moving\)/.test(code), true)
+
+    // Both ends of a swap are read before either moves. Teleporting one and
+    // then asking where the other is sends the second to where the first no
+    // longer stands.
+    const swap = code.slice(code.indexOf("function swapWith"))
+    const mineAt = swap.indexOf("const mine")
+    const theirsAt = swap.indexOf("const theirs")
+    const firstMove = swap.indexOf(".teleport(")
+    check("a swap reads both positions before moving anybody",
+        mineAt < firstMove && theirsAt < firstMove, true)
 }
 
 console.log(`\n${passed} passed, ${failed} failed\n`)

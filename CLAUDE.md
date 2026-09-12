@@ -217,8 +217,10 @@ value in the wrong key.
 - **Panel-first.** Everything in `/admin`; no `/setrank`-style command sprawl.
   Bare command names, vanilla argument grammar, real selectors and enums.
 - **No economy or shop**, ever. The `+` means essentials.
-- **Homes, `/back`, fly, god, heal, feed, bring: dropped.** Removed on purpose,
-  not missing. Do not build them unasked.
+- **Homes, `/back`, fly, god, heal, feed: dropped.** Removed on purpose,
+  not missing. Do not build them unasked. **`bring` came OFF this list on
+  2026-09-11** — the user asked for it back, as an entry in the Ender Eye's
+  player menu rather than as a command. It is not a lapse; do not re-remove it.
 - **A node exists only if the code checks it.** A switch that does nothing is
   worse than no switch; a test enforces this.
 - **Never punish automatically.** Automod alerts staff and they decide.
