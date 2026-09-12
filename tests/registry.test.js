@@ -59,16 +59,34 @@ console.log("\n— NO command may hand Bedrock a selector parameter —")
 // Asserted against what the ENGINE was given, not against the source text: the
 // specs still say PlayerSelector, and that is fine, because registry.js is what
 // translates. Reading the registration is the only way to tell those apart.
+// **One deliberate exception, listed here by name.** `picker: true` keeps the
+// real type so the game offers its player list — asked for on the moderation
+// commands, where naming one person is the whole job and `/mute @a` is not
+// something anybody needs. The cost is that `@` forms are refused on THOSE
+// commands again. Spelling the list out is the point: a command cannot join it
+// quietly, and anything that appears here without being added on purpose is
+// the old bug coming back.
+const PICKER = ["mute", "ban", "unmute", "warn", "warnings"].map(full)
 {
     const offenders = []
     for (const [name, { def }] of registered) {
+        if (PICKER.includes(name)) continue
         for (const p of [...def.mandatoryParameters, ...def.optionalParameters]) {
             if (p.type === P.PlayerSelector || p.type === P.EntitySelector) {
                 offenders.push(`${name} ▸ ${p.name}`)
             }
         }
     }
-    check("not one selector parameter survives registration", offenders, [])
+    check("no selector survives registration, bar the listed few", offenders, [])
+
+    // And the listed few really did keep it — an opt-in that silently did
+    // nothing would leave the moderator with no picker and no explanation.
+    const withPicker = PICKER.filter(name => {
+        const def = registered.get(name)?.def
+        return [...(def?.mandatoryParameters ?? []), ...(def?.optionalParameters ?? [])]
+            .some(p => p.type === P.PlayerSelector || p.type === P.EntitySelector)
+    })
+    check("every command that asked for the picker has one", withPicker, PICKER)
 
     // And the downgrade is not silent — the name has to say what goes there,
     // because the description is off-screen while you fill the argument in.

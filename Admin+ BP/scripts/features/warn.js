@@ -25,6 +25,9 @@ const actionEnum = defineEnum("warnaction", ["add", "remove"])
 
 command({
     name: "warn",
+    // Asked for by name: the game's own player list when you type this.
+    // Costs the `@` forms here — see `picker` in core/registry.js.
+    picker: true,
     description: "Warn a player, or take a warning back — /warn <add|remove> <player>",
     perm: "admin.warn",
     mandatory: [
@@ -50,6 +53,9 @@ command({
 
 command({
     name: "warnings",
+    // Asked for by name: the game's own player list when you type this.
+    // Costs the `@` forms here — see `picker` in core/registry.js.
+    picker: true,
     description: "See your warnings — /warnings [player]",
     // No node. Reading your OWN record is not a privilege, and gating it
     // would have meant a member on an existing world being refused until

@@ -19,6 +19,9 @@ import { record } from "../core/logs.js"
 
 command({
     name: "mute",
+    // Asked for by name: the game's own player list when you type this.
+    // Costs the `@` forms here — see `picker` in core/registry.js.
+    picker: true,
     description: "Mute a player — /mute <player> [duration] [reason]",
     perm: "admin.mute",
     mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
@@ -87,6 +90,9 @@ command({
 // panel's player list does not.
 command({
     name: "ban",
+    // Asked for by name: the game's own player list when you type this.
+    // Costs the `@` forms here — see `picker` in core/registry.js.
+    picker: true,
     description: "Ban a player — /ban <player> opens the ban screen",
     perm: "admin.ban",
     mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
@@ -107,6 +113,9 @@ command({
 
 command({
     name: "unmute",
+    // Asked for by name: the game's own player list when you type this.
+    // Costs the `@` forms here — see `picker` in core/registry.js.
+    picker: true,
     description: "Unmute a player — /unmute <player>",
     perm: "admin.mute",
     mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],

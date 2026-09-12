@@ -116,7 +116,23 @@ const SELECTOR_TYPES = new Set([P.PlayerSelector, P.EntitySelector])
  * The spec object itself is never mutated — core/dispatch.js reads the ORIGINAL
  * types out of commandSpecs() to do its own resolution for the console.
  */
-function forEngine(params) {
+/**
+ * **`picker: true` opts a command OUT of that, and back into the game's own
+ * target picker.** Asked for by name, 2026-09-12: *"put player selectors for
+ * mute, warn and those things so people can actually use them."*
+ *
+ * What it buys: typing `/mute ` pops the game's list of online players, so a
+ * moderator picks a gamertag instead of spelling one. What it costs is the
+ * whole paragraph above — the `@` forms go back to being refused on that
+ * command, because the picker and the refusal are the same registration.
+ *
+ * A NAME chosen from that list still works, which is why the trade is worth
+ * making on moderation commands specifically: naming one person is what they
+ * are for, and `/mute @a` is not a thing anybody needs. It is deliberately not
+ * the default, so a command that wants to act on a group keeps working.
+ */
+function forEngine(params, picker) {
+    if (picker) return params ?? []
     return (params ?? []).map(p => SELECTOR_TYPES.has(p.type)
         // `_or_me` for the same reason the passthroughs carry it: the
         // description is off-screen by the time you are filling the argument
@@ -128,6 +144,10 @@ function forEngine(params) {
 
 /** Which argument slots were selectors, and whether each was players-only. */
 function selectorSlots(spec) {
+    // A picker command keeps the real type, so the ENGINE expands it and the
+    // handler already receives entities. Resolving here too would try to treat
+    // an array of players as a piece of text.
+    if (spec.picker) return []
     return [...(spec.mandatory ?? []), ...(spec.optional ?? [])]
         .map((p, i) => SELECTOR_TYPES.has(p.type)
             ? { i, name: p.name, playersOnly: p.type === P.PlayerSelector }
@@ -165,8 +185,8 @@ system.beforeEvents.startup.subscribe(({ customCommandRegistry }) => {
                 description: spec.description ?? `Admin+ ${spec.name}`,
                 permissionLevel: CommandPermissionLevel.Any,
                 cheatsRequired: false,
-                mandatoryParameters: forEngine(spec.mandatory),
-                optionalParameters: forEngine(spec.optional)
+                mandatoryParameters: forEngine(spec.mandatory, spec.picker),
+                optionalParameters: forEngine(spec.optional, spec.picker)
             }, (origin, ...args) => {
                 const player = origin.sourceEntity
                 if (!(player instanceof Player)) {

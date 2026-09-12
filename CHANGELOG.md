@@ -56,6 +56,33 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.5.13 — 2026-09-12
+
+**The player picker is back on the moderation commands.** Asked for directly:
+*"put player selectors for mute, warn and those things so people can actually
+use them."*
+
+Typing `/mute ` pops the game's own list of online players again, so a
+moderator picks a gamertag instead of spelling one — which is the half of the
+picker that was actually worth having.
+
+It is an **opt-in**, not a revert. 2.5.12 fixed `@` targeting across 23
+commands by handing Bedrock plain text; going back on that wholesale would
+re-break `/vanish @s` the day after it was reported. So `picker: true` on a
+spec keeps the real selector type, and everything else keeps the working one.
+
+- **With the picker:** `/mute`, `/ban`, `/unmute`, `/warn`, `/warnings`.
+- **Without it, still resolving `@` forms:** `/vanish`, `/invsee`, `/tpa`,
+  `/sudo`, `/nick`, `/gm`, `/grant`, `/smite` and the rest.
+- The trade, stated plainly: on those five, `@a` and `@p` go back to being
+  refused by the engine. A name — typed or chosen from the list — works, which
+  is what those commands are for. `/mute @a` is not something anybody needs.
+- **The console is unaffected.** It reads the original spec and never goes
+  through the engine, so `mute @a 5m spam` still works there on all five.
+- The test lists the five by name, so a command cannot join them quietly —
+  anything that appears with a selector without being added on purpose is the
+  old bug coming back.
+
 ## 2.5.12 — 2026-09-12
 
 Two reports from a world, and the second one was caused by an earlier fix.
