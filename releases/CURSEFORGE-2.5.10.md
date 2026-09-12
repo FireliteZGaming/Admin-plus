@@ -1,6 +1,6 @@
-# Admin+ 2.5.9
+# Admin+ 2.5.10
 
-Everything since 2.1.9 — 44 versions of it. Most of this is one long argument
+Everything since 2.1.9 — 45 versions of it. Most of this is one long argument
 with the same problem: a permission system is only worth anything if it holds
 *everywhere*, and a feature is only worth anything if somebody can find it.
 
@@ -76,6 +76,12 @@ Sixteen of them were wrong. Beyond that:
 
 ## Fixed, including from reports here
 
+- **Every rank you hold now shows, not just the top one.** Ranks have stacked
+  for a long time, but the tag only ever drew the first of them — so granting
+  somebody a second rank told them it had happened and then showed nothing.
+  It is `[Owner][Elytra Mace]` now, staff first, in chat, above the head, in
+  private messages and in the panel's lists. **How many rank tags show** caps it
+  at three by default.
 - **Blanking a rank's name now removes the tag.** It used to leave `§8[]` in
   dark grey on every line with no way to get rid of it — reported in the
   comments here, and the report was right.
