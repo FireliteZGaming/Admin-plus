@@ -57,6 +57,64 @@ The per-version detail for all of it is below, unchanged.
 
 ---
 
+## 2.2.3 — 2026-09-11
+
+**A verification pass, and what the engine had been saying all along.**
+
+Minecraft's own content log has been printing this at every load for months:
+
+    Custom Command alias [tp]  already in use. Required to use full name [a:tp].
+    Custom Command alias [msg] already in use.
+    Custom Command alias [me]  already in use.
+
+Three of the pack's own command names are owned by the game. The 54 passthroughs
+were renamed precisely to avoid that; the pack's own commands were never put
+through the same check. **The audience holds a rank and not operator**, and that
+is what decides how much each one costs:
+
+- **`tp`** — vanilla's needs operator, so for a ranked non-op `/tp` does nothing
+  at all. The answer is the **Ender Eye**: `/port` hands one over and the eye
+  opens a menu of who to jump to, so the person who cannot type `/tp` never
+  needed a name to type. Both doors — `/port` and `/items` — are now pinned as
+  names the game does not own, because a collision there would send them to
+  vanilla exactly as `/tp` does.
+- **`msg`** — vanilla's works for everybody, so it silently *succeeds* while
+  bypassing this pack's version: no socialspy, no chat log, and a muted player
+  still gets their message out. `/pm` is the way through, and `/msg`'s own
+  description has said so all along.
+- **`me`** — same shape, lower stakes. `/emote` works bare.
+
+A test pins the three, so a fourth cannot appear unnoticed.
+
+### tools/state.py was hiding the thing it exists to show
+
+Two faults, both of the kind that made the storage bug invisible for six
+versions:
+
+- It read the newest content log, which is not the newest log that *ran* Admin+.
+  A world opened without the pack buried the session that mattered, and the
+  report claimed there was no Admin+ startup line about a build that had run
+  fine hours earlier. It now walks back to the newest log that actually loaded
+  the pack, and says how many it skipped.
+- It counted the 28 early-execution storage warnings as problems. They are
+  expected — a Table is built while modules evaluate, and each one retries on
+  the first tick — and the log says so two lines later. Twenty-eight lines of
+  noise is where a real error hides. They are now reported as retries **only
+  when the recovery line is actually present**; without it they are called out
+  as the first thing to read.
+
+### Checked against the game rather than against the tests
+
+Every script call the last three versions added was verified against the 74
+behaviour packs installed on this machine — `beforeEvents.itemUse` with
+`event.cancel`, `system.runTimeout`, `createExplosion(location, radius, opts)`,
+`getPlayers({location, maxDistance})`, `setItem(selectedSlotIndex, undefined)`
+and the bare-name `addEffect("darkness", …)` form. All six are in packs the game
+already runs.
+
+That is still **Tested**, not **Proven** — none of it has been seen working in
+this world. But it is no longer only Node's opinion.
+
 ## 2.2.2 — 2026-09-11
 
 **`/tp @p` works, and a name now means the name you can see.** Two fixes in the

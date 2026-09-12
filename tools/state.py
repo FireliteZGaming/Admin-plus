@@ -114,15 +114,56 @@ def main():
     head("last game session")
     try:
         logs = sorted(LOGS.glob("ContentLog*.txt"), key=lambda p: p.stat().st_mtime)
-        if logs:
-            newest = logs[-1]
-            body = io.open(newest, encoding="utf-8", errors="replace").read()
+
+        # The NEWEST log is not the newest log that ran Admin+. Minecraft writes
+        # one per session whatever is loaded, so a world opened without the pack
+        # buries the session that matters — and the answer here was "(no Admin+
+        # startup line)" about a build that had in fact run fine hours earlier.
+        newest = None
+        for candidate in reversed(logs):
+            body = io.open(candidate, encoding="utf-8", errors="replace").read()
+            if "[Admin+] v" in body:
+                newest = candidate
+                break
+        skipped = len(logs) - 1 - logs.index(newest) if newest else 0
+
+        if newest:
             loaded = re.findall(r"\[Admin\+\] v([\d.]+) loaded", body)
-            problems = [l for l in body.splitlines()
-                        if ("[Admin+]" in l and ("error" in l.lower() or "warn" in l.lower()))
-                        or "Scripting][error]" in l]
-            print(f"  {newest.name}")
+            lines = body.splitlines()
+
+            # The 28 "cannot be used in early execution" warnings are EXPECTED:
+            # a Table is built while modules evaluate, which is a restricted
+            # context, and each one retries on the first tick. The proof that
+            # the retry worked is a line of our own further down. Counting them
+            # as problems drowned the report in noise that a real error would
+            # have hidden in — which is how the storage bug stayed invisible for
+            # six versions.
+            #
+            # So they are only discounted when that proof is actually present.
+            # Without it they are the most important lines in the file.
+            recovered = re.search(r"storage: all (\d+) tables read", body)
+            early = [l for l in lines if "early execution" in l and "[Admin+]" in l]
+
+            problems = [l for l in lines
+                        if (("[Admin+]" in l and ("error" in l.lower() or "warn" in l.lower()))
+                            or "Scripting][error]" in l)
+                        and not (recovered and "early execution" in l)]
+
+            print(f"  {newest.name}" + (f"  ({skipped} newer log(s) without Admin+)" if skipped else ""))
             print(f"  ran       {loaded[-1] if loaded else '(no Admin+ startup line)'}")
+            if early and recovered:
+                print(f"  storage   {len(early)} early-execution retries, all {recovered.group(1)} tables recovered")
+            elif early:
+                print(f"  storage   {len(early)} early-execution failures and NO recovery line — read this first")
+
+            # Name collisions are a standing fact, not an incident: the game owns
+            # tp, msg and me, so ours answer to a: only. Worth stating rather
+            # than listing as three warnings every single run.
+            taken = re.findall(r"Custom Command alias \[(\w+)\] already in use", body)
+            if taken:
+                print(f"  aliases   the game owns {', '.join(sorted(set(taken)))} — ours are a:-only there")
+            problems = [l for l in problems if "already in use" not in l]
+
             if problems:
                 print(f"  {len(problems)} problem line(s), last few:")
                 for line in problems[-3:]:
@@ -130,7 +171,7 @@ def main():
             else:
                 print("  problems  none")
         else:
-            print("  no content logs found")
+            print(f"  {len(logs)} content log(s), none of them ran Admin+")
     except Exception as e:
         print(f"  could not read logs: {e}")
 

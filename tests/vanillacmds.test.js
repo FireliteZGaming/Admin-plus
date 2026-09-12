@@ -499,5 +499,52 @@ console.log("\n— how many commands still ask the engine to expand a selector �
          "warn.js:2"])
 }
 
+
+console.log("\n— the pack's OWN names, checked against the ones the game owns —")
+// The 54 passthroughs were renamed so their bare form reaches ours. The pack's
+// own commands were never put through the same check, and the ENGINE has been
+// saying so at every load for months:
+//
+//   Custom Command alias [tp]  already in use. Required to use full name [a:tp].
+//   Custom Command alias [msg] already in use.
+//   Custom Command alias [me]  already in use.
+//
+// This matters because **the audience holds a rank and not operator.** The
+// consequence is different for each, and the difference is the whole point:
+//
+//   tp   vanilla's needs operator, so for a ranked non-op /tp does NOTHING.
+//        Fatal, not slow.
+//   msg  vanilla's /msg works for everybody — so it silently SUCCEEDS while
+//        bypassing this pack's version: no socialspy, no chat log, and a muted
+//        player still gets their message out.
+//   me   same shape, lower stakes.
+//
+// Pinned as the known three rather than as "none", because asserting none would
+// have to fail today. When one is renamed, take it off this list.
+{
+    const shadowed = ours.filter(name => GAME_OWNED.has(name)).sort()
+    check("exactly the three the engine names, and no new ones",
+        shadowed, ["me", "msg", "tp"])
+
+    // Each has a sibling that is NOT game-owned and therefore works bare for a
+    // non-op. `tp` is the one that does not, which is why it is the urgent one.
+    check("me has a working bare alternative", ours.includes("emote"), true)
+    // /msg's own description says "bare /msg is vanilla's" — that one was a
+    // known, written-down choice with /pm as the way through. /tp was not.
+    check("msg has one, and its description already admits the problem",
+        ours.includes("pm"), true)
+    // tp's answer is not another command name — it is the ENDER EYE. /port
+    // hands one over and the eye opens a menu of who to jump to, so the person
+    // who cannot type /tp never needed a name to type. That only holds while
+    // BOTH doors are reachable by a non-op, which is what these pin: a
+    // game-owned name would send them to vanilla exactly as /tp does.
+    check("the eye's doors are pack commands",
+        ["port", "items"].filter(n => ours.includes(n)), ["port", "items"])
+    check("and the game owns neither of them",
+        ["port", "items"].filter(n => GAME_OWNED.has(n)), [])
+    check("nor does any passthrough codename claim one",
+        ["port", "items"].filter(n => [...CODENAME.values()].includes(n)), [])
+}
+
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)
