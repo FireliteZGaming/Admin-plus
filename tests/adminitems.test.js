@@ -1,7 +1,8 @@
 import { ItemStack, system, __test } from "@minecraft/server"
 import {
     TRIDENT_TAG, beginStorm, liveStorms, tickStorms, clearStorms,
-    stormPoints, renderStorm, renderFlight, STORM_TICKS
+    stormPoints, renderStorm, renderFlight, STORM_TICKS,
+    GRIND_TICKS, FLOOR_HEALTH, drainTo, drainCurve, shatterArmour
 } from "../Admin+ BP/scripts/core/trident.js"
 import { setting, setSetting, resetSetting, DEFAULTS } from "../Admin+ BP/scripts/core/settings.js"
 import { ITEMS, signItem, itemKey, knockback, coordinate, SIGIL, installAdminItems,
@@ -494,6 +495,21 @@ console.log("\n— the Spectral Trident: thrown, tagged, and answered —")
     __test.emitProjectileHit(inAir, victim)
     check("ours starts a storm", liveStorms(), 1)
 
+    // **The ladder, at the moment it lands.** Holding the trident is not
+    // permission to use it on somebody above you, and the throw is the only
+    // other place this could be asked — by which point it is already in the
+    // air. Stripping armour and pinning someone at half a heart is not banter,
+    // so it is canActOn and not canTrollOn.
+    const src = readFileSync(
+        new URL("../Admin+ BP/scripts/features/adminitems.js", import.meta.url), "utf8")
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, "")
+        .split("' + chr(92) + 'n").filter(l => !l.trim().startsWith("//")).join("' + chr(92) + 'n")
+    check("the hit asks the strict ladder",
+        /!canActOn\(thrower, victim\)/.test(code), true)
+    check("and refuses rather than half-doing it",
+        /outranks you — the dust scatters/.test(src), true)
+    check("the strike is logged", /record\(thrower, "admin.trident"/.test(code), true)
+
     // And it ends on its own rather than swirling forever.
     let ticks = 0
     for (let t = 1; t <= STORM_TICKS + 5; t++) { ticks = tickStorms((system.currentTick ?? 0) + t) }
@@ -532,6 +548,98 @@ console.log("\n— ten swirls, each its own —")
     renderFlight({ location: { x: 0, y: 64, z: 0 },
                    dimension: { spawnParticle: () => { trail++ } } }, 3)
     check("the trail is six a tick", trail, 6)
+}
+
+
+console.log("\n— three seconds, then the armour, then half a heart —")
+// The whole sequence, driven tick by tick rather than described: it grinds them
+// down for three seconds, breaks what they are wearing, pins them at half a
+// heart, and only then collapses and goes back out as a ring.
+{
+    let hp = 20
+    let pieces = 4
+    const drawn = []
+    const dimension = {
+        spawnParticle: (id, at) => drawn.push(at),
+        playSound: () => {}
+    }
+    const victim = {
+        id: "storm-victim", typeId: "minecraft:player", isValid: true,
+        location: { x: 0, y: 64, z: 0 }, dimension,
+        getComponent: id =>
+            id === "minecraft:health" ? { currentValue: hp, setCurrentValue: v => { hp = v } }
+            : id === "minecraft:equippable"
+                ? { getEquipment: () => pieces > 0 ? {} : undefined, setEquipment: () => { pieces-- } }
+                : undefined
+    }
+
+    clearStorms()
+    beginStorm(victim)
+    const at = t => { for (let i = 1; i <= t; i++) tickStorms(i); return { hp, pieces } }
+
+    // It takes the full three seconds. A weapon that stripped somebody
+    // instantly would be a hit they read about afterwards rather than a thing
+    // visibly happening to them.
+    clearStorms(); hp = 20; pieces = 4; beginStorm(victim)
+    tickStorms(1)
+    check("it starts taking health immediately", hp < 20, true)
+    check("but the armour is untouched at the start", pieces, 4)
+
+    for (let t = 2; t < GRIND_TICKS; t++) tickStorms(t)
+    check("armour survives the whole grind", pieces, 4)
+    check("and they are nearly down by the end of it", hp < 2, true)
+    check("without ever going below half a heart", hp >= FLOOR_HEALTH, true)
+
+    tickStorms(GRIND_TICKS)
+    check("then the armour goes, all of it", pieces, 0)
+    check("and they sit at exactly half a heart", hp, FLOOR_HEALTH)
+
+    // Never a kill. The floor is what the item promises, and a weapon
+    // described as "drops them to half a heart" must not sometimes drop them
+    // to nothing — which is why health is SET rather than damaged.
+    for (let t = GRIND_TICKS + 1; t <= STORM_TICKS; t++) tickStorms(t)
+    check("it never kills", hp, FLOOR_HEALTH)
+    check("and the storm ends", liveStorms(), 0)
+}
+
+console.log("\n— it only ever takes health away —")
+{
+    // Somebody already below the floor is left where they are, not healed up
+    // to it. A weapon that topped players up would be a strange weapon.
+    let hp = 0.5
+    const weak = { getComponent: () => ({ currentValue: hp, setCurrentValue: v => { hp = v } }) }
+    drainTo(weak, 10)
+    check("somebody already under the floor is not healed", hp, 0.5)
+
+    let full = 20
+    const strong = { getComponent: () => ({ currentValue: full, setCurrentValue: v => { full = v } }) }
+    drainTo(strong, 6)
+    check("and the drain lands where it was told", full, 6)
+    drainTo(strong, 0)
+    check("clamped at half a heart, never through it", full, FLOOR_HEALTH)
+
+    // The curve reaches the floor exactly at the end of the grind, not before.
+    check("the curve starts where they are", drainCurve(20, 0), 20)
+    check("and finishes at the floor", drainCurve(20, GRIND_TICKS), FLOOR_HEALTH)
+    check("halfway is halfway", Math.round(drainCurve(20, GRIND_TICKS / 2) * 10) / 10, 10.5)
+}
+
+console.log("\n— a storm on a place harms nobody —")
+{
+    // The visual starts before we know what was struck, so a trident in the
+    // dirt draws all three acts and hurts no one.
+    clearStorms()
+    let particles = 0
+    const ground = {
+        location: { x: 3, y: 64, z: 3 },
+        dimension: { spawnParticle: () => { particles++ }, playSound: () => {} },
+        isValid: false
+    }
+    check("it starts", beginStorm(ground), true)
+    for (let t = 1; t <= STORM_TICKS; t++) tickStorms(t)
+    check("and draws the whole thing", particles > 0, true)
+    check("then finishes", liveStorms(), 0)
+    clearStorms()
 }
 
 console.log(`\n${passed} passed, ${failed} failed\n`)

@@ -121,6 +121,11 @@ const ITEMS = {
     trident: {
         barSlot: 5,
         slot: 15,
+        // **canActOn, not canTrollOn.** It was a light show when it only drew
+        // particles. It strips somebody's armour and pins them at half a heart
+        // now, and the rule this pack settled on is that a tool leaving a mark
+        // somebody has to appeal belongs on the strict ladder. Troll tools are
+        // for things you laugh about afterwards.
         gate: p => trollAllowed(p),
         make: () => loyalTrident(),
         name: "§c§lSpectral Trident",
@@ -452,13 +457,29 @@ export function installAdminItems() {
             if (projectile?.typeId !== "minecraft:thrown_trident") return
             if (!safe(() => projectile.hasTag(TRIDENT_TAG), false)) return
             const victim = victimOf(event)
+            const thrower = event.source
             system.run(() => {
-                if (victim) beginStorm(victim)
-                else beginStorm({
-                    location: event.location ?? projectile.location,
-                    dimension: event.dimension ?? projectile.dimension,
-                    isValid: false
-                })
+                // The ladder, at the moment it lands. Holding the trident is
+                // not permission to use it on somebody above you, and the
+                // throw is the only other place this could be asked — by which
+                // point it is already in the air.
+                if (victim?.typeId === "minecraft:player" && thrower) {
+                    if (!canActOn(thrower, victim)) {
+                        return err(thrower, `${displayName(victim)}§c outranks you — the dust scatters.`)
+                    }
+                }
+                if (victim) {
+                    beginStorm(victim)
+                    if (thrower && victim.typeId === "minecraft:player") {
+                        record(thrower, "admin.trident", victim, "spectral trident")
+                    }
+                } else {
+                    beginStorm({
+                        location: event.location ?? projectile.location,
+                        dimension: event.dimension ?? projectile.dimension,
+                        isValid: false
+                    })
+                }
             })
         })
     }

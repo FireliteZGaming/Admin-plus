@@ -56,6 +56,66 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.4.2 — 2026-09-11
+
+**The Spectral Trident does something now.** Three acts, eighty-four ticks.
+
+| | | |
+|---|---|---|
+| **0–3s** | the grind | the dust closes in while their health drains |
+| **3s** | the break | every piece of armour destroyed, health pinned at half a heart |
+| **+0.5s** | the collapse | the swirls fall inward onto them |
+| **+0.7s** | the shockwave | and back out, a red ring running across the ground |
+
+Three seconds because that is long enough to be a thing *happening* to somebody
+rather than a hit they read about afterwards. Everyone nearby gets those three
+seconds to watch it and work out who is doing it.
+
+### It cannot kill, by construction
+
+Health is **set**, not damaged. `applyDamage` runs through armour, resistance
+and absorption, so the same call lands differently on different people and can
+finish somebody off — and a weapon whose whole description is *"drops them to
+half a heart"* must not sometimes drop them to nothing. Setting the value makes
+the floor exact and unkillable.
+
+It only ever takes health away, so somebody already under the floor is left
+there rather than healed up to it. And the starting health is read **once**: re-
+reading it each tick would chase a moving number, so anything else hurting them
+mid-grind would stretch the curve instead of leaving it on schedule.
+
+The armour is **destroyed, not dropped** — armour on the floor is armour they
+pick straight back up. The held item is left alone; this is about what protects
+them, not about disarming them.
+
+### It moved to the strict ladder
+
+**`canActOn`, not `canTrollOn`.** It was a light show when it only drew
+particles. It strips somebody's armour and pins them at half a heart now, and
+the rule this pack settled on two versions ago is that a tool leaving a mark
+somebody has to appeal belongs on the strict rule. Troll tools are for things
+you laugh about afterwards.
+
+And the ladder is asked **at the moment it lands**, not only when the chest was
+drawn. Holding the trident is not permission to use it on somebody above you,
+and the throw is the only other place the question could be put — by which point
+it is already in the air. A strike on somebody who outranks you scatters, and
+says so. Every strike on a player is logged.
+
+### Drawing
+
+The collapse reuses the swirl with a `squeeze` argument rather than a second
+renderer, so the ten orbits keep their identities as they close in instead of
+being replaced by a different effect.
+
+The shockwave scales its point count with its radius. A fixed count spaced
+evenly around a growing circle turns into separate dots racing apart, which
+reads as debris; scaling keeps it a ring.
+
+A storm on a *place* — a trident in the dirt — draws all three acts and harms
+nobody, which is what makes it safe to start the visual before knowing what was
+struck.
+
 ## 2.4.1 — 2026-09-11
 
 **The Spectral Trident.** Throw it and red dust turns around it in the air;

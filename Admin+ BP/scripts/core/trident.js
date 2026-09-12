@@ -1,4 +1,4 @@
-import { world, system } from "@minecraft/server"
+import { world, system, EquipmentSlot } from "@minecraft/server"
 
 // The Spectral Trident — red dust around it in the air, and a storm of it
 // around whatever it hits.
@@ -25,6 +25,13 @@ import { world, system } from "@minecraft/server"
 
 /** Proven on this engine: three Soulbound souls draw with this one. */
 const DUST = "minecraft:redstone_wire_dust_particle"
+
+/** What it breaks. The held item is left alone — this is about protection. */
+const ARMOUR_SLOTS = [EquipmentSlot.Head, EquipmentSlot.Chest, EquipmentSlot.Legs, EquipmentSlot.Feet]
+
+function safe(fn, fallback) {
+    try { const v = fn(); return v === undefined ? fallback : v } catch { return fallback }
+}
 
 /** Tag on a thrown trident that came from one of ours. */
 export const TRIDENT_TAG = "ap:spectral"
@@ -106,7 +113,25 @@ export function renderFlight(entity, tick) {
  * wobble on top is what stops them looking like clockwork.
  */
 const SWIRLS = 10
-export const STORM_TICKS = 44
+
+/**
+ * The three acts, in ticks.
+ *
+ *   GRIND       the dust closes in while the health drains
+ *   COLLAPSE    it falls inward onto them — the wind-up
+ *   SHOCKWAVE   and back out, as a ring on the ground
+ *
+ * The grind is three seconds because that is long enough to be a thing that is
+ * HAPPENING to somebody rather than a hit they read about afterwards. Everyone
+ * nearby gets those three seconds to see it and understand who is doing it.
+ */
+export const GRIND_TICKS = 60
+export const COLLAPSE_TICKS = 10
+export const SHOCKWAVE_TICKS = 14
+export const STORM_TICKS = GRIND_TICKS + COLLAPSE_TICKS + SHOCKWAVE_TICKS
+
+/** Half a heart, in the units the health component speaks. */
+export const FLOOR_HEALTH = 1
 
 export function stormPoints(seed = Math.random) {
     const out = []
@@ -123,18 +148,16 @@ export function stormPoints(seed = Math.random) {
     return out
 }
 
-/** One frame of the storm. `t` is 0..1 through its life. */
-export function renderStorm(dimension, at, points, tick, t) {
+/** One frame of the swirl. `squeeze` shrinks it; 0 is a point. */
+export function renderStorm(dimension, at, points, tick, squeeze = 1) {
     if (!at) return 0
-    // Tighten and lift as it goes, so it closes in rather than just stopping.
-    const squeeze = 1 - t * 0.35
     let drawn = 0
     for (const p of points) {
         const theta = p.offset + tick * p.speed * p.dir
         const wobble = Math.sin(tick * 0.7 + p.offset) * p.wobble
         dust(dimension, {
             x: at.x + Math.cos(theta) * (p.radius + wobble) * squeeze,
-            y: at.y + p.height + Math.sin(tick * 0.5 + p.offset) * 0.25,
+            y: at.y + p.height * Math.max(squeeze, 0.12) + Math.sin(tick * 0.5 + p.offset) * 0.25 * squeeze,
             z: at.z + Math.sin(theta) * (p.radius + wobble) * squeeze
         })
         drawn++
@@ -143,6 +166,75 @@ export function renderStorm(dimension, at, points, tick, t) {
 }
 
 /**
+ * The shockwave: a ring on the ground, running outward.
+ *
+ * Points scale with the radius so the ring stays a RING — a fixed count spaced
+ * evenly round a growing circle turns into separate dots racing apart, which
+ * reads as debris rather than as a wave.
+ */
+export function renderShockwave(dimension, at, t) {
+    if (!at) return 0
+    const radius = 0.4 + t * 7
+    const points = Math.min(64, Math.max(10, Math.round(radius * 7)))
+    for (let i = 0; i < points; i++) {
+        const theta = (i / points) * Math.PI * 2
+        dust(dimension, {
+            x: at.x + Math.cos(theta) * radius,
+            y: at.y + 0.12 + Math.sin(theta * 3 + t * 6) * 0.1,
+            z: at.z + Math.sin(theta) * radius
+        })
+    }
+    return points
+}
+
+/**
+ * Take them to half a heart, and never below it.
+ *
+ * Set rather than damaged, deliberately. `applyDamage` runs through armour,
+ * resistance and absorption, so the same call lands differently on different
+ * people and can KILL — and a weapon whose whole description is "drops them to
+ * half a heart" must not sometimes be a weapon that drops them to nothing.
+ * Setting the value makes the floor exact and unkillable by construction.
+ *
+ * It only ever takes health away. Somebody already below the floor is left
+ * where they are rather than being healed up to it.
+ */
+export function drainTo(entity, target) {
+    const health = safe(() => entity.getComponent("minecraft:health"))
+    if (!health) return undefined
+    const now = safe(() => health.currentValue, undefined)
+    if (!Number.isFinite(now)) return undefined
+    const next = Math.max(FLOOR_HEALTH, Math.min(now, target))
+    if (next < now) safe(() => health.setCurrentValue(next))
+    return next
+}
+
+/** Where the drain should have reached by tick `t` of the grind. */
+export function drainCurve(startHealth, t) {
+    const through = Math.max(0, Math.min(1, t / GRIND_TICKS))
+    return FLOOR_HEALTH + (startHealth - FLOOR_HEALTH) * (1 - through)
+}
+
+/**
+ * Break everything they are wearing.
+ *
+ * Destroyed, not dropped: the point of the three seconds is that the armour
+ * does not survive it, and armour on the floor is armour they pick straight
+ * back up. The held item is left alone — this is about what protects them, not
+ * about disarming them.
+ */
+export function shatterArmour(entity) {
+    const equippable = safe(() => entity.getComponent("minecraft:equippable"))
+    if (!equippable) return 0
+    let broken = 0
+    for (const slot of ARMOUR_SLOTS) {
+        const worn = safe(() => equippable.getEquipment(slot))
+        if (!worn) continue
+        if (safe(() => { equippable.setEquipment(slot, undefined); return true }, false)) broken++
+    }
+    return broken
+}
+/**
  * Start a storm on a victim. It follows them — the dust is around THEM, not
  * around the spot they were standing when it hit.
  */
@@ -150,37 +242,79 @@ const storms = []
 
 export function beginStorm(victim) {
     if (!victim) return false
+    const health = safe(() => victim.getComponent("minecraft:health"))
     storms.push({
         victim,
         points: stormPoints(),
         born: system.currentTick ?? 0,
         at: { ...victim.location },
-        dimension: victim.dimension
+        dimension: victim.dimension,
+        // Where the drain starts from, read ONCE. Reading it each tick would
+        // chase a moving number: anything else hurting them mid-grind would
+        // stretch the curve out instead of leaving it on schedule.
+        startHealth: safe(() => health?.currentValue, FLOOR_HEALTH) ?? FLOOR_HEALTH,
+        broke: false
     })
     return true
 }
 
 export function liveStorms() { return storms.length }
 
-/** Advance every storm one frame. Exported so a test can drive it. */
+/**
+ * Advance every storm one frame. Exported so a test can drive it.
+ *
+ * Three acts, and the damage belongs to the first one only. A storm on
+ * something with no health component — a block hit, where the "victim" is just
+ * a place — draws all three and harms nobody, which is what makes the visual
+ * safe to start before knowing what was struck.
+ */
 export function tickStorms(now) {
     for (let i = storms.length - 1; i >= 0; i--) {
         const storm = storms[i]
         const age = now - storm.born
         if (age >= STORM_TICKS) { storms.splice(i, 1); continue }
-        // Follow the victim while they are still there; fall back to where they
-        // were, so a storm on somebody who dies or logs out finishes in place
-        // rather than vanishing mid-swirl.
+
         let at = storm.at
+        let alive = false
         try {
-            if (storm.victim?.isValid) { at = storm.victim.location; storm.at = { ...at } }
-        } catch { /* gone — keep the last known spot */ }
-        renderStorm(storm.dimension, at, storm.points, now, age / STORM_TICKS)
+            if (storm.victim?.isValid) { at = storm.victim.location; storm.at = { ...at }; alive = true }
+        } catch { /* gone — finish where they stood */ }
+
+        if (age < GRIND_TICKS) {
+            // Act one: it closes in, and they come down with it.
+            const through = age / GRIND_TICKS
+            renderStorm(storm.dimension, at, storm.points, now, 1 - through * 0.45)
+            if (alive) drainTo(storm.victim, drainCurve(storm.startHealth, age))
+            continue
+        }
+
+        if (age < GRIND_TICKS + COLLAPSE_TICKS) {
+            // Act two: the armour goes, and the dust falls onto them.
+            if (!storm.broke) {
+                storm.broke = true
+                if (alive) {
+                    shatterArmour(storm.victim)
+                    drainTo(storm.victim, FLOOR_HEALTH)
+                    safe(() => storm.dimension.playSound("random.break", at))
+                }
+            }
+            const t = (age - GRIND_TICKS) / COLLAPSE_TICKS
+            renderStorm(storm.dimension, at, storm.points, now, Math.max(0.05, 0.55 * (1 - t)))
+            continue
+        }
+
+        // Act three: back out, as a ring on the ground. Anchored where the
+        // collapse happened rather than following them, because a shockwave
+        // that trails somebody walking away is not a shockwave.
+        const t = (age - GRIND_TICKS - COLLAPSE_TICKS) / SHOCKWAVE_TICKS
+        if (t <= 0.05) safe(() => storm.dimension.playSound("random.explode", storm.at))
+        renderShockwave(storm.dimension, storm.at, t)
     }
     return storms.length
 }
 
 export function clearStorms() { storms.length = 0 }
+
 
 export function installTridentEffects() {
     system.runInterval(() => {

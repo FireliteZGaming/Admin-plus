@@ -131,6 +131,7 @@ const PHRASES = {
     // staff being told who called it in is the difference between an event and
     // a mystery.
     "admin.orbital": () => "Called in an orbital strike",
+    "admin.trident": t => `Struck ${t} with the Spectral Trident`,
     // The one line that names the tool rather than the effect. Sudo's whole
     // point is that the room cannot tell it happened, so the sentence the few
     // people cleared to read it get has to say outright what it was.
