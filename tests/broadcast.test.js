@@ -91,7 +91,10 @@ check("the sender's name is a token", /Admin says: custom/.test(member.heard[0])
 clear()
 setActiveChannel(mod, "staff")            // moved to general further up
 broadcastTo(admin, "staff", "scoped")
-check("so is the channel", /\[§cStaff\]/.test(mod.heard[0]), true)
+// The channel keeps its own colour, is CLOSED after it so it cannot repaint
+// the bracket, and the template's own §c is put back — which is the whole
+// point: a §r alone would have left the "]" white.
+check("so is the channel", /\[§cStaff§r§c\]/.test(mod.heard[0]), true)
 resetSetting("format.broadcast")
 
 console.log("\n— a channel made after startup still works —")

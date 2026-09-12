@@ -1,7 +1,7 @@
 import { __test, world } from "@minecraft/server"
 import { onPlayerJoin, setRanks } from "../Admin+ BP/scripts/core/ranks.js"
 import { setSetting, resetSetting, setting } from "../Admin+ BP/scripts/core/settings.js"
-import { setNickname } from "../Admin+ BP/scripts/core/identity.js"
+import { setNickname, getNickname } from "../Admin+ BP/scripts/core/identity.js"
 import { vanish, unvanish } from "../Admin+ BP/scripts/core/vanish.js"
 import { announceJoin, announceLeave, greet, GREETING_DELAY } from "../Admin+ BP/scripts/features/presence.js"
 
@@ -54,9 +54,11 @@ console.log("\n— nicknames are respected —")
 setNickname(nova, "§dStarlight")
 sent.length = 0
 announceJoin(nova)
-// The nickname carries a colour, so the token ends with §r — everything
-// after the name is the format string's own again, not the nickname's.
-check("the display name is used, and stops where it ends", sent.at(-1), "§e§dStarlight§r joined the game")
+// The nickname carries a colour, so the token is CLOSED after it — and the
+// format string's own colour is put back, so the words after the name are
+// yellow again rather than white. A bare §r resets to the default, which is
+// not the same thing, and cost the leave line its yellow for a while.
+check("the display name is used, and stops where it ends", sent.at(-1), "§e§dStarlight§r§e joined the game")
 setNickname(nova, "")
 
 console.log("\n— {NAME} is the gamertag, {NICKNAME} is what they call themselves —")
@@ -73,12 +75,12 @@ check("a {NAME} format shows the gamertag even when nicknamed", sent.at(-1), "§
 setSetting("format.join", "§a+ {NICKNAME}")
 sent.length = 0
 announceJoin(nova)
-check("and {NICKNAME} shows the nickname", sent.at(-1), "§a+ §dStarlight§r")
+check("and {NICKNAME} shows the nickname", sent.at(-1), "§a+ §dStarlight§r§a")
 setSetting("format.join", "§a+ {NAME} ({NICKNAME})")
 sent.length = 0
 announceJoin(nova)
 check("both at once, which is the point of splitting them",
-    sent.at(-1), "§a+ Nova (§dStarlight§r)")
+    sent.at(-1), "§a+ Nova (§dStarlight§r§a)")
 // Note where the reset lands: the closing bracket is the format string's
 // colour again, not pink. That is the containment doing its job — a name
 // paints itself and nothing else.
@@ -100,6 +102,37 @@ resetSetting("presence.announce")
 sent.length = 0
 announceJoin(nova)
 check("and back on again", sent.length, 1)
+
+console.log("\n— a styled name cannot repaint the line, or wipe it either —")
+// Two reports, and the second was caused by the fix for the first.
+//
+//   1. a nickname's colour escaped and repainted the words after it, so
+//      identity.js ends a styled name with §r.
+//   2. §r resets to WHITE, not to what the template had — so `§e{NICKNAME}
+//      left the game` rendered the name, then lost the yellow for the rest.
+//
+// The line has to stay yellow. That is what vanilla's own leave line looks
+// like, and matching it is the whole reason this pack prints its own.
+{
+    setNickname(nova.id, "§bSparks")
+    sent.length = 0
+    announceLeave("Nova", getNickname(nova.id))
+    const line = sent.at(-1)
+
+    check("the name keeps its own colour", line.includes("§bSparks"), true)
+    check("and is closed so it cannot bleed", line.includes("§bSparks§r"), true)
+    // The actual report. Everything after the name must still be yellow.
+    check("the rest of the line is yellow again, not white",
+        line.includes("§r§e left the game"), true)
+    check("and only one reset, not two", line.includes("§r§r"), false)
+    check("it still starts yellow", line.startsWith("§e"), true)
+
+    // A plain name changes nothing — no reset, because nothing was styled.
+    setNickname(nova.id, "")
+    sent.length = 0
+    announceLeave("Nova", getNickname(nova.id))
+    check("an unstyled name adds no codes at all", sent.at(-1), "§eNova left the game")
+}
 
 console.log("\n— a newcomer is told where to look, and nobody else hears it —")
 // /info is written for somebody who has never used a mod, and nothing anywhere

@@ -439,7 +439,40 @@ function stripFormatting(text) {
     return String(text ?? "").replace(/§./g, "")
 }
 
-/** Apply a format string. `\n` in a stored value becomes a real line break. */
+/**
+ * The formatting in force at `index` of a template: every code since the last
+ * `§r`, in order.
+ *
+ * A COLOUR clears styles and a style stacks on the colour, which is Minecraft's
+ * own rule — so `§e§l` prevails as both, while `§e§c` prevails as just `§c`.
+ */
+function prevailing(template, index) {
+    const out = []
+    for (const code of template.slice(0, index).match(/§./g) ?? []) {
+        const c = code[1].toLowerCase()
+        if (c === "r") { out.length = 0; continue }
+        if (/[0-9a-f]/.test(c)) out.length = 0
+        out.push(code)
+    }
+    return out.join("")
+}
+
+/**
+ * Apply a format string. `\n` in a stored value becomes a real line break.
+ *
+ * **A styled value must not repaint the rest of the line, and must not wipe it
+ * either.** identity.js ends a styled name with `§r` so a nickname's colour
+ * cannot escape into the words after it. That was right, and it was too blunt:
+ * `§r` resets to WHITE, so `§e{NICKNAME} left the game` rendered the name in
+ * its own colour and then everything after it in white — reported from a world
+ * as the leave line losing its yellow.
+ *
+ * A reset is the wrong tool because it restores the DEFAULT rather than what
+ * the template had. So every substituted value that carries formatting is
+ * followed by the formatting the template itself was in at that point. Where
+ * the template had nothing, that is the empty string and the `§r` stands, which
+ * is the old behaviour for uncoloured templates.
+ */
 export function render(key, tokens) {
     let out = setting(key).replaceAll("\\n", "\n")
 
@@ -452,9 +485,22 @@ export function render(key, tokens) {
     // stays "hello    there".
     const GAP = "\u0000"
     for (const [token, value] of Object.entries(tokens)) {
-        const text = value ?? ""
-        out = out.replaceAll(`{${token}}`,
-            stripFormatting(String(text)).trim() ? String(text) : GAP)
+        const text = String(value ?? "")
+        const empty = !stripFormatting(text).trim()
+        // One at a time rather than replaceAll, because what goes in depends on
+        // WHERE it goes: the formatting to restore afterwards is whatever the
+        // template was in at that spot.
+        for (;;) {
+            const at = out.indexOf(`{${token}}`)
+            if (at < 0) break
+            // identity.js already closes a styled name with §r; don't add a
+            // second one just to put the template's colour back after it.
+            const closed = text.endsWith("§r") ? text : `${text}§r`
+            const piece = empty
+                ? GAP
+                : (text.includes("§") ? `${closed}${prevailing(out, at)}` : text)
+            out = out.slice(0, at) + piece + out.slice(at + token.length + 2)
+        }
     }
     out = out.replace(new RegExp(`[ \t]*${GAP}[ \t]*`, "g"), " ")
     // A line that is now only separators and spaces had nothing in it to begin

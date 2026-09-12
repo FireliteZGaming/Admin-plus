@@ -1,6 +1,10 @@
-import { system, Player, CommandPermissionLevel, CustomCommandStatus } from "@minecraft/server"
+import {
+    system, Player, CommandPermissionLevel, CustomCommandStatus,
+    CustomCommandParamType as P
+} from "@minecraft/server"
 import { CONFIG, NS } from "../config.js"
 import { has } from "./ranks.js"
+import { resolveSelector, SELECTOR_HINT } from "./selector.js"
 
 // Native slash commands.
 //
@@ -85,6 +89,52 @@ function deny(reason) {
     return { status: CustomCommandStatus.Failure, message: CONFIG.brand.err + reason }
 }
 
+const SELECTOR_TYPES = new Set([P.PlayerSelector, P.EntitySelector])
+
+/**
+ * **No command this pack registers may declare a selector parameter.**
+ *
+ * A parameter registered as `PlayerSelector` or `EntitySelector` is expanded by
+ * the ENGINE, at the command's declared permission level — and this registry
+ * declares `Any` for everything, deliberately, because Admin+ exists to be
+ * usable by people who are not operators. So every `@` form is refused before
+ * the handler is ever called, with a bare `<insufficient permissions for
+ * selector expansion>` that names nothing.
+ *
+ * It looked random for months because the two commonest cases are the two that
+ * work: a literal name gets through, and leaving an optional argument off gets
+ * through. Only `@s`, `@p`, `@a` fail. `/tp` was fixed at the call site in
+ * 2.1.21 and the 54 vanilla passthroughs in their own file — and main.js said
+ * out loud that roughly two dozen of the pack's own commands were still wrong.
+ * `/vanish` was reported from a world, which is the whole two dozen.
+ *
+ * Fixing it HERE instead of in 23 handlers is what stops it coming back: a
+ * command that declares a selector now gets plain text at the engine and the
+ * resolved entities at the handler, so handlers are untouched and a new
+ * command cannot reintroduce the bug by declaring the natural-looking type.
+ *
+ * The spec object itself is never mutated — core/dispatch.js reads the ORIGINAL
+ * types out of commandSpecs() to do its own resolution for the console.
+ */
+function forEngine(params) {
+    return (params ?? []).map(p => SELECTOR_TYPES.has(p.type)
+        // `_or_me` for the same reason the passthroughs carry it: the
+        // description is off-screen by the time you are filling the argument
+        // in, so the parameter NAME is the only surface left to say what goes
+        // there — and the engine no longer offers `@a @e @p` as you type.
+        ? { name: `${p.name}_or_me`, type: P.String }
+        : p)
+}
+
+/** Which argument slots were selectors, and whether each was players-only. */
+function selectorSlots(spec) {
+    return [...(spec.mandatory ?? []), ...(spec.optional ?? [])]
+        .map((p, i) => SELECTOR_TYPES.has(p.type)
+            ? { i, name: p.name, playersOnly: p.type === P.PlayerSelector }
+            : undefined)
+        .filter(Boolean)
+}
+
 system.beforeEvents.startup.subscribe(({ customCommandRegistry }) => {
     // Enums must exist before any command references one.
     for (const { name, values } of enums) {
@@ -108,14 +158,15 @@ system.beforeEvents.startup.subscribe(({ customCommandRegistry }) => {
             console.error(`[Admin+] /${fullName} asks for ${paramCount} parameters; Bedrock allows ${PARAM_LIMIT}. It has NOT been registered - shorten it.`)
             continue
         }
+        const slots = selectorSlots(spec)
         try {
             customCommandRegistry.registerCommand({
                 name: fullName,
                 description: spec.description ?? `Admin+ ${spec.name}`,
                 permissionLevel: CommandPermissionLevel.Any,
                 cheatsRequired: false,
-                mandatoryParameters: spec.mandatory ?? [],
-                optionalParameters: spec.optional ?? []
+                mandatoryParameters: forEngine(spec.mandatory),
+                optionalParameters: forEngine(spec.optional)
             }, (origin, ...args) => {
                 const player = origin.sourceEntity
                 if (!(player instanceof Player)) {
@@ -123,6 +174,19 @@ system.beforeEvents.startup.subscribe(({ customCommandRegistry }) => {
                 }
                 if (spec.perm && !has(player, spec.perm)) {
                     return deny("You don't have permission to use that.")
+                }
+                // Selector slots arrive as text and reach the handler as
+                // entities — see forEngine. A slot left empty stays undefined,
+                // because "no argument" is how /vanish and friends mean "me",
+                // and turning that into an empty array would break them.
+                for (const slot of slots) {
+                    const text = args[slot.i]
+                    if (text === undefined || text === null || text === "") continue
+                    const found = resolveSelector(text, player, slot.playersOnly)
+                    if (!found.ok || !found.entities.length) {
+                        return deny(found.reason ?? `nothing matched "${text}". ${SELECTOR_HINT}`)
+                    }
+                    args[slot.i] = found.entities
                 }
                 // Hop out of the read-only context before touching anything.
                 system.run(() => {

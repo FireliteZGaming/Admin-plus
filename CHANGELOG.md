@@ -56,6 +56,50 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.5.12 — 2026-09-12
+
+Two reports from a world, and the second one was caused by an earlier fix.
+
+### `@s` was refused by every command that takes a player
+
+Reported as *"/vanish doesn't work"* — and it is `/vanish @s` that fails, not
+`/vanish`. A parameter registered as `PlayerSelector` or `EntitySelector` is
+expanded by the ENGINE at the command's declared permission level, and this
+pack declares `Any` for everything on purpose, because Admin+ exists to be
+usable without operator. So every `@` form was refused before the handler ran.
+
+`/tp` was fixed at its call site in 2.1.21 and the 54 vanilla passthroughs in
+theirs. main.js said out loud that roughly two dozen of the pack's own commands
+were still wrong, and listed them. This is those: **23 registrations across 14
+files** — `/ban`, `/mute`, `/warn`, `/nick`, `/invsee`, `/sudo`, `/tpa`,
+`/smite`, `/gm`, `/grant`, `/vanish` and the rest.
+
+- Fixed **once, in `core/registry.js`**, not in 23 handlers: a selector
+  parameter is handed to Bedrock as text and resolved back to entities before
+  the handler is called. Every handler is untouched, and a new command cannot
+  reintroduce the bug by declaring the type that looks right.
+- It looked random for months because the two commonest cases are the two that
+  worked: a literal name, and leaving an optional argument off.
+- **`system.beforeEvents.startup` was a no-op in the test stub**, so the
+  registry's entire engine-facing half had never been executed by a test. That
+  is exactly where this lived. It now runs against a recording registry, and
+  `tests/registry.test.js` asserts that no command hands Bedrock a selector —
+  reading the REGISTRATION, not the source text, because the specs still say
+  `PlayerSelector` and translating them is the point.
+
+### The leave line lost its yellow
+
+`§r` resets to WHITE, not to what the format string had. Ending a styled
+nickname with `§r` — which 2.1.25 added so a name could not repaint the words
+after it — therefore wiped the line's own colour too: `§e{NICKNAME} left the
+game` rendered the name, then everything after it in white.
+
+Both things have to be true at once, so `render()` now follows a styled value
+with the formatting **the template itself was in at that point** rather than a
+bare reset. A colour clears styles and a style stacks on the colour, as
+Minecraft does it, so `§e§l` comes back as both. Uncoloured templates are
+unchanged.
+
 ## 2.5.11 — 2026-09-12
 
 **"What is it inherited from? Literally nothing."** Reported from a world, and
