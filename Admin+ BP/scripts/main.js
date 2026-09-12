@@ -5,7 +5,7 @@ import { onPlayerJoin, refreshNameTag, canActOn, has, ladder, ranksTable } from 
 import { detectServerPreset } from "./core/serverPresets.js"
 import { tableReport } from "./core/storage.js"
 import { ok, err, msg } from "./core/util.js"
-import { resolveSelector, SELECTOR_HELP } from "./core/selector.js"
+import { resolveSelector, SELECTOR_HELP, SELECTOR_HINT } from "./core/selector.js"
 import { displayName } from "./core/identity.js"
 import { openPanel } from "./features/panel.js"
 import "./features/gamemode.js"
@@ -84,15 +84,18 @@ command({
     name: "tp",
     description: `Teleport players — /a:tp <who> [destination] · ${SELECTOR_HELP}`,
     perm: "admin.tp",
-    mandatory: [{ name: "target", type: CustomCommandParamType.String }],
-    optional: [{ name: "destination", type: CustomCommandParamType.String }],
+    // `_or_me` on both, for the same reason the 54 passthroughs carry it: the
+    // description is gone by the time you are typing the argument, and
+    // `<target: string>` says nothing about what a target looks like.
+    mandatory: [{ name: "target_or_me", type: CustomCommandParamType.String }],
+    optional: [{ name: "destination_or_me", type: CustomCommandParamType.String }],
     run: (player, [firstText, secondText]) => {
         const first = resolveSelector(firstText, player, true)
         if (!first.ok) return err(player, first.reason)
         if (first.unsupported?.length) {
             return err(player, `I can't apply §f${first.unsupported.join(", ")}§c — refusing rather than ignoring it.`)
         }
-        if (!first.entities.length) return err(player, `Nothing matched §f${firstText}§c.`)
+        if (!first.entities.length) return err(player, `Nothing matched §f${firstText}§c. ${SELECTOR_HINT}`)
 
         // One argument: the selector IS the destination, and the player moves.
         if (secondText === undefined || secondText === null || secondText === "") {
@@ -107,7 +110,7 @@ command({
         if (second.unsupported?.length) {
             return err(player, `I can't apply §f${second.unsupported.join(", ")}§c — refusing rather than ignoring it.`)
         }
-        if (!second.entities.length) return err(player, `Nothing matched §f${secondText}§c.`)
+        if (!second.entities.length) return err(player, `Nothing matched §f${secondText}§c. ${SELECTOR_HINT}`)
         if (second.entities.length > 1) return err(player, "The destination matched more than one player.")
 
         const destination = second.entities[0]

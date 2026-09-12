@@ -1,7 +1,7 @@
 import { CustomCommandParamType } from "@minecraft/server"
 import { commandSpecs } from "./registry.js"
 import { has } from "./ranks.js"
-import { resolveSelector } from "./selector.js"
+import { resolveSelector, SELECTOR_HINT } from "./selector.js"
 
 // Running one of THIS PACK's commands from a line of text.
 //
@@ -50,7 +50,9 @@ export function coerce(text, param, player) {
         if (found.unsupported?.length) {
             return { ok: false, reason: `can't apply ${found.unsupported.join(", ")}` }
         }
-        if (!found.entities.length) return { ok: false, reason: `nothing matched "${text}"` }
+        if (!found.entities.length) {
+            return { ok: false, reason: `nothing matched "${text}". ${SELECTOR_HINT}` }
+        }
         return { ok: true, value: found.entities }
     }
     if (type === P.Integer || type === P.Float) {
@@ -97,7 +99,12 @@ export function runPackCommand(player, line) {
     const given = parts.slice(1)
     const need = (spec.mandatory ?? []).length
     if (given.length < need) {
-        const names = (spec.mandatory ?? []).map(p => `<${p.name}>`).join(" ")
+        // The namespace comes off. An Enum parameter is linked to its values BY
+        // NAME and that name has to be namespaced, so the parameter is called
+        // `a:effect` — which is an implementation detail of the registration,
+        // not something to show somebody who just typed the command wrong.
+        const names = (spec.mandatory ?? [])
+            .map(p => `<${String(p.name).replace(/^[a-z0-9_]+:/i, "")}>`).join(" ")
         return { ok: false, reason: `/${spec.name} needs ${names}` }
     }
 

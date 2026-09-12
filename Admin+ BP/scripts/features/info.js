@@ -88,6 +88,52 @@ async function commandsScreen(player, back) {
             "§8Anything you type that starts with / is a command,",
             "§8and nobody else sees it."
         ].join("\n"),
+        buttons: [
+            { text: "§bWho a command aims at\n§8The bit that goes where it says who",
+              run: () => targetsScreen(player, () => commandsScreen(player, back)) }
+        ],
+        back
+    })
+}
+
+/**
+ * The `who` argument, for somebody who has never typed an `@` in their life.
+ *
+ * This screen exists because of a playtest report about `/eff`: the game shows
+ * `<targets_or_me: string>` and offers no list, so the box may as well be
+ * blank. The engine USED to offer `@a @e @p @r @s` as you typed, and cannot any
+ * more — it expands selectors at the command's permission level and refuses
+ * every one of them at `Any`, which is where this pack registers so that people
+ * without operator can use it at all. See core/selector.js.
+ *
+ * So the words came first and this explains the words. Ordered by who needs it:
+ * `me` is what gets somebody unstuck, and the `@` forms sit at the bottom for
+ * the person who already knew them.
+ */
+async function targetsScreen(player, back) {
+    return menu(player, {
+        title: hubTitle("about", "Who"),
+        body: [
+            "§7Lots of commands want to know §fwho§7 — that is the first",
+            "§7thing you type after the command. Any of these work:",
+            "",
+            "§fme",
+            "§7  You. §8/eff me speed",
+            "§fa player's name",
+            "§7  That one person. Their nickname works too.",
+            "§8  /eff Steve jump_boost",
+            "§feveryone",
+            "§7  Every player here. §8/eff everyone night_vision",
+            "§fnearest",
+            "§7  Whoever is standing closest to you.",
+            "§frandom",
+            "§7  One player, picked out of a hat.",
+            "§fmobs",
+            "§7  Every creature, players included. §8/slay mobs",
+            "",
+            "§8If you already know Minecraft selectors, @s @a @p @r @e",
+            "§8all still work, filters and all — @e[type=cow,r=10]."
+        ].join("\n"),
         buttons: [],
         back
     })

@@ -6,7 +6,7 @@ import { displayName } from "../core/identity.js"
 import { record } from "../core/logs.js"
 import { runAsServer, runOnEach, checkCommand } from "../core/execute.js"
 import { hasEntityRoute, runEntityRoute } from "../core/entityapi.js"
-import { resolveSelector, SELECTOR_HELP } from "../core/selector.js"
+import { resolveSelector, SELECTOR_HELP, SELECTOR_HINT } from "../core/selector.js"
 import { COMMANDS, ENUMS, SELECTOR_TYPES, codenameFor } from "../core/vanillaparams.js"
 
 // The vanilla command set, typed, without operator.
@@ -238,9 +238,18 @@ for (const spec of COMMANDS) {
         // API's own query instead — no parser, no permission, nothing to
         // refuse. Location, ItemType, BlockType and the enums keep their types
         // and still complete.
+        // The parameter NAME is the last surface left. The description is shown
+        // while you are picking the command and gone by the time you are
+        // filling it in; what stays on screen is `<targets: string>`, and
+        // `string` tells somebody nothing about what a target looks like. A
+        // suffix puts one word that always works where they are already
+        // looking — `<targets_or_me: string>` — and `me` is real: see WORDS in
+        // core/selector.js.
         const entry = type === P.Enum
             ? { name: enumName[enumKey], type }
-            : { name, type: SELECTOR_TYPES.has(type) ? P.String : type }
+            : SELECTOR_TYPES.has(type)
+                ? { name: `${name}_or_me`, type: P.String }
+                : { name, type }
         ;(isOptional ? optional : mandatory).push(entry)
     }
 
@@ -285,7 +294,7 @@ for (const spec of COMMANDS) {
                 const found = resolveSelector(resolved[i], player, type === P.PlayerSelector)
                 if (!found.ok) return err(player, found.reason)
                 if (!found.entities.length) {
-                    return err(player, `nothing matched §f${resolved[i]}§c.`)
+                    return err(player, `nothing matched §f${resolved[i]}§c. ${SELECTOR_HINT}`)
                 }
                 // A filter we cannot honour is REPORTED, never dropped: losing
                 // `r=10` off a /slay is the difference between the mobs beside

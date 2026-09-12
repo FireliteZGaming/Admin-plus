@@ -56,6 +56,86 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.5.7 — 2026-09-12
+
+**`/eff` told nobody how to use it.** The target box was blank, offered nothing,
+and `<targets: string>` is not a hint. Now `me` works, and so do five other
+words anybody would guess.
+
+### The hole this fell through
+
+Selectors stopped being offered as you type when the pack moved them to
+`String`, and that was forced: a parameter registered as `EntitySelector` is
+expanded **by the engine** at the command's declared permission level, and every
+`@` form is refused at `Any` — which is where this pack registers, because the
+whole point is power without operator. A picker that offers five selectors and
+refuses all five is worse than one that offers none.
+
+What it left behind was a blank box. The vocabulary went into the command
+*description*, which is read while you are picking the command and gone by the
+time you are filling it in. So for anybody who had never typed an `@`, `/eff`
+was unusable and said nothing about why.
+
+### Words, and each one is a selector written out
+
+    /eff me speed
+    /eff everyone night_vision
+    /slay mobs
+
+| word | is | means |
+|---|---|---|
+| `me` `self` `myself` | `@s` | you |
+| `everyone` `all` `everybody` | `@a` | every player |
+| `nearest` `closest` | `@p` | whoever is standing closest |
+| `random` `anyone` | `@r` | one player, out of a hat |
+| `mobs` `entities` `everything` | `@e` | every creature, players included |
+
+No new capability: each word *is* one selector, so there is one behaviour to
+explain and one to test, and somebody who learns `@s` later finds it already
+works. Names and nicknames work as they always did, and `@e[type=cow,r=10]` with
+every filter is untouched.
+
+The words **beat** a player carrying one, deliberately: `me` has to mean me
+every time or it is not worth teaching. `me` cannot collide at all — a gamertag
+is at least three characters — and somebody actually named `Random` is still
+reachable as `@a[name=Random]`.
+
+### Three surfaces that can still say it
+
+- **The parameter name**, which is the only thing on screen while you type the
+  argument: `<targets_or_me: string>`. All 54 passthroughs and `/tp`.
+- **The description**, reordered to lead with the plain words instead of
+  `@s @p @r` — a description is cut off on the right, so whatever leads it is
+  the part everybody sees.
+- **A failed target**, which now points at the words rather than only refusing.
+  Same in the creator console.
+
+`/info ▸ Commands ▸ Who a command aims at` explains all of it in the same
+plain-English register as the rest of that screen.
+
+### The console stops leaking a registration detail
+
+Bedrock links an Enum parameter to its values **by name**, so the parameter is
+literally called `a:effect`. The console printed that at somebody who had just
+typed a command wrong. The namespace comes off now.
+
+### The test stub had never applied a single query option
+
+`getPlayers` was `() => [...players]` — every `EntityQueryOptions` thrown away.
+That is not a harmless simplification: `core/selector.js` exists to turn
+`@e[type=cow,r=10]` into those options, so the stub agreed with any filter at
+all and the whole translation went untested. `@a[name=Steve]` returned the
+world. It now applies type, name, tags, gamemode, distance, `closest` and
+`farthest`, and deliberately does **not** fake families — a test asking about a
+family should fail to find one rather than be quietly told yes.
+
+Two other tests were quietly passing for the wrong reason and are fixed: the
+selector-to-`String` check read the source text rather than the registrations,
+so rearranging the code broke it while the behaviour was fine; and the console's
+"a name works too" used a stand-in named `Me`, which is a reserved word now.
+
+40 suites, 2228 assertions.
+
 ## 2.5.6 — 2026-09-12
 
 **The trident strikes mobs properly, and says what it did.** Plus a much bigger

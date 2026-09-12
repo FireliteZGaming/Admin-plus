@@ -1,10 +1,11 @@
 import { CustomCommandParamType, __test } from "@minecraft/server"
-import { resolveSelector } from "../Admin+ BP/scripts/core/selector.js"
+import { resolveSelector, SELECTOR_HELP, SELECTOR_HINT } from "../Admin+ BP/scripts/core/selector.js"
 import { setNickname } from "../Admin+ BP/scripts/core/identity.js"
 import { COMMANDS, ENUMS, SELECTOR_TYPES, CODENAME, codenameFor, GAME_OWNED } from "../Admin+ BP/scripts/core/vanillaparams.js"
 import { buildLine, tempTag } from "../Admin+ BP/scripts/features/vanillacmds.js"
 import { DEFAULTS } from "../Admin+ BP/scripts/core/settings.js"
 import { OP_COMMANDS } from "../Admin+ BP/scripts/core/opcommands.js"
+import { commandSpecs } from "../Admin+ BP/scripts/core/registry.js"
 import { readFileSync, readdirSync } from "node:fs"
 
 let passed = 0, failed = 0
@@ -134,8 +135,29 @@ const vanillaCode = vanillaSrc.split("\n")
 // `/gift @p iron_leggings` and `/ench @p` all failed that way, with a BARE
 // error carrying no `[Admin+]` prefix — proof it happened before this file's
 // handler ran, so nothing downstream could have helped.
-check("the registration downgrades selectors to String",
-    vanillaCode.includes("type: SELECTOR_TYPES.has(type) ? P.String : type"), true)
+// Asked of the REGISTRATIONS rather than of the source text, because the source
+// can be rearranged without changing what gets registered — and it was, when the
+// selector parameters picked up their name hint.
+{
+    const rows = new Map(COMMANDS.map(c => [codenameFor(c.name), c]))
+    const built = commandSpecs().filter(spec => rows.has(spec.name))
+    check("every command in the table is registered", built.length, COMMANDS.length)
+
+    const selectorParams = built.flatMap(spec => {
+        const params = rows.get(spec.name).params ?? []
+        const all = [...(spec.mandatory ?? []), ...(spec.optional ?? [])]
+        return params
+            .map((p, i) => SELECTOR_TYPES.has(p[1]) ? { cmd: spec.name, was: p[0], got: all[i] } : null)
+            .filter(Boolean)
+    })
+    check("there are selector parameters to check", selectorParams.length > 0, true)
+    check("the registration downgrades every one of them to String",
+        selectorParams.filter(p => p.got?.type !== P.String).map(p => `${p.cmd}:${p.was}`), [])
+    // And carries the hint in the name, which is the only part still on screen
+    // once the description has scrolled away.
+    check("and each one says what it takes",
+        selectorParams.filter(p => p.got?.name !== `${p.was}_or_me`).map(p => `${p.cmd}:${p.was}`), [])
+}
 check("and the handler resolves the text itself",
     vanillaCode.includes("resolveSelector(resolved[i], player"), true)
 check("the entity-tagging path survives for what comes back",
@@ -454,6 +476,88 @@ console.log("\n— a name is whatever is on the screen, nickname included —")
     players.length = before
 }
 
+
+console.log("\n— a word anybody can guess, where a selector used to be offered —")
+// The engine no longer offers `@a @e @p @r @s` as you type — it expands
+// selectors at the command's permission level and refuses all five at `Any`,
+// which is where this pack has to register. So the target box is blank, and a
+// playtest report put it plainly: nobody would know how to use /eff at all.
+//
+// These words are the answer, and each one is exactly one selector written out
+// — no new behaviour to explain, and `@s` still works for whoever already knew
+// it.
+{
+    const players = __test.players
+    const before = players.length
+    const make = (id, name) => ({
+        id, name, typeId: "minecraft:player",
+        getTags: () => [], commandPermissionLevel: 0,
+        location: { x: 0, y: 64, z: 0 }, dimension: __test.dimension
+    })
+    const cass = make("p-cass", "CassRunner")
+    const dana = make("p-dana", "DanaBuilds")
+    players.push(cass, dana)
+
+    check("me is you", resolveSelector("me", cass).entities.map(p => p.id), ["p-cass"])
+    check("and so are self and myself",
+        ["self", "myself"].map(w => resolveSelector(w, cass).entities.length), [1, 1])
+    check("everyone is every player",
+        resolveSelector("everyone", cass).entities.map(p => p.id).sort(), ["p-cass", "p-dana"])
+    check("all says the same thing",
+        resolveSelector("all", cass).entities.length, 2)
+    check("nearest picks one", resolveSelector("nearest", cass).entities.length, 1)
+    check("random picks one", resolveSelector("random", cass).entities.length, 1)
+    // `mobs` is `@e`, which is every entity including players. The word is a
+    // small lie and a deliberate one — it is what people reach for.
+    check("mobs reaches entities, not only players",
+        resolveSelector("mobs", cass).ok, true)
+    // Capitals are how a person actually types a word at the start of an
+    // argument, so this is not a nicety.
+    check("case does not matter", resolveSelector("ME", cass).entities.map(p => p.id), ["p-cass"])
+
+    // The words BEAT a player carrying one, on purpose: `me` has to mean me
+    // every time or it is not worth teaching. `me` itself cannot collide at all
+    // — a gamertag is at least three characters — but `random` can.
+    players.push(make("p-troll", "Random"))
+    check("a player named Random does not steal the word",
+        resolveSelector("random", cass).entities.length, 1)
+    check("and they are still reachable the long way",
+        resolveSelector("@a[name=Random]", cass, true).entities.map(p => p.id), ["p-troll"])
+
+    // Getting it wrong has to teach, because a blank box plus a bare refusal is
+    // the state this whole change exists to leave.
+    check("an unknown name points at the words",
+        resolveSelector("Nobody", cass, true).reason.includes("me"), true)
+    check("so does a selector that is not one",
+        resolveSelector("@x", cass).reason.includes("everyone"), true)
+    check("and so does an empty target",
+        resolveSelector("", cass).reason.includes("nearest"), true)
+
+    players.length = before
+}
+
+console.log("\n— the two surfaces that can still say it —")
+// A description is read while you are PICKING the command and gone by the time
+// you are filling it in; the parameter name is what stays on screen. Both had
+// to change, so both are pinned.
+{
+    check("the help leads with the plain words, not the @ forms",
+        SELECTOR_HELP.indexOf("me") < SELECTOR_HELP.indexOf("@"), true)
+    check("and names every word the resolver accepts",
+        ["me", "everyone", "nearest", "random", "mobs"].filter(w => !SELECTOR_HELP.includes(w)), [])
+    // No § codes: this goes into a registration, not into chat.
+    check("no formatting codes in a registration string",
+        SELECTOR_HELP.includes("§"), false)
+    check("the chat hint is the one that IS formatted",
+        SELECTOR_HINT.includes("§f"), true)
+
+    // The suffix is the only thing a person sees while typing the argument.
+    const src = readFileSync("Admin+ BP/scripts/features/vanillacmds.js", "utf8")
+    check("selector parameters are renamed so the hint is on screen",
+        src.includes("`${name}_or_me`"), true)
+    check("/tp carries it too",
+        readFileSync("Admin+ BP/scripts/main.js", "utf8").includes("target_or_me"), true)
+}
 
 console.log("\n— how many commands still ask the engine to expand a selector —")
 // Every command in this pack registers at CommandPermissionLevel.Any — the

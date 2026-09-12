@@ -183,6 +183,34 @@ export function parseFilters(body, origin) {
 }
 
 /**
+ * English for the five selectors, because the picker that used to spell them
+ * out is gone.
+ *
+ * Each word is exactly one selector, written out. Nothing here is a new
+ * capability — `me` is `@s` and does what `@s` does — so there is one
+ * behaviour to explain and one to test, and a person who learns `@s` later
+ * finds it already works.
+ *
+ *   me / self / myself      → @s   you
+ *   everyone / all          → @a   every player
+ *   nearest / closest       → @p   the player nearest you (you, usually)
+ *   random / anyone         → @r   one player, picked at random
+ *   mobs / entities / everything → @e   every entity, players included
+ *
+ * `mobs` is a small lie — `@e` is every entity, not only mobs — but it is the
+ * word people reach for, and the alternative is that they reach for nothing.
+ * Under a parameter the vanilla command types as a player it narrows to players
+ * anyway, so the lie never costs anybody a wrong target.
+ */
+const WORDS = {
+    me: "@s", self: "@s", myself: "@s",
+    everyone: "@a", all: "@a", everybody: "@a",
+    nearest: "@p", closest: "@p",
+    random: "@r", anyone: "@r",
+    mobs: "@e", entities: "@e", everything: "@e"
+}
+
+/**
  * Resolve selector TEXT to entities, using the script API rather than the
  * command parser.
  *
@@ -192,13 +220,33 @@ export function parseFilters(body, origin) {
  * @returns {{ok: boolean, entities: object[], reason?: string, unsupported?: string[]}}
  */
 export function resolveSelector(text, player, playersOnly = false) {
-    const raw = String(text ?? "").trim().replace(/^"(.*)"$/s, "$1")
-    if (!raw) return { ok: false, entities: [], reason: "no target given." }
+    let raw = String(text ?? "").trim().replace(/^"(.*)"$/s, "$1")
+    if (!raw) return { ok: false, entities: [], reason: `no target given. ${SELECTOR_HINT}` }
+
+    // A word anybody can guess, before anything that has to be learned.
+    //
+    // The engine no longer offers `@a @e @p @r @s` as you type — it cannot, see
+    // the note at the top of this file — so the target box is blank and the
+    // person filling it either already knows selector syntax or is stuck. That
+    // is most of them: `/eff` reads as unusable to somebody who has never typed
+    // an `@` in their life, which is the report this came from.
+    //
+    // These words are RESERVED, and they beat a player who happens to carry
+    // one. That is the deliberate way round: `me` has to mean me every single
+    // time, or it is not worth teaching. Somebody actually named `Random` is
+    // still reachable as `@a[name=Random]`, and `everyone`/`all`/`everything`
+    // include them anyway. `me` cannot collide at all — a gamertag is at least
+    // three characters.
+    const word = WORDS[raw.toLowerCase()]
+    if (word) raw = word
 
     if (!raw.startsWith("@")) {
         // A plain name. Players are the only thing you can name.
         const found = playerNamed(raw)
-        if (!found.length) return { ok: false, entities: [], reason: `nobody here is called or nicknamed "${raw}".` }
+        if (!found.length) {
+            return { ok: false, entities: [],
+                reason: `nobody here is called or nicknamed "${raw}". ${SELECTOR_HINT}` }
+        }
         return { ok: true, entities: found }
     }
 
@@ -231,7 +279,8 @@ export function resolveSelector(text, player, playersOnly = false) {
                 entities = dimension.getEntities(options)
                 break
             default:
-                return { ok: false, entities: [], reason: `"${raw}" is not a selector I know.` }
+                return { ok: false, entities: [],
+                    reason: `"${raw}" is not a selector I know. ${SELECTOR_HINT}` }
         }
     } catch (e) {
         return { ok: false, entities: [], reason: String(e).replace(/^Error: /, "") }
@@ -241,5 +290,21 @@ export function resolveSelector(text, player, playersOnly = false) {
     return { ok: true, entities, unsupported }
 }
 
-/** The vocabulary, for a command description — since the game no longer offers it. */
-export const SELECTOR_HELP = "@s @p @r @a @e · filters: type= family= tag= name= r= rm= c= m= x= y= z= dx= dy= dz= (! to negate)"
+/**
+ * The vocabulary, for a command description — since the game no longer offers it.
+ *
+ * Plain words first, on purpose. A description is read left to right and cut
+ * off on the right, so whatever leads it is the part everybody sees; `@s @p @r`
+ * leading meant the only people who could read the help were the ones who did
+ * not need it. No § codes here: this is a registration string, not chat.
+ */
+export const SELECTOR_HELP =
+    "who: me / everyone / nearest / random / mobs / a player's name / @s @a @p @r @e"
+
+/** The part that only matters once somebody is already writing an @ selector. */
+export const SELECTOR_FILTERS =
+    "inside @e[...]: type= family= tag= name= r= rm= c= m= x= y= z= dx= dy= dz= (! to negate)"
+
+/** One line of chat, for when a target did not resolve. Carries § codes. */
+export const SELECTOR_HINT =
+    "Try §fme§c, a player's name, §feveryone§c, §fnearest§c, §frandom§c or §fmobs§c."

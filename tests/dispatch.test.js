@@ -41,7 +41,10 @@ console.log("\n— arguments become what the handler expects —")
     // typeId matters: resolveSelector filters an @-selector down to players, and
     // a stand-in without one is filtered out of its own result. A plain NAME
     // returns before that filter, which is why it passed while @s did not.
-    const me = { id: "d-me", name: "Me", typeId: "minecraft:player",
+    // NOT called "Me": `me` is a reserved word now (core/selector.js WORDS), so
+    // a stand-in with that name would make the name check below pass without
+    // ever looking up a name.
+    const me = { id: "d-me", name: "Dispatcher", typeId: "minecraft:player",
                  getTags: () => [], commandPermissionLevel: 1,
                  location: { x: 0, y: 64, z: 0 }, dimension: __test.dimension }
     __test.players.push(me)
@@ -64,7 +67,14 @@ console.log("\n— arguments become what the handler expects —")
     const sel = coerce("@s", { type: P.PlayerSelector }, me)
     check("a selector becomes entities", sel.ok && sel.value.map(p => p.id), ["d-me"])
     check("a name works too",
-        coerce("Me", { type: P.PlayerSelector }, me).value.map(p => p.id), ["d-me"])
+        coerce("Dispatcher", { type: P.PlayerSelector }, me).value.map(p => p.id), ["d-me"])
+    // And the plain words the target box now teaches reach the console as well
+    // — same resolver, so this is the console inheriting it rather than a
+    // second copy of it.
+    check("so does the word the help offers",
+        coerce("me", { type: P.PlayerSelector }, me).value.map(p => p.id), ["d-me"])
+    check("a target that matches nobody points at those words",
+        coerce("Nobody", { type: P.PlayerSelector }, me).reason.includes("everyone"), true)
     // A selector matching nobody is an ERROR, not an empty list: handlers
     // written against the engine have never had to consider one, because the
     // engine refuses the command before calling them.
@@ -108,6 +118,12 @@ console.log("\n— running one —")
     const short = runPackCommand(op, "dispatchtest")
     check("a missing argument is refused", short?.ok, false)
     check("and the message names it", short?.reason.includes("<who>"), true)
+    // An Enum parameter must be registered under a NAMESPACED name — that is how
+    // Bedrock links it to its values — so the parameter is literally called
+    // `a:effect`. Showing that to somebody who just typed the command wrong
+    // hands them a registration detail instead of an argument.
+    check("and does not leak the enum namespace into the usage line",
+        /<[a-z0-9_]+:/i.test(short?.reason ?? ""), false)
 
     // Permission is the command's own, checked exactly as the engine checks it.
     const member = { id: "d-member", name: "Member", getTags: () => [], commandPermissionLevel: 0 }
