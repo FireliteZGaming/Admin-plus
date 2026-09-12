@@ -126,7 +126,7 @@ function tuning(key, fallback) {
  * would be a strange weapon.
  */
 export function aimPoint(player) {
-    const range = tuning("nuke.range", 160)
+    const range = tuning("nuke.range", 300)
     const hit = safe(() => player.getBlockFromViewDirection({
         maxDistance: range,
         includeLiquidBlocks: false,
@@ -278,11 +278,11 @@ export function dropTnt(dimension, at) {
  * height IS the timing.
  */
 export function sowSpiral(dimension, target, opts = {}) {
-    const count = opts.count ?? 200
+    const count = opts.count ?? 320
     const arms = opts.arms ?? 5
-    const radius = opts.radius ?? 22
-    const turns = opts.turns ?? 2.5
-    const height = opts.height ?? 62
+    const radius = opts.radius ?? 48
+    const turns = opts.turns ?? 3
+    const height = opts.height ?? 78
     const perTick = opts.perTick ?? 25
 
     const points = spiralPoints(count, arms, radius, turns)
@@ -339,11 +339,11 @@ function detonate(dimension, target) {
     // and the fear without the hole keeps the scripted version.
     if (flag("nuke.breaksBlocks")) {
         const shells = sowSpiral(dimension, target, {
-            count: Math.round(tuning("nuke.tnt", 200)),
+            count: Math.round(tuning("nuke.tnt", 320)),
             arms: Math.round(tuning("nuke.spiralArms", 5)),
-            radius: tuning("nuke.spiralRadius", 22),
-            turns: tuning("nuke.spiralTurns", 2.5),
-            height: tuning("nuke.height", 62)
+            radius: tuning("nuke.spiralRadius", 48),
+            turns: tuning("nuke.spiralTurns", 3),
+            height: tuning("nuke.height", 78)
         })
         safe(() => dimension.playSound("ambient.weather.lightning.impact", target))
         return shells

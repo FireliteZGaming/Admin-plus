@@ -13,7 +13,7 @@ import { setting } from "../core/settings.js"
 import { canNuke, nukeBlockedBy, nukeMissing, orbitalStrike } from "../core/orbital.js"
 import { trollAllowed, trollBlockedBy } from "../core/trollgate.js"
 import {
-    TRIDENT_TAG, noteThrow, claimThrow, forgetThrows, beginStorm,
+    TRIDENT_TAG, TRIDENT_SPENT, noteThrow, claimThrow, forgetThrows, beginStorm,
     installTridentEffects
 } from "../core/trident.js"
 import {
@@ -533,45 +533,86 @@ export function installAdminItems() {
     // downstream. Which use-event a trident raises is undocumented, and whether
     // entitySpawn fires for a projectile was a second guess on top. The tick
     // loop in core/trident.js polls for all of it instead.
+    // **Three ways in, and the spent tag makes that safe.**
+    //
+    // projectileHitEntity is the direct one and it DOES fire — a playtest
+    // confirmed the damage lands on mobs, which was almost taken as evidence
+    // that it did not. entityHurt is kept beside it because the content log
+    // proves that one fires here (it is what arms the Mirror Totem) and 26 of
+    // the packs installed here read damagingProjectile off it.
+    //
+    // Neither alone is enough. entityHurt needs damage to have been DEALT, so
+    // an invulnerable or creative target would never storm; projectileHitEntity
+    // is the event whose behaviour was uncertain enough to guess wrong about
+    // twice. Whichever arrives first wins and the other finds the strike
+    // already spent, which is exactly what the tag is for.
+    //
+    // projectileHitBlock is the third, for a trident that lands in the dirt
+    // where nothing is hurt at all.
+    const strike = (victim, thrower, at, dimension) => system.run(() => {
+        // The ladder, at the moment it lands. Holding the trident is not
+        // permission to use it on somebody above you, and the throw is the only
+        // other place this could be asked — by which point it is in the air.
+        if (victim?.typeId === "minecraft:player" && thrower) {
+            if (!canActOn(thrower, victim)) {
+                return err(thrower, `${displayName(victim)}§c outranks you — the dust scatters.`)
+            }
+        }
+        if (victim) {
+            const name = displayName(victim) || victim.typeId.replace("minecraft:", "")
+            beginStorm(victim, (broken) => {
+                if (!thrower) return
+                if (broken === undefined) return info(thrower, `§7${name} didn't survive the three seconds.`)
+                info(thrower, broken
+                    ? `§7Shattered §f${broken}§7 piece${broken === 1 ? "" : "s"} of ${name}'s armour.`
+                    : `§7${name} had no armour to break.`)
+            })
+            if (thrower && victim.typeId === "minecraft:player") {
+                record(thrower, "admin.trident", victim, "spectral trident")
+            }
+        } else {
+            beginStorm({ location: at, dimension, isValid: false })
+        }
+    })
 
-    // Both hit events, because a trident that lands in the ground and one that
-    // lands in somebody are the same throw. The storm follows a victim if there
-    // is one and sits where it struck if there is not.
-    for (const [name, victimOf] of [
-        ["projectileHitEntity", event => safe(() => event.getEntityHit?.()?.entity)],
-        ["projectileHitBlock", () => undefined]
-    ]) {
-        const hit = world.afterEvents?.[name]
-        if (!hit?.subscribe) continue
-        hit.subscribe(event => {
+    const hurt = world.afterEvents?.entityHurt
+    if (hurt?.subscribe) {
+        hurt.subscribe(event => {
+            const projectile = event.damageSource?.damagingProjectile
+            if (projectile?.typeId !== "minecraft:thrown_trident") return
+            if (!safe(() => projectile.hasTag(TRIDENT_TAG), false)) return
+            // One strike per throw. A Loyalty trident can hurt the same target
+            // again on its way back, and a second storm would restart the grind
+            // on somebody already at half a heart. addTag answers false when the
+            // tag is already there, which is exactly the question being asked.
+            if (!safe(() => projectile.addTag(TRIDENT_SPENT), false)) return
+            strike(event.hurtEntity, event.damageSource?.damagingEntity)
+        })
+    } else {
+        console.warn("[Admin+] entityHurt unavailable — the Spectral Trident will not strike anybody")
+    }
+
+    const intoSomebody = world.afterEvents?.projectileHitEntity
+    if (intoSomebody?.subscribe) {
+        intoSomebody.subscribe(event => {
             const projectile = event.projectile
             if (projectile?.typeId !== "minecraft:thrown_trident") return
             if (!safe(() => projectile.hasTag(TRIDENT_TAG), false)) return
-            const victim = victimOf(event)
-            const thrower = event.source
-            system.run(() => {
-                // The ladder, at the moment it lands. Holding the trident is
-                // not permission to use it on somebody above you, and the
-                // throw is the only other place this could be asked — by which
-                // point it is already in the air.
-                if (victim?.typeId === "minecraft:player" && thrower) {
-                    if (!canActOn(thrower, victim)) {
-                        return err(thrower, `${displayName(victim)}§c outranks you — the dust scatters.`)
-                    }
-                }
-                if (victim) {
-                    beginStorm(victim)
-                    if (thrower && victim.typeId === "minecraft:player") {
-                        record(thrower, "admin.trident", victim, "spectral trident")
-                    }
-                } else {
-                    beginStorm({
-                        location: event.location ?? projectile.location,
-                        dimension: event.dimension ?? projectile.dimension,
-                        isValid: false
-                    })
-                }
-            })
+            if (!safe(() => projectile.addTag(TRIDENT_SPENT), false)) return
+            strike(safe(() => event.getEntityHit?.()?.entity), event.source)
+        })
+    }
+
+    const intoGround = world.afterEvents?.projectileHitBlock
+    if (intoGround?.subscribe) {
+        intoGround.subscribe(event => {
+            const projectile = event.projectile
+            if (projectile?.typeId !== "minecraft:thrown_trident") return
+            if (!safe(() => projectile.hasTag(TRIDENT_TAG), false)) return
+            if (!safe(() => projectile.addTag(TRIDENT_SPENT), false)) return
+            strike(undefined, event.source,
+                event.location ?? projectile.location,
+                event.dimension ?? projectile.dimension)
         })
     }
 

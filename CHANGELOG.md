@@ -56,6 +56,57 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.5.6 — 2026-09-12
+
+**The trident strikes mobs properly, and says what it did.** Plus a much bigger
+orbital strike.
+
+### Armour on mobs
+
+The playtest said the trident did nothing to mobs. It turned out damage *was*
+landing — only the armour break was missing — which makes it the commonest
+possible cause: **most mobs are not wearing any.**
+
+That is the real bug, and it is not in the breaking. It is that "nothing
+happened" and "they had no armour" look identical from across a field, and so
+does "they died before the three seconds were up". The strike now says which:
+
+    Shattered 4 pieces of Zombie's armour.
+    Zombie had no armour to break.
+    Zombie didn't survive the three seconds.
+
+### Three ways in, deduped
+
+While chasing the wrong cause I moved the hit onto `entityHurt`. Keeping only
+that would have been a **regression**: it needs damage to have been dealt, so an
+invulnerable or creative-mode target would never storm.
+
+So all three are subscribed — `projectileHitEntity`, `entityHurt`, and
+`projectileHitBlock` for a trident that lands in the dirt — and whichever
+arrives first wins. The others find the strike already spent, which is what the
+`ap:spectral_spent` tag is for. It also stops a Loyalty trident starting a
+second storm on its way back through somebody already at half a heart.
+
+### A much bigger strike
+
+| | was | now |
+|---|---|---|
+| TNT | 200 | **320** |
+| spiral width | 22 | **48** blocks (96 across) |
+| turns | 2.5 | **3** |
+| drop height | 62 | **78** |
+| aim range | 160 | **300** |
+
+All still tunable in `< Code >` under Orbital strike. If 320 shells stutter the
+realm, `nuke.tnt` is the dial.
+
+### The stub was lying about addTag
+
+`addTag` returned the Set it added to — always truthy — so "have I already done
+this to you?" answered yes every time. That is exactly what a once-per-throw
+guard asks, and it passed while guarding nothing. It returns true only for a new
+tag now, the way the real API does.
+
 ## 2.5.5 — 2026-09-12
 
 **The trident works, and the orbital strike is real TNT now.** Both from

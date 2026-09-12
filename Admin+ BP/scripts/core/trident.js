@@ -37,6 +37,16 @@ function safe(fn, fallback) {
 export const TRIDENT_TAG = "ap:spectral"
 
 /**
+ * Marks a trident that has already struck.
+ *
+ * A Loyalty trident comes back through everything it passed, and can hurt the
+ * same target again on the way. A second storm would restart the grind on
+ * somebody already pinned at half a heart, which reads as the effect being
+ * stuck rather than as a second hit.
+ */
+export const TRIDENT_SPENT = "ap:spectral_spent"
+
+/**
  * Throws we have seen but not yet matched to an entity.
  *
  * A throw and the entity it creates are two events one tick apart, and there is
@@ -250,7 +260,7 @@ export function shatterArmour(entity) {
  */
 const storms = []
 
-export function beginStorm(victim) {
+export function beginStorm(victim, onBreak) {
     if (!victim) return false
     const health = safe(() => victim.getComponent("minecraft:health"))
     storms.push({
@@ -263,7 +273,11 @@ export function beginStorm(victim) {
         // chase a moving number: anything else hurting them mid-grind would
         // stretch the curve out instead of leaving it on schedule.
         startHealth: safe(() => health?.currentValue, FLOOR_HEALTH) ?? FLOOR_HEALTH,
-        broke: false
+        broke: false,
+        // Told what it managed, when it gets there. Armour breaking is
+        // invisible when there was none to break, and "nothing happened" and
+        // "they were not wearing any" look identical from across a field.
+        onBreak
     })
     return true
 }
@@ -303,9 +317,15 @@ export function tickStorms(now) {
             if (!storm.broke) {
                 storm.broke = true
                 if (alive) {
-                    shatterArmour(storm.victim)
+                    const broken = shatterArmour(storm.victim)
                     drainTo(storm.victim, FLOOR_HEALTH)
-                    safe(() => storm.dimension.playSound("random.break", at))
+                    if (broken) safe(() => storm.dimension.playSound("random.break", at))
+                    safe(() => storm.onBreak?.(broken, storm.victim))
+                } else {
+                    // They did not survive the three seconds, so there was
+                    // never an armour phase. Worth saying — it is the other
+                    // reason nothing appears to happen.
+                    safe(() => storm.onBreak?.(undefined, storm.victim))
                 }
             }
             const t = (age - GRIND_TICKS) / COLLAPSE_TICKS

@@ -504,7 +504,8 @@ console.log("\n— the Spectral Trident: thrown, tagged, and answered —")
             typeId: "minecraft:thrown_trident",
             location: { x: 0, y: 64, z: 1 },
             dimension: __test.dimension,
-            addTag: t => tags.add(t), hasTag: t => tags.has(t),
+            addTag: t => tags.has(t) ? false : (tags.add(t), true),
+            hasTag: t => tags.has(t),
             isValid: true
         }
     }
@@ -540,10 +541,35 @@ console.log("\n— the Spectral Trident: thrown, tagged, and answered —")
     clearStorms()
     const victim = { id: "hit-me", name: "Victim", isValid: true,
                      location: { x: 5, y: 64, z: 5 }, dimension: __test.dimension }
-    __test.emitProjectileHit(stranger, victim)
+    // Landing is noticed through entityHurt now, not projectileHitEntity — it
+    // did nothing to MOBS, and rather than guess a third time at which
+    // projectile event a trident raises, it uses the one the content log proves
+    // fires on this runtime.
+    __test.emitEntityHurt(victim, thrower, stranger)
     check("an untagged trident starts nothing", liveStorms(), 0)
-    __test.emitProjectileHit(inAir, victim)
+    __test.emitEntityHurt(victim, thrower, inAir)
     check("ours starts a storm", liveStorms(), 1)
+
+    // A mob is a victim like any other. Nothing ever excluded them; the hit
+    // was simply not arriving.
+    clearStorms()
+    const zombie = {
+        id: "zom", typeId: "minecraft:zombie", isValid: true,
+        location: { x: 9, y: 64, z: 9 }, dimension: __test.dimension,
+        getComponent: () => undefined
+    }
+    const atMob = flying()
+    atMob.addTag(TRIDENT_TAG)
+    __test.emitEntityHurt(zombie, thrower, atMob)
+    check("and it works on a mob", liveStorms(), 1)
+
+    // A Loyalty trident comes back through what it hit. One strike per throw.
+    clearStorms()
+    const twice = flying()
+    twice.addTag(TRIDENT_TAG)
+    __test.emitEntityHurt(victim, thrower, twice)
+    __test.emitEntityHurt(victim, thrower, twice)
+    check("but only once per throw, however often it clips them", liveStorms(), 1)
 
     // **The ladder, at the moment it lands.** Holding the trident is not
     // permission to use it on somebody above you, and the throw is the only
@@ -649,6 +675,46 @@ console.log("\n— three seconds, then the armour, then half a heart —")
     for (let t = GRIND_TICKS + 1; t <= STORM_TICKS; t++) tickStorms(t)
     check("it never kills", hp, FLOOR_HEALTH)
     check("and the storm ends", liveStorms(), 0)
+}
+console.log("\n— it says what it broke, because nothing is invisible —")
+// "Nothing happened" and "they were not wearing any" look identical from across
+// a field. A mob with no armour is by far the commonest case, and it was
+// indistinguishable from the armour phase being broken — which is how a
+// playtest report of "armour breaking doesn't work on mobs" could mean either.
+{
+    let said
+    let pieces = 0
+    const dimension = { spawnParticle: () => {}, playSound: () => {} }
+    const subject = () => ({
+        id: "tell-me", typeId: "minecraft:zombie", isValid: true,
+        location: { x: 0, y: 64, z: 0 }, dimension,
+        getComponent: id =>
+            id === "minecraft:health" ? { currentValue: 20, setCurrentValue: () => {} }
+            : id === "minecraft:equippable"
+                ? { getEquipment: () => pieces > 0 ? {} : undefined, setEquipment: () => { pieces-- } }
+                : undefined
+    })
+    const run = () => { for (let t = 1; t <= GRIND_TICKS + 2; t++) tickStorms(t) }
+
+    clearStorms(); pieces = 4; said = undefined
+    beginStorm(subject(), n => { said = n })
+    run()
+    check("it counts what came off a mob", said, 4)
+
+    clearStorms(); pieces = 0; said = undefined
+    beginStorm(subject(), n => { said = n })
+    run()
+    check("and says zero rather than staying silent", said, 0)
+
+    // Dying inside the three seconds is the OTHER reason nothing appears to
+    // happen, and it reports differently so the two can be told apart.
+    clearStorms(); pieces = 4; said = "untouched"
+    const dies = subject()
+    beginStorm(dies, n => { said = n })
+    dies.isValid = false
+    run()
+    check("somebody who died mid-grind reports nothing broken", said, undefined)
+    clearStorms()
 }
 
 console.log("\n— it only ever takes health away —")
@@ -788,7 +854,11 @@ console.log("\n— which hand, and the two event paths —")
     const beforeBlock = code.slice(code.indexOf("beforeEvents?.entityHurt"))
     check("it prefers refusing the damage outright",
         /event\.cancel = true/.test(beforeBlock.slice(0, 500)), true)
-    const afterBlock = code.slice(code.indexOf("afterEvents?.entityHurt"))
+    // Anchored inside installMirror, not on the first entityHurt in the file —
+    // the Spectral Trident subscribes to it too now, and it comes first. Same
+    // trap as the eye's event.cancel: a window anchored on the wrong match.
+    const mirrorBlock = code.slice(code.indexOf("function installMirror"))
+    const afterBlock = mirrorBlock.slice(mirrorBlock.indexOf("afterEvents?.entityHurt"))
     check("and falls back to healing it back",
         /setCurrentValue/.test(afterBlock.slice(0, 900)), true)
     check("both paths refuse to run inside a reflection",

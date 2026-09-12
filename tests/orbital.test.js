@@ -1,5 +1,5 @@
 import { __test } from "@minecraft/server"
-import { setSetting, resetSetting } from "../Admin+ BP/scripts/core/settings.js"
+import { setSetting, resetSetting, setting } from "../Admin+ BP/scripts/core/settings.js"
 import { setRanks, saveRank, whereToGrant, nodeLabels, PERMISSION_NODES } from "../Admin+ BP/scripts/core/ranks.js"
 import {
     canNuke, nukeBlockedBy, nukeMissing, nukeArmed, armNuke,
@@ -144,8 +144,12 @@ console.log("\n— the strike itself: real TNT, in a spiral, falling —")
     // Spread around the target, not stacked on it.
     check("spread out around the centre",
         tnt.some(e => Math.hypot(e.location.x, e.location.z - 30) > 10), true)
+    // Read from the setting rather than a number written here — the width is
+    // tunable and a test that pins it only proves it was not changed.
+    const width = Number(setting("nuke.spiralRadius"))
     check("and none of them beyond the spiral's width",
-        tnt.every(e => Math.hypot(e.location.x, e.location.z - 30) <= 23), true)
+        tnt.every(e => Math.hypot(e.location.x, e.location.z - 30) <= width + 1), true)
+    check("which is wide enough to be a strike, not a firework", width >= 40, true)
 
     // The scripted blasts are gone from this path — TNT does its own damage.
     check("no scripted explosions when the TNT is real", __test.explosions.length, 0)
@@ -173,22 +177,22 @@ console.log("\n— block damage off keeps the sound and loses the hole —")
 
 console.log("\n— the spiral is a spiral —")
 {
-    const pts = spiralPoints(200, 5, 22, 2.5)
-    check("it makes what it was asked for", pts.length, 200)
+    const pts = spiralPoints(320, 5, 48, 3)
+    check("it makes what it was asked for", pts.length, 320)
     check("nothing outside the radius",
-        pts.every(p => Math.hypot(p.x, p.z) <= 22.001), true)
+        pts.every(p => Math.hypot(p.x, p.z) <= 48.001), true)
     // Dense at the CENTRE, which is what the reference looks like — and the
     // density is per area, not per count. r grows linearly with the step, so
     // the inner and outer halves hold the same NUMBER of shells while the inner
     // half is a quarter of the area. Using sqrt(t) would even out the area and
     // draw a flat disc instead of a galaxy.
-    const inner = pts.filter(p => Math.hypot(p.x, p.z) < 11).length
+    const inner = pts.filter(p => Math.hypot(p.x, p.z) < 24).length
     check("the halves hold the same count", Math.abs(inner - pts.length / 2) <= 5, true)
-    check("so the inner half is four times as dense", inner / (Math.PI * 11 ** 2) >
-        (pts.length - inner) / (Math.PI * (22 ** 2 - 11 ** 2)), true)
+    check("so the inner half is four times as dense", inner / (Math.PI * 24 ** 2) >
+        (pts.length - inner) / (Math.PI * (48 ** 2 - 24 ** 2)), true)
     // Several arms, which is what makes it read as a spiral rather than a coil.
     const armCount = new Set(pts.map(p => Math.round(p.t * 1000))).size
-    check("the arms are in step with each other", armCount, 200 / 5)
+    check("the arms are in step with each other", armCount, 320 / 5)
     check("one arm still works", spiralPoints(10, 1, 5, 1).length, 10)
     // A mis-typed setting must give a plain strike, never no strike.
     check("zero arms still fires", spiralPoints(10, 0, 5, 1).length > 0, true)
