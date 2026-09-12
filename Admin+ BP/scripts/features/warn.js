@@ -3,7 +3,7 @@ import { command, defineEnum } from "../core/registry.js"
 import { menu, pagedMenu, modal, confirm, subtitle } from "../core/ui.js"
 import { hubTitle } from "../core/theme.js"
 import { ok, err, info, formatDate, formatDuration } from "../core/util.js"
-import { has, canActOn } from "../core/ranks.js"
+import { has, canActOn, canSeeActionsOf } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
 import { record } from "../core/logs.js"
 import {
@@ -67,6 +67,13 @@ command({
         }
         if (!has(player, "admin.warn")) {
             return err(player, "You can only read your own warnings.")
+        }
+        // And the node alone is not enough. A disciplinary record is about the
+        // person, and reading one belonging to somebody ABOVE you is the same
+        // leak the staff notices had — canSeeActionsOf, not canActOn, because
+        // this is a question about seeing and seeing is equal-or-below.
+        if (!canSeeActionsOf(player, targets[0])) {
+            return err(player, `${displayName(targets[0])}§c outranks you.`)
         }
         if (targets.length > 1) return err(player, "Pick one player.")
         tellAbout(player, targets[0])

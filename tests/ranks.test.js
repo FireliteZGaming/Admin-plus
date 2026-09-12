@@ -684,5 +684,85 @@ console.log("\n— everything that acts on a player consults the ladder —")
             /can(ActOn|TrollOn)\s*\(/.test(readFileSync(new URL(f, dir), "utf8"))), [])
 }
 
+
+console.log("\n— the hierarchy audit, command by command —")
+// Every pack command that takes a player was read in 2.2.9 and put in one of
+// three boxes. This pins the boxes, so a new command cannot join the "no check"
+// group by accident and an existing one cannot quietly fall out of its box.
+//
+// A command() block is found and read to its matching brace, rather than by a
+// lazy regex, so a handler containing objects does not truncate the block.
+{
+    const dir = new URL("../Admin+ BP/scripts/features/", import.meta.url)
+    const sources = [
+        ...readdirSync(dir).filter(f => f.endsWith(".js") && f !== "vanillacmds.js")
+            .map(f => [f, readFileSync(new URL(f, dir), "utf8")]),
+        ["main.js", readFileSync(new URL("../Admin+ BP/scripts/main.js", import.meta.url), "utf8")]
+    ]
+
+    // Commands that take a player and DELIBERATELY do not check the ladder.
+    // Each needs a reason that survives being read out loud.
+    const noCheck = {
+        msg: "a message is not done TO somebody — a moderator may PM an owner",
+        pm: "same",
+        prchat: "same — a private room is a conversation",
+        praccept: "answering an invitation you were sent",
+        prdeny: "declining one",
+        report: "reporting upward is the entire point; a member must be able to report staff",
+        tpa: "a request — they accept or decline",
+        tpahere: "also a request, in the other direction",
+        // The one that is a fix rather than a philosophy.
+        unmute: "un-gated ON PURPOSE: a mute that came apart must be fixable by "
+              + "whoever is there, or the player stays stuck until the right rank logs in"
+    }
+
+    const targeting = []
+    for (const [file, text] of sources) {
+        const clean = text.replace(/\/\*[\s\S]*?\*\//g, "")
+            .split("\n").filter(l => !l.trim().startsWith("//")).join("\n")
+        for (const m of clean.matchAll(/command\(\{/g)) {
+            const open = m.index + m[0].length - 1
+            let depth = 0, end = open
+            for (let i = open; i < clean.length; i++) {
+                if (clean[i] === "{") depth++
+                else if (clean[i] === "}" && --depth === 0) { end = i; break }
+            }
+            const block = clean.slice(open, end + 1)
+            const name = (block.match(/name\s*:\s*"([a-z0-9_]+)"/) ?? [])[1]
+            if (!name) continue
+            if (!/(Player|Entity)Selector|resolveSelector\(/.test(block)) continue
+            // The check may live in a helper this command calls, so the FILE is
+            // the unit — a file that targets somebody and never mentions the
+            // ladder anywhere cannot be checking.
+            const ladder = /can(ActOn|TrollOn|SeeActionsOf)\s*\(/
+            // Two questions, because one file can hold a command that checks
+            // next to one that deliberately does not — modcommands.js has /ban
+            // beside /unmute. The FILE answers "could this be checking in a
+            // helper"; the BLOCK answers "did THIS command grow a check".
+            targeting.push({
+                name, file,
+                checksSomewhere: ladder.test(clean),
+                checksHere: ladder.test(block)
+            })
+        }
+    }
+
+    const unexplained = targeting
+        .filter(c => !c.checksSomewhere && !(c.name in noCheck))
+        .map(c => `${c.name} (${c.file})`)
+    check("every player-targeting command either checks or has a written reason",
+        unexplained.sort(), [])
+
+    // The reasons list must not rot either: a name on it for a command that no
+    // longer exists excuses nothing while looking like it excuses something,
+    // and one that has since grown a check is a stale exemption.
+    const names = new Set(targeting.map(c => c.name))
+    check("every reason names a command that still targets somebody",
+        Object.keys(noCheck).filter(n => !names.has(n)).sort(), [])
+    check("and none of them has since grown a check",
+        Object.keys(noCheck).filter(n =>
+            targeting.find(c => c.name === n)?.checksHere).sort(), [])
+}
+
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

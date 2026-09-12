@@ -56,6 +56,68 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.2.9 — 2026-09-11
+
+**Every command audited against the hierarchy rules.** All 55 pack commands
+read from source — not from memory — and sorted into three boxes: checks the
+ladder, deliberately does not, or was a gap.
+
+### One real leak, in two places
+
+**Reading somebody's warnings did not consult the ladder.** `/warnings <player>`
+needed `admin.warn` and nothing else, and the panel's **Warnings** button was
+the same — so a moderator could read an owner's disciplinary record. That is
+the same leak the staff notices had before 2.1.x, arriving by a different door.
+
+Both now use **`canSeeActionsOf`** — the *seeing* rule, equal-or-below — rather
+than `canActOn`. Reading a record is not acting on somebody, and the strict rule
+would also have shut out your peers, which is not the complaint.
+
+### Nine commands target a player and check nothing, on purpose
+
+Each now carries a written reason, and the reasons are tested:
+
+| | |
+|---|---|
+| `/msg` `/pm` `/prchat` `/praccept` `/prdeny` | a message is not something done *to* somebody — a moderator may PM an owner |
+| `/report` | reporting upward is the entire point; a member must be able to report staff |
+| `/tpa` `/tpahere` | a request, not an act — the other person accepts or declines |
+| `/unmute` | **un-gated on purpose.** A mute that came apart must be fixable by whoever is there, or the player stays stuck until the right rank logs in. This is a fix, not a philosophy. |
+
+### Everything else was already right
+
+`/ban` `/mute` `/kick` `/warn` `/nick` `/sudo` `/vanish` `/tp` `/mm` check
+directly; `/gm` `/gmc` `/gms` `/gma` `/gmsp` `/grant` `/invsee` `/ec`
+`/enderchest` check inside the screen or helper they call — which is why the
+audit had to read the file rather than the command block, and why the test that
+pins it does both.
+
+`/smite` and the Knockback stick use `canTrollOn`, the equals-allowed rule. The
+54 vanilla passthroughs are filtered centrally where the selector resolves. The
+Ban Hammer went onto the ladder in 2.2.5.
+
+### The guard
+
+A test walks every `command({ … })` in the pack — found by matching braces, not
+a regex that truncates at the first `}` inside a handler — and fails if a
+player-targeting command neither checks nor has a reason. The reason list is
+checked from both ends: a name for a command that no longer targets anybody, or
+one that has since grown a check, fails rather than sitting there excusing
+nothing.
+
+It distinguishes the **file** from the **block**, because one file holds both
+kinds: `modcommands.js` has `/ban`, which checks, next to `/unmute`, which
+deliberately does not.
+
+### Still open, deliberately not changed
+
+**Viewing an inventory or ender chest is not gated on the ladder.** The code
+says why: looking is not an action against somebody, and the screen already
+refuses to let you *take* from someone above you. By the same reasoning the
+warnings fix just used, viewing arguably wants `canSeeActionsOf` too — but that
+rationale was written down deliberately, so it is being raised rather than
+overturned.
+
 ## 2.2.8 — 2026-09-11
 
 **Logs read as text now, grouped by day.**

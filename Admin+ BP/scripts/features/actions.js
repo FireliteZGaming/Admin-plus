@@ -2,7 +2,7 @@ import { world, GameMode } from "@minecraft/server"
 import { menu, pagedMenu, modal, confirm, title, subtitle } from "../core/ui.js"
 import { hubTitle } from "../core/theme.js"
 import { ok, err, info, formatDuration } from "../core/util.js"
-import { primaryRank, playerRanks, canActOn, has, refreshNameTag, knownHolders, getRank, heldRankIds } from "../core/ranks.js"
+import { primaryRank, playerRanks, canActOn, canSeeActionsOf, has, refreshNameTag, knownHolders, getRank, heldRankIds } from "../core/ranks.js"
 import { invseeScreen } from "./invsee.js"
 import { displayName, getNickname, setNickname, NICK_MAX } from "../core/identity.js"
 import { renderTag, flag } from "../core/settings.js"
@@ -194,7 +194,11 @@ async function playerActionsScreen(player, target, back) {
                     }
                 }
                 : null,
-            has(player, "admin.warn") || warningCount(target)
+            // A disciplinary record is about the person. Reading one belonging
+            // to somebody ABOVE you is the same leak the staff notices had, so
+            // it takes canSeeActionsOf — the SEEING rule, equal-or-below —
+            // rather than canActOn, which would also shut out your peers.
+            (has(player, "admin.warn") || warningCount(target)) && canSeeActionsOf(player, target)
                 ? {
                     text: `§eWarnings §8· ${warningCount(target)} on record`,
                     run: () => warningsScreen(player, target, again)
