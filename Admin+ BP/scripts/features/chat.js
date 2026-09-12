@@ -1,9 +1,9 @@
 import { world, system } from "@minecraft/server"
 import { noteChat } from "../core/chatlog.js"
 import { CONFIG } from "../config.js"
-import { primaryRank, isStaff } from "../core/ranks.js"
+import { primaryRank, isStaff, renderTags } from "../core/ranks.js"
 import { displayName, nameTokens, stripCodes } from "../core/identity.js"
-import { render, renderTag } from "../core/settings.js"
+import { render } from "../core/settings.js"
 import { isMuted, muteRecord, syncMuteTag } from "../core/moderation.js"
 import { formatDuration } from "../core/util.js"
 import { activeChannel, visibleTo, audienceFor, isChannelMuted, channelMute } from "../core/channels.js"
@@ -38,7 +38,7 @@ export function formatChatLine(sender, message, channel, labelled) {
     // decide whether routing happens — see installChat.
     const withTag = CONFIG.ranks.showInChat
     const tokens = {
-        TAG: withTag ? renderTag(rank) : "",
+        TAG: withTag ? renderTags(sender) : "",
         RANK: withTag ? (rank?.display ?? "") : "",
         ...nameTokens(sender),
         MSG: message,

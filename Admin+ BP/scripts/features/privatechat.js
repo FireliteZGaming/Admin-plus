@@ -2,11 +2,11 @@ import { world, CustomCommandParamType } from "@minecraft/server"
 import { command } from "../core/registry.js"
 import { CONFIG } from "../config.js"
 import { ok, err, info } from "../core/util.js"
-import { has, primaryRank, isStaff, canSeeActionsOf } from "../core/ranks.js"
+import { has, primaryRank, isStaff, canSeeActionsOf, renderTags } from "../core/ranks.js"
 import { displayName, nameTokens } from "../core/identity.js"
 import { isMuted } from "../core/moderation.js"
 import { pref, PREFS } from "../core/prefs.js"
-import { render, renderTag, flag } from "../core/settings.js"
+import { render, flag } from "../core/settings.js"
 import {
     rememberExchange, replyTarget, isSpying, toggleSpying, spyIds,
     pairedWith, inPair, startPair, endPair,
@@ -343,7 +343,7 @@ export function routePrivate(player, message) {
 
     const line = render("format.prchat", {
         PAIR: pairLabel(player, partner),
-        TAG: renderTag(primaryRank(player)),
+        TAG: renderTags(player),
         RANK: primaryRank(player)?.display ?? "",
         ...nameTokens(player),
         MSG: "\u0000"

@@ -1,9 +1,9 @@
 import { world } from "@minecraft/server"
 import { command } from "../core/registry.js"
 import { info } from "../core/util.js"
-import { isStaff, primaryRank } from "../core/ranks.js"
+import { isStaff, primaryRank, renderTags } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
-import { renderTag, flag } from "../core/settings.js"
+import { flag } from "../core/settings.js"
 import { isVanished } from "../core/vanish.js"
 
 // /online — who is here.
@@ -33,7 +33,7 @@ command({
         const staff = isStaff(player)
 
         const lines = shown.map(target => {
-            const tag = renderTag(primaryRank(target))
+            const tag = renderTags(target)
             const hidden = staff && isVanished(target) ? " §8(vanished)" : ""
             const you = target.id === player.id ? " §8(you)" : ""
             return `§7· ${tag ? tag + "§r " : ""}${displayName(target)}${hidden}${you}`

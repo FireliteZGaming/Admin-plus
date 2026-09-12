@@ -2,7 +2,7 @@ import { world, system, CommandPermissionLevel } from "@minecraft/server"
 import { CONFIG } from "../config.js"
 import { Table, cleanId } from "./storage.js"
 import { displayName, nameTokens } from "./identity.js"
-import { render, renderTag, nameTagsEnabled, flag } from "./settings.js"
+import { render, renderTag, nameTagsEnabled, flag, setting } from "./settings.js"
 import { OP_COMMANDS } from "./opcommands.js"
 
 // Admin+ rank engine — see RANKS_PLAN.md for the design rationale.
@@ -627,6 +627,35 @@ export { CREATOR_RANK, DEVELOPER_RANK, isCreator, isTeamDeveloper, packBadge }
 /** The rank that shows as their tag: first in their display order. */
 export function primaryRank(playerOrId) { return displayRanks(playerOrId)[0] }
 
+/**
+ * **Every tag they wear, not just the first one.**
+ *
+ * Ranks have stacked since 2.1.14 and `displayRanks` has returned all of them
+ * in the right order ever since — staff first, then whatever order the holder
+ * chose. But every surface that drew a tag took `primaryRank`, which is
+ * `displayRanks()[0]`, so the second rank was invisible everywhere. Granting
+ * somebody a rank told them it had happened and then showed them nothing,
+ * which reads as the grant having silently failed.
+ *
+ * So `{TAG}` is now the whole badge, `[Owner][Elytra Mace]`, and `{RANK}` stays
+ * the single primary name for anyone formatting without brackets.
+ *
+ * Capped, because "twenty cosmetic tags on a PvP ladder" is a real shape this
+ * pack already talks about and twenty of them in a chat line is unreadable.
+ * `format.tagCount` is the cap; 0 means show them all.
+ */
+export function renderTags(playerOrId) {
+    const ranks = displayRanks(playerOrId)
+    // Nobody with no rank at all loses their "no rank" tag — that is a separate
+    // setting and it still gets the last word.
+    if (!ranks.length) return renderTag(undefined)
+    const cap = Number(setting("format.tagCount"))
+    const limit = Number.isFinite(cap) && cap > 0 ? cap : ranks.length
+    // renderTag answers "" for a rank whose name has been blanked, so a
+    // switched-off tag still disappears rather than leaving empty brackets.
+    return ranks.slice(0, limit).map(rank => renderTag(rank)).join("")
+}
+
 /** Their authority: the strongest rank they hold, whatever the display order. */
 /**
  * Anyone who sits outside the ladder entirely: a config owner, or a live
@@ -1037,7 +1066,7 @@ export function refreshNameTag(player) {
     try {
         const rank = primaryRank(player)
         const tag = render("format.nameTag", {
-            TAG: renderTag(rank),
+            TAG: renderTags(player),
             RANK: rank?.display ?? "",
             ...nameTokens(player)
         })

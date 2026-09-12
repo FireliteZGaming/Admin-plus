@@ -1,5 +1,6 @@
 import { __test } from "@minecraft/server"
-import { onPlayerJoin, setRanks, saveRank, getRank } from "../Admin+ BP/scripts/core/ranks.js"
+import { onPlayerJoin, setRanks, saveRank, getRank, renderTags } from "../Admin+ BP/scripts/core/ranks.js"
+import { setSetting, resetSetting } from "../Admin+ BP/scripts/core/settings.js"
 import {
     allChannels, getChannel, saveChannel, deleteChannel, moveChannel,
     availableTo, visibleTo, audienceFor, activeChannel, setActiveChannel, viewsAll, canUse
@@ -162,6 +163,54 @@ check("General still reaches the member", nova.inbox.length, 1)
 check("and the view-all admin", firelite.inbox.length, 1)
 // The mod is typing in Staff and still reads General, which is the whole point.
 check("and the mod who is typing in Staff", vchris.inbox.length, 1)
+
+console.log("\n— every rank they wear shows, not just the first —")
+// Reported from a world: a second rank was granted, both the grant and the
+// receipt said so, and the chat line still read "[Owner] FireliteZGaming".
+//
+// Ranks have stacked since 2.1.14 and displayRanks has returned all of them in
+// the right order ever since. Every surface that drew a tag took primaryRank,
+// which is displayRanks()[0] — so the second rank was invisible everywhere, and
+// a grant looked like it had silently failed.
+{
+    saveRank("boss", { display: "§4Boss", weight: 100, staff: true })
+    saveRank("elytra", { display: "§bElytra Mace", weight: 5 })
+    const stacked = fakePlayer("Stacked")
+    onPlayerJoin(stacked)
+    // Granted cosmetic-first on purpose: held order is manual, and the staff
+    // rank still has to lead. That rule lived in displayRanks with nothing able
+    // to see it until now.
+    setRanks(stacked.id, ["elytra", "boss"], stacked.name)
+
+    const line = clean(formatChatLine(stacked, "test", getChannel("general"), false))
+    check("both tags are on the line", line, "[Boss][Elytra Mace] Stacked » test")
+    check("staff leads whatever order they were granted in",
+        line.indexOf("[Boss]") < line.indexOf("[Elytra Mace]"), true)
+
+    // The cap is what keeps twenty cosmetic tags off a PvP server's chat.
+    setSetting("format.tagCount", "1")
+    check("a cap of one is the old behaviour exactly",
+        clean(formatChatLine(stacked, "test", getChannel("general"), false)),
+        "[Boss] Stacked » test")
+    setSetting("format.tagCount", "0")
+    check("and zero means all of them", clean(renderTags(stacked)), "[Boss][Elytra Mace]")
+    resetSetting("format.tagCount")
+
+    // Nobody ever really holds nothing: the default rank is written as a real
+    // assignment, so even an id that has never been seen renders Member rather
+    // than an empty string. Worth pinning — losing the default here would strip
+    // the tag off every player who has not been granted anything.
+    check("somebody with no grant still wears the default rank",
+        clean(renderTags("never-joined-id")), "[Member]")
+
+    // A blanked name removes its tag and leaves the others alone — the 2.5.2
+    // fix, which only had one tag to be right about before.
+    saveRank("elytra", { display: "", weight: 5 })
+    setRanks(stacked.id, ["boss", "elytra"], stacked.name)
+    check("a blanked rank drops out without taking the others with it",
+        clean(renderTags(stacked)), "[Boss]")
+}
+// Nova above still reads "[Member] Nova » hi" — one rank, one tag, unchanged.
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

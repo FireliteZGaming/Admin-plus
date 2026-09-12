@@ -28,7 +28,12 @@ export const DEFAULTS = {
     "format.tag": {
         value: "{OPEN}{RANK}{CLOSE}",
         label: "Rank tag",
-        help: "Tokens: {OPEN} {CLOSE} {RANK}"
+        help: "Tokens: {OPEN} {CLOSE} {RANK} · the shape of ONE tag; somebody holding several gets several of these"
+    },
+    "format.tagCount": {
+        value: "3",
+        label: "How many rank tags show",
+        help: "Ranks stack, and {TAG} draws all of them — staff first, then the order you put them in. 1 shows only the top one; 0 shows every one they hold."
     },
     "format.nameTag": {
         // Tag BESIDE the name, on one line — the way Essentials shows it.

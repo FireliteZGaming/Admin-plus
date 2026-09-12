@@ -56,6 +56,32 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.5.10 — 2026-09-12
+
+**A second rank was invisible everywhere.** Reported from a world: a rank was
+granted, the grant said so, the receipt said so, and the chat line still read
+`[Owner] FireliteZGaming` with no sign of it. From the outside that looks like
+the grant silently failed.
+
+Ranks have stacked since 2.1.14, and `displayRanks` has returned all of them in
+the right order ever since — staff first, then whatever order the holder chose.
+But every surface that drew a tag called `primaryRank`, which is literally
+`displayRanks()[0]`. The list was built correctly and then thrown away at the
+last step, in all six places independently.
+
+- `{TAG}` is now the whole badge — `[Owner][Elytra Mace]` — in chat, on the
+  nametag above the head, in private messages, and in the panel's player lists.
+- `{RANK}` still means the single primary rank's name, for anyone formatting
+  without brackets.
+- **Staff always leads**, whatever order the ranks were granted in. That rule
+  already existed and this is the first thing able to show it.
+- New setting **How many rank tags show**, default 3. `1` is exactly the old
+  behaviour; `0` shows every rank they hold. The cap exists because "twenty
+  cosmetic tags on a PvP ladder" is a real shape, and twenty of them in a chat
+  line is unreadable.
+- A rank whose name has been blanked still disappears (the 2.5.2 fix) without
+  taking the tags beside it with it.
+
 ## 2.5.9 — 2026-09-12
 
 **Nothing ever told anybody that `/info` existed.**

@@ -2,10 +2,10 @@ import { world, GameMode } from "@minecraft/server"
 import { menu, pagedMenu, modal, confirm, title, subtitle } from "../core/ui.js"
 import { hubTitle } from "../core/theme.js"
 import { ok, err, info, formatDuration } from "../core/util.js"
-import { primaryRank, playerRanks, canActOn, canSeeActionsOf, has, refreshNameTag, knownHolders, getRank, heldRankIds } from "../core/ranks.js"
+import { primaryRank, playerRanks, canActOn, canSeeActionsOf, has, refreshNameTag, knownHolders, getRank, heldRankIds, renderTags } from "../core/ranks.js"
 import { invseeScreen } from "./invsee.js"
 import { displayName, getNickname, setNickname, NICK_MAX } from "../core/identity.js"
-import { renderTag, flag } from "../core/settings.js"
+import { flag } from "../core/settings.js"
 import {
     kick, ban, mute, unmute, isMuted, hasMuteTag, isFrozen, setFrozen,
     tpaClosed, setTpaClosed, statusLine,
@@ -46,7 +46,7 @@ export async function actionsScreen(player, back) {
         items: rows,
         render: row => {
             if (row.online) {
-                const tag = renderTag(primaryRank(row.player))
+                const tag = renderTags(row.player)
                 const self = row.id === player.id ? " §8(you)" : ""
                 const nick = getNickname(row.player) ? " §8~" : ""
                 return { text: `${tag ? tag + "§r " : ""}§9${displayName(row.player)}§r${nick}${self}` }
@@ -146,7 +146,7 @@ async function playerActionsScreen(player, target, back) {
     const ranks = playerRanks(target).map(r => r.display).join("§7, ") || "§7none"
 
     const body = [
-        `${renderTag(primaryRank(target))}§r ${displayName(target)}`,
+        `${renderTags(target)}§r ${displayName(target)}`,
         nick ? `§8account name: ${target.name}` : "§8no nickname set",
         "",
         `§fRanks: §r${ranks}`,
