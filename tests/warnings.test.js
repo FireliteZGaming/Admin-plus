@@ -1,8 +1,10 @@
 import { __test } from "@minecraft/server"
+import { setSetting, resetSetting } from "../Admin+ BP/scripts/core/settings.js"
 import { onPlayerJoin, setRanks, has, applyPreset, PERMISSION_NODES } from "../Admin+ BP/scripts/core/ranks.js"
 import {
     WARN_REASONS, addWarning, removeWarning, clearWarnings,
-    warningsFor, warningCount, getWarning, warnedPlayers, warningLine
+    warningsFor, warningCount, getWarning, warnedPlayers, warningLine,
+    warningLive, warningHistory
 } from "../Admin+ BP/scripts/core/warnings.js"
 
 let passed = 0, failed = 0
@@ -93,6 +95,51 @@ check("no node gates reading your own warnings",
     nodes.includes("warn.view"), false)
 check("and none is granted either",
     JSON.stringify(PERMISSION_NODES).includes("warn."), false)
+
+
+console.log("\n— warnings expire, unless somebody meant them to stick —")
+// A warning is a nudge with a memory, not a mark for life. Somebody told off
+// for spamming on Tuesday should not still be one step from a ban on Friday —
+// nothing enforces good behaviour like knowing the slate genuinely clears.
+{
+    const HOUR = 3600000
+    const subject = { id: "warn-exp", name: "Expiry" }
+    clearWarnings(subject.id)
+    setSetting("warnings.expire", "48")
+
+    const staff = { id: "warn-staff", name: "Staff" }
+    addWarning(staff, subject, "Ordinary nudge")
+    check("a fresh warning counts", warningsFor(subject).length, 1)
+
+    const now = Date.now()
+    check("it still counts at 47 hours", warningsFor(subject, now + 47 * HOUR).length, 1)
+    check("and stops at 49", warningsFor(subject, now + 49 * HOUR).length, 0)
+
+    // The flag exists precisely so the things worth remembering past the week
+    // are the ones somebody chose to mark.
+    addWarning(staff, subject, "Serious thing", "", { severe: true })
+    check("a severe one is still there at 49 hours",
+        warningsFor(subject, now + 49 * HOUR).map(w => w.reason), ["Serious thing"])
+    check("and at a year", warningsFor(subject, now + 8760 * HOUR).length, 1)
+
+    // "Clean now" and "never warned" are different facts, and only one of them
+    // is reassuring — so staff can still see the whole thing.
+    check("history keeps the expired ones", warningHistory(subject).length, 2)
+
+    // 0 is a server that wants a permanent record.
+    setSetting("warnings.expire", "0")
+    check("expiry off keeps everything", warningsFor(subject, now + 8760 * HOUR).length, 2)
+    setSetting("warnings.expire", "48")
+
+    // An entry written before severity existed carries no flag, so it expires
+    // like an ordinary one — the forgiving reading, and the right default for
+    // something nobody marked.
+    check("an unmarked old entry expires rather than sticking",
+        warningLive({ at: now - 100 * HOUR, reason: "old" }, now), false)
+
+    clearWarnings(subject.id)
+    resetSetting("warnings.expire")
+}
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

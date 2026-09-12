@@ -56,6 +56,95 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.4.0 — 2026-09-11
+
+**Automod stops watching and starts acting.** It mutes spammers on a ladder,
+speaks in its own name, and everything it hands out expires.
+
+A minor, because this reverses a rule this pack has stated since it was
+written — *"nothing is ever punished automatically"* — and adds a whole class of
+behaviour behind it.
+
+### Why the reversal is narrow
+
+That rule was right about **guesses**. An ore-vein alert or a break-rate flag is
+inferred from behaviour that might be innocent, and a guess must never punish.
+Those still only alert, and they stay staff's call.
+
+Flooding chat is different. It is **counted, not inferred**, and the person
+doing it knows they are doing it. Twitch has worked this way for a decade and
+nobody finds it unjust, because the first thing that happens is being told and
+the punishment is a minute.
+
+### Typing fast is not spamming
+
+One threshold had to be either chatty or strict, so it was set high enough not
+to punish ordinary excitement and therefore high enough to miss real flooding.
+There are two lines now:
+
+| | default | what happens |
+|---|---|---|
+| `automod.spamRate` | above 6 in 10s | *"You are typing quickly."* Nothing else — no strike, nothing recorded, staff not told. |
+| `automod.spamHard` | above 10 in 10s | a strike, and strikes escalate |
+
+Three quick "yes" in an argument is the first one, and must never put anything
+on somebody's record.
+
+### The ladder
+
+`automod.spamLadder`, seconds per strike, shipping as `0, 60, 300, 600`:
+
+1. **told** — *"Stop spamming. Carry on and you will be muted."*
+2. **1 minute**
+3. **5 minutes**, and a warning goes on the record
+4. **10 minutes** — and every time after that
+
+The **last rung repeats**, so a four-entry ladder never quietly stops punishing
+on the fifth offence. A mis-typed ladder falls back to the shipped one rather
+than to no punishment, because the failure mode of a bad setting must not be
+"automod stopped working".
+
+Strikes are forgotten after `automod.spamForget` (30 minutes) and on leaving.
+Without that the ladder is permanent for the session, and a second offence an
+hour later lands on the ten-minute rung — which reads as broken rather than
+strict.
+
+### It speaks as [Automod]
+
+Never as `[Admin+]`. The pack's prefix means *a person with a rank did this to
+you*; a mute nobody chose has to say so, or the first thing the player does is
+accuse whoever happens to be online. The warning it files is signed **Automod**
+too, not "console".
+
+### A timed mute now says when it is over
+
+Nothing did. A mute with a length announced itself at the start, and the only
+way to find out it had lifted was to try talking — so a one-minute mute was
+indistinguishable from a permanent one until you guessed right. **A punishment
+with a stated length has to say when the length is up, or the length is
+decoration.**
+
+The trick is that no new state was needed: a record whose `until` has passed is
+already inactive, but the mirror **tag** is still on them, and that pairing means
+exactly one thing — this expired and nobody has been told. It works for mutes
+laid down before the sweep existed, and survives a reload. This covers every
+timed mute, not just automod's, and it ends in the voice that started it.
+
+### Warnings expire
+
+**48 hours** by default (`warnings.expire`), because a warning is a nudge with a
+memory rather than a mark for life — somebody told off on Tuesday should not
+still be one step from a ban on Friday.
+
+**Severe ones never expire**, which is the whole reason the flag exists: the
+things worth remembering past the week are exactly the ones somebody chose to
+mark. The toggle ships **off**, so permanence is a decision rather than an
+accident. `0` keeps everything forever.
+
+Staff can still see the lot — `warningHistory()` keeps expired entries, because
+"clean now" and "never warned" are different facts and only one of them is
+reassuring.
+
 ## 2.3.1 — 2026-09-11
 
 **The whole observe class, swept.** The audit two versions ago looked for

@@ -139,6 +139,11 @@ export async function addScreen(staff, target, back, error) {
             label: "§7Staff note §8· optional, NOT shown to them",
             placeholder: "second time this week"
         },
+        // Severity is the only thing that decides whether this is still on
+        // their record in two days. Off by default: most warnings are a nudge,
+        // and a box that starts ticked would make "permanent" the accident
+        // rather than the decision.
+        { id: "severe", type: "toggle", label: "§cSevere §8· never expires", default: false },
         { id: "tell", type: "toggle", label: "Tell them now (if online)", default: true }
     ])
     if (!values) return done()
@@ -151,10 +156,10 @@ export async function addScreen(staff, target, back, error) {
 
     const label = WARN_REASONS[values.reason ?? 0] ?? "Other"
     const reason = label === "Other" ? detail : `${label}: ${detail}`
-    const result = addWarning(staff, target, reason, values.note)
+    const result = addWarning(staff, target, reason, values.note, { severe: !!values.severe })
     if (!result.ok) { err(staff, result.reason); return done() }
 
-    record(staff, "mod.warn", target, `${reason}${values.note ? ` · note: ${values.note}` : ""}`,
+    record(staff, "mod.warn", target, `${reason}${values.severe ? " · severe" : ""}${values.note ? ` · note: ${values.note}` : ""}`,
         { kind: "warning", warningId: result.entry.id })
 
     ok(staff, `Warned §f${displayName(target)}§a. They now have §f${result.total}§a.`)

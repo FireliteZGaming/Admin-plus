@@ -53,7 +53,12 @@ export const config = {
     breaks: () => flag("automod.breaks"),
     breakRate: () => number("automod.breakRate", 20),    // blocks per second
     spam: () => flag("automod.spam"),
-    spamRate: () => number("automod.spamRate", 6)        // messages per 10s
+    // Two lines, not one. Over the first is TYPING FAST — said out loud and
+    // nothing else. Over the second is SPAM, which is a strike and escalates.
+    spamRate: () => number("automod.spamRate", 6),       // messages per 10s: fast
+    spamHard: () => Math.max(                            // and: actually flooding
+        number("automod.spamHard", 10),
+        number("automod.spamRate", 6) + 1)
 }
 
 // ------------------------------------------------------------------- veins
@@ -182,18 +187,116 @@ export function noteBreak(player, now = Date.now()) {
 }
 
 /** Messages in the last 10 seconds. Returns the count when flooding, else 0. */
+/**
+ * Note a message and say what it looks like.
+ *
+ * Returns `undefined` for normal chat, or `{ kind, count }` where kind is
+ * "fast" or "spam" — see the note on spam strikes below for why those are
+ * different things. Each is reported at most once per ten-second window, and
+ * crossing the hard line after being told you are fast reports again, because
+ * carrying on IS the escalation.
+ */
 export function noteChat(player, now = Date.now()) {
-    if (!config.spam()) return 0
+    if (!config.spam()) return undefined
     const state = chatRates.get(player.id)
 
     if (!state || now - state.since > 10000) {
-        chatRates.set(player.id, { since: now, count: 1, reported: false })
-        return 0
+        chatRates.set(player.id, { since: now, count: 1, fast: false, spam: false })
+        return undefined
     }
     state.count++
-    if (state.count > config.spamRate() && !state.reported) {
-        state.reported = true
-        return state.count
+
+    if (state.count > config.spamHard() && !state.spam) {
+        state.spam = true
+        return { kind: "spam", count: state.count }
     }
-    return 0
+    if (state.count > config.spamRate() && !state.fast && !state.spam) {
+        state.fast = true
+        return { kind: "fast", count: state.count }
+    }
+    return undefined
+}
+
+// ------------------------------------------------------------ spam strikes
+//
+// Typing fast is not spamming, and the difference decides whether anything on
+// somebody's record changes. Two thresholds, not one:
+//
+//   over spamRate   FAST. They are told they are typing quickly and that is
+//                   the end of it — nothing recorded, no strike, no mute. A
+//                   burst of "yes" "yes" "yes" in an argument is this.
+//   over spamHard   SPAM. This is a strike, and strikes escalate.
+//
+// A single threshold had to be one or the other, so it was set high enough not
+// to punish ordinary excitement and therefore high enough to miss real
+// flooding. Two lines let the low one be chatty and the high one bite.
+
+/** strikes per player: id -> { count, at } */
+const spamStrikes = new Map()
+
+/**
+ * How long a strike is remembered.
+ *
+ * Without decay the ladder is permanent for the session: somebody who flooded
+ * once an hour ago gets the ten-minute mute for a second offence, which reads
+ * as the system being broken rather than strict. Configurable, because how
+ * forgiving a server is belongs to whoever runs it.
+ */
+function forgetAfter() {
+    const minutes = Number(setting("automod.spamForget"))
+    return (Number.isFinite(minutes) && minutes > 0 ? minutes : 30) * 60000
+}
+
+/**
+ * Record a strike and say which one it is. 1 is the first.
+ *
+ * Strikes older than the forget window are dropped rather than decremented —
+ * somebody who has behaved for the whole window starts clean, which is what
+ * "forgotten" should mean.
+ */
+export function spamStrike(playerOrId, now = Date.now()) {
+    const id = typeof playerOrId === "string" ? playerOrId : playerOrId?.id
+    if (!id) return 1
+    const held = spamStrikes.get(id)
+    const count = (held && now - held.at <= forgetAfter()) ? held.count + 1 : 1
+    spamStrikes.set(id, { count, at: now })
+    return count
+}
+
+/** What strike they are on without adding one. 0 when clean. */
+export function spamStrikesOn(playerOrId, now = Date.now()) {
+    const id = typeof playerOrId === "string" ? playerOrId : playerOrId?.id
+    const held = spamStrikes.get(id)
+    if (!held || now - held.at > forgetAfter()) return 0
+    return held.count
+}
+
+/** Wipe somebody's strikes — used when they leave, and by tests. */
+export function forgetStrikes(playerOrId) {
+    const id = typeof playerOrId === "string" ? playerOrId : playerOrId?.id
+    spamStrikes.delete(id)
+}
+
+/**
+ * The punishment ladder, in seconds per strike. 0 means "say something only".
+ *
+ * Read from config so a server can be gentler or harsher without a rebuild.
+ * The LAST value repeats forever, so a four-entry ladder does not quietly stop
+ * punishing on the fifth offence. Nonsense falls back to the shipped ladder
+ * rather than to no punishment, because the failure mode of a mis-typed setting
+ * must not be "automod stopped working".
+ */
+const LADDER_FALLBACK = [0, 60, 300, 600]
+
+export function spamLadder() {
+    const raw = String(setting("automod.spamLadder") ?? "")
+    const parsed = raw.split(",").map(part => Number(part.trim()))
+    const good = parsed.length && parsed.every(n => Number.isFinite(n) && n >= 0)
+    return good ? parsed : [...LADDER_FALLBACK]
+}
+
+/** How many seconds of mute strike `n` earns. 0 for a talking-to. */
+export function spamPenalty(n) {
+    const ladder = spamLadder()
+    return ladder[Math.min(Math.max(n, 1), ladder.length) - 1] ?? 0
 }

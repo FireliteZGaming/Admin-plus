@@ -1,4 +1,5 @@
 import { Table } from "./storage.js"
+import { setting } from "./settings.js"
 import { CONFIG } from "../config.js"
 
 // Warnings.
@@ -42,8 +43,56 @@ function recordFor(playerOrId) {
     return warnings.get(id) ?? { name: nameOf(playerOrId), entries: [] }
 }
 
-/** Every warning against a player, newest first. */
-export function warningsFor(playerOrId) {
+/**
+ * How long an ordinary warning stays on a record.
+ *
+ * 48 hours by default. A warning is a nudge with a memory, not a mark for life:
+ * somebody who was told off for spamming on Tuesday should not still be one
+ * step from a ban on Friday. Nothing enforces good behaviour like knowing the
+ * slate genuinely clears.
+ *
+ * 0 turns expiry off entirely, for a server that wants a permanent record.
+ */
+function expireAfter() {
+    const hours = Number(setting("warnings.expire"))
+    return Number.isFinite(hours) && hours > 0 ? hours * 3600000 : 0
+}
+
+/**
+ * Is this warning still on the record?
+ *
+ * **Severe ones never expire.** That is the whole reason the flag exists: the
+ * things worth remembering past the week are exactly the things somebody chose
+ * to mark, and a timer that forgot them would make the flag meaningless. An
+ * entry written before severity existed has no flag, so it expires like any
+ * ordinary one — which is the forgiving reading, and the right default for a
+ * record nobody marked.
+ */
+export function warningLive(entry, now = Date.now()) {
+    if (!entry) return false
+    if (entry.severe) return true
+    const window = expireAfter()
+    if (!window) return true
+    return now - (entry.at ?? 0) < window
+}
+
+/** Every warning still standing against a player, newest first. */
+export function warningsFor(playerOrId, now = Date.now()) {
+    const entries = recordFor(playerOrId).entries
+    if (!Array.isArray(entries)) return []
+    return entries
+        .filter(entry => warningLive(entry, now))
+        .sort((a, b) => (b.at ?? 0) - (a.at ?? 0))
+}
+
+/**
+ * Every warning ever, expired ones included.
+ *
+ * Staff reading a record should be able to see that somebody has been warned
+ * four times this month even though none of them count any more — "clean now"
+ * and "never warned" are different facts, and only one of them is reassuring.
+ */
+export function warningHistory(playerOrId) {
     const entries = recordFor(playerOrId).entries
     return Array.isArray(entries) ? [...entries].sort((a, b) => (b.at ?? 0) - (a.at ?? 0)) : []
 }
@@ -59,7 +108,7 @@ export function getWarning(playerOrId, warningId) {
  * Add a warning.
  * @returns {{ok: true, entry: object, total: number} | {ok: false, reason: string}}
  */
-export function addWarning(actor, target, reason, note = "") {
+export function addWarning(actor, target, reason, note = "", options = {}) {
     const targetId = idOf(target)
     if (!targetId) return { ok: false, reason: "No such player." }
     if (idOf(actor) === targetId) return { ok: false, reason: "You can't warn yourself." }
@@ -73,7 +122,10 @@ export function addWarning(actor, target, reason, note = "") {
         by: actor?.name ?? "console",
         byId: idOf(actor),
         reason: text.slice(0, 120),
-        note: String(note ?? "").trim().slice(0, 200)
+        note: String(note ?? "").trim().slice(0, 200),
+        // Only stored when true, so an ordinary warning stays the small object
+        // it was and old records read identically.
+        ...(options.severe ? { severe: true } : {})
     }
 
     const held = recordFor(target)

@@ -2,6 +2,7 @@ import { world, system, InputPermissionCategory } from "@minecraft/server"
 import { Table } from "./storage.js"
 import { setting } from "./settings.js"
 import { formatDuration } from "./util.js"
+import { CONFIG } from "../config.js"
 import { isVanished } from "./vanish.js"
 
 // Moderation state: bans, mutes, and per-player flags (frozen, TPA closed).
@@ -488,7 +489,42 @@ export function setTpaClosed(playerOrId, closed) { return setFlag(playerOrId, "t
 // ------------------------------------------------------------------ join gate
 
 /** Wire the ban gate + frozen re-apply. Called once at boot. */
+/**
+ * Tell people when a timed mute ends.
+ *
+ * Nothing did. A mute with a length only ever announced itself at the start,
+ * and the only way to discover it had lifted was to try talking — so the
+ * experience of a one-minute mute was indistinguishable from a permanent one
+ * until you guessed right. A punishment with a stated length has to say when
+ * the length is up, or the length is decoration.
+ *
+ * **The tag is the flag, and that is the whole trick.** A record whose `until`
+ * has passed is no longer active, so `isMuted` already answers false — but the
+ * mirror TAG is still on them, and that pairing means exactly one thing: this
+ * mute expired and nobody has been told yet. No extra state to keep, nothing to
+ * lose on a reload, and it works for a mute laid down before this existed.
+ */
+function sweepExpiredMutes() {
+    for (const player of world.getAllPlayers()) {
+        const held = mutes.get(player.id)
+        if (!held || active(held)) continue
+        if (!hasMuteTag(player)) continue
+        try { player.removeTag(MUTE_TAG) } catch { /* gone */ }
+        mutes.delete(player.id)
+        const by = held.by && held.by !== "console" ? held.by : undefined
+        try {
+            player.sendMessage(by === "Automod"
+                ? "§6§l[Automod] §r§aYour mute has ended.§7 You can talk again."
+                : `${CONFIG.brand.prefix}§aYour mute has ended.§7 You can talk again.`)
+        } catch { /* left between the check and the message */ }
+    }
+}
+
 export function installModeration() {
+    // Every second is often enough for a minute-long mute to end on time and
+    // cheap enough not to matter: it walks the online players and reads a Map.
+    system.runInterval(sweepExpiredMutes, 20)
+
     world.afterEvents.playerSpawn.subscribe(({ player, initialSpawn }) => {
         if (!initialSpawn) return
         system.run(async () => {

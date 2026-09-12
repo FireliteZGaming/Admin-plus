@@ -110,7 +110,23 @@ export const DEFAULTS = {
         value: "true", label: "Automod: chat flooding", help: "true / false"
     },
     "automod.spamRate": {
-        value: "6", label: "Automod: messages in 10s", help: "Above this is flagged"
+        value: "6", label: "Automod: typing fast", help: "messages in 10s · above this they are TOLD they are typing fast. No strike, nothing recorded."
+    },
+    "automod.spamHard": {
+        value: "10", label: "Automod: spamming", help: "messages in 10s · above this is a strike, and strikes escalate. Always at least one above the line above."
+    },
+    "automod.spamLadder": {
+        value: "0, 60, 300, 600",
+        label: "Automod: spam punishment",
+        help: "seconds of mute per strike, in order · 0 is a talking-to. The LAST value repeats, so it never stops punishing."
+    },
+    "warnings.expire": {
+        value: "48",
+        label: "Warnings expire after",
+        help: "hours · an ordinary warning stops counting after this. Severe ones never expire. 0 keeps every warning forever."
+    },
+    "automod.spamForget": {
+        value: "30", label: "Automod: forget strikes after", help: "minutes · behave for this long and you start clean again"
     },
 
     // Feature switches — what exists on this server at all. A feature turned

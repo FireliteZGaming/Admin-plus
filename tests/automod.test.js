@@ -1,8 +1,10 @@
 import { __test } from "@minecraft/server"
+import { readFileSync } from "node:fs"
 import { setSetting, resetSetting } from "../Admin+ BP/scripts/core/settings.js"
 import {
     noteOre, drainFinishedVeins, noteBreak, noteChat,
-    describeVein, oreThresholds, liveVeins, forgetPlayer
+    describeVein, oreThresholds, liveVeins, forgetPlayer,
+    spamStrike, spamStrikesOn, forgetStrikes, spamLadder, spamPenalty
 } from "../Admin+ BP/scripts/core/automod.js"
 
 let passed = 0, failed = 0
@@ -103,12 +105,73 @@ check("flagged once", flags, 1)
 check("a new second starts clean", noteBreak(miner, t0 + 1000), 0)
 forgetPlayer(miner.id)
 
-console.log("\n— chat flooding —")
+console.log("\n— typing fast is not spamming —")
+// One threshold had to be either chatty or strict, so it was set high enough
+// not to punish ordinary excitement and therefore high enough to miss real
+// flooding. Two lines: over the first you are TOLD, over the second it is a
+// strike.
 setSetting("automod.spamRate", "5")
-let spam = 0
-for (let i = 0; i < 12; i++) if (noteChat(other, t0)) spam++
-check("flagged once", spam, 1)
-check("a fresh window is clean", noteChat(other, t0 + 11000), 0)
+setSetting("automod.spamHard", "9")
+forgetPlayer(other.id)
+{
+    const seen = []
+    for (let i = 0; i < 12; i++) {
+        const verdict = noteChat(other, t0)
+        if (verdict) seen.push(verdict.kind)
+    }
+    check("crossing the first line says you are typing fast", seen[0], "fast")
+    check("and carrying on past the second says you are spamming", seen[1], "spam")
+    check("each is said once per window, not once per message", seen.length, 2)
+}
+check("a fresh window is clean", noteChat(other, t0 + 11000), undefined)
+
+// A burst that never reaches the hard line is only ever "fast". This is the
+// case the whole split exists for: three quick "yes" in an argument must not
+// put anything on somebody's record.
+forgetPlayer(other.id)
+{
+    const seen = []
+    for (let i = 0; i < 7; i++) {
+        const verdict = noteChat(other, t0)
+        if (verdict) seen.push(verdict.kind)
+    }
+    check("a short burst is never called spam", seen, ["fast"])
+}
+
+console.log("\n— strikes escalate, and are forgotten —")
+setSetting("automod.spamLadder", "0, 60, 300, 600")
+setSetting("automod.spamForget", "30")
+forgetStrikes(other.id)
+{
+    check("the first strike is a talking-to", spamPenalty(spamStrike(other, t0)), 0)
+    check("the second is a minute", spamPenalty(spamStrike(other, t0 + 1000)), 60)
+    check("the third is five", spamPenalty(spamStrike(other, t0 + 2000)), 300)
+    check("the fourth is ten", spamPenalty(spamStrike(other, t0 + 3000)), 600)
+    // The last rung repeats rather than falling off the end — a four-entry
+    // ladder must not quietly stop punishing on the fifth offence.
+    check("and the fifth is ten as well", spamPenalty(spamStrike(other, t0 + 4000)), 600)
+
+    check("strikes are visible without adding one", spamStrikesOn(other, t0 + 5000), 5)
+    // Behave for the window and you start clean. Without this the ladder is
+    // permanent for the session and a second offence an hour later lands on
+    // the ten-minute rung, which reads as broken rather than strict.
+    check("an old strike is forgotten entirely, not decremented",
+        spamStrikesOn(other, t0 + 31 * 60000), 0)
+    check("so the next one starts at the beginning",
+        spamStrike(other, t0 + 31 * 60000), 1)
+}
+
+// A mis-typed ladder must not mean "automod stopped punishing".
+setSetting("automod.spamLadder", "not a ladder")
+check("nonsense falls back to the shipped ladder", spamLadder(), [0, 60, 300, 600])
+setSetting("automod.spamLadder", "0, 30")
+check("a shorter ladder is honoured", spamPenalty(2), 30)
+check("and its last rung repeats", spamPenalty(9), 30)
+
+for (const k of ["automod.spamRate", "automod.spamHard", "automod.spamLadder", "automod.spamForget"]) resetSetting(k)
+forgetStrikes(other.id)
+forgetPlayer(other.id)
+
 
 console.log("\n— switches gate the checks —")
 setSetting("automod.breaks", "false")
@@ -117,8 +180,68 @@ let off = 0
 for (let i = 0; i < 40; i++) if (noteBreak(miner, t0)) off++
 check("break checking off means no flags", off, 0)
 setSetting("automod.spam", "false")
-check("spam checking off means no flags", noteChat(other, t0 + 40000), 0)
+check("spam checking off means no flags", noteChat(other, t0 + 40000), undefined)
 for (const k of ["automod.breaks", "automod.spam", "automod.breakRate", "automod.spamRate"]) resetSetting(k)
+
+
+console.log("\n— automod acts on spam, and says who did it —")
+// This reverses what the file used to state: "nothing is ever punished
+// automatically". That rule was right about GUESSES — an ore vein or a
+// break-rate flag might be innocent, and those still only alert. Flooding chat
+// is counted, not inferred, and the person doing it knows they are doing it.
+{
+    const src = readFileSync(
+        new URL("../Admin+ BP/scripts/features/automod.js", import.meta.url), "utf8")
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, "")
+        .split("\n").filter(l => !l.trim().startsWith("//")).join("\n")
+
+    check("spam reaches the mute call", /mute\(player, seconds \* 1000/.test(code), true)
+    // The ladder decides, not a number written at the call site.
+    check("the length comes from the ladder, not a literal",
+        /spamPenalty\(strike\)/.test(code), true)
+    check("a zero rung is a talking-to rather than a zero-length mute",
+        /if \(!seconds\)/.test(code), true)
+
+    // The tag. A mute nobody chose has to say it was automatic, or the first
+    // thing the player does is accuse whoever is online.
+    check("automod speaks as [Automod]", code.includes('"§6§l[Automod] §r"'), true)
+    check("and never borrows the pack's own prefix",
+        /CONFIG\.brand\.prefix/.test(code), false)
+
+    // Typing fast reaches none of it.
+    check("typing fast is answered without a strike",
+        /verdict\.kind === "fast"[\s\S]{0,200}?return/.test(code), true)
+    check("and staff are not told about it",
+        /kind === "fast"[\s\S]{0,160}?alertStaff/.test(code), false)
+
+    // Ore and break checks stay advisory — the reversal is about spam only.
+    check("ore veins still only alert",
+        /reportVein[\s\S]{0,300}?mute\(/.test(code), false)
+}
+
+console.log("\n— a timed mute says when it is over —")
+// Nothing did. A mute with a length announced itself at the start and the only
+// way to find out it had lifted was to try talking, so a one-minute mute felt
+// exactly like a permanent one until you guessed right.
+{
+    const src = readFileSync(
+        new URL("../Admin+ BP/scripts/core/moderation.js", import.meta.url), "utf8")
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, "")
+        .split("\n").filter(l => !l.trim().startsWith("//")).join("\n")
+
+    check("a sweep runs on a timer", /runInterval\(sweepExpiredMutes/.test(code), true)
+    // The tag being on while the record is dead means exactly one thing: this
+    // expired and nobody has been told. No extra state, nothing lost to a
+    // reload, and it works for mutes laid down before the sweep existed.
+    check("it finds them by the tag outliving the record",
+        /if \(!held \|\| active\(held\)\) continue[\s\S]{0,120}?hasMuteTag\(player\)/.test(code), true)
+    check("the tag comes off", /removeTag\(MUTE_TAG\)/.test(code), true)
+    check("the record goes with it", /mutes\.delete\(player\.id\)/.test(code), true)
+    check("and the player is told", /Your mute has ended/.test(code), true)
+    // An automod mute ends in automod's voice, not the pack's — the same reason
+    // it started in automod's voice.
+    check("in the voice that muted them", /by === "Automod"/.test(code), true)
+}
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

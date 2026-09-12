@@ -223,7 +223,12 @@ value in the wrong key.
   player menu rather than as a command. It is not a lapse; do not re-remove it.
 - **A node exists only if the code checks it.** A switch that does nothing is
   worse than no switch; a test enforces this.
-- **Never punish automatically.** Automod alerts staff and they decide.
+- **Automod PUNISHES SPAM, and only spam** (changed 2026-09-11, the user asked
+  for it). The old rule was "never punish automatically", and it still holds for
+  everything automod only GUESSES at — ore veins and break rates alert staff and
+  stay their call. Flooding chat is counted rather than inferred, and the ladder
+  is a talking-to, then 1m, 5m, 10m. It speaks as **[Automod]**, never as
+  [Admin+], so nobody blames the staff who are online.
 - **Anti-grief is UNSETTLED, and was never the user's rule.** This line used to
   read as a standing decision. It was carried over from the sibling Soulbound
   project by me, not stated by them - and it had already been used twice to talk

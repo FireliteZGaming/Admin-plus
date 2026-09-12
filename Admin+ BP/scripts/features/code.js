@@ -69,6 +69,7 @@ export const GROUPS = {
     ban: "Bans",
     troll: "Troll commands",
     nuke: "Orbital strike",
+    warnings: "Warnings",
     items: "Admin items",
     creator: "Creator",
     feature: "Features on and off",

@@ -7,14 +7,32 @@ import { setSetting, flag } from "../core/settings.js"
 import { record } from "../core/logs.js"
 import {
     config, noteOre, noteBreak, noteChat, drainFinishedVeins,
-    describeVein, forgetPlayer
+    describeVein, forgetPlayer, spamStrike, spamPenalty, forgetStrikes
 } from "../core/automod.js"
+import { mute } from "../core/moderation.js"
+import { addWarning } from "../core/warnings.js"
+import { formatDuration } from "../core/util.js"
+import { displayName } from "../core/identity.js"
 
 // /admin ▸ Settings ▸ Automod
 //
 // Alerts go to staff holding admin.automod and into the log as automod.*.
-// Nothing is ever punished automatically — an alert names a player and staff
-// decide, which is the only version of this that stays trustworthy.
+//
+// **Automod acts on spam now**, which reverses the rule this file used to state
+// — "nothing is ever punished automatically". That rule was not wrong about
+// bans: an ore alert or a fast-breaking flag is a GUESS, and a guess must not
+// punish. Flooding chat is different. It is not inferred from behaviour that
+// might be innocent; it is counted, and the person doing it knows they are
+// doing it. Twitch has worked this way for a decade and nobody finds it unjust,
+// because the first thing that happens is being told, and the punishment is a
+// minute.
+//
+// Everything else automod notices still only alerts. Ore veins and block-break
+// rates stay a guess, and stay staff's call.
+//
+// **It speaks as [Automod], never as [Admin+].** The pack's prefix means "a
+// person with a rank did this to you". A mute nobody chose needs to say so, or
+// the first thing the player does is accuse whoever is online.
 
 /** One line per vein: "Nova found a x8 diamond ore vein at 120 12 -301". */
 function reportVein(vein) {
@@ -24,12 +42,61 @@ function reportVein(vein) {
         `${describeVein(vein)} vein`)
 }
 
+const TAG = "§6§l[Automod] §r"
+
 function alertStaff(text) {
     for (const player of world.getAllPlayers()) {
         if (has(player, "admin.automod")) {
-            player.sendMessage(`§6§l[Automod] §r${text}`)
+            player.sendMessage(`${TAG}${text}`)
         }
     }
+}
+
+/** To the person it is about, in automod's own voice. */
+function tell(player, text) {
+    try { player.sendMessage(`${TAG}${text}`) } catch { /* left mid-message */ }
+}
+
+/**
+ * Spam, answered.
+ *
+ * The ladder is config (`automod.spamLadder`, seconds per strike) and ships as
+ * 0, 60, 300, 600 — a talking-to, then a minute, then five, then ten for that
+ * one and every one after it.
+ *
+ * A strike also puts a WARNING on the record at the point the ladder stops
+ * being a nudge, so the escalation is visible to staff and counts toward
+ * whatever they do about repeat offenders. The first strike does not: being
+ * told once is not a mark against you.
+ */
+function punishSpam(player, count) {
+    const strike = spamStrike(player)
+    const seconds = spamPenalty(strike)
+
+    if (!seconds) {
+        tell(player, "§eStop spamming.§7 Carry on and you will be muted.")
+        alertStaff(`§f${displayName(player)}§7 was told to stop spamming §8(${count} in 10s)`)
+        record(undefined, "automod.spam", player, `warned · ${count} in 10s`)
+        return
+    }
+
+    const length = formatDuration(seconds * 1000)
+    mute(player, seconds * 1000, `Spam (automod, strike ${strike})`, undefined)
+    tell(player, `§cMuted for ${length}§7 for spamming. You will be told when it ends.`)
+
+    // The record entry, from strike three on — the point the ladder stops being
+    // a nudge. Filed by automod rather than by whoever happens to be online,
+    // and it shows up in /warnings like any other.
+    if (strike >= 3) {
+        // Signed "Automod", not "console": a warning on somebody's record should
+        // name what put it there, and console is what a human at the server
+        // console would be.
+        try { addWarning({ name: "Automod" }, player, `Spam (strike ${strike})`, `${count} messages in 10s`) }
+        catch (e) { console.warn(`[Admin+] automod could not file a warning: ${e}`) }
+    }
+
+    alertStaff(`§f${displayName(player)}§7 muted §f${length}§7 for spam §8(strike ${strike}, ${count} in 10s)`)
+    record(undefined, "automod.spam", player, `muted ${length} · strike ${strike} · ${count} in 10s`)
 }
 
 export function installAutomod() {
@@ -72,16 +139,28 @@ export function installAutomod() {
         chatEvent.subscribe(eventData => {
             const player = eventData.sender
             if (!player || isStaff(player)) return
-            const rate = noteChat(player)
-            if (!rate) return
+            const verdict = noteChat(player)
+            if (!verdict) return
             system.run(() => {
-                alertStaff(`§f${player.name}§7 sent §f${rate}§7 messages in 10s.`)
-                record(undefined, "automod.spam", player, `${rate} messages in 10s`)
+                // Typing fast is NOT spamming. Said out loud and nothing else:
+                // no strike, no mute, nothing on the record, and staff are not
+                // told — a burst of "yes" in an argument is not an incident.
+                if (verdict.kind === "fast") {
+                    tell(player, "§7You are typing quickly. §8Slow down a little.")
+                    return
+                }
+                punishSpam(player, verdict.count)
             })
         })
     }
 
-    world.afterEvents.playerLeave?.subscribe(({ playerId }) => forgetPlayer(playerId))
+    world.afterEvents.playerLeave?.subscribe(({ playerId }) => {
+        forgetPlayer(playerId)
+        // Strikes are session state, like the rates they come from. Somebody
+        // who leaves and comes back starts clean, which is the same forgiveness
+        // the forget window gives them for waiting.
+        forgetStrikes(playerId)
+    })
 }
 
 // ------------------------------------------------------------------- the UI
