@@ -387,6 +387,15 @@ let announcedFirstTag = false
  *
  * @returns how many of ours are in the air, for a test to look at.
  */
+/**
+ * How many of ours were in the air at the last sweep.
+ *
+ * This is what lets the sweep stop: a tagged trident already in flight
+ * still needs rendering, so idling out the moment `pending` empties would
+ * drop the dust off a throw mid-air.
+ */
+let airborne = 0
+
 export function tickTridents(now, isOurs) {
     tickStorms(now)
 
@@ -395,6 +404,30 @@ export function tickTridents(now, isOurs) {
             if (holdingOurs(player, isOurs)) noteThrow(player, now)
         }
     }
+
+    // **Nothing to look for, so do not look.**
+    //
+    // The sweep below asks all three dimensions for their thrown tridents, and
+    // it ran EVERY TICK regardless — sixty entity queries a second, forever, on
+    // a world where nobody owns a Spectral Trident and nobody ever has. It
+    // arrived with 2.5.5, which traded broken events for polling and did not
+    // put a floor under the polling.
+    //
+    // `enderview.js` and `vanish.js` both already do this: one cheap check
+    // turns the idle case into a return. The two conditions are the only ways
+    // a trident of ours can be out there — somebody was holding one moments ago
+    // (pending), or one we already tagged is still flying (airborne).
+    // **Expire claims nobody collected.** `pending` was only ever emptied by a
+    // successful claimThrow, so a throw that never produced a trident we could
+    // find — into the void, across a chunk border, or simply not ours — left an
+    // entry sitting there for the rest of the session. Two costs, and the gate
+    // below is what made the first one visible: the sweep could never idle
+    // again once anyone had held one, and the Map grew by a player every time.
+    for (const [id, until] of pending) {
+        if (until < now) pending.delete(id)
+    }
+
+    if (!pending.size && !airborne) return 0
 
     const players = world.getAllPlayers()
     let ours = 0
@@ -420,6 +453,7 @@ export function tickTridents(now, isOurs) {
             ours++
         }
     }
+    airborne = ours
     return ours
 }
 

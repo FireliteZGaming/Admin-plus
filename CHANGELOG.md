@@ -56,6 +56,43 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.6.2 — 2026-09-12
+
+**The Spectral Trident's tick loop cost something on every world, forever.**
+Asked plainly: does any of this lag a server? Audited every repeating loop in
+the pack, and one of twelve was wrong.
+
+`vanish` and `enderview` both already do the right thing — one cheap check turns
+the idle case into a return, and vanish even documents why. `tickTridents` had
+no floor at all: it asked **all three dimensions** for their thrown tridents
+**every tick**, sixty entity queries a second, on worlds where nobody owns a
+Spectral Trident and nobody ever has. It arrived with 2.5.5, which traded broken
+events for polling and never put a floor under the polling.
+
+It now looks only when there is something to look for — a throw pending, or one
+of ours already in the air.
+
+### And the gate exposed a second bug, which was the worse one
+
+`pending` was only ever emptied by a SUCCESSFUL claim. Throw a trident somewhere
+we could not match it — into the void, across a chunk border, or it simply was
+not ours — and the entry sat there for the rest of the session. So the sweep
+could never idle again once anyone had held one, and the Map grew by one entry
+per player, permanently.
+
+Measured rather than reasoned about, which is the only reason it was found:
+
+| | before the fix | after |
+|---|---|---|
+| 100 idle ticks | 300 queries | **0** |
+| one tick, throw pending | 3 | 3 |
+| 100 ticks after it lapses | 300 | **0** |
+
+The test counts the real calls against the dimensions `loadedDimensions()`
+actually returns. Its first version watched `__test.dimension`, which is NOT the
+object `world.getDimension()` hands back — so it counted nothing and made a
+broken gate look perfect.
+
 ## 2.6.1 — 2026-09-12
 
 **`< Code >` drew a perfect editor and threw away everything typed into it.**

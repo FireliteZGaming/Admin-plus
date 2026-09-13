@@ -1,8 +1,8 @@
-import { ItemStack, system, __test } from "@minecraft/server"
+import { ItemStack, system, world, __test } from "@minecraft/server"
 import {
     TRIDENT_TAG, beginStorm, liveStorms, tickStorms, clearStorms,
     stormPoints, renderStorm, renderFlight, STORM_TICKS, tickTridents,
-    GRIND_TICKS, FLOOR_HEALTH, drainTo, drainCurve, shatterArmour
+    GRIND_TICKS, FLOOR_HEALTH, drainTo, drainCurve, shatterArmour, noteThrow
 } from "../Admin+ BP/scripts/core/trident.js"
 import {
     FULL_CHARGE, chargesOf, spendCharge, mirrorHand, reflect,
@@ -863,6 +863,58 @@ console.log("\n— which hand, and the two event paths —")
         /setCurrentValue/.test(afterBlock.slice(0, 900)), true)
     check("both paths refuse to run inside a reflection",
         (code.match(/if \(isReflecting\(\)\) return/g) ?? []).length, 2)
+}
+
+console.log("\n— the tick loop costs nothing when nobody owns one —")
+// This ran EVERY TICK regardless: three dimensions asked for their thrown
+// tridents, sixty entity queries a second, forever, on worlds where nobody has
+// ever held a Spectral Trident. It arrived with 2.5.5's polling rewrite.
+//
+// Counted, not asserted from reading the source — a gate that is merely WRITTEN
+// is what the old version had.
+{
+    clearStorms()
+    // Spy on what loadedDimensions() ACTUALLY gets. __test.dimension is not the
+    // object world.getDimension() hands back, so watching it counted nothing and
+    // made a broken gate look perfect.
+    const dims = ["minecraft:overworld", "minecraft:nether", "minecraft:the_end"]
+        .map(id => world.getDimension(id))
+    const reals = dims.map(d => d.getEntities)
+    let queries = 0
+    dims.forEach(d => {
+        const real = d.getEntities
+        d.getEntities = function (...args) { queries++; return real.apply(this, args) }
+    })
+
+    try {
+        // Settle first. Earlier tests in this file leave a tagged trident in
+        // the spawned list, and the sweep is RIGHT to keep running while one is
+        // in the air — so clear the sky and let one tick recompute before
+        // measuring what idle costs.
+        for (let i = __test.spawned.length - 1; i >= 0; i--) {
+            if (__test.spawned[i].typeId === "minecraft:thrown_trident") __test.spawned.splice(i, 1)
+        }
+        tickTridents(150, undefined)
+
+        // Idle: nothing thrown, nothing in the air.
+        queries = 0
+        for (let t = 0; t < 100; t++) tickTridents(t, undefined)
+        check("a hundred idle ticks ask the world nothing", queries, 0)
+
+        // Somebody threw one: now it has a reason to look, and must.
+        noteThrow({ id: "thrower-1" }, 200)
+        queries = 0
+        tickTridents(201, undefined)
+        check("the sweep runs once a throw is pending", queries > 0, true)
+
+        // The claim window closes with nothing found, and it stops again.
+        for (let t = 202; t < 400; t++) tickTridents(t, undefined)
+        queries = 0
+        for (let t = 400; t < 500; t++) tickTridents(t, undefined)
+        check("and goes quiet again afterwards", queries, 0)
+    } finally {
+        dims.forEach((d, i) => { d.getEntities = reals[i] })
+    }
 }
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
