@@ -33,7 +33,8 @@ const BRANCHES = [
     { id: "report", label: "Reports", hint: "filed and handled" },
     { id: "config", label: "Config", hint: "< Code > edits and resets" },
     { id: "player", label: "Player tools", hint: "sudo" },
-    { id: "sign", label: "Signs", hint: "what players wrote on them" }
+    { id: "sign", label: "Signs", hint: "what players wrote on them" },
+    { id: "cmdblock", label: "Command blocks", hint: "placed and broken, by whom" }
 ]
 
 export async function logsScreen(player, back) {

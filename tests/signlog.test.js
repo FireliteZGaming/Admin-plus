@@ -136,5 +136,57 @@ console.log("\n— the switch, and the ceiling —")
     __clearSignWatches()
 }
 
+console.log("\n— command blocks: who, where, and honestly not what —")
+// **The command inside cannot be read.** Bedrock has no NBT and the script API
+// exposes no command-block component — settled by WorldEdit, which keeps a list
+// of components it CAN read and a separate list of block ids it special-cases,
+// with all three command blocks in the second. A pack that copies blocks for a
+// living would read the command if there were a way.
+//
+// So this pins the useful half, and pins that the honest half stays absent.
+{
+    clearLogs(); __clearSignWatches()
+    const at = { x: -8, y: 72, z: 300 }
+    const cmd = { location: at, dimension: __test.dimension, typeId: "minecraft:command_block",
+                  getComponent: () => undefined }
+
+    __test.emitPlaceBlock(player, cmd)
+    const placed = branch("cmdblock")
+    check("placing one is recorded", placed.length, 1)
+    check("filed as placed", placed[0].action, "cmdblock.placed")
+    check("naming who did it", placed[0].actor.name, "Writer")
+    check("which kind it was", placed[0].detail.includes("command block"), true)
+    check("and where to go and look", placed[0].detail.includes("-8, 72, 300"), true)
+
+    // The three types are told apart, because a repeating one is a different
+    // level of concern from a plain one.
+    clearLogs()
+    __test.emitPlaceBlock(player, { ...cmd, typeId: "minecraft:repeating_command_block" })
+    check("a repeating one says so", branch("cmdblock")[0].detail.includes("repeating"), true)
+
+    // Removing one is the same question in reverse: "who took out the command
+    // block that ran spawn protection".
+    clearLogs()
+    __test.emitBreakBlock(player, { location: at, dimension: __test.dimension },
+        "minecraft:chain_command_block")
+    const broken = branch("cmdblock")
+    check("breaking one is recorded too", broken.length, 1)
+    check("filed as broken", broken[0].action, "cmdblock.broken")
+    check("and reads the type off the broken permutation, not the air left behind",
+        broken[0].detail.includes("chain command block"), true)
+
+    // An ordinary block is not an event.
+    clearLogs()
+    __test.emitPlaceBlock(player, { ...cmd, typeId: "minecraft:stone" })
+    __test.emitBreakBlock(player, { location: at, dimension: __test.dimension }, "minecraft:stone")
+    check("ordinary blocks are not logged", branch("cmdblock").length, 0)
+
+    setSetting("logs.commandBlocks", "false")
+    __test.emitPlaceBlock(player, cmd)
+    check("and the switch silences it", branch("cmdblock").length, 0)
+    resetSetting("logs.commandBlocks")
+    clearLogs()
+}
+
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

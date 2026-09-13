@@ -226,6 +226,11 @@ export const DEFAULTS = {
         label: "Held messages kept",
         help: "How many wait in the queue before the oldest fall off"
     },
+    "logs.commandBlocks": {
+        value: "true",
+        label: "Log command blocks placed and broken",
+        help: "true / false · who put one down and where. The COMMAND inside cannot be read — Bedrock has no NBT and the script API exposes no command-block component."
+    },
     "logs.signs": {
         value: "true",
         label: "Log what is written on signs",

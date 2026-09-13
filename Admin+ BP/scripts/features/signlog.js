@@ -114,6 +114,32 @@ function isSign(block) {
     return !!safe(() => block?.getComponent?.("minecraft:sign"))
 }
 
+// ----------------------------------------------------------- command blocks
+//
+// **The command inside one cannot be read, and that is not a limitation of
+// this file.** Bedrock has no NBT and the script API exposes no command-block
+// component — checked the way everything else here is, against the packs
+// installed on this machine. WorldEdit settles it: its `util.js` keeps one list
+// of components it can read (inventory, sign, piston, record_player,
+// fluid_container) and a separate list of block IDS it has to special-case, and
+// all three command blocks are in the second. A pack whose entire job is
+// copying blocks faithfully would read the command if it could.
+//
+// So what is logged is WHO put one down and WHERE. That is still the thing
+// worth knowing: a repeating command block appearing on a realm is a serious
+// event whatever it was set to, and until now nothing recorded it at all.
+
+const COMMAND_BLOCKS = new Map([
+    ["minecraft:command_block", "command block"],
+    ["minecraft:chain_command_block", "chain command block"],
+    ["minecraft:repeating_command_block", "repeating command block"]
+])
+
+/** Which kind of command block this is, or undefined. */
+export function commandBlockKind(typeId) {
+    return COMMAND_BLOCKS.get(String(typeId ?? ""))
+}
+
 export function installSignLog() {
     // Placed blank, written afterwards. afterEvents.playerPlaceBlock is the
     // well-supported one here — 20 uses across the packs installed on this
@@ -122,11 +148,36 @@ export function installSignLog() {
     if (placed?.subscribe) {
         placed.subscribe(event => {
             const { player, block } = event
-            if (!player || !isSign(block)) return
-            watchSign(player, block, "")
+            if (!player) return
+            if (isSign(block)) { watchSign(player, block, ""); return }
+
+            // No staff bypass, deliberately: staff are exactly who you audit
+            // for this. A command block is rare enough that logging every one
+            // costs nothing, and valuable enough that missing one costs a lot.
+            const kind = commandBlockKind(block?.typeId)
+            if (kind && flag("logs.commandBlocks")) {
+                record(player, "cmdblock.placed", undefined,
+                    `${kind} at ${whereIs(block)}`)
+            }
         })
     } else {
         console.warn("[Admin+] playerPlaceBlock unavailable — sign text will not be logged")
+    }
+
+    // Removing one matters as much as placing it — "who took out the command
+    // block that ran spawn protection" is the same question in reverse. The
+    // block is already air by the time this fires, so the TYPE has to come off
+    // the broken permutation rather than off the block.
+    const broke = world.afterEvents?.playerBreakBlock
+    if (broke?.subscribe) {
+        broke.subscribe(event => {
+            if (!flag("logs.commandBlocks")) return
+            const kind = commandBlockKind(
+                event?.brokenBlockPermutation?.type?.id ?? event?.block?.typeId)
+            if (!kind || !event.player) return
+            record(event.player, "cmdblock.broken", undefined,
+                `${kind} at ${whereIs(event.block)}`)
+        })
     }
 
     // An existing sign being changed. Snapshot first, then watch for a

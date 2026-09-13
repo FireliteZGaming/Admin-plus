@@ -56,6 +56,25 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.6.3 — 2026-09-12
+
+**Command blocks are logged — who placed one, where, and which of the three.**
+`/admin ▸ Logs ▸ Command blocks`. Breaking one is recorded too, because "who
+took out the command block that ran spawn protection" is the same question in
+reverse.
+
+**The command inside cannot be read, and that is the game, not this pack.**
+Bedrock has no NBT and the script API exposes no command-block component.
+Settled the way everything here is settled — against the packs installed on this
+machine: WorldEdit's `util.js` keeps one list of components it CAN read
+(inventory, sign, piston, record_player, fluid_container) and a separate list of
+block IDs it has to special-case, and all three command blocks are in the
+second. A pack whose whole job is copying blocks faithfully would read the
+command if there were a way to.
+
+No staff bypass, deliberately: staff are exactly who you audit for this. Switch
+it off with **Log command blocks placed and broken**.
+
 ## 2.6.2 — 2026-09-12
 
 **The Spectral Trident's tick loop cost something on every world, forever.**

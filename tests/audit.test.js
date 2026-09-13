@@ -252,7 +252,12 @@ const NO_AUDIENCE = new Set([
     // a survival world writes signs constantly, for shops and labels and
     // directions, and announcing each one would bury staff chat in furniture.
     // The log is the record; you go and read it when you have a reason to.
-    "sign.written", "sign.edited"
+    "sign.written", "sign.edited",
+    // Same shape again: a command block is not a person, so there is nobody
+    // to notify. And it stays unannounced for the opposite reason to signs
+    // — not because it is noise, but because somebody quietly auditing who
+    // placed one should not have it broadcast to the person who did.
+    "cmdblock.placed", "cmdblock.broken"
 ])
 
 check("the scan actually found the actions", RECORDED.size > 25, true)
