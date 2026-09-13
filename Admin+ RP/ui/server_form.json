@@ -284,8 +284,8 @@
 		"$locked_text_alpha": "$disabled_alpha",
 		"$locked_color": "$color",
 		"$text_edit_box_content_binding_name": "$option_binding_name",
-		"$text_edit_box_binding_collection_name": "$option_binding_name",
-		"$text_edit_box_binding_type": "global",
+		"$text_edit_box_binding_collection_name": "custom_form",
+		"$text_edit_box_binding_type": "collection",
 		"$text_box_enabled_binding_name": "$option_enabled_binding_name",
 		"enabled": "$enabled",
 		"$place_holder_text": "$option_place_holder_text",
@@ -299,7 +299,6 @@
 				"$text_edit_box_enabled_binding_type": "none"
 			}
 		],
-		"bindings": [],
 		"locked_control": "background",
 		"default_control": "background",
 		"hover_control": "background",

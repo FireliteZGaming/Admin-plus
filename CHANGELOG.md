@@ -56,6 +56,43 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.6.1 — 2026-09-12
+
+**`< Code >` drew a perfect editor and threw away everything typed into it.**
+Reported from a world: the box renders as the tall editor it is supposed to be,
+takes your edits, and every submit comes back *"no config in it"*. A factory
+reset from the same screen worked, which was the clue — that path does not go
+through the text box.
+
+Both ends were provably fine. `toBlock()` produces 3049 characters over 141
+lines, well inside the 32767 cap, and parses straight back to 92 keys with no
+errors. So the document was good and the save path was good; the form was
+returning nothing.
+
+**The fault is in the JSON-UI, and it is three lines.** The custom form's input
+is an item in the `custom_form` COLLECTION — that is how the server reads a
+field's value back. The outer `custom_multiline_input` gets this right and
+matches vanilla's working single-line `custom_input` exactly. The inner
+`multiline_dialog_text_edit` then overrode it:
+
+| | vanilla's working input | ours, before |
+|---|---|---|
+| binding type | `collection` | **`global`** |
+| collection name | `custom_form` | **`#custom_input_text`** — a binding name |
+| `bindings` | inherited | **`[]`**, which replaces the parent's |
+
+A control bound to a global that nothing reads, in a collection that does not
+exist, with its inherited bindings wiped. It still RENDERS, because the visual
+tree comes down the inheritance chain untouched — which is exactly why this
+looked like it worked.
+
+All three are corrected, with the collection named literally rather than
+through a variable that would have to survive propagation down through the
+scrolling panel.
+
+Inherited from Chest-UI upstream, where the same chain sits behind a
+`JavaScript REPL` title — so this was very likely never working there either.
+
 ## 2.6.0 — 2026-09-12
 
 **Chat screening, in the shape of Twitch's AutoMod.** A minor, because it is a
