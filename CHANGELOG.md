@@ -56,6 +56,83 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.6.4 — 2026-09-15
+
+**The script module is no longer pinned to a beta version that the game has
+moved past.** `@minecraft/server` was `"2.10.0-beta"`; it is now floating
+`"beta"`.
+
+A beta module version is tied to a game build. When the build moves on, the old
+one stops being served and the pack fails to load its **script module entirely**
+— it still appears in the world, and nothing runs. That is the worst shape a
+failure can take here, because it looks like the pack is installed and broken
+rather than not running.
+
+This machine is on **1.26.5101.0**. `min_engine_version` was never the problem —
+it is a floor, and `[1, 21, 130]` is below anything current. The dependency
+version is the part that can stop resolving.
+
+Settled against the packs installed here, which is how module versions are
+decided in this project — never from memory. Of 1,230 manifests: **52 float on
+`"beta"`**, including WorldEdit BE and Soulbound Essentials, the two that have
+survived every update on this machine. Twenty others pin `2.10.0-beta` exactly
+as this pack did.
+
+The cost is real and worth stating: a floating version follows API changes
+silently instead of failing loudly on a known-good pin. Three things already
+absorb that. `core/health.js` probes chat, commands and block events at startup
+and names whatever is missing. `PlayerInputPermissions.setPermissionCategory` is
+called through a `typeof` check, because that one was renamed once already and
+cost weeks. And the content log is read after every playtest.
+
+**Still unconfirmed, honestly:** the newest content log on this machine predates
+the update, so nothing here has yet *proven* the old pin stopped resolving. Load
+a world with Content Log File on and the log says which version resolved.
+
+---
+
+**The Permissions screen was rebuilt for the person who actually reads it.**
+95 switches became 41, in eight groups sized 2–8 rather than 2–55, ordered least
+dangerous to most and named in words rather than categories: Everyone, The
+panel, Chat, Staff tools, Punishments, Pranks, Ranks & places, Server settings.
+
+**The 55-switch "Operator" group is gone** — one node per vanilla command, 58%
+of the whole editor. Every one was a *denial* switch, so all fifty-five read ON
+by default and nobody had ever turned one off. The mechanism survives: a rank
+carrying `-cmd.fill` is still refused `/a:fill`, set in `< Code >` rather than
+hunted for in a list nobody could scan.
+
+**`admin.troll` split into `admin.smite` and `admin.sudo`.** One switch called
+"troll" says nothing about what is being handed over, and the halves are not the
+same trust — smite is lightning and a few annoying items, sudo puts words in
+somebody's mouth and runs commands as them. Shipped ranks are unaffected;
+Developer and Manager hold `admin.*` and Owner holds `*`. A world that granted
+`admin.troll` to a *custom* rank has to grant the two.
+
+**A toggle now means what everyone reads it as.** A node arriving through
+inheritance or a wildcard used to show OFF while the holder plainly had it, and
+turning it off did nothing — there was nothing of that rank's to remove. The
+switch now shows whether the rank ends up with it, and switching it off writes
+the `-node` denial that carves a real hole. The note underneath still says where
+the grant came from.
+
+**`admin.commands` was a switch that did nothing, and now it is the one that
+matters.** It was declared in the group list and checked nowhere. Its own test
+already said "handing somebody the vanilla command set is a decision an owner
+makes for one person" — the intent was written down and never connected. It is
+now the single gate on `/a:` commands, in Server settings.
+
+⚠ **A rank without `admin.commands` loses `/a:` vanilla commands until it is
+granted.** Owner (`*`) and Developer/Manager (`admin.*`) are covered by their
+wildcards; a Mod who was using `/a:effect` is not.
+
+**And the test meant to catch dead switches could never fail.** CLAUDE.md
+promises a node exists only if the code checks it. Proven vacuous by injecting
+`admin.totallyFakeNode`, which nothing anywhere checks: it passed. The scan read
+all of `scripts/`, which includes the file the nodes are *declared* in, so every
+node matched its own declaration. It now cuts the declaration block out first,
+and it caught the injected fake and the real dead switch on the next run.
+
 ## 2.6.3 — 2026-09-12
 
 **Command blocks are logged — who placed one, where, and which of the three.**
