@@ -90,7 +90,7 @@ console.log("\n— the node —")
 check("admin.allowlist is declared",
     Object.values(PERMISSION_NODES).flat().includes("admin.allowlist"), true)
 check("and sits with moderation",
-    PERMISSION_NODES.Moderation.includes("admin.allowlist"), true)
+    PERMISSION_NODES["Server settings"].includes("admin.allowlist"), true)
 check("nothing left on the list", count(), 0)
 
 console.log(`\n${passed} passed, ${failed} failed\n`)

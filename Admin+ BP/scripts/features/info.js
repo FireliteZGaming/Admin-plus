@@ -233,7 +233,7 @@ async function staffScreen(player, back) {
         { cmd: "/ban Steve", what: "Remove them for good, until you unban them.", need: "admin.ban" },
         { cmd: "/gm creative", what: "Change your game mode, or somebody else's.", need: "admin.gamemode" },
         { cmd: "/port", what: "Gives you the Ender Eye — tap a name to jump to them.", need: "admin.tp" },
-        { cmd: "/smite Steve", what: "Lightning. Harmless fun, and it is logged.", need: "admin.troll" }
+        { cmd: "/smite Steve", what: "Lightning. Harmless fun, and it is logged.", need: "admin.smite" }
     ]
     return menu(player, {
         title: hubTitle("about", "Staff tools"),

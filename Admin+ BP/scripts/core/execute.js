@@ -1,6 +1,6 @@
 import { world } from "@minecraft/server"
 import { setting } from "./settings.js"
-import { deniedFor, commandNode } from "./ranks.js"
+import { deniedFor, commandNode, has } from "./ranks.js"
 
 // Running vanilla commands without being an operator.
 //
@@ -138,11 +138,31 @@ export function mayRun(player, line) {
     const checked = checkCommand(line)
     if (!checked.ok) return checked
 
+    // **The gate that was declared and never connected.** `admin.commands` sat
+    // in PERMISSION_NODES describing exactly this — "who may use the vanilla
+    // command set at all" — and nothing ever asked about it, so the switch drew
+    // in every rank editor and did nothing when flipped. Found 2026-09-13 after
+    // the test meant to catch that turned out to be vacuous.
+    //
+    // It is one switch where there used to be fifty-five. `has()` still lets a
+    // real operator through when no rank has an opinion, so a fresh world's host
+    // cannot lock themselves out.
+    if (!has(player, "admin.commands")) {
+        return {
+            ok: false,
+            reason: "Your rank can't use vanilla commands. An owner turns that on in Ranks ▸ the rank ▸ Permissions ▸ Server settings ▸ vanilla commands."
+        }
+    }
+
+    // And the per-command hole, kept as a MECHANISM rather than as fifty-five
+    // rows in the editor. A rank carrying `-cmd.fill` is still refused /a:fill;
+    // it is simply set in the config rather than hunted for in a list nobody
+    // could scan.
     const name = commandName(checked.command)
     if (deniedFor(player, commandNode(name))) {
         return {
             ok: false,
-            reason: `"${name}" is switched off for your rank. An owner changes that in Ranks ▸ the rank ▸ Permissions ▸ Operator.`
+            reason: `"${name}" is switched off for your rank.`
         }
     }
     return checked

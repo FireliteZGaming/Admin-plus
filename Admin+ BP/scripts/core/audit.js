@@ -41,7 +41,7 @@ import { displayName, nameTokens } from "./identity.js"
  * Anyone else reading "X used sudo on Y" can simply tell Y.
  */
 const NARROW = {
-    "player.sudo": "admin.troll"
+    "player.sudo": "admin.sudo"
 }
 
 /** Never announced — either noise, or already reported through another door. */

@@ -59,7 +59,7 @@ function strike(target) {
 command({
     name: "smite",
     description: "Call down lightning on somebody — /smite <player>",
-    perm: "admin.troll",
+    perm: "admin.smite",
     mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     run: (player, [selected]) => {
         const shut = trollBlockedBy(player)

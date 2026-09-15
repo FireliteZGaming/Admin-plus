@@ -68,10 +68,10 @@ console.log("\n— the locks, and which of them actually lock —")
 
     // What the node CAN do is take it away, which is how a realm carves this
     // out of one rank without touching the other three locks.
-    saveRank("nobombs", { display: "§7NoBombs", perms: ["-admin.troll"] })
+    saveRank("nobombs", { display: "§7NoBombs", perms: ["-admin.smite"] })
     const denied = holder({ rank: "nobombs" })
     check("an explicit denial closes it", canNuke(denied), false)
-    check("and says which lock", nukeBlockedBy(denied).includes("Staff tools"), true)
+    check("and says which lock", nukeBlockedBy(denied).includes("Pranks"), true)
 }
 
 console.log("\n— arming is a switch, and it survives —")
@@ -289,9 +289,15 @@ console.log("\n— and it names the switch the way the editor does —")
 // button, and those stopped being the same thing when the editor started
 // shortening them. Derived from nodeLabels so it cannot drift.
 {
-    check("a staff node", whereToGrant("admin.troll"), "Ranks ▸ Staff tools ▸ troll")
-    check("a moderation node", whereToGrant("admin.banperm"), "Ranks ▸ Moderation ▸ banperm")
-    check("a vanilla command node", whereToGrant("cmd.kill"), "Ranks ▸ Operator ▸ kill")
+    check("a prank node", whereToGrant("admin.smite"), "Ranks ▸ Pranks ▸ smite")
+    check("and its dangerous twin", whereToGrant("admin.sudo"), "Ranks ▸ Pranks ▸ sudo")
+    check("a punishment node", whereToGrant("admin.banperm"), "Ranks ▸ Punishments ▸ banperm")
+    // The 55-switch Operator group is gone, so a cmd.* node has no button to
+    // point at any more — and nothing asks it to. The single switch that
+    // replaced them does have one.
+    check("a vanilla command node has no button now", whereToGrant("cmd.kill"), "Ranks ▸ cmd.kill")
+    check("but the one switch that gates them all does",
+        whereToGrant("admin.commands"), "Ranks ▸ Server settings ▸ commands")
     // Every label it can produce must be one the editor would actually show.
     for (const [group, nodes] of Object.entries(PERMISSION_NODES)) {
         const labels = nodeLabels(nodes)

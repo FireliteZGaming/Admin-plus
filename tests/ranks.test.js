@@ -280,7 +280,21 @@ function sources(dir) {
     }
     return out
 }
-const CODE = sources(SRC_DIR).join("\n")
+// **The declaration itself must not count as a use.** This test read all of
+// scripts/ — which includes core/ranks.js, where PERMISSION_NODES lives — so
+// every declared node matched its own declaration and the check could never
+// fail. Proven 2026-09-13 by injecting `admin.totallyFakeNode`, which nothing
+// anywhere checks: it passed. The rule CLAUDE.md advertises had not been
+// enforced since the day it was written.
+//
+// So the block that DECLARES nodes is cut out before looking for uses of them,
+// along with the two tables that merely name them — a label and a bundle entry
+// are not a switch doing something.
+const DECLARATION = /export const PERMISSION_NODES = \{[\s\S]*?\n\}/
+const NAMING_TABLES = /const (?:NODE_LABELS|BUNDLES)\s*=\s*\{[\s\S]*?\n\}/g
+const CODE = sources(SRC_DIR)
+    .map(src => src.replace(DECLARATION, "").replace(NAMING_TABLES, ""))
+    .join("\n")
 
 // The Operator group is the one checked DYNAMICALLY — has(player,
 // commandNode(name)) — so no literal "cmd.kill" exists anywhere for the
@@ -517,7 +531,7 @@ console.log("\n— a rank inheriting from NOTHING cannot inherit anything —")
         rankState("manager", "admin.ban"), "wildcard")
     check("and says which pattern did it", rankGrant("manager", "admin.ban").via, "admin.*")
     check("nothing it holds can claim to be inherited now",
-        PERMISSION_NODES["Moderation"].every(n => rankState("manager", n) !== "inherited"), true)
+        PERMISSION_NODES["Punishments"].every(n => rankState("manager", n) !== "inherited"), true)
 
     // The other half: this screen must never disagree with has(). An ancestor's
     // exact denial outranks this rank's broad wildcard, so restoring the

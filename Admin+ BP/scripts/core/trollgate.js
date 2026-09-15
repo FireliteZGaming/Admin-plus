@@ -20,17 +20,34 @@ import { has, whereToGrant } from "./ranks.js"
 // Staff tools, where it shows as `troll`. Operators pass it, as they pass every
 // node no rank has an opinion about.
 
-/** May this player use troll tools? */
-export function trollAllowed(player) {
-    return has(player, "admin.troll")
+/**
+ * The two halves, split 2026-09-13 because they are not the same trust.
+ *
+ * `admin.smite` is the visible, harmless, reversible half — lightning, the
+ * trident, knockback, the mirror, the nuke. Somebody notices, everybody laughs,
+ * and the log says who.
+ *
+ * `admin.sudo` puts WORDS IN SOMEBODY'S MOUTH and runs commands as them. It is
+ * impersonation, it is invisible to the person it happens to, and an owner can
+ * reasonably want staff who may smite but may not do that.
+ *
+ * One switch called "troll" could not express that, and told a thirteen-year-old
+ * nothing about what they were handing over.
+ */
+export const SMITE = "admin.smite"
+export const SUDO = "admin.sudo"
+
+/** May this player use troll tools? Defaults to the harmless half. */
+export function trollAllowed(player, node = SMITE) {
+    return has(player, node)
 }
 
 /** Why not, phrased for the person who just tried — or undefined. */
-export function trollBlockedBy(player) {
+export function trollBlockedBy(player, node = SMITE) {
     // Phrased the way every other locked item is, and pointing at the switch by
     // the name the rank editor puts on the button.
-    if (!has(player, "admin.troll")) {
-        return `Needs §f${whereToGrant("admin.troll")}`
+    if (!has(player, node)) {
+        return `Needs §f${whereToGrant(node)}`
     }
     return undefined
 }

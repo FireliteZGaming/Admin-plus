@@ -410,8 +410,16 @@ async function nodePageScreen(player, rankId, group, nodes, back) {
             : {
                 id: node,
                 type: "toggle",
+                // **The switch shows what the HOLDER ends up with, not what
+                // this rank happens to state.** It used to show the latter, so
+                // a node arriving through inheritance or a wildcard read OFF
+                // while the person plainly had it — and turning it off did
+                // nothing, because there was nothing of this rank's to remove.
+                //
+                // Reported 2026-09-13 in exactly those words: "even if it's
+                // toggled off it somehow has that". Now off means off.
                 label: labelFor(node),
-                default: rank.perms.includes(node)
+                default: ["own", "wildcard", "inherited"].includes(rankGrant(rank, node).state)
             }))
     if (!values) return back()
 
@@ -423,19 +431,30 @@ async function nodePageScreen(player, rankId, group, nodes, back) {
         if (dropdown) {
             if (value === 1) perms.push(node)
             else if (value === 2) perms.push(`-${node}`)
-        } else if (value) {
-            perms.push(node)
+        } else {
+            // **A toggle can now write and clear a denial**, which is what
+            // makes "off" mean off for something the rank did not grant itself.
+            //
+            //   on  + nothing had it      -> state it
+            //   on  + a denial had it off -> the denial is simply not rewritten
+            //   on  + it flows in already -> write nothing, let it flow
+            //   off + it flows in already -> write "-node", the only thing that
+            //                                can carve a hole in an inherited
+            //                                grant or a wildcard
+            //
+            // `state` is read BEFORE the edit, from the rank as saved.
+            const { state } = rankGrant(rank, node)
+            const flowsIn = state === "wildcard" || state === "inherited"
+            if (value) {
+                if (!flowsIn) perms.push(node)
+            } else if (flowsIn || state === "denied") {
+                perms.push(`-${node}`)
+            }
         }
     }
 
-    // Switching back to toggles would otherwise strand a denial the toggle view
-    // cannot show or clear, so say plainly that they are still in force.
-    const denials = perms.filter(p => p.startsWith("-") && nodes.includes(p.slice(1)))
     saveRank(rankId, { perms })
     ok(player, `Updated permissions for §f${rankId}§a.`)
-    if (denials.length && !dropdown) {
-        info(player, `§7Still denied here: §f${denials.join(", ")}§7 — switch the editor to dropdown in < Code > to clear them.`)
-    }
     return back()
 }
 async function inheritScreen(player, rankId, back) {

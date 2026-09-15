@@ -389,7 +389,7 @@ console.log("\n— one gate per item, and it is the rank's answer —")
     // somebody throws theirs — share one gate. Splitting them would let a rank
     // hand out the attack but not the answer to it.
     for (const key of ["knockback", "trident", "mirror"]) {
-        check(key + " wants troll tools", gateOf(key, ["admin.troll"]), true)
+        check(key + " wants the smite half", gateOf(key, ["admin.smite"]), true)
         check("and " + key + " refuses on staff mode alone",
             gateOf(key, ["admin.staffmode"]), false)
     }

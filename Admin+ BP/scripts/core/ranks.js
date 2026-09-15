@@ -172,29 +172,44 @@ export const DEFAULT_RANKS = JSON.parse(JSON.stringify(PRESETS.server.ranks))
  * editor draws a switch, somebody turns it on, and nothing happens.
  * fly/god/heal/feed/bring and the homes limit sat here for exactly that reason,
  * and left with the features they described.
+ *
+ * **Rebuilt 2026-09-13, for the person who actually reads it.** Most people
+ * running a Minecraft server are about thirteen, and the editor they were being
+ * handed had 95 switches in eight groups of wildly different sizes, with names
+ * like "World upkeep" and "Management" that do not say what is inside them.
+ *
+ * Three things changed:
+ *
+ * **The 55-switch "Operator" group is gone.** It was one node per vanilla
+ * command — 58% of the entire editor — gated by `deniedFor`, which means every
+ * one of them read ON by default and nobody had ever turned one off. The
+ * mechanism survives: `commandNode()` still builds `cmd.<name>` and a rank
+ * carrying `-cmd.fill` is still refused it. What replaced the fifty-five is the
+ * single `admin.commands` switch in Server settings, which was declared for
+ * exactly this and had never been wired to anything.
+ *
+ * **`admin.troll` became `admin.smite` and `admin.sudo`.** One switch called
+ * "troll" tells a thirteen-year-old nothing about what they are handing over,
+ * and the two halves are not the same trust: smite is lightning and a few
+ * annoying items, sudo puts words in somebody's mouth and runs commands as
+ * them. Shipped ranks are unaffected — Developer/Manager hold `admin.*` and
+ * Owner holds `*` — but a world that granted `admin.troll` to a custom rank has
+ * to grant the two.
+ *
+ * **Groups are ordered least dangerous to most**, sized 2-8 rather than 2-55,
+ * and named in words rather than categories: what everyone gets, then the
+ * panel, chat, staff tools, punishments, pranks, and finally the two that can
+ * hand the server away.
  */
 export const PERMISSION_NODES = {
-    "Panel & info": ["admin.panel", "admin.settings", "admin.logs", "ranks.view"],
-    "Moderation": ["admin.kick", "admin.ban", "admin.banperm", "admin.mute", "admin.warn", "admin.freeze", "admin.invsee", "admin.tpatoggle", "admin.reports", "admin.automod", "admin.allowlist"],
-    "Staff tools": ["admin.staffmode", "admin.troll", "admin.tp", "admin.vanish", "admin.gamemode", "admin.nickname", "admin.holograms"],
-    "Chat": ["chat.staff", "chat.viewall", "chat.manage", "chat.spy", "admin.broadcast"],
-    "World upkeep": ["admin.clearchat", "admin.lagclear"],
-    "Management": ["ranks.grant", "ranks.manage", "warp.manage", "spawn.set", "presets.apply", "admin.commands"],
-    "Player basics": ["warp.use", "spawn.use", "tpa.use", "report.use", "online.use"],
-
-    // ONE NODE PER VANILLA COMMAND, so a rank can be given /a:kill and refused
-    // /a:gmode — which matters most where a command DUPLICATES something the
-    // pack already does better: /gm makes cmd.gamemode redundant, and the pack's
-    // own /tp outranks cmd.teleport.
-    //
-    // Two layers, the same pair every feature here uses. `commands.allowed` is
-    // the WORLD asking "does this command exist at all", and these nodes are the
-    // ladder asking "who may use it". A command needs both.
-    //
-    // Ordinary nodes in every other respect: `cmd.*` grants the lot, a rank
-    // inherits them from the rank below, and `-cmd.gamemode` carves a hole in an
-    // inherited wildcard. Nothing here is special-cased.
-    "Operator": OP_COMMANDS.map(name => `cmd.${name}`)
+    "Everyone": ["warp.use", "spawn.use", "tpa.use", "report.use", "online.use"],
+    "The panel": ["admin.panel", "admin.settings", "admin.logs", "ranks.view"],
+    "Chat": ["chat.staff", "chat.viewall", "chat.manage", "chat.spy", "admin.broadcast", "admin.clearchat"],
+    "Staff tools": ["admin.staffmode", "admin.vanish", "admin.tp", "admin.gamemode", "admin.nickname", "admin.holograms", "admin.invsee", "admin.lagclear"],
+    "Punishments": ["admin.warn", "admin.mute", "admin.kick", "admin.ban", "admin.banperm", "admin.freeze", "admin.reports"],
+    "Pranks": ["admin.smite", "admin.sudo"],
+    "Ranks & places": ["ranks.grant", "ranks.manage", "warp.manage", "spawn.set"],
+    "Server settings": ["presets.apply", "admin.commands", "admin.automod", "admin.allowlist", "admin.tpatoggle"]
 }
 
 /**
@@ -280,10 +295,11 @@ export const BUNDLES = {
     "chat_all":    { label: "See every chat",     nodes: ["chat.staff", "chat.viewall", "chat.spy"] },
     "chat_manage": { label: "Run the chats",      nodes: ["chat.staff", "chat.manage", "admin.broadcast"] },
     "warps":       { label: "Warp management",    nodes: ["warp.manage", "spawn.set"] },
-    "upkeep":      { label: "World upkeep",       nodes: ["admin.clearchat", "admin.lagclear"] },
+    "upkeep":      { label: "Tidying up",         nodes: ["admin.clearchat", "admin.lagclear"] },
     "ranks":       { label: "Rank management",    nodes: ["ranks.view", "ranks.grant", "ranks.manage"] },
     "shape":       { label: "Server shape",       nodes: ["admin.settings", "presets.apply"] },
-    "basics":      { label: "Player basics",      nodes: [...BASIC_PERMS] },
+    "basics":      { label: "Everyone",            nodes: [...BASIC_PERMS] },
+    "pranks":      { label: "Pranks (smite only)", nodes: ["admin.smite"] },
     "everything":  { label: "Everything (*)",     nodes: ["*"] }
 }
 

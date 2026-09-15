@@ -182,9 +182,9 @@ const ITEM_NODE = {
     hammer: "admin.banperm",
     teleport: "admin.tp",
     eye: "admin.tp",
-    trident: "admin.troll",
-    knockback: "admin.troll",
-    mirror: "admin.troll"
+    trident: "admin.smite",
+    knockback: "admin.smite",
+    mirror: "admin.smite"
     // orbital is not here: it has three locks, and nukeMissing lists them.
 }
 

@@ -5,7 +5,7 @@ import { canActOn } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
 import { postToChannel } from "./chat.js"
 import { activeChannel } from "../core/channels.js"
-import { trollBlockedBy } from "../core/trollgate.js"
+import { trollBlockedBy, SUDO } from "../core/trollgate.js"
 import { record } from "../core/logs.js"
 import { phraseFor } from "../core/audit.js"
 
@@ -37,13 +37,13 @@ const MAX_LENGTH = 256
 command({
     name: "sudo",
     description: 'Make a player say something — /sudo <player> "message"',
-    perm: "admin.troll",
+    perm: "admin.sudo",
     mandatory: [
         { name: "player", type: CustomCommandParamType.PlayerSelector },
         { name: "message", type: CustomCommandParamType.String }
     ],
     run: (player, [selected, message]) => {
-        const shut = trollBlockedBy(player)
+        const shut = trollBlockedBy(player, SUDO)
         if (shut) return err(player, shut)
 
         const targets = selected ?? []

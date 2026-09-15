@@ -218,31 +218,45 @@ console.log("\n— one node per command, and both layers must agree —")
 applyPreset("server")
 setSetting("commands.allowed", "give, kill, gamemode")
 
+// **Three layers now, not two.** `admin.commands` is the ladder asking whether
+// this rank may use vanilla commands AT ALL — a node that was declared for
+// exactly that and had never been wired to anything until 2026-09-13. It
+// replaced the fifty-five per-command switches in the rank editor.
+check("a rank without admin.commands is refused outright",
+    runAsServer(mod, "give @s stone").ok, false)
+check("and told which switch to ask for",
+    runAsServer(mod, "give @s stone").reason.includes("vanilla commands"), true)
+
+saveRank("mod", { perms: ["admin.commands"] })
+check("granting it opens the set",
+    runAsServer(mod, "give @s stone").ok, true)
+
+// From here the per-command layer behaves exactly as it always did.
 check("allowed unless a rank says otherwise",
     runAsServer(mod, "give @s stone").ok, true)
-saveRank("mod", { perms: ["-cmd.give"] })
+saveRank("mod", { perms: ["admin.commands", "-cmd.give"] })
 check("and a denial is what refuses it", runAsServer(mod, "give @s stone").ok, false)
 
 check("a command nobody denied runs", runAsServer(mod, "kill @e[type=cow]").ok, true)
 check("and the denied one does not", runAsServer(mod, "give @s stone").ok, false)
 
 // Ordinary nodes in every respect — that is the point of making them nodes.
-saveRank("mod", { perms: ["cmd.*"] })
+saveRank("mod", { perms: ["admin.commands", "cmd.*"] })
 check("clearing the denial restores it", runAsServer(mod, "give @s stone").ok, true)
-saveRank("mod", { perms: ["cmd.*", "-cmd.gamemode"] })
+saveRank("mod", { perms: ["admin.commands", "cmd.*", "-cmd.gamemode"] })
 check("a denial carves a hole in the wildcard",
     runAsServer(mod, "gamemode creative").ok, false)
 check("without touching its siblings", runAsServer(mod, "give @s stone").ok, true)
 
 // Inheritance, which is the half that makes this usable on a real ladder.
-saveRank("mod", { perms: ["cmd.kill"] })
+saveRank("mod", { perms: ["admin.commands", "cmd.kill"] })
 saveRank("admin", { perms: [] })
 check("a rank inherits command nodes from the rank below",
     runAsServer(admin, "kill @e").ok, true)
 
 // And the world keeps the final say, so a node can never widen the whitelist.
 setSetting("commands.allowed", "kill")
-saveRank("mod", { perms: ["cmd.*"] })
+saveRank("mod", { perms: ["admin.commands", "cmd.*"] })
 check("a rank that was not denied still runs it",
     runAsServer(mod, "give @s stone").ok, true)
 check("while what it did allow still runs", runAsServer(mod, "kill @e").ok, true)
@@ -260,7 +274,7 @@ check("an Admin does NOT", has(admin, "admin.commands"), false)
 check("nor a Mod", has(mod, "admin.commands"), false)
 
 // ...but it can be granted, which is the entire point.
-saveRank("admin", { perms: [...PERMISSION_NODES.Management.slice(0, 0), "admin.commands"] })
+saveRank("admin", { perms: ["admin.commands"] })
 check("granting it works", has(admin, "admin.commands"), true)
 applyPreset("server")
 
