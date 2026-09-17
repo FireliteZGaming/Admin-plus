@@ -21,6 +21,7 @@ import {
 
 command({
     name: "tpa",
+    picker: true,
     description: "Ask to teleport to someone — /tpa <player>",
     perm: "tpa.use",
     mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
@@ -29,6 +30,7 @@ command({
 
 command({
     name: "tpahere",
+    picker: true,
     description: "Ask someone to teleport to you — /tpahere <player>",
     perm: "tpa.use",
     mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],

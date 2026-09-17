@@ -16,6 +16,7 @@ import { nicknameScreen } from "./actions.js"
 
 command({
     name: "nick",
+    picker: true,
     description: "Set a display name — /nick <player> [name], or omit the name to clear it",
     perm: "admin.nickname",
     optional: [

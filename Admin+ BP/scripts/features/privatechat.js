@@ -38,6 +38,7 @@ import {
 
 command({
     name: "pm",
+    picker: true,
     description: "Send a private message — /pm <player> <message>",
     mandatory: [
         { name: "player", type: CustomCommandParamType.PlayerSelector },
@@ -49,6 +50,7 @@ command({
 // Bare /msg belongs to vanilla; this exists so /a:msg works.
 command({
     name: "msg",
+    picker: true,
     description: "Send a private message — same as /pm (bare /msg is vanilla's)",
     mandatory: [
         { name: "player", type: CustomCommandParamType.PlayerSelector },
@@ -158,6 +160,7 @@ function spy(from, to, text, kind) {
 
 command({
     name: "prchat",
+    picker: true,
     description: "Open a private two-person chat — /prchat <player>, or /prchat alone to leave",
     optional: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     run: (player, [selected]) => {
@@ -239,6 +242,7 @@ function pairLabel(a, b) {
 
 command({
     name: "praccept",
+    picker: true,
     description: "Accept a private chat request — /praccept [player]",
     optional: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     run: (player, [selected]) => {
@@ -272,6 +276,7 @@ command({
 
 command({
     name: "prdeny",
+    picker: true,
     description: "Turn down a private chat request — /prdeny [player]",
     optional: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     run: (player, [selected]) => {

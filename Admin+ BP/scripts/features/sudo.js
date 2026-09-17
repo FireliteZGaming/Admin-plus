@@ -36,6 +36,7 @@ const MAX_LENGTH = 256
 
 command({
     name: "sudo",
+    picker: true,
     description: 'Make a player say something — /sudo <player> "message"',
     perm: "admin.sudo",
     mandatory: [

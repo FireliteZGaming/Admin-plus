@@ -66,7 +66,16 @@ console.log("\n— NO command may hand Bedrock a selector parameter —")
 // commands again. Spelling the list out is the point: a command cannot join it
 // quietly, and anything that appears here without being added on purpose is
 // the old bug coming back.
-const PICKER = ["mute", "ban", "unmute", "warn", "warnings"].map(full)
+const PICKER = [
+    // Moderation — asked for by name 2026-09-12.
+    "mute", "ban", "unmute", "warn", "warnings",
+    // The pack's OWN single-target commands, 2026-09-17. Naming one
+    // person is the whole job of each, so trading `@` forms for the
+    // game's player list is the same bargain the moderation five made.
+    "nick", "sudo", "invsee", "grant", "report", "smite", "mm",
+    "tpa", "tpahere", "msg", "pm", "praccept", "prchat", "prdeny",
+    "vanish"
+].map(full)
 {
     const offenders = []
     for (const [name, { def }] of registered) {
@@ -90,10 +99,16 @@ const PICKER = ["mute", "ban", "unmute", "warn", "warnings"].map(full)
 
     // And the downgrade is not silent — the name has to say what goes there,
     // because the description is off-screen while you fill the argument in.
-    const vanish = registered.get(full("vanish")).def
-    check("/vanish takes plain text now", vanish.optionalParameters[0].type, P.String)
+    // **/gm is deliberately NOT on the list above**, and it is the last command
+    // that is. Group use is real there — `/gm creative @a` for a build event —
+    // and it keeps the String-downgrade path exercised by a live command rather
+    // than by unit tests alone. Picker-ising everything would leave that path
+    // dead code.
+    const gm = registered.get(full("gm")).def
+    check("/gm still takes plain text, so the downgrade path stays covered",
+        gm.optionalParameters[0].type, P.String)
     check("and its name says what to put there",
-        vanish.optionalParameters[0].name, "player_or_me")
+        gm.optionalParameters[0].name, "player_or_me")
 }
 
 console.log("\n— a selector argument reaches the handler as entities —")

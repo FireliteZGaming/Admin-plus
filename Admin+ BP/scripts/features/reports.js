@@ -25,6 +25,7 @@ const categoryEnum = defineEnum("reportcategory", CATEGORIES)
 
 command({
     name: "report",
+    picker: true,
     description: "Report a player to staff — /report, or /report <player> <reason>",
     perm: "report.use",
     // Everything optional, so bare /report opens the form. Someone who has just
