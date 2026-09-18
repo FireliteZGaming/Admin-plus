@@ -8,6 +8,11 @@ import { setting, flag } from "./settings.js"
 // somebody reports an argument twenty minutes after it happened, and without
 // this the only honest answer is "I wasn't there."
 //
+// **Chat here means everything a player put in front of other players**: what
+// they typed, and what they wrote on a sign. Signs used to be filed as audit
+// actions, which is why they turned up under Recent between a ban and a rank
+// grant. `kind: "sign"` marks them; everything else is spoken.
+//
 // A SEPARATE TABLE, not entries in the audit log. Chat outruns staff actions by
 // orders of magnitude, so sharing a ring buffer would push every ban and mute
 // out of Recent within minutes — the audit trail would be destroyed by the very
@@ -71,8 +76,55 @@ export function noteChat(sender, message, channel) {
     return entry
 }
 
+/**
+ * Record what somebody wrote on a sign.
+ *
+ * **A sign is chat.** It was filed as an audit ACTION until 2.6.6, which put
+ * it under Recent next to bans and grants while the Chat screen — reading this
+ * table — could not see it at all. The two halves of "what did people say
+ * here" lived in different stores on different screens. They are one thing,
+ * and a reader looking for words somebody wrote should find them in one place.
+ *
+ * `where` is kept off the line itself and shown on the detail view: a
+ * coordinate in the middle of a sentence is noise until the moment you need
+ * it, and then you open the entry.
+ *
+ * Low-volume next to chat, so it shares chat's cap without crowding it — a
+ * busy world produces thousands of messages for every sign.
+ */
+export function noteSign(player, text, where, previous) {
+    if (!flag("logs.signs")) return undefined
+    const written = String(text ?? "").trim()
+    if (!written) return undefined
+
+    const entry = {
+        id: `s${Date.now().toString(36)}${(++sequence).toString(36)}`,
+        at: Date.now(),
+        who: player?.id,
+        name: player?.name ?? "?",
+        kind: "sign",
+        where: where ? String(where) : undefined,
+        // What it said before, when this was an edit. The reason to keep a sign
+        // log at all is usually that somebody changed one into something else.
+        was: previous ? String(previous) : undefined,
+        text: written
+    }
+    log.set("lines", [entry, ...lines()].slice(0, cap()))
+    return entry
+}
+
 /** Newest first. */
 export function recentChat(limit = 100) { return lines().slice(0, limit) }
+
+/** Only what people wrote on signs, newest first. */
+export function recentSigns(limit = 100) {
+    return lines().filter(line => line.kind === "sign").slice(0, limit)
+}
+
+/** Only spoken chat, newest first — signs excluded. */
+export function recentSpoken(limit = 100) {
+    return lines().filter(line => line.kind !== "sign").slice(0, limit)
+}
 
 /** Everything one player said, newest first. */
 export function chatBy(playerId, limit = 100) {
@@ -85,7 +137,10 @@ export function searchChat(text, limit = 100) {
     if (!needle) return []
     return lines()
         .filter(line => line.text.toLowerCase().includes(needle)
-            || line.name.toLowerCase().includes(needle))
+            || line.name.toLowerCase().includes(needle)
+            // What a sign USED to say is searchable too — "it said X before
+            // somebody changed it" is the usual reason to come looking.
+            || (line.was ?? "").toLowerCase().includes(needle))
         .slice(0, limit)
 }
 

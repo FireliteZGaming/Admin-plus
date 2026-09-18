@@ -188,8 +188,25 @@ console.log("\n— and the chat log only gives back rooms you could enter —")
     // Counted by the SOURCE each door reads from rather than by the helper's
     // name — the definition is readableChat(player, entries) and would
     // otherwise count itself as a fourth door.
-    check("every door into the chat log filters",
-        (code.match(/readableChat\(player, (recentChat|searchChat|chatBy)/g) ?? []).length, 3)
+    // Counted by SOURCE rather than by a fixed number of doors. The number was
+    // pinned at three and went stale the moment a fourth reader was added —
+    // and a stale count fails on a door that is perfectly well filtered, which
+    // teaches whoever hits it to edit the number rather than check the door.
+    // What actually matters is that NO reader of the stored chat is unwrapped.
+    const SOURCES = ["recentChat", "recentSigns", "searchChat", "chatBy"]
+    const unwrapped = []
+    for (const src of SOURCES) {
+        for (const m of code.matchAll(new RegExp(`\\b${src}\\(`, "g"))) {
+            const before = code.slice(Math.max(0, m.index - 24), m.index)
+            if (!before.endsWith("readableChat(player, ")) {
+                unwrapped.push(`${src} at ${m.index}`)
+            }
+        }
+    }
+    check(`every door into the chat log filters${unwrapped.length ? ` — unwrapped: ${unwrapped.join(", ")}` : ""}`,
+        unwrapped.length, 0)
+    check("and there is more than one door, so the scan is not vacuous",
+        SOURCES.filter(s => code.includes(`${s}(`)).length > 1, true)
     check("recent is filtered", /readableChat\(player, recentChat/.test(code), true)
     check("search is filtered", /readableChat\(player, searchChat/.test(code), true)
     check("and so is one person's own history",

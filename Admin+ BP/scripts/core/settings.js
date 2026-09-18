@@ -241,6 +241,16 @@ export const DEFAULTS = {
         label: "Chat lines kept",
         help: "How many lines to keep before the oldest fall off. Chat is high-volume, so this is separate from the action log's cap."
     },
+    "logs.commands": {
+        value: "true",
+        label: "Keep a command log",
+        help: "true / false · records every command typed, including ones that were refused. Commands are high-volume, so they are kept apart from the action log rather than flooding it."
+    },
+    "logs.commandCap": {
+        value: "300",
+        label: "Command lines kept",
+        help: "How many commands to keep before the oldest fall off."
+    },
     "feature.reports": {
         value: "true", label: "Reports", help: "true / false · /report and the panel queue"
     },

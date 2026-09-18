@@ -5,6 +5,7 @@ import {
 import { CONFIG, NS } from "../config.js"
 import { has } from "./ranks.js"
 import { resolveSelector, SELECTOR_HINT } from "./selector.js"
+import { noteCommand } from "./cmdlog.js"
 
 // Native slash commands.
 //
@@ -131,14 +132,28 @@ const SELECTOR_TYPES = new Set([P.PlayerSelector, P.EntitySelector])
  * are for, and `/mute @a` is not a thing anybody needs. It is deliberately not
  * the default, so a command that wants to act on a group keeps working.
  */
-function forEngine(params, picker) {
+/**
+ * The suffix a downgraded selector parameter carries.
+ *
+ * The parameter NAME is the only surface left that can say what goes in the
+ * slot: the description is off-screen by the time you are filling the argument
+ * in, and the engine no longer offers `@a @e @p` as you type.
+ *
+ * **Mandatory and optional need different words, and getting that wrong is how
+ * `/eff` became unusable without asking somebody.** `targets_or_me` on a
+ * REQUIRED slot reads as "name some targets, or leave it out for me" — and
+ * leaving it out is exactly what you cannot do. The word `me` has to be typed.
+ * On an OPTIONAL slot that same name is honest, because omitting it really
+ * does mean you.
+ */
+function selectorName(name, required) {
+    return required ? `${name}_me_or_all` : `${name}_or_me`
+}
+
+function forEngine(params, picker, required) {
     if (picker) return params ?? []
     return (params ?? []).map(p => SELECTOR_TYPES.has(p.type)
-        // `_or_me` for the same reason the passthroughs carry it: the
-        // description is off-screen by the time you are filling the argument
-        // in, so the parameter NAME is the only surface left to say what goes
-        // there — and the engine no longer offers `@a @e @p` as you type.
-        ? { name: `${p.name}_or_me`, type: P.String }
+        ? { name: selectorName(p.name, required), type: P.String }
         : p)
 }
 
@@ -185,14 +200,24 @@ system.beforeEvents.startup.subscribe(({ customCommandRegistry }) => {
                 description: spec.description ?? `Admin+ ${spec.name}`,
                 permissionLevel: CommandPermissionLevel.Any,
                 cheatsRequired: false,
-                mandatoryParameters: forEngine(spec.mandatory, spec.picker),
-                optionalParameters: forEngine(spec.optional, spec.picker)
+                mandatoryParameters: forEngine(spec.mandatory, spec.picker, true),
+                optionalParameters: forEngine(spec.optional, spec.picker, false)
             }, (origin, ...args) => {
                 const player = origin.sourceEntity
                 if (!(player instanceof Player)) {
                     return deny("This command can only be run by a player.")
                 }
+                // Every command is logged from HERE, which is the one place all
+                // of them pass through. Doing it per-command is how a command
+                // ends up unlogged: there is nothing to remember, and anything
+                // registered later is covered the moment it exists.
+                //
+                // Captured BEFORE the selector loop below, because that loop
+                // replaces a slot's text with entity objects and the text is
+                // what a person typed.
+                const typed = [...args]
                 if (spec.perm && !has(player, spec.perm)) {
+                    noteCommand(player, spec.name, typed, "no permission")
                     return deny("You don't have permission to use that.")
                 }
                 // Selector slots arrive as text and reach the handler as
@@ -204,10 +229,12 @@ system.beforeEvents.startup.subscribe(({ customCommandRegistry }) => {
                     if (text === undefined || text === null || text === "") continue
                     const found = resolveSelector(text, player, slot.playersOnly)
                     if (!found.ok || !found.entities.length) {
+                        noteCommand(player, spec.name, typed, `nothing matched "${text}"`)
                         return deny(found.reason ?? `nothing matched "${text}". ${SELECTOR_HINT}`)
                     }
                     args[slot.i] = found.entities
                 }
+                noteCommand(player, spec.name, typed)
                 // Hop out of the read-only context before touching anything.
                 system.run(() => {
                     // Most handlers are async (every panel screen returns a

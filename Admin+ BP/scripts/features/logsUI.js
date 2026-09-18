@@ -12,30 +12,113 @@ import {
     canUndo, markUndone, size, summarise
 } from "../core/logs.js"
 import {
-    recentChat, chatBy, searchChat, chatLogSize, clearChatLog
+    recentChat, recentSigns, chatBy, searchChat, chatLogSize, clearChatLog
 } from "../core/chatlog.js"
+import {
+    recentCommands, commandsBy, searchCommands, refusedCommands,
+    commandLogSize, clearCommandLog, commandText
+} from "../core/cmdlog.js"
 
 // /admin ▸ Logs
 //
-//   Recent    everything, newest first
-//   Players   pick someone: what was done TO them, and what THEY did
-//   Filter    by branch — moderation, ranks, names, config, reports
-//   Search    free text over names and details
+// **Three logs, three questions.** They are separate tables on purpose — see
+// core/cmdlog.js for the reason, which is that chat and commands each outrun
+// staff actions by orders of magnitude and would flush the audit trail out of
+// a shared ring buffer within minutes.
+//
+//   Actions   who did what TO somebody      core/logs.js
+//   Chat      what people said and wrote    core/chatlog.js
+//   Commands  what was typed                core/cmdlog.js
+//
+// and three ways across them:
+//
+//   Players   one person, in all three
+//   Filter    actions, grouped by kind
+//   Search    free text
+//
+// **Things are filed where somebody would think to look.** A sign is chat, not
+// an action — it used to sit under Recent between a ban and a rank grant. A
+// command block is a command, not a loose branch of its own. Getting that
+// wrong is not cosmetic: a log nobody can find their way around is a log
+// nobody reads, and this screen exists for the fifteen minutes after something
+// has gone wrong.
 //
 // Entries that changed something reversible carry the prior state and can be
 // undone from here.
 
-const BRANCHES = [
-    { id: "mod", label: "Moderation", hint: "bans, kicks, mutes, freezes" },
-    { id: "rank", label: "Ranks", hint: "grants, revokes, ladder changes" },
-    { id: "name", label: "Display names", hint: "nicknames set and cleared" },
-    { id: "warp", label: "Warps", hint: "created and deleted" },
-    { id: "report", label: "Reports", hint: "filed and handled" },
-    { id: "config", label: "Config", hint: "< Code > edits and resets" },
-    { id: "player", label: "Player tools", hint: "sudo" },
-    { id: "sign", label: "Signs", hint: "what players wrote on them" },
-    { id: "cmdblock", label: "Command blocks", hint: "placed and broken, by whom" }
+// Filter groups, each gathering several action prefixes under one plain name.
+//
+// **A flat list of nine branches left seven kinds of entry with no route to
+// them at all.** `automod`, `hologram`, `troll`, `creator`, `dev`, `chat` and
+// most of `admin` were being written and could not be read back — automod
+// PUNISHES people, and why it did was unreachable from this screen. A branch
+// list that has to be extended by hand every time something starts logging
+// will always drift; a group takes whole prefixes, so a new `automod.x` is
+// covered the day it exists.
+//
+// Signs and command blocks are no longer here. A sign is chat and lives in the
+// Chat view with the rest of what people said; a command block belongs with
+// commands. That was the whole point of the reorganisation — things filed
+// where somebody would think to look for them.
+const GROUPS = [
+    {
+        id: "moderation", label: "Moderation",
+        hint: "bans, kicks, mutes, warnings, automod",
+        prefixes: ["mod", "automod", "troll"]
+    },
+    {
+        id: "chatmod", label: "Chat moderation",
+        hint: "messages held, approved or denied, broadcasts",
+        prefixes: ["chat"]
+    },
+    {
+        id: "people", label: "Ranks & names",
+        hint: "grants, revokes, nicknames",
+        prefixes: ["rank", "name"]
+    },
+    {
+        id: "stafftools", label: "Staff tools",
+        hint: "staff mode, vanish, sudo, holograms, admin items",
+        prefixes: ["admin", "player", "hologram"]
+    },
+    {
+        id: "server", label: "Server",
+        hint: "< Code > edits, presets, warps, the creator console",
+        prefixes: ["config", "warp", "creator", "dev"]
+    },
+    {
+        id: "reports", label: "Reports",
+        hint: "filed and handled",
+        prefixes: ["report"]
+    }
 ]
+
+/** Every entry belonging to a group, newest first. */
+function groupEntries(group) {
+    return group.prefixes.flatMap(prefix => branch(prefix))
+        .sort((a, b) => b.at - a.at)
+}
+
+/**
+ * Groups to show, including one that only exists while it has something in it.
+ *
+ * **A world upgrading to 2.6.6 still has `sign.*` entries in its action log**,
+ * written before signs moved to the chat log. Dropping the branch that reached
+ * them would have orphaned real records — which is the exact fault this
+ * release exists to fix, committed while fixing it.
+ *
+ * It disappears by itself: nothing writes `sign.*` any more, so once the ring
+ * buffer has turned over the group stops appearing and never comes back.
+ */
+function groupsFor() {
+    const legacySigns = branch("sign")
+    if (!legacySigns.length) return GROUPS
+    return [...GROUPS, {
+        id: "oldsigns", label: "Signs (older entries)",
+        hint: "written before signs moved to the chat log",
+        prefixes: ["sign"]
+    }]
+}
 
 export async function logsScreen(player, back) {
     if (!has(player, "admin.logs")) { err(player, "You can't read the logs."); return back() }
@@ -45,10 +128,11 @@ export async function logsScreen(player, back) {
         title: hubTitle("settings", "Logs"),
         body: subtitle(`${size()} entries kept. Newest first.`),
         buttons: [
-            { text: hubButton("settings", "Recent", "Everything, newest first"), run: () => listScreen(player, "Recent", recent(120), again) },
-            { text: hubButton("chat", "Chat", `What was actually said · ${chatLogSize()} lines`), run: () => chatScreen(player, again) },
-            { text: hubButton("settings", "Players", "What was done to them, and what they did"), run: () => peopleScreen(player, again) },
-            { text: hubButton("settings", "Filter", "By kind of action"), run: () => filterScreen(player, again) },
+            { text: hubButton("settings", "Actions", "What staff and the server did"), run: () => listScreen(player, "Actions", recent(120), again) },
+            { text: hubButton("chat", "Chat", `What people said and wrote · ${chatLogSize()} lines`), run: () => chatScreen(player, again) },
+            { text: hubButton("settings", "Commands", `What was typed · ${commandLogSize()} lines`), run: () => commandsScreen(player, again) },
+            { text: hubButton("settings", "Players", "One person, across all three"), run: () => peopleScreen(player, again) },
+            { text: hubButton("settings", "Filter", "Actions, by kind"), run: () => filterScreen(player, again) },
             { text: hubButton("settings", "Search", "By name or wording"), run: () => searchScreen(player, again) }
         ],
         back
@@ -250,10 +334,57 @@ async function listScreen(player, title, entries, back) {
 // this reads from, and players can switch them off in their own settings — a
 // log that kept them anyway would make that preference a lie.
 
-/** One line, as it was said: name and words on one row, like chat itself. */
+/**
+ * One line, as it was said: name and words on one row, like chat itself.
+ *
+ * Tagged `[Chat]` or `[Sign]`, because the two read identically otherwise and
+ * "somebody wrote this on a sign at spawn" is a different thing from
+ * "somebody said this once in chat". The tag is the first thing on the line
+ * for the same reason chat clients put it there — you skim down the left edge.
+ *
+ * A sign's COORDINATE goes underneath rather than inline. It is what you need
+ * second, after deciding the words matter, and a coordinate in the middle of a
+ * sentence makes the sentence unreadable.
+ */
 function chatReadLine(entry) {
-    const where = entry.channel ? `§8[${entry.channel}] ` : ""
-    return [`§8${clockOf(entry.at)} ${where}§f${entry.name}§7: §r${entry.text}`]
+    const sign = entry.kind === "sign"
+    const tag = sign ? "§6[Sign]" : "§b[Chat]"
+    const where = !sign && entry.channel ? ` §8[${entry.channel}]` : ""
+    const out = [`§8${clockOf(entry.at)} ${tag}${where} §f${entry.name}§7: §r${entry.text}`]
+    if (sign && entry.was) out.push(`§8      was "${entry.was}"`)
+    if (sign && entry.where) out.push(`§8      ${entry.where}`)
+    return out
+}
+
+/**
+ * One command, as it was typed.
+ *
+ * A refused command is kept and marked rather than dropped — somebody working
+ * down the list trying what sticks looks exactly like a column of refusals,
+ * and nothing else in the pack would show it.
+ *
+ * `ran` is what a `/a:` passthrough actually expanded to. Shown underneath
+ * only when it differs from what was typed, because for most commands it does
+ * not and a line repeated back adds nothing.
+ */
+function commandReadLine(entry) {
+    const typed = commandText(entry)
+    const tag = entry.refused ? "§c[Cmd]" : "§a[Cmd]"
+    const out = [`§8${clockOf(entry.at)} ${tag} §f${entry.name}§7: §r${typed}`]
+    if (entry.refused) out.push(`§c      refused — ${entry.refused}`)
+    else if (entry.ran && entry.ran !== typed) out.push(`§8      ran as ${entry.ran}`)
+    return out
+}
+
+async function commandListScreen(player, title, entries, back) {
+    if (!entries.length) { info(player, "No commands recorded there yet."); return back() }
+    return readingView(player, {
+        hub: "settings",
+        title,
+        entries,
+        renderOne: commandReadLine,
+        back
+    })
 }
 
 async function chatListScreen(player, title, lines, back) {
@@ -305,15 +436,19 @@ function readableChat(player, entries) {
 async function chatScreen(player, back) {
     const again = () => chatScreen(player, back)
     const kept = chatLogSize()
+    const signs = readableChat(player, recentSigns(300)).length
 
     return menu(player, {
         title: hubTitle("chat", "Chat log"),
         body: [
             subtitle(kept ? `${kept} lines kept.` : "Nothing recorded yet."),
-            "§8Private messages are never recorded, and you only see rooms you can enter."
+            "§8Chat and signs together. Private messages are never recorded, and you only see rooms you can enter."
         ].join("\n"),
         buttons: [
-            { text: hubEntry("chat", "Recent", "Everything said, newest first"), run: () => chatListScreen(player, "Recent chat", readableChat(player, recentChat(150)), again) },
+            { text: hubEntry("chat", "Recent", "Everything said and written, newest first"), run: () => chatListScreen(player, "Recent chat", readableChat(player, recentChat(150)), again) },
+            signs
+                ? { text: hubEntry("chat", "Signs only", `${signs} written on signs`), run: () => chatListScreen(player, "Signs", readableChat(player, recentSigns(150)), again) }
+                : null,
             { text: hubEntry("chat", "Search", "Find a word, or everything one person said"), run: () => chatSearchScreen(player, again) },
             has(player, "admin.settings")
                 ? { text: hubEntry("actions", "Clear the chat log", "Throws away every line kept"), run: () => clearChatScreen(player, again) }
@@ -343,6 +478,68 @@ async function clearChatScreen(player, back) {
     return back()
 }
 
+// ------------------------------------------------------------------ commands
+//
+// **Everything typed, including what was refused.** The command log is its own
+// table for the reason chat is: `/warps`, `/online` and `/info` are typed
+// constantly by ordinary players, and sharing the audit log's ring buffer
+// would push every ban out of Recent within minutes.
+//
+// Command BLOCKS sit here too, because "what commands ran on this server" is
+// one question and a repeating command block is the loudest possible answer to
+// it. They stay audit entries — placing a block is an action with a location
+// and a detail view — so they get their own button rather than being flattened
+// into the typed list, which would lose the entry screen they open.
+
+async function commandsScreen(player, back) {
+    const again = () => commandsScreen(player, back)
+    const kept = commandLogSize()
+    const refused = refusedCommands(300).length
+    const blocks = branch("cmdblock")
+
+    return menu(player, {
+        title: hubTitle("settings", "Commands"),
+        body: [
+            subtitle(kept ? `${kept} commands kept.` : "Nothing recorded yet."),
+            "§8Every command typed, whether it ran or was turned away."
+        ].join("\n"),
+        buttons: [
+            { text: hubEntry("settings", "Recent", "Everything typed, newest first"), run: () => commandListScreen(player, "Recent commands", recentCommands(150), again) },
+            refused
+                ? { text: hubEntry("actions", "Refused", `${refused} turned away — no permission, or nobody matched`), run: () => commandListScreen(player, "Refused commands", refusedCommands(150), again) }
+                : null,
+            blocks.length
+                ? { text: hubEntry("settings", "Command blocks", `${blocks.length} placed or broken · who and where`), run: () => listScreen(player, "Command blocks", blocks, again) }
+                : null,
+            { text: hubEntry("settings", "Search", "Find a command, an argument, or one person"), run: () => commandSearchScreen(player, again) },
+            has(player, "admin.settings")
+                ? { text: hubEntry("actions", "Clear the command log", "Throws away every command kept"), run: () => clearCommandsScreen(player, again) }
+                : null
+        ].filter(Boolean),
+        back
+    })
+}
+
+async function commandSearchScreen(player, back) {
+    const values = await modal(player, hubTitle("settings", "Search commands"), [
+        { id: "text", type: "text", label: "A command, an argument, or a player's name", placeholder: "give" }
+    ])
+    if (!values) return back()
+    const text = String(values.text ?? "").trim()
+    if (!text) return back()
+    return commandListScreen(player, `Commands · "${text}"`, searchCommands(text, 150), back)
+}
+
+async function clearCommandsScreen(player, back) {
+    const yes = await confirm(player, hubTitle("settings", "Clear command log"),
+        `Throw away all ${commandLogSize()} recorded commands?\n\n§8The action log and the chat log are not touched.`,
+        "§cClear")
+    if (!yes) return back()
+    clearCommandLog()
+    ok(player, "Command log cleared.")
+    return back()
+}
+
 async function peopleScreen(player, back) {
     const seen = people()
     if (!seen.length) { info(player, "The log hasn't seen anyone yet."); return back() }
@@ -363,13 +560,15 @@ async function personScreen(player, person, back) {
     const received = readableLog(player, about(person.id))
     const did = readableLog(player, by(person.id))
     const said = readableChat(player, chatBy(person.id, 150))
+    const typed = commandsBy(person.id, 150)
     return menu(player, {
         title: hubTitle("settings", person.name),
         body: [
-            subtitle("What was done to them, what they did, and what they said."),
+            subtitle("What was done to them, what they did, said and typed."),
             `§fDone to them: §7${received.length}`,
             `§fThings they did: §7${did.length}`,
-            `§fLines of chat: §7${said.length}`
+            `§fLines of chat: §7${said.length}`,
+            `§fCommands typed: §7${typed.length}`
         ].join("\n"),
         buttons: [
             { text: hubEntry("actions", "Received", "What staff did to them — the appeal view"), run: () => listScreen(player, `${person.name} · received`, received, () => personScreen(player, person, back)) },
@@ -377,7 +576,12 @@ async function personScreen(player, person, back) {
             // The third question people actually ask about somebody, and the
             // one the action log could never answer.
             said.length
-                ? { text: hubEntry("chat", "Said", `${said.length} line${said.length === 1 ? "" : "s"} of chat`), run: () => chatListScreen(player, `${person.name} · said`, said, () => personScreen(player, person, back)) }
+                ? { text: hubEntry("chat", "Said", `${said.length} line${said.length === 1 ? "" : "s"} of chat and signs`), run: () => chatListScreen(player, `${person.name} · said`, said, () => personScreen(player, person, back)) }
+                : null,
+            // The fourth question, and the one that used to have no answer at
+            // all: what has this person actually been typing?
+            typed.length
+                ? { text: hubEntry("settings", "Typed", `${typed.length} command${typed.length === 1 ? "" : "s"}`), run: () => commandListScreen(player, `${person.name} · typed`, typed, () => personScreen(player, person, back)) }
                 : null
         ].filter(Boolean),
         back
@@ -387,23 +591,70 @@ async function personScreen(player, person, back) {
 async function filterScreen(player, back) {
     return menu(player, {
         title: hubTitle("settings", "Filter"),
-        body: subtitle("Pick a branch."),
-        buttons: BRANCHES.map(b => ({
-            text: `${b.label}§r\n§8${b.hint} · ${branch(b.id).length}`,
-            run: () => listScreen(player, b.label, branch(b.id), () => filterScreen(player, back))
-        })),
+        body: subtitle("Actions only. Chat and commands have their own screens."),
+        buttons: groupsFor().map(g => {
+            const entries = groupEntries(g)
+            return {
+                text: `${g.label}§r\n§8${g.hint} · ${entries.length}`,
+                run: () => listScreen(player, g.label, entries, () => filterScreen(player, back))
+            }
+        }),
         back
     })
 }
 
+/**
+ * Search, across all three logs at once.
+ *
+ * Somebody arriving at this screen knows a word — a name, a slur, a command —
+ * and does NOT know which of the three logs it will turn out to be in. Asking
+ * them to guess first, and to repeat the search twice more when they guess
+ * wrong, is the kind of thing that makes people stop using a log.
+ *
+ * All three matches are case-insensitive substrings, so "ste" finds "NotSteve"
+ * whatever case it was typed in.
+ */
 async function searchScreen(player, back) {
+    const again = () => searchScreen(player, back)
     const values = await modal(player, hubTitle("settings", "Search logs"), [
-        { id: "text", type: "text", label: "Name, action or wording", placeholder: "grief" }
+        { id: "text", type: "text", label: "Name, action, wording or command", placeholder: "grief" }
     ])
     if (!values) return back()
-    const results = search(values.text)
-    if (!results.length) { info(player, `Nothing matching "§f${values.text}§7".`); return back() }
-    return listScreen(player, `"${values.text}"`, results, back)
+    const text = String(values.text ?? "").trim()
+    if (!text) return back()
+
+    const actions = search(text)
+    const said = readableChat(player, searchChat(text, 150))
+    const typed = searchCommands(text, 150)
+    const total = actions.length + said.length + typed.length
+    if (!total) { info(player, `Nothing matching "§f${text}§7".`); return back() }
+
+    // One hit and one place to look: skip the menu and show it. Making
+    // somebody tap through a chooser with a single live option is a screen
+    // that exists only to be dismissed.
+    const only = [
+        actions.length && (() => listScreen(player, `"${text}"`, actions, back)),
+        said.length && (() => chatListScreen(player, `Chat · "${text}"`, said, back)),
+        typed.length && (() => commandListScreen(player, `Commands · "${text}"`, typed, back))
+    ].filter(Boolean)
+    if (only.length === 1) return only[0]()
+
+    return menu(player, {
+        title: hubTitle("settings", `"${text}"`),
+        body: subtitle(`${total} match${total === 1 ? "" : "es"} across the three logs.`),
+        buttons: [
+            actions.length
+                ? { text: hubEntry("settings", "Actions", `${actions.length} match${actions.length === 1 ? "" : "es"}`), run: () => listScreen(player, `"${text}"`, actions, again) }
+                : null,
+            said.length
+                ? { text: hubEntry("chat", "Chat", `${said.length} line${said.length === 1 ? "" : "s"} said or written`), run: () => chatListScreen(player, `Chat · "${text}"`, said, again) }
+                : null,
+            typed.length
+                ? { text: hubEntry("settings", "Commands", `${typed.length} command${typed.length === 1 ? "" : "s"}`), run: () => commandListScreen(player, `Commands · "${text}"`, typed, again) }
+                : null
+        ].filter(Boolean),
+        back
+    })
 }
 
 // -------------------------------------------------------------------- detail

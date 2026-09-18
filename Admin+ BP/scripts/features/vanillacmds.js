@@ -3,7 +3,7 @@ import { command, defineEnum } from "../core/registry.js"
 import { ok, err, info } from "../core/util.js"
 import { canActOn } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
-import { record } from "../core/logs.js"
+import { noteExecuted } from "../core/cmdlog.js"
 import { runAsServer, runOnEach, checkCommand } from "../core/execute.js"
 import { hasEntityRoute, runEntityRoute } from "../core/entityapi.js"
 import { resolveSelector, SELECTOR_HELP, SELECTOR_HINT } from "../core/selector.js"
@@ -242,13 +242,18 @@ for (const spec of COMMANDS) {
         // while you are picking the command and gone by the time you are
         // filling it in; what stays on screen is `<targets: string>`, and
         // `string` tells somebody nothing about what a target looks like. A
-        // suffix puts one word that always works where they are already
-        // looking — `<targets_or_me: string>` — and `me` is real: see WORDS in
-        // core/selector.js.
+        // suffix puts words that always work where they are already looking,
+        // and `me` / `all` are real: see WORDS in core/selector.js.
+        //
+        // REQUIRED and OPTIONAL get different suffixes, because `_or_me` on a
+        // required slot actively misleads. `/eff` reads `<targets_or_me>`,
+        // which sounds like "leave it out and it means me" — and leaving it
+        // out is the one thing that does not work. The word has to be typed,
+        // so the name says so: `<targets_me_or_all>`.
         const entry = type === P.Enum
             ? { name: enumName[enumKey], type }
             : SELECTOR_TYPES.has(type)
-                ? { name: `${name}_or_me`, type: P.String }
+                ? { name: isOptional ? `${name}_or_me` : `${name}_me_or_all`, type: P.String }
                 : { name, type }
         ;(isOptional ? optional : mandatory).push(entry)
     }
@@ -371,7 +376,7 @@ for (const spec of COMMANDS) {
                     const direct = runEntityRoute(spec.name, args[selfAt], args)
                     if (direct.handled) {
                         ok(player, `Ran §f/${spec.name}§a§7 — ${direct.affected} affected.`)
-                        record(player, "admin.cmd", undefined, buildLine(spec, args, tag, cleanup, selfAt))
+                        noteExecuted(player, buildLine(spec, args, tag, cleanup, selfAt))
                         return
                     }
                 }
@@ -382,7 +387,7 @@ for (const spec of COMMANDS) {
                     : runOnEach(player, line, args[selfAt])
                 if (!result.ok) return err(player, result.reason)
                 ok(player, `Ran §f/${result.command}§a§7 — ${result.output} affected.`)
-                record(player, "admin.cmd", undefined, result.command)
+                noteExecuted(player, result.command)
             } finally {
                 // The tag must not outlive the command, or a later selector
                 // would pick these entities up again. Entities the command

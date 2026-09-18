@@ -1,5 +1,6 @@
 import { world, system } from "@minecraft/server"
 import { record } from "../core/logs.js"
+import { noteSign } from "../core/chatlog.js"
 import { flag } from "../core/settings.js"
 import { stripCodes } from "../core/identity.js"
 
@@ -100,10 +101,11 @@ export function watchSign(player, block, was = "") {
             }
             done = true
             watching.delete(key)
-            record(player, was ? "sign.edited" : "sign.written", undefined,
-                was
-                    ? `"${now}" §8(was "${was}") at ${whereIs(block)}`
-                    : `"${now}" at ${whereIs(block)}`)
+            // Into the CHAT log, not the audit log: a sign is something a
+            // player put in front of everyone, which is what that table is
+            // for. Where it stands is kept as its own field so the line reads
+            // as the words and the coordinate waits on the detail view.
+            noteSign(player, now, whereIs(block), was || undefined)
         }, delay)
     }
     return true

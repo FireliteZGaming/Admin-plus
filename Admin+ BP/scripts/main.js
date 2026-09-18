@@ -88,7 +88,7 @@ command({
     // `_or_me` on both, for the same reason the 54 passthroughs carry it: the
     // description is gone by the time you are typing the argument, and
     // `<target: string>` says nothing about what a target looks like.
-    mandatory: [{ name: "target_or_me", type: CustomCommandParamType.String }],
+    mandatory: [{ name: "target_me_or_all", type: CustomCommandParamType.String }],
     optional: [{ name: "destination_or_me", type: CustomCommandParamType.String }],
     run: (player, [firstText, secondText]) => {
         const first = resolveSelector(firstText, player, true)

@@ -147,7 +147,12 @@ const vanillaCode = vanillaSrc.split("\n")
         const params = rows.get(spec.name).params ?? []
         const all = [...(spec.mandatory ?? []), ...(spec.optional ?? [])]
         return params
-            .map((p, i) => SELECTOR_TYPES.has(p[1]) ? { cmd: spec.name, was: p[0], got: all[i] } : null)
+            // p[2] is the table's optional flag — see COMMANDS in
+            // core/vanillaparams.js, where `["seconds", P.Integer, true]` is an
+            // optional integer. Required-ness is what decides the name suffix.
+            .map((p, i) => SELECTOR_TYPES.has(p[1])
+                ? { cmd: spec.name, was: p[0], got: all[i], required: !p[2] }
+                : null)
             .filter(Boolean)
     })
     check("there are selector parameters to check", selectorParams.length > 0, true)
@@ -155,8 +160,17 @@ const vanillaCode = vanillaSrc.split("\n")
         selectorParams.filter(p => p.got?.type !== P.String).map(p => `${p.cmd}:${p.was}`), [])
     // And carries the hint in the name, which is the only part still on screen
     // once the description has scrolled away.
+    //
+    // Required and optional say DIFFERENT things, because `_or_me` on a
+    // required slot reads as "leave it out for me" and leaving it out is
+    // exactly what fails. `/eff` is the command that proved it: its target is
+    // mandatory, so the word `me` has to be typed.
+    const suffixFor = p => p.required ? `${p.was}_me_or_all` : `${p.was}_or_me`
     check("and each one says what it takes",
-        selectorParams.filter(p => p.got?.name !== `${p.was}_or_me`).map(p => `${p.cmd}:${p.was}`), [])
+        selectorParams.filter(p => p.got?.name !== suffixFor(p)).map(p => `${p.cmd}:${p.was}`), [])
+    check("a required slot never claims it can be left out",
+        selectorParams.filter(p => p.required && p.got?.name.endsWith("_or_me")
+            && !p.got?.name.endsWith("_me_or_all")).map(p => `${p.cmd}:${p.was}`), [])
 }
 check("and the handler resolves the text itself",
     vanillaCode.includes("resolveSelector(resolved[i], player"), true)
@@ -554,9 +568,9 @@ console.log("\n— the two surfaces that can still say it —")
     // The suffix is the only thing a person sees while typing the argument.
     const src = readFileSync("Admin+ BP/scripts/features/vanillacmds.js", "utf8")
     check("selector parameters are renamed so the hint is on screen",
-        src.includes("`${name}_or_me`"), true)
-    check("/tp carries it too",
-        readFileSync("Admin+ BP/scripts/main.js", "utf8").includes("target_or_me"), true)
+        src.includes("`${name}_or_me`") && src.includes("`${name}_me_or_all`"), true)
+    check("/tp carries it too, in the required form",
+        readFileSync("Admin+ BP/scripts/main.js", "utf8").includes("target_me_or_all"), true)
 }
 
 console.log("\n— how many commands still ask the engine to expand a selector —")
