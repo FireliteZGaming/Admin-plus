@@ -56,6 +56,47 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.6.5 — 2026-09-18
+
+**Pick a player off a list instead of spelling their gamertag.** `/mute` got the
+game's own player list on 2026-09-12 and it held up, so the same treatment goes
+to every command of ours where naming one person *is* the job: `nick`, `sudo`,
+`invsee`, `grant`, `report`, `smite`, `mm`, `tpa`, `tpahere`, `msg`, `pm`,
+`praccept`, `prchat`, `prdeny`, `vanish`.
+
+Typing a gamertag exactly is the single most common way one of these commands
+fails, and the names that are hardest to type are the ones most likely to need
+moderating.
+
+**The trade, stated plainly, because it is real.** Keeping the list means keeping
+the real `PlayerSelector` type so the *engine* expands it — and the engine
+expands at the **caller's** permission level. On these commands a non-operator
+can no longer type `@a`, `@p` or `@s`. The picker and that refusal are the same
+registration; there is no version with both.
+
+It is the right bargain here. What is lost is group targeting on commands that
+are single-target by nature — `/mute @a` is not a thing, `/nick @a` is nonsense
+— and an operator typing `@a` still works, because they have the level the
+engine asks for. `@s` is the one genuine loss, and every command on the list
+already defaults to you when you leave the argument off: `/vanish` vanishes you,
+`/mm` toggles you.
+
+**`/gm` and `/tp` are deliberately left off**, and they are the two where group
+use is real — `/tp @a spawn` to pull everyone in, `/gm creative @a` for a build
+event. Both still take plain text and resolve selectors themselves, so they work
+for everyone regardless of rank, as do the 55 vanilla passthroughs. Keeping live
+commands on that path also stops it rotting into code covered only by unit
+tests; `registry.test.js` names `/gm` for exactly that reason, and its allow-list
+is spelled out by hand rather than derived, so nothing joins it quietly.
+
+---
+
+**Why this is 2.6.5 and not more of 2.6.4.** The build archived as 2.6.4 on
+09-15 and the build sitting in the project on 09-17 were different code under the
+same version number — the picker work landed after the archive was cut. Nothing
+in a pack list can tell two builds of one version apart, which is the whole
+reason the number exists. Cutting a new one is cheaper than explaining that.
+
 ## 2.6.4 — 2026-09-15
 
 **The script module is no longer pinned to a beta version that the game has
