@@ -10,6 +10,9 @@ import { opCommandsScreen } from "./opcommands.js"
 import { hasOperator } from "../core/devgate.js"
 import { channelsScreen } from "./chatUI.js"
 import { warpsScreen } from "./warps.js"
+import { homesScreen } from "./homes.js"
+import { homeLimit } from "../core/homes.js"
+import { flag } from "../core/settings.js"
 import { reportsScreen, reportsBadge } from "./reports.js"
 import { teleportTuningScreen } from "./tuning.js"
 import { logsScreen } from "./logsUI.js"
@@ -65,6 +68,17 @@ export async function openPanel(player) {
         text: hubButton("warps", "Warps", "Named destinations and spawn"),
         run: () => warpsScreen(player, () => openPanel(player))
     })
+
+    // Homes sit beside warps because they are the same idea from the other end
+    // — somewhere to go — and because a player looking for one will look for
+    // the other. No permission check: how many a rank may set is the gate, and
+    // a rank allowed none is told so rather than shown a door that refuses.
+    if (flag("feature.homes") && homeLimit(player) > 0) {
+        buttons.push({
+            text: hubButton("warps", "Homes", "Your own places, private to you"),
+            run: () => homesScreen(player, () => openPanel(player))
+        })
+    }
 
     if (has(player, "admin.holograms")) {
         buttons.push({

@@ -149,6 +149,10 @@ export const DEFAULTS = {
     "feature.warps": {
         value: "true", label: "Warps", help: "true / false · /warp and /warps"
     },
+    "feature.homes": {
+        value: "true", label: "Homes",
+        help: "true / false · /sethome, /home, /homes, /delhome. How MANY each rank may set is on the rank, under Permissions ▸ Cooldowns & limits."
+    },
     "feature.spawn": {
         value: "true", label: "Spawn", help: "true / false · /spawn"
     },

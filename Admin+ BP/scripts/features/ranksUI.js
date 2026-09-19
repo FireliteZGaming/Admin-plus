@@ -7,7 +7,7 @@ import { ok, err, info } from "../core/util.js"
 import { stripCodes } from "../core/identity.js"
 import {
     ladder, getRank, saveRank, deleteRank, normaliseRankId, moveRank,
-    PRESETS, BUNDLES, PERMISSION_NODES,
+    PRESETS, BUNDLES, PERMISSION_NODES, RANK_VALUES,
     applyPreset, restoreSnapshot, hasSnapshot, snapshot,
     canEditRank, canActOn, has, rankState, rankGrant, displacedBy, defaultRank,
     playerRanks, displayRanks, heldRankIds, primaryRank, moveHeldRank,
@@ -25,9 +25,9 @@ import {
 //   a PLAYER's order (Players) is cosmetic — it only picks which of their ranks
 //     is worn as the tag when they hold more than one.
 
-const META_KEYS = {
-    tpCooldown: { label: "Teleport cooldown (seconds)" + "\n§8Staff ranks ignore cooldowns entirely.", min: 0, max: 60, fallback: 3 }
-}
+// The numbers a rank carries now live in RANK_VALUES, in core/ranks.js, beside
+// the code that reads them — this file used to hold its own table of one, which
+// is how a value ends up editable but unread, or read but uneditable.
 
 export async function ranksScreen(player, back) {
     const again = () => ranksScreen(player, back)
@@ -122,7 +122,7 @@ export async function rankScreen(player, rankId, back) {
             { text: "§bBasics §8· name, colour, staff", run: () => basicsScreen(player, rankId, () => rankScreen(player, rankId, back)) },
             { text: "§bPermissions §8· on / off", run: () => nodeGroupsScreen(player, rankId, () => rankScreen(player, rankId, back)) },
             { text: "§bInheritance", run: () => inheritScreen(player, rankId, () => rankScreen(player, rankId, back)) },
-            { text: "§bMeta values §8· limits", run: () => metaScreen(player, rankId, () => rankScreen(player, rankId, back)) },
+            { text: "§bCooldowns & limits §8· numbers", run: () => valuesScreen(player, rankId, "cooldown", () => rankScreen(player, rankId, back)) },
             { text: "§cDelete rank", run: () => deleteScreen(player, rankId, back) }
         ].filter(Boolean) : [],
         back
@@ -297,7 +297,17 @@ async function nodeGroupsScreen(player, rankId, back) {
             ...Object.keys(PERMISSION_NODES).map(group => ({
                 text: group,
                 run: () => nodeGroupScreen(player, rankId, group, () => nodeGroupsScreen(player, rankId, back))
-            }))
+            })),
+            // **Numbers belong with the switches, not on a separate screen
+            // called "Meta".** "May they set homes" and "how many" are one
+            // question asked twice, and answering them in two different places
+            // is how a rank ends up allowed something it has a limit of zero
+            // for. Asked for 2026-09-19, in the shape Essentials uses: a
+            // permission that carries a value.
+            {
+                text: "§bCooldowns & limits §8· numbers, not switches",
+                run: () => valuesScreen(player, rankId, "cooldown", () => nodeGroupsScreen(player, rankId, back))
+            }
         ],
         back
     })
@@ -488,23 +498,53 @@ function inheritsFrom(rankId, ancestorId, seen = new Set()) {
     return (getRank(rankId)?.inherits ?? []).some(parent => inheritsFrom(parent, ancestorId, seen))
 }
 
-async function metaScreen(player, rankId, back) {
+/**
+ * The numbers a rank carries, drawn from core/ranks.js's RANK_VALUES.
+ *
+ * Generated rather than listed, so a value added to that table gets a slider
+ * here without anybody editing this file — and, the part that matters, a
+ * feature cannot start reading a number that nobody can set.
+ *
+ * Cooldowns and limits are two screens because they answer different questions
+ * and a single form of five sliders is a wall. They link to each other rather
+ * than sitting behind separate buttons, so getting between them is one tap.
+ */
+async function valuesScreen(player, rankId, kind, back) {
     const rank = getRank(rankId)
-    const keys = Object.keys(META_KEYS)
-    const values = await modal(player, title(`Meta · ${rankId}`),
+    if (!rank) return back()
+    const keys = Object.keys(RANK_VALUES).filter(k => RANK_VALUES[k].kind === kind)
+    const other = kind === "cooldown" ? "limit" : "cooldown"
+    const heading = kind === "cooldown" ? "Cooldowns" : "Limits"
+
+    const values = await modal(player, title(`${heading} · ${rankId}`),
         keys.map(key => ({
             id: key,
             type: "slider",
-            label: META_KEYS[key].label,
-            min: META_KEYS[key].min,
-            max: META_KEYS[key].max,
+            label: `${RANK_VALUES[key].label}\n§8${RANK_VALUES[key].hint}`,
+            min: RANK_VALUES[key].min,
+            max: RANK_VALUES[key].max,
             step: 1,
-            default: Number(rank.meta?.[key] ?? META_KEYS[key].fallback)
-        })))
+            default: Number(rank.meta?.[key] ?? RANK_VALUES[key].fallback)
+        })),
+        kind === "cooldown"
+            ? "§8Seconds to wait. 0 is no wait.\n§8Staff ranks ignore cooldowns entirely."
+            : "§8How many they may have. 0 switches the feature off for this rank.")
+
     if (!values) return back()
     saveRank(rankId, { meta: { ...rank.meta, ...values } })
-    ok(player, `Updated meta for §f${rankId}§a.`)
-    return back()
+    ok(player, `Updated ${heading.toLowerCase()} for §f${rankId}§a.`)
+
+    // Straight on to the other half rather than back out — somebody setting a
+    // rank's homes almost always wants to set its cooldown in the same sitting.
+    return menu(player, {
+        title: title(`${heading} · ${rankId}`),
+        body: subtitle("Saved."),
+        buttons: [{
+            text: `§bNow the ${other}s`,
+            run: () => valuesScreen(player, rankId, other, back)
+        }],
+        back
+    })
 }
 
 // ============================================================ Ranks ▸ Players

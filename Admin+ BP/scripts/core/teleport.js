@@ -1,6 +1,6 @@
 import { system } from "@minecraft/server"
 import { CONFIG } from "../config.js"
-import { cooldownFor, isStaff } from "./ranks.js"
+import { cooldownFor, isStaff, valueFor } from "./ranks.js"
 import { setting, flag } from "./settings.js"
 import { err, info } from "./util.js"
 
@@ -23,22 +23,41 @@ function exemptFromWait(player) {
     return CONFIG.teleport.staffInstant && isStaff(player)
 }
 
-/** Seconds of cooldown for this player: their rank's value, else the default. */
-function cooldownSeconds(player) {
+/**
+ * Seconds of cooldown for this player.
+ *
+ * `key` names the RANK_VALUES entry governing this particular action. Warps,
+ * spawn, TPA and /back share `tpCooldown` because they are one movement budget;
+ * `/home` has its own, because a home is somewhere you go to stop playing for a
+ * minute rather than a way across the map, and a server that wants a long warp
+ * cooldown does not usually want people stranded away from bed.
+ */
+function cooldownSeconds(player, key) {
+    if (key && key !== "tpCooldown") return Number(valueFor(player, key) ?? 0)
     const fallback = Number(setting("teleport.cooldown"))
     return cooldownFor(player, Number.isFinite(fallback) ? fallback : 0)
 }
 
-/** Seconds left on this player's cooldown, or 0. */
-export function cooldownLeft(player) {
-    const seconds = cooldownSeconds(player)
+/**
+ * Seconds left on this player's cooldown, or 0.
+ *
+ * Timers are kept PER ACTION, so waiting on `/home` does not also block a warp.
+ * They were one timer while there was one cooldown; splitting the lengths
+ * without splitting the timers would have made the shorter one pointless.
+ */
+export function cooldownLeft(player, key = "tpCooldown") {
+    const seconds = cooldownSeconds(player, key)
     if (!seconds) return 0
-    const since = Date.now() - (lastUsed.get(player.id) ?? 0)
+    const since = Date.now() - (lastUsed.get(player.id)?.[key] ?? 0)
     const left = seconds * 1000 - since
     return left > 0 ? Math.ceil(left / 1000) : 0
 }
 
-export function markUsed(player) { lastUsed.set(player.id, Date.now()) }
+export function markUsed(player, key = "tpCooldown") {
+    const mine = lastUsed.get(player.id) ?? {}
+    mine[key] = Date.now()
+    lastUsed.set(player.id, mine)
+}
 
 export function cancelTeleport(player, reason) {
     const job = pending.get(player.id)
@@ -55,8 +74,8 @@ export function isTeleporting(player) { return pending.has(player.id) }
  * Run `action` after the warmup, unless the player moves or is on cooldown.
  * @param {string} label what they are warping to, for the messages
  */
-export function queueTeleport(player, label, action) {
-    const waiting = cooldownLeft(player)
+export function queueTeleport(player, label, action, key = "tpCooldown") {
+    const waiting = cooldownLeft(player, key)
     if (waiting > 0) {
         err(player, `Wait §f${waiting}s§c before teleporting again.`)
         return false
@@ -67,7 +86,7 @@ export function queueTeleport(player, label, action) {
 
     const ticks = exemptFromWait(player) ? 0 : warmupTicks()
     if (ticks <= 0) {
-        markUsed(player)
+        markUsed(player, key)
         action()
         return true
     }
@@ -86,7 +105,7 @@ export function queueTeleport(player, label, action) {
         if (Date.now() < job.until) return
 
         cancelTeleport(player)
-        markUsed(player)
+        markUsed(player, key)
         try {
             action()
         } catch (e) {

@@ -1024,12 +1024,76 @@ export function meta(playerOrId, key, fallback) {
  * Warps, spawn and TPA all read this one function.
  */
 export function cooldownFor(playerOrId, fallback = 0) {
-    if (flag("staff.exemptCooldowns")) {
-        if (typeof playerOrId !== "string" && isStaff(playerOrId)) return 0
-        if (playerRanks(playerOrId).some(r => r.staff)) return 0
-    }
+    if (exemptFromCooldowns(playerOrId)) return 0
     const value = Number(meta(playerOrId, "tpCooldown", fallback))
     return Number.isFinite(value) && value > 0 ? value : 0
+}
+
+/**
+ * Numbers a rank carries, beside the switches it carries.
+ *
+ * **A permission is not always a yes or a no.** "May this person set a home"
+ * and "how many" are the same question asked twice, and a pack that can only
+ * answer the first ends up with the second hardcoded — which means every world
+ * gets one person's guess. Minecraft Essentials settles this by letting a
+ * permission hold a VALUE (`home.cooldown`, `home.limit`); the same idea fits
+ * the `meta` field ranks here have always had.
+ *
+ * Declared in ONE table so the rank editor draws itself. A number added here
+ * gets a slider without anybody touching the UI, and — more to the point — a
+ * feature cannot quietly read a number nobody can edit.
+ *
+ * `kind` sorts them onto the right screen and decides what a 0 means:
+ *   cooldown  seconds to wait. 0 is no wait. Staff are exempt by default.
+ *   limit     how many you may have. 0 means none at all, which is how you
+ *             switch a feature off for a rank without a separate node.
+ */
+export const RANK_VALUES = {
+    tpCooldown: {
+        kind: "cooldown", label: "Teleport cooldown",
+        hint: "warps, spawn and TPA", min: 0, max: 60, fallback: 3
+    },
+    "home.cooldown": {
+        kind: "cooldown", label: "/home cooldown",
+        hint: "between one trip home and the next", min: 0, max: 120, fallback: 3
+    },
+    "home.limit": {
+        kind: "limit", label: "Homes allowed",
+        hint: "0 stops this rank setting any", min: 0, max: 25, fallback: 3
+    },
+    "claim.limit": {
+        kind: "limit", label: "Land claims allowed",
+        hint: "0 stops this rank claiming ground", min: 0, max: 10, fallback: 1
+    },
+    "claim.size": {
+        kind: "limit", label: "Claim size (blocks across)",
+        hint: "the widest a single claim may be", min: 16, max: 256, fallback: 64
+    }
+}
+
+/** Is this person exempt from waiting, by rank or by ownership? */
+export function exemptFromCooldowns(playerOrId) {
+    if (!flag("staff.exemptCooldowns")) return false
+    if (typeof playerOrId !== "string" && isStaff(playerOrId)) return true
+    return playerRanks(playerOrId).some(r => r.staff)
+}
+
+/**
+ * One of the numbers above, for this player.
+ *
+ * Cooldowns collapse to 0 for staff, exactly as `cooldownFor` does — staff use
+ * these as tools rather than as a perk to be rationed. Limits do NOT: a limit
+ * is about how much of the world somebody may occupy, and "staff may have
+ * unlimited homes" is a decision an owner should make on the rank rather than
+ * something the pack assumes.
+ */
+export function valueFor(playerOrId, key) {
+    const spec = RANK_VALUES[key]
+    if (!spec) return undefined
+    if (spec.kind === "cooldown" && exemptFromCooldowns(playerOrId)) return 0
+    const raw = Number(meta(playerOrId, key, spec.fallback))
+    if (!Number.isFinite(raw)) return spec.fallback
+    return Math.max(spec.min, Math.min(spec.max, raw))
 }
 
 export function isStaff(player) {
