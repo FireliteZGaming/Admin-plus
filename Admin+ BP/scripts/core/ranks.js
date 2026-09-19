@@ -1083,6 +1083,10 @@ export const RANK_VALUES = {
         kind: "cooldown", label: "/home cooldown",
         hint: "between one trip home and the next", min: 0, max: 120, fallback: 3
     },
+    "rtp.cooldown": {
+        kind: "cooldown", label: "/rtp cooldown",
+        hint: "it is a long walk back, so this is usually the longest", min: 0, max: 600, fallback: 60
+    },
     "home.limit": {
         kind: "limit", label: "Homes allowed",
         hint: "0 stops this rank setting any", min: 0, max: 25, fallback: 3

@@ -42,6 +42,7 @@ const BASICS = [
     { cmd: "/sethome", what: "Save where you are standing so you can come back. /sethome base names it.", on: "feature.homes" },
     { cmd: "/home", what: "Go back to a home you saved. /home base if you have more than one.", on: "feature.homes" },
     { cmd: "/homes", what: "See the homes you have saved. Only you can see them.", on: "feature.homes" },
+    { cmd: "/rtp", what: "Get dropped somewhere random and far away. Set a home before you wander off.", on: "feature.rtp" },
     { cmd: "/delhome base", what: "Forget a home you no longer want.", on: "feature.homes" },
     { cmd: "/tpa Steve", what: "Ask Steve if you can teleport to them. They say yes or no.", need: "tpa.use", on: "feature.tpa" },
     { cmd: "/tpahere Steve", what: "Ask Steve to come to you instead.", need: "tpa.use", on: "feature.tpa" },

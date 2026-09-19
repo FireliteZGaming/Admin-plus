@@ -77,6 +77,7 @@ export const GROUPS = {
     spawn: "Spawn protection",
     teleport: "Teleporting",
     tpa: "TPA",
+    rtp: "Random teleport",
     commands: "Vanilla commands without op",
     ranks: "Ranks",
     staff: "Staff"

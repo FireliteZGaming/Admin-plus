@@ -149,6 +149,24 @@ export const DEFAULTS = {
     "feature.warps": {
         value: "true", label: "Warps", help: "true / false · /warp and /warps"
     },
+    "feature.rtp": {
+        value: "true", label: "Random teleport", help: "true / false · /rtp"
+    },
+    "rtp.range": {
+        value: "4000",
+        label: "Random teleport: how far",
+        help: "blocks · the furthest it will send somebody from where they stand"
+    },
+    "rtp.minimum": {
+        value: "256",
+        label: "Random teleport: how near",
+        help: "blocks · the closest it will send them. Keeps /rtp from dropping people back at spawn, which is the one place they did not ask for."
+    },
+    "rtp.tries": {
+        value: "24",
+        label: "Random teleport: attempts",
+        help: "How many spots to test before giving up. Bounded on purpose — an ocean world would otherwise search forever and be killed by the watchdog."
+    },
     "feature.claims": {
         value: "false", label: "Land claims",
         help: "true / false · /claim, /unclaim, /trust. Ships OFF: it changes who may break blocks, which is not something to inherit unasked. How many and how big are on the rank, under Permissions ▸ Cooldowns & limits."

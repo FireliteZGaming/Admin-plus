@@ -191,7 +191,8 @@ console.log("\nâ€” every number the rank editor can set is one something reads â
 // The same rule CLAUDE.md states for switches: a value nobody reads is worse
 // than no value, because it looks like it does something.
 {
-    const readers = ["home.limit", "home.cooldown", "tpCooldown", "claim.limit", "claim.size"]
+    const readers = ["home.limit", "home.cooldown", "tpCooldown",
+                     "claim.limit", "claim.size", "rtp.cooldown"]
     const declared = Object.keys(RANK_VALUES).sort()
     check("the table and the readers agree", declared, readers.sort())
     for (const key of declared) {

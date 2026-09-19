@@ -56,6 +56,43 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.7.2 — 2026-09-19
+
+**`/rtp` — get dropped somewhere you have not been.**
+
+Picking a random X and Z is one line. The whole feature is the safety check:
+not dropping somebody into lava, into the sea, into the void, inside a
+mountain, or onto the Nether's bedrock roof.
+
+It searches in a **ring** rather than a square. A square puts a quarter of
+every attempt near spawn, which is the one place somebody asking to be sent
+elsewhere does not want to land — and on a realm that is also the most built-up
+ground, so those attempts were the likeliest to fail anyway. `rtp.minimum`
+decides how close it will ever drop you, `rtp.range` how far.
+
+**The Nether is scanned downwards**, because its ceiling is a block — "the
+topmost block" there is the roof, and landing on top of the world is a
+one-way trip.
+
+**The search is bounded** by `rtp.tries`, not run until it succeeds. On an
+ocean world an unbounded loop would spin inside a single tick and be killed by
+Bedrock's watchdog, which reads as the addon crashing rather than as the sea.
+It gives up and says so instead.
+
+It looks for the spot **before** the teleport warmup rather than after, so a
+world with nowhere to land tells you immediately instead of charging you five
+seconds first. And the landing itself goes through `tryTeleport`, which refuses
+rather than pushing somebody into a block — the spot passed every check a
+moment earlier, and a moment is long enough for somebody to have built there.
+
+`/rtp` has its own cooldown on the rank (`Permissions ▸ Cooldowns & limits`),
+defaulting to a minute. It drops you thousands of blocks out and then it is a
+long walk back, so a server that rations it usually wants it rationed harder
+than a warp — and one that does not can set it to zero.
+
+No `/wild` alias. It was written and taken out again: two names for one command
+is the kind of duplicate this pack spent 2.6.x rooting out.
+
 ## 2.7.1 — 2026-09-19
 
 **The Admin+ Creator badge replaces the default rank instead of sitting in

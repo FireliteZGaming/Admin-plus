@@ -1,4 +1,4 @@
-## Admin+ v2.7.1 — Homes and Land Claims
+## Admin+ v2.7.2 — Homes, Land Claims and Random Teleport
 
 Requires **Beta APIs** — world settings ▸ Game ▸ Experiments ▸ Beta APIs.
 With it off the addon does nothing and says nothing.
@@ -52,6 +52,24 @@ deal with grief that happens on someone's land. It's already on for Mod in the
 built-in rank ladders, but a world that has been running a while will need it
 switched on once.
 
+### Random teleport
+
+```
+/rtp    get dropped somewhere far away
+```
+
+It finds you somewhere safe — not in lava, not in the sea, not inside a
+mountain, and in the Nether not on top of the bedrock roof.
+
+It won't drop you near spawn either. There's a minimum distance as well as a
+maximum, both adjustable in `Settings ▸ Configuration ▸ Random teleport`.
+
+If it can't find anywhere safe it tells you instead of hanging — on a mostly
+ocean world, just run it again, it looks somewhere different each time.
+
+`/rtp` has its own cooldown on the rank, a minute by default. It's a long walk
+back.
+
 ### Ranks can hold numbers now, not just on/off switches
 
 `Ranks ▸ a rank ▸ Permissions ▸ Cooldowns & limits`
@@ -61,6 +79,7 @@ switched on once.
 - How many homes
 - How many land claims
 - How big a claim can be
+- `/rtp` cooldown
 
 Set them to 0 to switch something off for a rank entirely. Staff ranks skip
 cooldowns automatically; limits still apply to them, because how much of the
