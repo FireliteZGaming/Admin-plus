@@ -4,7 +4,7 @@ import { hubTitle } from "../core/theme.js"
 import { ok, err, info, formatDuration } from "../core/util.js"
 import { primaryRank, playerRanks, canActOn, canSeeActionsOf, has, refreshNameTag, knownHolders, getRank, heldRankIds, renderTags } from "../core/ranks.js"
 import { invseeScreen } from "./invsee.js"
-import { displayName, getNickname, setNickname, NICK_MAX } from "../core/identity.js"
+import { displayName, getNickname, setNickname, stripCodes, NICK_MAX } from "../core/identity.js"
 import { flag } from "../core/settings.js"
 import {
     kick, ban, mute, unmute, isMuted, hasMuteTag, isFrozen, setFrozen,
@@ -12,7 +12,7 @@ import {
     banList, unban, isBanned, banRecord,
     BAN_REASONS, banSliderMax, banLengthMs, banLengthLabel, PERMANENT_NOTCH
 } from "../core/moderation.js"
-import { record } from "../core/logs.js"
+import { record, by } from "../core/logs.js"
 import { warningLine, warningCount } from "../core/warnings.js"
 import { warningsScreen } from "./warn.js"
 import { forceVisible, isVanished } from "./vanish.js"
@@ -27,22 +27,96 @@ import { chatAvailable } from "./chat.js"
 // text field inline, so the name is the first button and opens the text box —
 // which is as close to "a box at the top" as the form API allows.
 
-export async function actionsScreen(player, back) {
+/**
+ * Does this row match what was typed?
+ *
+ * **Gamertag AND nickname, case-insensitively, anywhere in the word.** Admin+
+ * lets people set nicknames, so the name a moderator saw in chat is often not
+ * the name the game knows them by — matching one and not the other is a bug
+ * waiting to be reported. Substring rather than prefix, so "ste" finds
+ * "NotSteve", and § codes come off both sides before comparing or a colour in
+ * somebody's nickname would hide them from a search for their own name.
+ */
+export function matches(row, needle) {
+    // Lowered HERE rather than trusted from the caller. It was the caller's job
+    // for about an hour, which meant case-insensitivity held only as long as
+    // every future caller remembered — and the failure is silent: the search
+    // just quietly finds nothing, which reads as "no such player".
+    const want = String(needle ?? "").trim().toLowerCase()
+    if (!want) return true
+    const hay = [row.name]
+    if (row.player) {
+        hay.push(stripCodes(displayName(row.player)))
+        const nick = getNickname(row.player)
+        if (nick) hay.push(stripCodes(nick))
+    }
+    return hay.some(h => String(h ?? "").toLowerCase().includes(want))
+}
+
+/**
+ * Who to put at the top.
+ *
+ * **Search is a workaround for a badly ordered list**, so the order comes
+ * first. Two things decide it, and both answer "who did this person open this
+ * screen to deal with":
+ *
+ *   1. Somebody they have just acted on. A mute is followed by a kick far more
+ *      often than by anything else, and right now that means finding the same
+ *      name again from scratch.
+ *   2. Whoever is nearest. On a realm the person causing trouble is usually
+ *      the person standing in front of you.
+ *
+ * Staff-first was in the original sketch and is deliberately NOT here:
+ * distance already orders everybody, so a staff tier would lift a moderator on
+ * the far side of the map above the player standing in front of you — which is
+ * the opposite of what this is for.
+ */
+export function relevance(viewer, rows) {
+    // Most recent first, so the index IS the recency.
+    const acted = new Map()
+    for (const entry of by(viewer.id)) {
+        const id = entry.target?.id
+        if (id && !acted.has(id)) acted.set(id, entry.at)
+    }
+    const here = viewer.location
+    const distance = row => {
+        if (!row.player || !here) return Number.MAX_SAFE_INTEGER
+        try {
+            const l = row.player.location
+            // Squared: the ordering is identical and it saves a square root
+            // per player on a screen that opens constantly.
+            return (l.x - here.x) ** 2 + (l.y - here.y) ** 2 + (l.z - here.z) ** 2
+        } catch { return Number.MAX_SAFE_INTEGER }
+    }
+    return [...rows].sort((a, b) => {
+        if (a.online !== b.online) return a.online ? -1 : 1
+        const aa = acted.get(a.id), ba = acted.get(b.id)
+        if (aa !== ba) return (ba ?? 0) - (aa ?? 0)
+        if (!a.online) return a.name.localeCompare(b.name)
+        return distance(a) - distance(b)
+    })
+}
+
+export async function actionsScreen(player, back, filter = "") {
     const online = world.getAllPlayers()
     const onlineIds = new Set(online.map(p => p.id))
     // Online first in blue, then everyone Admin+ has seen, greyed and labelled.
     // Offline players stay actionable — ranks, unban and unmute all work on a
     // stored record, so logging off is not a way to dodge consequences.
     const offline = knownHolders().filter(h => !onlineIds.has(h.id))
-    const rows = [
+    const needle = String(filter ?? "").trim().toLowerCase()
+    const rows = relevance(player, [
         ...online.map(p => ({ online: true, id: p.id, name: p.name, player: p })),
         ...offline.map(h => ({ online: false, id: h.id, name: h.name || "unknown" }))
-    ]
+    ]).filter(row => matches(row, needle))
 
+    const again = () => actionsScreen(player, back, filter)
     const banned = banList().length
     return pagedMenu(player, {
         title: hubTitle("actions", "Actions"),
-        body: subtitle(`${online.length} online · ${offline.length} seen before.`),
+        body: needle
+            ? subtitle(`${rows.length} match${rows.length === 1 ? "" : "es"} for "§f${filter}§7".`)
+            : subtitle(`${online.length} online · ${offline.length} seen before.`),
         items: rows,
         render: row => {
             if (row.online) {
@@ -56,13 +130,42 @@ export async function actionsScreen(player, back) {
             return { text: `${rank ? rank.display + "§r " : ""}§8${row.name}${flags}\n§8offline` }
         },
         onPick: row => row.online
-            ? playerActionsScreen(player, row.player, () => actionsScreen(player, back))
-            : offlineActionsScreen(player, row, () => actionsScreen(player, back)),
-        extra: has(player, "admin.ban")
-            ? [{ text: `§cBanned players\n§8${banned} active`, run: () => bannedScreen(player, () => actionsScreen(player, back)) }]
-            : [],
+            ? playerActionsScreen(player, row.player, again)
+            : offlineActionsScreen(player, row, again),
+        extra: [
+            // A form cannot hold a text field beside a button list — the same
+            // Bedrock limit that puts the nickname box behind a button on the
+            // screen below. So search is a button that opens one, which is the
+            // pattern the Logs screen already uses.
+            needle
+                ? { text: `§8Clear search §7"${filter}"`, run: () => actionsScreen(player, back, "") }
+                : { text: "§7Search§r\n§8Find somebody by name or nickname", run: () => searchScreen(player, back) },
+            ...(has(player, "admin.ban")
+                ? [{ text: `§cBanned players\n§8${banned} active`, run: () => bannedScreen(player, again) }]
+                : [])
+        ],
         back
     })
+}
+
+/**
+ * Ask for the text, then show the list filtered by it.
+ *
+ * Live filtering as each letter is typed was asked for and is not buildable:
+ * the script API has no keystroke event, and no form type carries a text input
+ * and a button list at the same time. A resource-pack route exists in theory —
+ * JSON-UI has the substring test this pack already relies on for `< Code >` —
+ * but nothing shows that a typed value can escape its own collection index,
+ * which is what per-button filtering would need. Submit-then-filter is the
+ * whole of what the API supports, and with the list ordered by relevance it is
+ * rarely reached at all.
+ */
+async function searchScreen(player, back) {
+    const values = await modal(player, hubTitle("actions", "Search players"), [
+        { id: "text", type: "text", label: "Gamertag or nickname", placeholder: "part of a name" }
+    ])
+    if (!values) return actionsScreen(player, back)
+    return actionsScreen(player, back, String(values.text ?? "").trim())
 }
 
 /** What you can still do to someone who is not here. */

@@ -56,6 +56,106 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.6.6 — 2026-09-19
+
+**The logs, sorted out.** Half of what Admin+ wrote down could not be read back,
+and two of the things that could were filed where nobody would look for them.
+
+**Seven of the fourteen kinds of record had no route to them at all.** Automod
+punishes people for spamming, and *why it did* was unreachable from the Logs
+screen. So were vanish, staff mode, holograms, smite, the creator console, chat
+screening decisions, and every `/a:` command anybody had ever run. They were all
+being stored correctly and none of them could be found.
+
+The nine flat branches are now six groups, and a group takes whole *prefixes*
+rather than a hand-written list — so something that starts logging tomorrow is
+reachable tomorrow, instead of on the day somebody remembers to extend a list.
+
+### Chat means everything a player put in front of other players
+
+**A sign is chat.** It used to be filed as a staff action, which put it under
+Recent between a ban and a rank grant, while the Chat screen — reading a
+different table — could not see it at all. Two halves of "what did people say
+here", in two stores, on two screens.
+
+They are one screen now, and the lines say which is which:
+
+```
+[Chat] Notch: anyone got spare iron
+[Sign] Herobrine: FREE STUFF ->
+         10, 64, -20 in the overworld
+```
+
+A sign's coordinates moved off the line and underneath it. You need them second,
+after deciding the words matter, and a coordinate in the middle of a sentence
+makes the sentence unreadable. An edited sign keeps what it said before, because
+that is usually the entire reason somebody came looking.
+
+### Commands are written down — all of them, including the refused ones
+
+A third log, beside actions and chat. Every command typed, what its arguments
+were, and whether it ran:
+
+```
+[Cmd] Steve: /a:eff mobs speed
+        ran as /effect @e[tag=tmp1] speed
+[Cmd] Member: /ban Notch
+        refused — no permission
+```
+
+**Refusals are the half worth having.** Somebody working down the command list
+trying what sticks looks exactly like a column of red, and nothing in the pack
+would have shown it.
+
+It is recorded in the one place every command already passes through, rather
+than command by command — which is how a command ends up unlogged. Anything
+added later is covered the day it exists.
+
+Command blocks live here too, since "what commands ran on this server" is one
+question and a repeating command block is the loudest possible answer to it.
+
+**Its own table, deliberately.** `/warps`, `/online` and `/info` get typed
+constantly by ordinary players. Sharing the action log's ring buffer would push
+every ban and mute out of Recent within minutes — the audit trail destroyed by
+the thing meant to support it. Chat has been kept separate for that reason since
+2.3.0; commands are the higher-volume half of the same argument. Both have their
+own cap and their own on/off switch under Settings.
+
+**Search now covers all three at once.** You arrive knowing a word, not knowing
+which log it is in.
+
+### Finding a player in Actions
+
+The player list opens in a useful order now: anybody you have just acted on,
+then whoever is nearest you. A mute is followed by a kick more often than by
+anything else, and that used to mean finding the same name again from scratch.
+
+There is a **Search** button above the list as well — part of a name, any case,
+matching **nicknames as well as gamertags**. Staff read chat, chat shows
+nicknames, and a search that only knew gamertags would miss the name they
+actually saw.
+
+### `/eff` was unusable without asking somebody
+
+`/a:eff` takes a target first, and that slot was labelled `targets_or_me` —
+which reads as "name some targets, or leave it out and it means me". Leaving it
+out is the one thing that does not work.
+
+`me` always worked. So did `all`, `everyone`, `nearest`, `mobs`, a player's
+name, and `@s @a @p @r @e`. The label simply lied about how to use them. Required
+slots now read `<targets_me_or_all>`; optional ones keep `_or_me`, where it is
+honest. `/tp` had the same problem.
+
+### Also
+
+- Releasing can see a realm now. The release tool checked the local content log
+  for proof a build had run — and a realm runs its scripts on the realm, so
+  nothing played there could ever satisfy it. `--played` records a realm test as
+  what it is: the tester's word, labelled as such wherever it is shown, never
+  dressed up as a log line.
+- A world upgrading from an earlier version keeps its old sign entries
+  reachable, under a group that removes itself once they have aged out.
+
 ## 2.6.5 — 2026-09-18
 
 **Pick a player off a list instead of spelling their gamertag.** `/mute` got the

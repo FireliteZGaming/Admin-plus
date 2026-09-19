@@ -40,6 +40,7 @@ audience, not the narrowest. So an alpha stays on GitHub, where whoever wants it
 goes looking; beta and stable are worth uploading. This prints the file to hand
 over and stops there.
 """
+import datetime
 import io
 import json
 import os
@@ -98,6 +99,16 @@ def run(*args, cwd=ROOT, shell=False, check=False):
 
 
 # --------------------------------------------------------------------- version
+
+def read_version():
+    """The current version, quietly — no printing, no gauntlet."""
+    try:
+        raw = io.open(ROOT / "Admin+ BP/scripts/config.js", encoding="utf-8").read()
+        hit = re.search(r'ADMINPLUS_VERSION = "([\d.]+)"', raw)
+        return hit.group(1) if hit else None
+    except Exception:
+        return None
+
 
 def check_version():
     head("version")
@@ -173,22 +184,77 @@ def sessions_with(version):
     return found
 
 
+# ------------------------------------------------- playtests nothing can see
+#
+# **A realm writes nothing to this machine's content log.** Behaviour-pack
+# scripts run on the realm SERVER; the local log records the client, so a
+# version played all evening on a realm looks, from here, exactly like a version
+# that has never been loaded.
+#
+# That turned the stable gate from a check into a wall: it greps for
+# `[Admin+] vX.Y.Z loaded` and nothing on a realm can ever put that line there.
+# 2.6.4 was reported "never run in game" repeatedly while it was being played.
+#
+# So there is a second route, and it is deliberately NOT dressed up as evidence.
+# `--played` records that the person testing SAYS it ran, with where and when,
+# and every message that reads it says so out loud. A machine check that cannot
+# see the thing it checks is worse than an honest attestation, because it looks
+# like proof.
+
+PLAYED = ROOT / "releases" / "played.json"
+
+
+def attestations():
+    try:
+        return json.loads(PLAYED.read_text(encoding="utf-8")) if PLAYED.exists() else {}
+    except Exception as e:
+        warn(f"could not read {PLAYED.name}: {e}")
+        return {}
+
+
+def attest(version, where, note=""):
+    """Record that somebody says this version ran, and where."""
+    data = attestations()
+    entry = dict(where=where or "unstated",
+                 at=datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
+                 note=note)
+    data.setdefault(version, []).append(entry)
+    PLAYED.parent.mkdir(parents=True, exist_ok=True)
+    PLAYED.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    return entry
+
+
 def check_played(version, channel):
     head("ran in the game")
     seen = sessions_with(version)
-    if not seen:
-        msg = (f"no content log shows v{version} loading. It has never run in "
-               f"Minecraft, so it cannot be called {channel}.")
-        if CHANNELS[channel]["gate"]:
-            fail(msg + "  Ship it as --alpha, play it, then --promote.")
-        else:
-            okline(f"never run in game — which is what alpha means")
+    if seen:
+        name, errs = seen[-1]
+        okline(f"loaded in {len(seen)} session(s), last {name}")
+        if errs:
+            warn(f"that session logged {errs} Admin+ error/warning line(s) — read it "
+                 f"before calling this {channel or 'stable'}")
         return
-    name, errs = seen[-1]
-    okline(f"loaded in {len(seen)} session(s), last {name}")
-    if errs:
-        warn(f"that session logged {errs} Admin+ error/warning line(s) — read it "
-             f"before calling this {channel or 'stable'}")
+
+    # No local log. Before calling that "never run", ask whether somebody said
+    # otherwise — because on a realm the log is not a witness at all.
+    said = attestations().get(version, [])
+    if said:
+        last = said[-1]
+        okline(f"no content log, but it was reported played on {last['where']} "
+               f"({last['at'][:16].replace('T', ' ')})")
+        warn("that is somebody's WORD, not a log line. A realm keeps its script "
+             "output on the realm, so nothing here can confirm it.")
+        if last.get("note"):
+            warn(f"they noted: {last['note']}")
+        return
+
+    msg = (f"no content log shows v{version} loading, and nobody has said it ran.")
+    if CHANNELS[channel]["gate"]:
+        fail(msg + "  Play it, then record that with:\n"
+             f"         python tools/release.py --played \"realm name\"\n"
+             "         (or ship it as --alpha and --promote later)")
+    else:
+        okline("never run in game — which is what alpha means")
 
 
 # ----------------------------------------------------------------- the gauntlet
@@ -366,6 +432,29 @@ def promote(version, tag, notes):
 
 def main():
     argv = sys.argv[1:]
+
+    # Recording a playtest is not releasing anything, so it runs on its own and
+    # stops. It needs the version to be the CURRENT one — attesting to a version
+    # that is not what is built would be recording a test of something else.
+    if "--played" in argv:
+        rest = [a for a in argv[argv.index("--played") + 1:] if not a.startswith("--")]
+        where = rest[0] if rest else ""
+        note = " ".join(rest[1:])
+        version = read_version()
+        if not version:
+            print("  cannot read the current version")
+            return 1
+        entry = attest(version, where, note)
+        print(f"Admin+ - recorded a playtest of v{version}")
+        print(f"  where  {entry['where']}")
+        print(f"  when   {entry['at'][:16].replace('T', ' ')}")
+        if note:
+            print(f"  note   {note}")
+        print()
+        print("  This is your word, not a log line - release.py will say so.")
+        print("  Now: python tools/release.py --beta")
+        return 0
+
     check_only = "--check" in argv or "--dry-run" in argv
     promoting = "--promote" in argv
     channel = "alpha" if "--alpha" in argv else "beta" if "--beta" in argv else "stable"
