@@ -56,6 +56,26 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.7.1 — 2026-09-19
+
+**The Admin+ Creator badge replaces the default rank instead of sitting in
+front of it.** It used to draw as `[Admin+ Creator] [Member]`, which reads as
+somebody who collected a cosmetic rather than as the pack's own mark.
+
+Everything else about it is unchanged, and the parts that matter are worth
+restating because they are what makes a badge safe to ship in other people's
+worlds: it disappears the moment a world gives them a rank of its own, it
+grants no permission at all, it is not in the rank table so it cannot be handed
+out, and it adds no authority — a Mod can still act on them.
+
+**It also does not touch what they can DO, and getting that wrong is the whole
+story of this version.** The first attempt made the swap in the list that
+`playerRanks` was built from — so a creator quietly lost the default rank's
+permissions and its ladder weight, ending up with *fewer* rights than a
+stranger. The display list and the authority list are now built separately
+rather than one from the other, and six assertions pin both halves, because the
+display half passing on its own is exactly what the bug looked like.
+
 ## 2.7.0 — 2026-09-19
 
 **Homes and land claims.** Two new sections, each behind its own switch, which

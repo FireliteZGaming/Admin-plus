@@ -477,8 +477,15 @@ export function heldRankIds(playerOrId) {
 // So a Builder+Admin can show [Builder] while still having Admin's authority.
 
 /** Rank objects a player holds, strongest first — the authority view. */
+/**
+ * Rank objects strongest first — **the authority view**.
+ *
+ * Built from what they HOLD, never from the display list. A badge is a mark,
+ * not a rank: it carries no permissions and no weight, and it must not be able
+ * to displace something that does. See the note in `displayRanks`.
+ */
 export function playerRanks(playerOrId) {
-    return displayRanks(playerOrId).slice().sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0))
+    return heldRankObjects(playerOrId).slice().sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0))
 }
 
 // ------------------------------------------------------- the pack's own badges
@@ -628,13 +635,32 @@ function onlyDefaultRank(playerOrId) {
  * the twenty cosmetic tags on a PvP ladder keep whatever order their holder put
  * them in. It only guarantees that no cosmetic rank outranks a staff one.
  */
-export function displayRanks(playerOrId) {
+/** What they actually hold, staff first. No badges — this is the real list. */
+function heldRankObjects(playerOrId) {
     const held = heldRankIds(playerOrId).map(id => ranksTable.get(id)).filter(Boolean)
-    const ordered = [...held.filter(r => r.staff), ...held.filter(r => !r.staff)]
-    // In FRONT of what they hold, so it is the tag that shows — and gone the
-    // moment a world hands them a rank of its own, which is the whole contract.
+    return [...held.filter(r => r.staff), ...held.filter(r => !r.staff)]
+}
+
+export function displayRanks(playerOrId) {
+    const ordered = heldRankObjects(playerOrId)
+    // **The badge REPLACES the default rank rather than sitting in front of
+    // it.** Prepending meant the creator wore two tags — `[Admin+ Creator]
+    // [Member]` — which reads as somebody who collected a cosmetic rather than
+    // as the pack's own mark. Asked for 2026-09-19.
+    //
+    // Only the DEFAULT rank is displaced, and only while that is all they hold.
+    // The contract is unchanged where it matters: the moment a world gives them
+    // a rank of its own, the badge is gone and the world's rank shows.
+    //
+    // **This is the DISPLAY list, and nothing may read authority from it.**
+    // That used to be untrue in the most direct way possible — `playerRanks`
+    // was this function sorted by weight, so dropping the default rank here
+    // took `warp.use` and the holder's ladder weight with it. The badge carries
+    // no permissions, so a creator would have silently ended up with fewer
+    // rights than a stranger. Two assertions caught it; they are why the two
+    // lists are now built separately rather than one from the other.
     const badge = packBadge(playerOrId)
-    if (badge && onlyDefaultRank(playerOrId)) return [badge, ...ordered]
+    if (badge && onlyDefaultRank(playerOrId)) return [badge]
     return ordered
 }
 

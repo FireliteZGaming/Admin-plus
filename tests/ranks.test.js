@@ -487,6 +487,30 @@ check("and the badge is gone entirely",
 revokeRank(creator.id, "mod")
 check("taking that rank away brings it back", primaryRank(creator).id, "adminplus_creator")
 
+// **The badge replaces the default rank on the TAG, and nowhere else.**
+// Asked for 2026-09-19: prepending made the creator wear two tags,
+// `[Admin+ Creator] [Member]`, which reads as a collected cosmetic rather than
+// as the pack's mark.
+//
+// The first attempt did it in displayRanks — and playerRanks WAS displayRanks
+// sorted by weight, so the creator silently lost warp.use and their ladder
+// weight and ended up with fewer rights than a stranger. These pin both halves,
+// because the display half passing on its own is exactly what that looked like.
+{
+    const shown = displayRanks(creator)
+    check("the tag is the badge alone", shown.map(r => r.id), ["adminplus_creator"])
+    check("the default rank is not worn beside it",
+        shown.some(r => r.id === defaultRank().id), false)
+
+    // ...and the authority list is untouched, which is the half that bit.
+    check("but they still HOLD the default rank",
+        heldRankIds(creator.id).includes(defaultRank().id), true)
+    check("so its permissions still apply", has(creator, "warp.use"), true)
+    check("and so does its weight", topWeight(creator), topWeight(stranger))
+    check("the authority list carries the real rank, not the badge",
+        playerRanks(creator).map(r => r.id), [defaultRank().id])
+}
+
 // A preset REPLACES the whole ladder. The badge lives outside it on purpose.
 applyPreset("spearmace")
 check("it survives a ladder being replaced", primaryRank(creator).id, "adminplus_creator")

@@ -1,4 +1,4 @@
-## Admin+ v2.7.0 — Homes and Land Claims
+## Admin+ v2.7.1 — Homes and Land Claims
 
 Requires **Beta APIs** — world settings ▸ Game ▸ Experiments ▸ Beta APIs.
 With it off the addon does nothing and says nothing.
