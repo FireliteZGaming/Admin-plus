@@ -16,10 +16,24 @@ check("red Update/Install", BETA_NOTICE.includes("§cUpdate/Install"), true)
 check("grey around both", BETA_NOTICE.startsWith("§7Turn on ") && BETA_NOTICE.includes("§7or "), true)
 
 console.log("\n— probing —")
-// The test runtime provides chatSend and startup but no block events, which is
-// exactly the "surface moved" case this is meant to catch.
+// **Absence is CONSTRUCTED here, not borrowed from a gap in the stub.** This
+// used to lean on the test runtime having no block events - true until
+// 2026-09-19, when land claims needed them and the stub grew them. The
+// assertion then passed for a reason that had nothing to do with the probe and
+// would have gone on passing if missingCapabilities() had stopped working
+// entirely. So the event is taken away on purpose and put back.
+const saved = world.beforeEvents.playerBreakBlock
+delete world.beforeEvents.playerBreakBlock
+const whenAbsent = missingCapabilities()
+world.beforeEvents.playerBreakBlock = saved
+
+check("a genuinely absent capability is reported",
+    whenAbsent.some(m => m.id === "blocks"), true)
+check("and it says what stops working when it is gone",
+    whenAbsent.find(m => m.id === "blocks")?.label.includes("claims"), true)
+
 const missing = missingCapabilities()
-check("a genuinely absent capability is reported", missing.some(m => m.id === "blocks"), true)
+check("with the event back, it is not reported", missing.some(m => m.id === "blocks"), false)
 check("a present one is not", missing.some(m => m.id === "chat"), false)
 check("each missing item says what stops working", missing.every(m => m.label.length > 5), true)
 

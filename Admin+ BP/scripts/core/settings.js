@@ -149,6 +149,10 @@ export const DEFAULTS = {
     "feature.warps": {
         value: "true", label: "Warps", help: "true / false · /warp and /warps"
     },
+    "feature.claims": {
+        value: "false", label: "Land claims",
+        help: "true / false · /claim, /unclaim, /trust. Ships OFF: it changes who may break blocks, which is not something to inherit unasked. How many and how big are on the rank, under Permissions ▸ Cooldowns & limits."
+    },
     "feature.homes": {
         value: "true", label: "Homes",
         help: "true / false · /sethome, /home, /homes, /delhome. How MANY each rank may set is on the rank, under Permissions ▸ Cooldowns & limits."

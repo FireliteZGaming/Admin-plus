@@ -12,6 +12,8 @@ import { channelsScreen } from "./chatUI.js"
 import { warpsScreen } from "./warps.js"
 import { homesScreen } from "./homes.js"
 import { homeLimit } from "../core/homes.js"
+import { claimsScreen } from "./claims.js"
+import { claimLimit } from "../core/claims.js"
 import { flag } from "../core/settings.js"
 import { reportsScreen, reportsBadge } from "./reports.js"
 import { teleportTuningScreen } from "./tuning.js"
@@ -77,6 +79,16 @@ export async function openPanel(player) {
         buttons.push({
             text: hubButton("warps", "Homes", "Your own places, private to you"),
             run: () => homesScreen(player, () => openPanel(player))
+        })
+    }
+
+    // Claims sit with homes for the same reason: both answer "this bit is
+    // mine". Shown to anybody whose rank allows one, and to staff regardless,
+    // because staff need the every-claim list even on a rank that claims none.
+    if (flag("feature.claims") && (claimLimit(player) > 0 || has(player, "admin.claims"))) {
+        buttons.push({
+            text: hubButton("warps", "Land claims", "Ground nobody else can build on"),
+            run: () => claimsScreen(player, () => openPanel(player))
         })
     }
 

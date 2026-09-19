@@ -153,9 +153,16 @@ check("nor each item taken out of an ender chest",
     audienceFor(admin, member, "mod.enderchest.take"), [])
 check("but opening someone's ender chest IS announced",
     names(audienceFor(admin, member, "mod.enderchest")).length > 0, true)
-// Fifteen now: the three held-chat decisions joined, because announcing one
-// would tell the sender they had been filtered and undo the feature.
-check("the silent list is exactly those fifteen", SILENT.size, 15)
+// Seventeen now: claim.created and claim.removed joined on 2026-09-19. They are
+// done to the LAND, so the audience rule has no target to tell — and ordinary
+// players claim ground constantly, which would turn staff chat into a land
+// registry.
+//
+// The number is hardcoded ON PURPOSE, and it is the one kind of stale count
+// worth keeping: silencing an action has to be a deliberate edit in two files,
+// not something that rides along in a diff. Bumping it without writing why
+// above is the thing this is trying to catch.
+check("the silent list is exactly those seventeen", SILENT.size, 17)
 
 console.log("\n— actions with nobody on one end —")
 check("no actor, no line", audienceFor(undefined, member, "automod.ore"), [])

@@ -74,7 +74,11 @@ const PICKER = [
     // game's player list is the same bargain the moderation five made.
     "nick", "sudo", "invsee", "grant", "report", "smite", "mm",
     "tpa", "tpahere", "msg", "pm", "praccept", "prchat", "prdeny",
-    "vanish"
+    "vanish",
+    // Land claims, 2026-09-19. Both name one person on YOUR OWN claim, which is
+    // the picker's exact case — and `/trust @a` on a private plot is not a
+    // thing anybody wants to be one mistyped character away from.
+    "trust", "untrust"
 ].map(full)
 {
     const offenders = []

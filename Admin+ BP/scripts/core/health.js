@@ -30,7 +30,7 @@ const PROBES = [
     },
     {
         id: "blocks",
-        label: "Spawn protection",
+        label: "Spawn protection and land claims",
         test: () => !!world.beforeEvents?.playerBreakBlock?.subscribe
     }
 ]

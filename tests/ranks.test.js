@@ -705,7 +705,12 @@ console.log("\n— everything that acts on a player consults the ladder —")
     const exempt = {
         "privatechat.js": "a message is not something done TO somebody — a moderator may PM an owner",
         "reports.js": "reporting upward is the entire point; a member must be able to report staff",
-        "tpa.js": "a request, not an act — the other person accepts or declines it"
+        "tpa.js": "a request, not an act — the other person accepts or declines it",
+        // The gate here is OWNERSHIP of the ground, not rank. A member letting
+        // an owner build in their base is an ordinary thing to want, and a
+        // ladder check would refuse it. Staff pass by `admin.claims`, which is
+        // a permission an owner grants, not a hierarchy this could consult.
+        "claims.js": "trusting somebody on your own claim is about the land, not about them"
     }
 
     const unprotected = []
@@ -768,6 +773,12 @@ console.log("\n— the hierarchy audit, command by command —")
         report: "reporting upward is the entire point; a member must be able to report staff",
         tpa: "a request — they accept or decline",
         tpahere: "also a request, in the other direction",
+        // Trusting is about YOUR OWN land, not about them. A member letting an
+        // owner build in their base is a perfectly ordinary thing to want, and
+        // a ladder check would refuse it — the gate that matters is "is this
+        // your claim", which both commands do check.
+        trust: "granting access to your own claim; the gate is ownership, not rank",
+        untrust: "same, in reverse — taking back access to your own claim",
         // The one that is a fix rather than a philosophy.
         unmute: "un-gated ON PURPOSE: a mute that came apart must be fixable by "
               + "whoever is there, or the player stays stuck until the right rank logs in"

@@ -609,12 +609,20 @@ console.log("\n— how many commands still ask the engine to expand a selector �
         exposed.filter(e => e.startsWith("main.js")), [])
     // The standing count. When this fails because it went DOWN, delete the name
     // from the list and lower the number; that is the fix landing.
+    //
+    // **Not everything here is "still to do" any more.** Since the picker
+    // landed (2026-09-12, widened 2026-09-17), a command carrying `picker: true`
+    // KEEPS the real selector type on purpose — that is how the game draws its
+    // player list — so those files will never leave this inventory and are not
+    // waiting on anything. claims.js is both of its commands; most of the rest
+    // are mixed. What the number still catches is a NEW raw selector arriving
+    // without the picker, which is the bug this was written for.
     check("the rest are known, counted, and still to do",
         exposed.sort(),
-        ["enderchest.js:1", "gamemode.js:2", "grant.js:1", "invsee.js:1",
-         "modcommands.js:3", "nick.js:1", "privatechat.js:5", "reports.js:1",
-         "staffmode.js:1", "sudo.js:1", "tpa.js:2", "troll.js:1", "vanish.js:1",
-         "warn.js:2"])
+        ["claims.js:2", "enderchest.js:1", "gamemode.js:2", "grant.js:1",
+         "invsee.js:1", "modcommands.js:3", "nick.js:1", "privatechat.js:5",
+         "reports.js:1", "staffmode.js:1", "sudo.js:1", "tpa.js:2",
+         "troll.js:1", "vanish.js:1", "warn.js:2"])
 }
 
 

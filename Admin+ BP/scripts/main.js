@@ -23,6 +23,7 @@ import { installHolograms } from "./core/holograms.js"
 import "./features/chatUI.js"
 import { installSpawnProtection } from "./features/warps.js"
 import "./features/homes.js"
+import { installClaims } from "./features/claims.js"
 import { installAutomod } from "./features/automod.js"
 import "./features/cleanup.js"
 import "./features/vanish.js"
@@ -153,6 +154,7 @@ installAutomod()
 installVanish()
 installPresence()
 installSignLog()
+installClaims()
 installBanHammer()
 installStaffMode()
 installAdminItems()

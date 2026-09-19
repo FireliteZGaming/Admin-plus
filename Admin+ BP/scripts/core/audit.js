@@ -48,6 +48,12 @@ const NARROW = {
 const SILENT = new Set([
     "report.filed",             // reports already ping staff on their own
     "report.handled",
+    // Claiming and giving up ground is done to the LAND, not to a person —
+    // there is no target for the audience rule to tell. It is also something
+    // ordinary players do constantly on a survival server, so announcing it
+    // would turn staff chat into a land registry. Logged, not spoken.
+    "claim.created",
+    "claim.removed",
     "mod.invsee.take",          // the invsee OPEN is the event; per-item is spam
     "mod.invsee.destroy",
     "mod.enderchest.take",      // same rule for the ender chest screen
