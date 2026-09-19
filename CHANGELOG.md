@@ -56,6 +56,100 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.7.0 — 2026-09-19
+
+**Homes and land claims.** Two new sections, each behind its own switch, which
+is what makes this a minor rather than another patch.
+
+### Homes
+
+`/sethome`, `/home`, `/homes`, `/delhome`, and the same thing in the panel.
+Stand somewhere, name it, come back to it later.
+
+Homes were dropped on purpose years of versions ago and have sat on a "do not
+build unasked" list ever since. Asked for back on 2026-09-19 — the second thing
+to come off that list, after `bring`.
+
+**A warp is the server's; a home is yours.** Everything about how this is built
+follows from that. Homes are stored per player, never listed to anybody else,
+and there is no staff screen for reading them. Somebody's base coordinates are
+the one thing on a survival server genuinely worth hiding, and a panel that
+showed them to every moderator would be a griefing tool with a nice interface.
+Staff can see *how many* homes somebody has and nothing else — a test pins that
+the row carries exactly a count and an id.
+
+Setting a home over an existing name moves it rather than costing another slot,
+because "move my base here" is what everyone does after the first day.
+
+### Land claims
+
+`/claim`, `/unclaim`, `/trust`, `/untrust`. Claim the ground around you and
+nobody else can break, place, open or blow up anything inside it.
+
+A square, centred on where you stand, as wide as you ask for. The two-corner
+selection every Java plugin uses — stand here, run a command, walk there, run
+another — is a lot to hold in your head when you just want your house left
+alone, and it is the step people get wrong.
+
+**Claims are full height.** The base, the mine underneath, the tower on top. A
+claim that stopped at head height would be a trap disguised as protection.
+
+Protection covers breaking, placing, opening chests and doors, touching item
+frames and animals, and explosions. That middle part matters: a claim that kept
+your walls up and handed over everything inside them would be worse than no
+claim, because it would look like it was working.
+
+`/trust` lets a friend build there. Trusting somebody is about your own land
+rather than about them, so a member can trust an owner — the question is whose
+ground it is, not who outranks whom.
+
+⚠ **Land claims ship OFF.** They change who may break blocks, and that is not
+something to inherit unasked in an update. Turn them on in
+`Settings ▸ Configuration ▸ Land claims`.
+
+Staff carry a bypass (`admin.claims`, in Permissions ▸ Staff tools) so a
+moderator can deal with what is inside a claim. It is on the Mod rank in every
+preset. **An existing world's Mod rank will not have it** until an owner turns
+it on or re-applies a preset — same caveat as the vanilla-commands switch in
+2.6.4.
+
+### A rank can carry numbers now, not only switches
+
+This is the part that makes the other two configurable rather than guessed at.
+
+**A permission is not always a yes or a no.** "May they set homes" and "how
+many" are one question asked twice, and a pack that can only answer the first
+ends up hardcoding the second — so every world gets one person's guess.
+
+Ranks now carry values as well as nodes, and they sit **with** the switches:
+`Ranks ▸ a rank ▸ Permissions ▸ Cooldowns & limits`.
+
+| | |
+|---|---|
+| Teleport cooldown | warps, spawn and TPA |
+| `/home` cooldown | its own, separate from teleports |
+| Homes allowed | 0 stops the rank setting any |
+| Land claims allowed | 0 stops the rank claiming ground |
+| Claim size | how wide a single claim may be |
+
+Cooldowns collapse to zero for staff ranks, as they always have. **Limits do
+not** — how much of the world somebody may occupy is a decision for whoever
+owns the server, not something the addon should assume.
+
+Lowering a limit never deletes anything. Homes and claims already set stay
+where they are and simply cannot be added to.
+
+The screen that used to be called "Meta values" is gone. It held exactly one
+slider and was the reason almost nobody knew teleport cooldowns could be
+changed at all.
+
+### Also
+
+- Teleport cooldowns are tracked **per action**. Waiting on `/home` no longer
+  blocks a warp, which it would have done the moment the two lengths differed.
+- `Settings ▸ Configuration` lists both new features, and `/info` explains the
+  home commands to newcomers in the same plain words as everything else.
+
 ## 2.6.6 — 2026-09-19
 
 **The logs, sorted out.** Half of what Admin+ wrote down could not be read back,
