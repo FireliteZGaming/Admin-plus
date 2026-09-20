@@ -56,6 +56,43 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.7.3 — 2026-09-20
+
+**`/ec` and `/enderchest` get the player picker**, which every other command
+that names one person has had since 2.6.5. Type `/ec ` and the game offers the
+list instead of a blank box.
+
+They were missed twice, and the reason is worth writing down because it was not
+carelessness — it was a blind spot in how they were being looked for. Both
+declare their parameter as a named constant:
+
+```js
+const PLAYER = [{ name: "player", type: CustomCommandParamType.PlayerSelector }]
+command({ name: "ec", optional: PLAYER, ... })
+```
+
+Every audit of "which commands take a player" scanned each `command({...})`
+block for `CustomCommandParamType.PlayerSelector` and found nothing inside
+these two — so both were reported as taking no player at all, twice, by a check
+that was working exactly as written.
+
+**The fix that matters is the test, not the two lines.** There is now a check
+that reads the REGISTRATIONS rather than the source, so a parameter list behind
+a constant is seen exactly like an inline one, and it requires every command of
+ours that names a person to be either on the picker or carrying a written
+reason why not. The reasons cannot rot either: one naming a command that no
+longer takes a player fails the suite.
+
+That check immediately earned itself twice over — it rejected a reason written
+for `/tp`, which declares plain String parameters by hand and so is not subject
+to the rule at all, and re-flagged `/ec` when the picker was removed again to
+confirm the check was not vacuous.
+
+`/gm`, `/gmc`, `/gms`, `/gma` and `/gmsp` stay off the picker on purpose and
+now say so in writing: `/gm creative @a` for a build event is real group use,
+and keeping live commands on the String path stops that downgrade rotting into
+code only unit tests ever reach.
+
 ## 2.7.2 — 2026-09-19
 
 **`/rtp` — get dropped somewhere you have not been.**

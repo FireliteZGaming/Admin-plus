@@ -242,8 +242,18 @@ function open(viewer, target) {
 
 const PLAYER = [{ name: "player", type: CustomCommandParamType.PlayerSelector }]
 
+// **`picker: true`, like every other command here that names one person.**
+// These two were missed when the picker went out to the rest of the pack, and
+// they were missed for a mechanical reason worth recording: their parameter
+// list is a CONSTANT, so a scan looking for `CustomCommandParamType.Player-
+// Selector` inside the `command({...})` block found nothing and reported them
+// as not taking a player at all. Two separate audits called them clean.
+//
+// `/ec @a` was never a thing - it opens one chest, and openFor() refuses a
+// selector matching more than one person in as many words.
 command({
     name: "ec",
+    picker: true,
     description: "Open your ender chest — /ec, or /ec <player> for staff",
     optional: PLAYER,
     run: (viewer, [selected]) => openFor(viewer, selected)
@@ -251,6 +261,7 @@ command({
 
 command({
     name: "enderchest",
+    picker: true,
     description: "Open your ender chest — /enderchest, or /enderchest <player> for staff",
     optional: PLAYER,
     run: (viewer, [selected]) => openFor(viewer, selected)

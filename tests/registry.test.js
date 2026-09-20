@@ -78,7 +78,13 @@ const PICKER = [
     // Land claims, 2026-09-19. Both name one person on YOUR OWN claim, which is
     // the picker's exact case — and `/trust @a` on a private plot is not a
     // thing anybody wants to be one mistyped character away from.
-    "trust", "untrust"
+    "trust", "untrust",
+    // 2026-09-20. These were missed when the picker went out to the rest of the
+    // pack, TWICE, and the reason is mechanical: their parameter list is a
+    // named constant, so every scan looking for
+    // `CustomCommandParamType.PlayerSelector` inside the command block found
+    // nothing and filed them as not taking a player at all.
+    "ec", "enderchest"
 ].map(full)
 {
     const offenders = []
@@ -91,6 +97,58 @@ const PICKER = [
         }
     }
     check("no selector survives registration, bar the listed few", offenders, [])
+}
+
+// **Every command of ours that names a person is CLASSIFIED — picker, or a
+// written reason.** Read off commandSpecs(), which holds the resolved
+// parameter objects, so a list declared as a named constant is seen exactly
+// like an inline one.
+//
+// That distinction is the entire point of this block. `/ec` and `/enderchest`
+// declare `optional: PLAYER`, and every source-scanning audit of "which
+// commands take a player" reported them as taking none — so they sat without
+// a picker through two separate passes that were each meant to catch them.
+{
+    // Reasons, not exemptions: a name here has to say why the picker is wrong
+    // for it, and the check below proves each one still takes a player.
+    const noPicker = {
+        gm: "group targeting is real here - /gm creative @a for a build event - "
+          + "and keeping one live command on the String path stops forEngine's "
+          + "downgrade rotting into code only unit tests reach",
+        gmc: "a shortcut for /gm creative, and splitting the family would be worse",
+        gms: "same, survival",
+        gma: "same, adventure",
+        gmsp: "same, spectator"
+        // /tp is NOT here, and that is worth a line: it was, and this block's
+        // rot check rejected it immediately. /tp declares plain String
+        // parameters by hand (`target_me_or_all`) rather than a selector type,
+        // so it never reaches this scan at all - a reason for it would have
+        // been a comment about a rule it is not subject to.
+    }
+
+    const P_SEL = new Set([P.PlayerSelector, P.EntitySelector])
+    const unclassified = []
+    const takesPlayer = new Set()
+    for (const spec of commandSpecs()) {
+        if (spec.group === "vanilla") continue
+        // The probe registered at the top of this file, not a real command.
+        if (spec.name.startsWith("__")) continue
+        const params = [...(spec.mandatory ?? []), ...(spec.optional ?? [])]
+        if (!params.some(p => P_SEL.has(p.type))) continue
+        takesPlayer.add(spec.name)
+        if (spec.picker) continue
+        if (spec.name in noPicker) continue
+        unclassified.push(spec.name)
+    }
+
+    check("the scan sees commands whose parameters are a named constant",
+        ["ec", "enderchest"].every(n => takesPlayer.has(n)), true)
+    check("every command that names a person has a picker or a written reason",
+        unclassified.sort(), [])
+    // And the reasons cannot rot: one for a command that no longer takes a
+    // player excuses nothing while looking like it excuses something.
+    check("every written reason names a command that still takes a player",
+        Object.keys(noPicker).filter(n => !takesPlayer.has(n)).sort(), [])
 
     // And the listed few really did keep it — an opt-in that silently did
     // nothing would leave the moderator with no picker and no explanation.
