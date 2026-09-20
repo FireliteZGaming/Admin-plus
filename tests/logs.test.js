@@ -1,6 +1,7 @@
+import { readFileSync, readdirSync } from "node:fs"
 import { __test } from "@minecraft/server"
 import { onPlayerJoin, setRanks, heldRankIds, grantRank } from "../Admin+ BP/scripts/core/ranks.js"
-import { applyUndo, dayLabel, clockOf, readLine } from "../Admin+ BP/scripts/features/logsUI.js"
+import { applyUndo, dayLabel, clockOf, readLine, routedPrefixes } from "../Admin+ BP/scripts/features/logsUI.js"
 import { ban, isBanned, mute, isMuted } from "../Admin+ BP/scripts/core/moderation.js"
 import { setNickname, getNickname } from "../Admin+ BP/scripts/core/identity.js"
 import { setSetting, setting, overrides, replaceOverrides } from "../Admin+ BP/scripts/core/settings.js"
@@ -161,6 +162,85 @@ console.log("\n— logs read as text, grouped by day —")
         readLine({ ...entry, actor: undefined })[1].includes("console"), true)
     check("no detail means no trailing separator",
         readLine({ ...entry, detail: "" })[1].includes("·"), false)
+}
+
+console.log("\n— everything written can be read back —")
+// **The drift this catches is real and happened.** Land claims shipped in
+// 2.7.0 writing `claim.created` and `claim.removed`, and nothing on the Logs
+// screen reached either: they appeared in the flat Actions list and under no
+// filter, which is the same fault 2.6.6 existed to fix, reintroduced four
+// versions later by a feature that had no reason to know the screen existed.
+//
+// So this does not restate the group list — it goes and finds every action the
+// PACK ACTUALLY WRITES, by reading the source, and asks the screen whether it
+// has a route to each one. A new action under an existing prefix passes on its
+// own; a new PREFIX fails until somebody files it.
+{
+    const dir = new URL("../Admin+ BP/scripts/", import.meta.url)
+
+    // Walk the parens rather than matching them. A regex for a call's argument
+    // list gets this wrong on the first nested call it meets: an earlier
+    // attempt ran off the end of `record(playerId).since` in ranks.js and
+    // swallowed sixty lines of unrelated source, which reported `"string"` as
+    // an action the pack writes. A scan that invents actions is worse than no
+    // scan, because the failure it prints is not real and the next person turns
+    // it off.
+    const argsAt = (text, open) => {
+        let depth = 0
+        for (let i = open; i < text.length; i++) {
+            if (text[i] === "(") depth++
+            else if (text[i] === ")" && --depth === 0) return text.slice(open + 1, i)
+        }
+        return ""
+    }
+    // Commas at depth zero only, so a target like `{ id, name }` stays one
+    // argument.
+    const topLevelSplit = (text) => {
+        const parts = []
+        let depth = 0, cur = ""
+        for (const ch of text) {
+            if ("([{".includes(ch)) depth++
+            else if (")]}".includes(ch)) depth--
+            if (ch === "," && depth === 0) { parts.push(cur); cur = ""; continue }
+            cur += ch
+        }
+        parts.push(cur)
+        return parts
+    }
+
+    const written = new Map()
+    const walk = (at) => {
+        for (const item of readdirSync(at, { withFileTypes: true })) {
+            const child = new URL(item.name + (item.isDirectory() ? "/" : ""), at)
+            if (item.isDirectory()) { walk(child); continue }
+            if (!item.name.endsWith(".js")) continue
+            const text = readFileSync(child, "utf8")
+            for (const call of text.matchAll(/\brecord\s*\(/g)) {
+                const second = topLevelSplit(argsAt(text, call.index + call[0].length - 1))[1]
+                if (!second) continue
+                // A ternary — `frozen ? "mod.freeze" : "mod.unfreeze"` —
+                // contributes both sides.
+                for (const [, action] of second.matchAll(/"([a-z][a-zA-Z0-9]*(?:\.[a-zA-Z0-9]+)*)"/g)) {
+                    written.set(action, item.name)
+                }
+            }
+        }
+    }
+    walk(dir)
+
+    const routes = routedPrefixes()
+    const stranded = [...written.keys()]
+        .filter(action => !routes.has(action.split(".")[0]))
+        .sort()
+
+    check("the scan actually found the log's actions — it is not silently empty",
+        written.has("mod.ban") && written.has("rank.grant"), true)
+    check("land claims have a route, which is what 2.7.0 forgot",
+        routes.has("claim"), true)
+    check("command blocks still have theirs — under Commands, not as a group",
+        routes.has("cmdblock"), true)
+    check(`nothing is written with nowhere to read it${stranded.length ? ` (${stranded.join(", ")})` : ""}`,
+        stranded, [])
 }
 
 console.log(`\n${passed} passed, ${failed} failed\n`)

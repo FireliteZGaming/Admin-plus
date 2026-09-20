@@ -90,13 +90,57 @@ const GROUPS = [
         id: "reports", label: "Reports",
         hint: "filed and handled",
         prefixes: ["report"]
+    },
+    {
+        // Added 2.7.4. Land claims started logging in 2.7.0 and nothing on this
+        // screen reached them — the exact drift the group scheme was meant to
+        // prevent, and it happened anyway because a NEW prefix still needs a
+        // group even though a new action under an old prefix does not.
+        // `tests/logs.test.js` now fails if any prefix is written with no route.
+        id: "land", label: "Land claims",
+        hint: "claimed and given up",
+        prefixes: ["claim"]
     }
 ]
 
-/** Every entry belonging to a group, newest first. */
+/**
+ * Every action prefix this screen can actually reach.
+ *
+ * Not the same thing as the groups. `cmdblock` is deliberately NOT a group — it
+ * sits behind its own button on the Commands screen, because "what ran on this
+ * server" is one question and a repeating command block is the loudest possible
+ * answer to it — and `sign` is reached by the conditional legacy group. Both
+ * are real routes, so both belong here.
+ *
+ * Exported for the test that fails when something starts logging under a prefix
+ * nothing on this screen can read back.
+ */
+export function routedPrefixes() {
+    return new Set([
+        ...GROUPS.flatMap(group => group.prefixes),
+        "sign",
+        "cmdblock"
+    ])
+}
+
+/**
+ * Every entry belonging to a group, newest first.
+ *
+ * `seq` breaks a tie on `at`, and the tie is not hypothetical: `record()` is
+ * synchronous, so several entries in one tick share a millisecond exactly.
+ * The input here is the prefixes concatenated — every `mod.*`, then every
+ * `automod.*` — and a stable sort leaves tied entries in that order, which is
+ * prefix order and not time order. Automod muting somebody in the same
+ * millisecond a staff member banned them would read in the wrong order, on the
+ * one screen whose whole job is saying what happened first.
+ *
+ * `seq` counts from zero again on a world load, which is fine for a tiebreak:
+ * it is only consulted when two entries share a millisecond, and entries from
+ * either side of a reload never do.
+ */
 function groupEntries(group) {
     return group.prefixes.flatMap(prefix => branch(prefix))
-        .sort((a, b) => b.at - a.at)
+        .sort((a, b) => b.at - a.at || (b.seq ?? 0) - (a.seq ?? 0))
 }
 
 /**
