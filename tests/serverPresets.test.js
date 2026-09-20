@@ -96,87 +96,15 @@ check("no surviving preset points a ladder at it",
 check("its keys are all still real config", ["feature.tpa", "spawn.protect", "spawn.radius",
     "teleport.warmup", "teleport.cooldown", "staff.exemptCooldowns"].every(k => k in DEFAULTS), true)
 
-console.log("\n— Spear Mace: the strictness is the point —")
-applyServerPreset("spearmace")
-check("it detects", detectServerPreset().id, "spearmace")
-check("teleport requests are off", setting("feature.tpa"), "false")
-check("staff wait the same cooldowns as everyone", setting("staff.exemptCooldowns"), "false")
-check("spawn is protected", setting("spawn.protect"), "true")
-
-// The rule the whole ladder was designed around: Admin runs the day, but the
-// irreversible button belongs further up. A later edit that hands Admin
-// admin.ban - or admin.* - silently undoes that, and nothing else would notice.
-const sm = LADDERS.spearmace.ranks
-function effective(rankId) {
-    const seen = new Set()
-    const out = []
-    ;(function walk(id) {
-        if (!id || seen.has(id) || !sm[id]) return
-        seen.add(id)
-        out.push(...(sm[id].perms ?? []))
-        for (const parent of sm[id].inherits ?? []) walk(parent)
-    })(rankId)
-    return out
-}
-const adminPerms = effective("admin")
-check("Admin cannot ban", adminPerms.includes("admin.ban"), false)
-check("and holds no wildcard that would sneak it in",
-    adminPerms.some(p => p === "*" || p === "admin.*"), false)
-check("Admin can still kick", adminPerms.includes("admin.kick"), true)
-check("and mute", adminPerms.includes("admin.mute"), true)
-check("Head Admin can ban", effective("headadmin").includes("admin.ban"), true)
-check("Moderator is a trial rank - no mute",
-    effective("moderator").includes("admin.mute"), false)
-check("but it can kick", effective("moderator").includes("admin.kick"), true)
-check("and look in inventories", effective("moderator").includes("admin.invsee"), true)
-
-console.log("\n— Spear Mace: members do not teleport —")
-check("tpa.use is explicitly denied on Member",
-    sm.member.perms.includes("-tpa.use"), true)
-check("warps still work", sm.member.perms.includes("warp.use"), true)
-check("and reporting", sm.member.perms.includes("report.use"), true)
-
-console.log("\n— Spear Mace: the cosmetic tags —")
-const cosmetic = Object.values(sm).filter(r => !r.staff && r.id !== "member")
-check("there are plenty of them", cosmetic.length > 15, true)
-check("every one is Member with a different name",
-    cosmetic.every(r => r.perms.length === 0 && r.inherits.includes("member")), true)
-check("they all sit at one weight, so they replace each other",
-    new Set(cosmetic.map(r => r.weight)).size, 1)
-check("and that weight is above Member, so they replace the Member tag",
-    cosmetic[0].weight > sm.member.weight, true)
-check("but below every staff rank",
-    cosmetic[0].weight < Math.min(...Object.values(sm).filter(r => r.staff).map(r => r.weight)), true)
-check("none of them counts as staff", cosmetic.some(r => r.staff), false)
-check("Member is still the default rank", sm.member.default, true)
-check("and no cosmetic tag claims to be", cosmetic.some(r => r.default), false)
-
-console.log("\n— Spear Mace: the ladder itself —")
-check("Manager exists", !!sm.manager, true)
-check("Owner is purple", sm.owner.display.startsWith("\u00a75"), true)
-check("the staff ladder reads top down",
-    Object.values(sm).filter(r => r.staff).map(r => r.id),
-    ["owner", "leaddev", "coowner", "developer", "manager", "headadmin", "admin", "moderator"])
-
-console.log("\n— Spear Mace: development outranks management —")
-// Asked for explicitly: Lead Developer second on the ladder, above Co-Owner,
-// then Developer above Manager.
-check("Lead Developer outranks Developer", sm.leaddev.weight > sm.developer.weight, true)
-check("Developer outranks Manager", sm.developer.weight > sm.manager.weight, true)
-check("Lead Developer outranks Co-Owner", sm.leaddev.weight > sm.coowner.weight, true)
-check("only Owner is above it",
-    Object.values(sm).filter(r => r.weight > sm.leaddev.weight).map(r => r.id),
-    ["owner"])
-check("it counts as staff", sm.leaddev.staff, true)
-check("it carries the owner tier's grant, not Developer's", sm.leaddev.perms, ["*"])
-
-// The colour has to be unique or the rank does not read at a glance in chat.
-const colourOf = d => (String(d).match(/§[0-9a-f]/g) ?? [])[0]
-check("Lead is teal", colourOf(sm.leaddev.display), "§3")
-check("and no other rank on this ladder opens with it",
-    Object.values(sm).filter(r => r.id !== "leaddev" && colourOf(r.display) === "§3").length, 0)
-check("while the second half stays Developer's own colour",
-    sm.leaddev.display.includes("§d§lDeveloper"), true)
+// REMOVED 2026-09-20 with the preset itself. Five sections tested the Spear
+// Mace ladder - that Admin could not ban, that Moderator was a trial rank,
+// that Member had tpa.use explicitly denied. Every one of those assertions
+// was about a ladder built for one particular world, so they went with it
+// rather than being repointed at a preset that never made those promises.
+//
+// What the block was really guarding - that a later edit cannot hand a rank
+// a wildcard which quietly undoes a deliberate restriction - is worth
+// keeping in mind if a ladder like it is ever built by hand again.
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

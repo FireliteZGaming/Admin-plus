@@ -1,6 +1,6 @@
 import { world, system, EquipmentSlot } from "@minecraft/server"
 import { err, info } from "../core/util.js"
-import { has, canActOn } from "../core/ranks.js"
+import { has, canActOn, isRealOperator } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
 import { ban, isBanned } from "../core/moderation.js"
 import { record } from "../core/logs.js"
@@ -60,6 +60,25 @@ export async function swing(attacker, victim) {
         }
         trace(attacker, victim, "refused — the swinger cannot ban permanently")
         return { ok: false, reason: "not allowed to ban permanently" }
+    }
+
+    // **An operator is never a valid target, whoever swings.** Asked for
+    // 2026-09-20: "ops should not be able to use ban hammer on each other, op
+    // is exempt from ban hammer."
+    //
+    // This sits ABOVE the ladder check on purpose, because the ladder cannot
+    // answer it. canActOn is equal-or-below, so two operators holding the same
+    // rank could hammer each other — and an operator with no rank at all is
+    // below everybody, which makes the person who owns the world the easiest
+    // target in it. Neither is something a ladder edit should be able to undo.
+    //
+    // isRealOperator rather than the pack's isOperator: that one is gated on
+    // `opIsStaff`, which is a world saying op does not grant POWERS here. It is
+    // not a world saying its operators may be struck down.
+    if (isRealOperator(victim)) {
+        err(attacker, `${displayName(victim)}§c is an operator — the hammer will not fall on them.`)
+        trace(attacker, victim, "refused — the target is an operator")
+        return { ok: false, reason: "operator" }
     }
 
     // The LADDER decides, like everything else that acts on a player.

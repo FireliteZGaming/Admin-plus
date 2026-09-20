@@ -85,10 +85,36 @@ export function installClaims() {
     // WHERE it goes off rather than by who caused it. Cancelled outright inside
     // a claim: sorting the block list would let a charged creeper on the border
     // take half a wall, and "mostly protected" is not a promise worth making.
+    // **The block list is FILTERED, not the explosion cancelled.**
+    //
+    // The first version of this read `event.impactedBlocks` and `event.dimension`
+    // and set `event.cancel`. None of those are the API: an ExplosionBeforeEvent
+    // carries `getImpactedBlocks()` and `setImpactedBlocks()`, and each block
+    // knows its own dimension. Checked against Soulbound Essentials, which
+    // protects land through this same event and is the only installed pack that
+    // does — it filters, it does not cancel.
+    //
+    // Worth saying that the test passed anyway, because the stub had been
+    // written to match the same wrong assumption. A test and the code agreeing
+    // with each other proves nothing when both came from one guess.
+    //
+    // Filtering is also the better behaviour. A creeper on a claim border used
+    // to have its whole blast cancelled, protecting unclaimed ground nobody had
+    // paid for; now the claimed blocks survive and the rest goes, which is what
+    // a boundary should mean.
     before.explosion?.subscribe(event => {
-        const at = event.source?.location ?? event.impactedBlocks?.[0]?.location
-        if (!at) return
-        if (claimAt(event.dimension?.id, at.x, at.z)) event.cancel = true
+        let blocks
+        try { blocks = event.getImpactedBlocks?.() } catch { blocks = undefined }
+        if (!Array.isArray(blocks) || !blocks.length) return
+
+        const kept = blocks.filter(block => {
+            const at = block?.location
+            if (!at) return true
+            return !claimAt(block.dimension?.id, at.x, at.z)
+        })
+        if (kept.length !== blocks.length) {
+            try { event.setImpactedBlocks(kept) } catch { /* runtime without the setter */ }
+        }
     })
 
     if (!before.playerBreakBlock) {

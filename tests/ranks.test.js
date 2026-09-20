@@ -36,7 +36,7 @@ function fakePlayer(name, { op = false } = {}) {
 }
 
 console.log("\n— ladder & defaults —")
-check("default ladder order", ladder().map(r => r.id), ["owner", "coowner", "developer", "admin", "mod", "member"])
+check("default ladder order", ladder().map(r => r.id), ["owner", "coowner", "manager", "admin", "mod", "member"])
 check("default rank is member", defaultRank()?.id, "member")
 
 console.log("\n— joining —")
@@ -101,11 +101,11 @@ check("acting on yourself is allowed", canActOn(mod, mod.id), true)
 
 console.log("\n— ladder reordering —")
 moveRank("mod", -1)
-check("mod moved above admin", ladder().map(r => r.id), ["owner", "coowner", "developer", "mod", "admin", "member"])
+check("mod moved above admin", ladder().map(r => r.id), ["owner", "coowner", "manager", "mod", "admin", "member"])
 check("authority followed the move", canActOn(mod, admin.id), true)
 check("and reversed the other way", canActOn(admin, mod.id), false)
 moveRank("mod", 1)
-check("moved back", ladder().map(r => r.id), ["owner", "coowner", "developer", "admin", "mod", "member"])
+check("moved back", ladder().map(r => r.id), ["owner", "coowner", "manager", "admin", "mod", "member"])
 check("top of ladder can't move up", moveRank("owner", -1), false)
 check("bottom can't move down", moveRank("member", 1), false)
 
@@ -115,7 +115,7 @@ check("preset replaced ladder", ladder().map(r => r.id), ["owner", "staff", "mem
 check("holder keeping a surviving id", heldRankIds(steve), ["member"])
 check("holder whose rank vanished falls back to default", heldRankIds(admin), ["member"])
 restoreSnapshot()
-check("undo restored previous ladder", ladder().map(r => r.id), ["owner", "coowner", "developer", "admin", "mod", "member"])
+check("undo restored previous ladder", ladder().map(r => r.id), ["owner", "coowner", "manager", "admin", "mod", "member"])
 
 // A rank the current ladder does not define is HIDDEN, not deleted — and it has
 // to survive somebody editing that player's ranks in the meantime. It did not:
@@ -393,13 +393,15 @@ console.log("\n— every staff rank can set a game mode —")
 // duplication machine — spawn it, switch to survival, keep it. What makes that
 // acceptable is that every change is recorded as mod.gamemode and announced to
 // everyone above them the moment it happens.
-const GAMEMODE_EXEMPT = {
-    // Asked for as "very very strict... admin doesn't even get ban, and mod is
-    // really just trying out for admin". A trial rank with creative in a PvP
-    // world is the sharpest possible version of that conflict, so this ladder
-    // keeps game mode at Admin. Deliberate, not an oversight.
-    spearmace: ["moderator"]
-}
+// EMPTY since 2026-09-20. Its only entry was the Spear Mace ladder's trial
+// rank, and that preset was removed - so every staff rank in every shipped
+// ladder can now set a game mode, with no exceptions to carve out.
+//
+// Kept as a table rather than deleted because the rule it guards is the point:
+// a staff rank that cannot change game mode is a staff rank that reaches for
+// an operator instead, and if a ladder ever wants that restriction again it
+// has to say so here rather than just quietly lacking the node.
+const GAMEMODE_EXEMPT = {}
 for (const [key, preset] of Object.entries(PRESETS)) {
     applyPreset(key)
     const exempt = GAMEMODE_EXEMPT[key] ?? []
@@ -412,11 +414,10 @@ for (const [key, preset] of Object.entries(PRESETS)) {
     }
     check(`${key}: every staff rank can`, missing, [])
 }
-applyPreset("spearmace")
-const trial = fakePlayer("Trial"); setRanks(trial.id, ["moderator"], trial.name)
-check("except the PvP ladder's trial rank, on purpose",
-    has(trial, "admin.gamemode"), false)
-check("which still kicks", has(trial, "admin.kick"), true)
+// The two assertions that stood here tested the Spear Mace trial rank and went
+// with the preset. What replaces them is stronger anyway: the loop above now
+// runs with NO exemptions, so every staff rank in every shipped ladder is
+// checked rather than most of them.
 applyPreset("server")
 
 console.log("\n— a staff tag always wins the nametag —")
@@ -634,9 +635,30 @@ check("a shared prefix is dropped",
 check("a shared SUFFIX is dropped instead",
     nodeLabels(["warp.use", "spawn.use", "tpa.use"]), ["warp", "spawn", "tpa"])
 
-// Mixed prefixes, but the tails are still distinct — Panel & info and Chat.
+// Mixed prefixes, but the tails are still distinct.
+//
+// Driven with nodes that carry NO override, so this tests the algorithm
+// rather than the table. It used to use `ranks.view`, which now has one —
+// and the assertion then passed or failed on whether that entry existed,
+// which is not what this line is about.
 check("mixed prefixes shorten when the tails are unique",
-    nodeLabels(["admin.panel", "admin.logs", "ranks.view"]), ["panel", "logs", "view"])
+    nodeLabels(["admin.panel", "admin.logs", "warp.use"]), ["panel", "logs", "use"])
+
+// **The override table wins, whichever branch produced the label.** The
+// generator keeps the tail when tails are unique, which is right 37 times out
+// of 42 and wrong whenever the PREFIX carried the meaning: `presets.apply`
+// came out as "apply", the vaguest word on a screen where it is the heaviest
+// switch.
+check("a node whose meaning is in its prefix is named by hand",
+    nodeLabels(["presets.apply", "admin.commands", "admin.automod"])[0], "server presets")
+check("and the rest of that group still comes from the generator",
+    nodeLabels(["presets.apply", "admin.commands", "admin.automod"]).slice(1),
+    ["commands", "automod"])
+// It has to survive the OTHER branches too, not just this one.
+check("an override applies when a shared prefix is stripped",
+    nodeLabels(["chat.staff", "chat.manage", "chat.spy"]), ["staff", "channels", "spy"])
+check("and when a single node is asked for on its own",
+    nodeLabels(["ranks.view"]), ["rank list"])
 
 // Management holds ranks.manage AND warp.manage, which collapse onto each
 // other. The whole group keeps both halves rather than some rows shortening

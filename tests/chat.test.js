@@ -183,7 +183,7 @@ console.log("\n— every rank they wear shows, not just the first —")
     setRanks(stacked.id, ["elytra", "boss"], stacked.name)
 
     const line = clean(formatChatLine(stacked, "test", getChannel("general"), false))
-    check("both tags are on the line", line, "[Boss][Elytra Mace] Stacked » test")
+    check("both tags are on the line", line, "[Boss] [Elytra Mace] Stacked » test")
     check("staff leads whatever order they were granted in",
         line.indexOf("[Boss]") < line.indexOf("[Elytra Mace]"), true)
 
@@ -193,7 +193,27 @@ console.log("\n— every rank they wear shows, not just the first —")
         clean(formatChatLine(stacked, "test", getChannel("general"), false)),
         "[Boss] Stacked » test")
     setSetting("format.tagCount", "0")
-    check("and zero means all of them", clean(renderTags(stacked)), "[Boss][Elytra Mace]")
+    check("and zero means all of them", clean(renderTags(stacked)), "[Boss] [Elytra Mace]")
+
+    // **What separates two tags, and the case that made it fiddly.**
+    // They used to be joined with "", so somebody holding two read as
+    // `[Boss][Elytra Mace]` with nothing between the brackets.
+    setSetting("format.tagJoin", ", ")
+    check("the separator is configurable",
+        clean(renderTags(stacked)), "[Boss], [Elytra Mace]")
+    setSetting("format.tagJoin", "")
+    check("and blanking it gives the old run-together form back",
+        clean(renderTags(stacked)), "[Boss][Elytra Mace]")
+    resetSetting("format.tagJoin")
+
+    // A rank whose NAME has been blanked renders as "", and renderTag has
+    // always dropped those so nobody gets empty brackets. Once a separator
+    // exists, dropping them has to happen BEFORE the join - otherwise a
+    // blanked tag in the middle leaves its separator behind as a gap.
+    saveRank("elytra", { display: "" })
+    check("a blanked tag leaves no separator behind",
+        clean(renderTags(stacked)), "[Boss]")
+    saveRank("elytra", { display: "§bElytra Mace" })
     resetSetting("format.tagCount")
 
     // Nobody ever really holds nothing: the default rank is written as a real

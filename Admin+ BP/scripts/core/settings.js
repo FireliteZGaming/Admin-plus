@@ -30,6 +30,11 @@ export const DEFAULTS = {
         label: "Rank tag",
         help: "Tokens: {OPEN} {CLOSE} {RANK} · the shape of ONE tag; somebody holding several gets several of these"
     },
+    "format.tagJoin": {
+        value: " ",
+        label: "Between stacked rank tags",
+        help: "What separates one tag from the next when somebody holds more than one. A space by default; \", \" reads well too, and \"\" runs them together the way they used to."
+    },
     "format.tagCount": {
         value: "3",
         label: "How many rank tags show",
@@ -172,8 +177,11 @@ export const DEFAULTS = {
         help: "true / false · /claim, /unclaim, /trust. Ships OFF: it changes who may break blocks, which is not something to inherit unasked. How many and how big are on the rank, under Permissions ▸ Cooldowns & limits."
     },
     "feature.homes": {
-        value: "true", label: "Homes",
-        help: "true / false · /sethome, /home, /homes, /delhome. How MANY each rank may set is on the rank, under Permissions ▸ Cooldowns & limits."
+        // OFF, like land claims. Both hand players a new thing to own, and a
+        // world should decide to switch that on rather than find it already
+        // running after an update.
+        value: "false", label: "Homes",
+        help: "true / false · /home, which opens a screen to travel to one or make one. How MANY each rank may set is on the rank, under Permissions ▸ Cooldowns & limits."
     },
     "feature.spawn": {
         value: "true", label: "Spawn", help: "true / false · /spawn"

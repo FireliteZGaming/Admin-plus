@@ -152,15 +152,34 @@ console.log("\n— staff pass, because a moderator who cannot reach it uses crea
     check("so their break is not cancelled", __test.tryBreakBlock(mod, here), false)
 }
 
-console.log("\n— explosions are judged by where they go off —")
-// A creeper has no permission node.
+console.log("\n— an explosion loses the blocks inside a claim, not all of them —")
+// A creeper has no permission node, so this is judged by WHERE each block is.
+//
+// The first version of the hook read `event.impactedBlocks` and set
+// `event.cancel`; the real event carries getImpactedBlocks()/setImpactedBlocks()
+// and each block knows its own dimension. The test passed anyway, because the
+// STUB had been written from the same wrong guess — which is the one failure
+// mode a test cannot catch on its own.
 {
     __resetClaims()
     createClaim(owner, 16)
-    check("one inside a claim is cancelled",
-        __test.tryExplosion({ location: { x: 0, y: 64, z: 0 } }, { id: OVER }), true)
-    check("one out in the world is not",
-        __test.tryExplosion({ location: { x: 9000, y: 64, z: 9000 } }, { id: OVER }), false)
+    const at = (x, z, dim = OVER) => ({ location: { x, y: 64, z }, dimension: { id: dim } })
+
+    const mixed = [at(0, 0), at(2, 2), at(9000, 9000), at(9001, 9000)]
+    const survived = __test.tryExplosion(mixed)
+    check("the two inside the claim are dropped", survived.length, 2)
+    check("and the ones out in the world are not",
+        survived.map(b => b.location.x).sort((a, b) => a - b), [9000, 9001])
+
+    // Nothing claimed anywhere near it: the list must come back untouched,
+    // or every explosion in the world pays for this feature.
+    const clear = [at(5000, 5000), at(5001, 5000)]
+    check("an explosion far from any claim is left alone",
+        __test.tryExplosion(clear).length, 2)
+
+    // Same coordinates, wrong dimension.
+    check("a claim does not protect the nether at the same spot",
+        __test.tryExplosion([at(0, 0, NETHER)]).length, 1)
 }
 
 console.log("\n— limits are the rank's —")

@@ -1,7 +1,9 @@
-import { ItemStack } from "@minecraft/server"
+import { ItemStack, __test } from "@minecraft/server"
 import {
     HAMMER_ITEM, HAMMER_NAME, worldToken, loreFor, isBanHammer, makeBanHammer
 } from "../Admin+ BP/scripts/core/banhammer.js"
+import { swing } from "../Admin+ BP/scripts/features/banhammer.js"
+import { applyPreset, setRanks } from "../Admin+ BP/scripts/core/ranks.js"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -73,6 +75,50 @@ check("the lore carries it", loreFor()[0].includes(`#${token}`), true)
 check("and explains itself in the tooltip", loreFor().length, 2)
 check("two hammers from the same world match",
     isBanHammer(makeBanHammer()) && isBanHammer(makeBanHammer()), true)
+
+
+console.log("\n— an operator is never a valid target —")
+// Asked for 2026-09-20: "ops should not be able to use ban hammer on each
+// other, op is exempt from ban hammer."
+//
+// The LADDER cannot express this, which is why it is a separate gate.
+// canActOn is equal-or-below, so two operators on the same rank could hammer
+// each other; and an operator holding NO rank is below everybody, which makes
+// the person who owns the world the easiest target in it.
+{
+    applyPreset("server")
+    const make = (id, rank, op) => {
+        const p = {
+            id, name: id, nameTag: id,
+            commandPermissionLevel: op ? 1 : 0,
+            getTags: () => [], addTag: () => true, removeTag: () => false,
+            sendMessage: () => {},
+            getComponent: () => ({ getEquipment: () => makeBanHammer() })
+        }
+        __test.players.push(p)
+        if (rank) setRanks(p.id, [rank], p.name)
+        return p
+    }
+
+    const owner   = make("HammerOwner", "owner", false)
+    const opPeer  = make("HammerOpPeer", "owner", true)
+    const opBare  = make("HammerOpBare", null, true)
+    const victim  = make("HammerTarget", "member", false)
+
+    const r1 = await swing(owner, opPeer)
+    check("an owner cannot hammer an operator on the same rank", r1.ok, false)
+    check("and it says why", r1.reason, "operator")
+
+    // The case the ladder gets exactly backwards.
+    const r2 = await swing(owner, opBare)
+    check("nor one holding no rank at all", r2.ok, false)
+    check("which the ladder would have allowed", r2.reason, "operator")
+
+    // An operator SWINGING is unaffected - the exemption is about being hit.
+    const r3 = await swing(opPeer, victim)
+    check("but an operator can still swing at somebody who is not one",
+        r3.reason !== "operator", true)
+}
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

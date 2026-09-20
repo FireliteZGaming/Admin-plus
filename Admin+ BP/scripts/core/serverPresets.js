@@ -85,27 +85,11 @@ export const SERVER_PRESETS = {
         channels: ["general", "staff"],
         notes: "People who already know each other. There is no hierarchy to speak of and nothing to police but spam, so the addon mostly stays out of the way - the panel and moderation are there for the day you need them."
     },
-    spearmace: {
-        id: "spearmace",
-        label: "Spear Mace",
-        description: "Strict PvP. No TPA, ban above Admin, everything watched.",
-        ladder: "spearmace",
-        config: {
-            "feature.tpa": "false",
-            "spawn.protect": "true",
-            "spawn.radius": "32",
-            "teleport.warmup": "3",
-            "teleport.cooldown": "10",
-            "staff.exemptCooldowns": "false",
-            "automod.ores": "true",
-            "automod.breaks": "true",
-            "automod.spam": "true",
-            "presence.announce": "true",
-            "feature.chat": "true"
-        },
-        channels: ["general", "staff"],
-        notes: "A spear-and-mace PvP world, run tight. Teleport requests are off entirely — you walk, or you fight. Banning sits above Admin on purpose: Moderator is a trial rank, Admin runs the day, and the irreversible button belongs to Head Admin and up. Most of the ladder is cosmetic: tags that are Member with a different name, so awarding one replaces the Member tag rather than stacking on it."
-    },
+    // REMOVED 2026-09-20: the "Spear Mace" preset, at the user's word.
+    // It was a ladder built for one specific world rather than a shape other
+    // servers have, which is what every other entry here is. Its ideas that
+    // generalise - a trial rank below Mod, ban sitting higher than Admin -
+    // are things a world can still build by hand.
     // REMOVED: the "Locked down" preset. Its ladder went in 1.19.0 because a
     // lockdown is a MODE a server goes into rather than a shape it has; the
     // preset went the same way after the 2.0.0 playtest, for the same reason.

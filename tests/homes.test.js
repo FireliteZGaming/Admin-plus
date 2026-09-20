@@ -31,6 +31,12 @@ __test.players.push(player, staff)
 // member, which is a quiet way to write a test that proves nothing.
 setRanks(player.id, ["member"], player.name)
 
+// Homes ship OFF from 2.7.4 — like land claims, both hand players something
+// new to own and a world should switch that on rather than find it running
+// after an update. The feature switch has its own section further down; every
+// other block here is about what homes DO, so it is turned on once up here.
+setSetting("feature.homes", "true")
+
 console.log("\n— setting one, and coming back to it —")
 {
     __resetHomes()

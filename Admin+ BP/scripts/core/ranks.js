@@ -56,11 +56,11 @@ const STAFF_CORE = ["admin.panel", "ranks.view", "chat.staff"]
 export const PRESETS = {
     server: {
         name: "Server",
-        description: "Owner ▸ Co-Owner ▸ Developer ▸ Admin ▸ Mod ▸ Member. Every tag, split by job.",
+        description: "Owner ▸ Co-Owner ▸ Manager ▸ Admin ▸ Mod ▸ Member. Every tag, split by job.",
         ranks: {
             owner:     { id: "owner",     display: "§4§lOwner",     weight: 100, inherits: [],         perms: ["*"], meta: {}, staff: true },
             coowner:   { id: "coowner",   display: "§c§lCo-Owner",  weight: 90,  inherits: [],         perms: ["*"], meta: {}, staff: true },
-            developer: { id: "developer", display: "§d§lDeveloper", weight: 80,  inherits: ["admin"],  perms: ["admin.*", "ranks.*", "warp.manage", "spawn.set", "presets.apply", "chat.*"], meta: {}, staff: true },
+            manager:   { id: "manager",   display: "§5§lManager",   weight: 80,  inherits: ["admin"],  perms: ["admin.*", "ranks.*", "warp.manage", "spawn.set", "presets.apply", "chat.*"], meta: {}, staff: true },
             admin:     { id: "admin",     display: "§6§lAdmin",     weight: 70,  inherits: ["mod"],    perms: ["admin.ban", "admin.nickname", "admin.gamemode", "admin.holograms", "ranks.grant", "warp.manage", "spawn.set", "chat.*"], meta: {}, staff: true },
             mod:       { id: "mod",       display: "§aMod",         weight: 50,  inherits: ["member"], perms: [...STAFF_CORE, "admin.warn", "admin.kick", "admin.mute", "admin.freeze", "admin.staffmode", "admin.tpatoggle", "admin.reports", "admin.automod", "admin.clearchat", "admin.lagclear", "admin.claims", "admin.tp", "admin.vanish", "admin.gamemode", "admin.invsee", "admin.logs", "admin.broadcast", "admin.settings", "chat.spy"], meta: {}, staff: true },
             member:    { id: "member",    display: "§bMember",      weight: 10,  inherits: [],         perms: [...BASIC_PERMS], meta: {}, staff: false, default: true }
@@ -84,48 +84,6 @@ export const PRESETS = {
             owner:  { id: "owner",  display: "§4§lOwner", weight: 100, inherits: [],         perms: ["*"], meta: {}, staff: true },
             staff:  { id: "staff",  display: "§6§lStaff", weight: 60,  inherits: ["member"], perms: ["admin.*", "ranks.view", "ranks.grant", "warp.manage", "spawn.set", "chat.staff", "chat.spy"], meta: {}, staff: true },
             member: { id: "member", display: "§bMember",  weight: 10,  inherits: [],         perms: [...BASIC_PERMS], meta: {}, staff: false, default: true }
-        }
-    },
-    spearmace: {
-        name: "Spear Mace",
-        description: "A strict PvP world. No TPA, ban sits above Admin, development outranks management, and the long tail of tags are Member with a different name on them.",
-        ranks: {
-            owner:      { id: "owner",      display: "§5§lOwner",       weight: 100, inherits: [],            perms: ["*"], meta: {}, staff: true },
-            // Second on the ladder, above Co-Owner: the development branch
-            // outranks both management and the co-owner seat here. It carries
-            // the owner tier's grant, which is the only thing separating it
-            // from Developer. Teal on "Lead" is the unique colour — nothing
-            // else on this ladder uses §3 — and keeping "Developer" in §d says
-            // which rank it is senior to.
-            leaddev:    { id: "leaddev",    display: "§3§lLead §d§lDeveloper", weight: 97, inherits: [],     perms: ["*"], meta: {}, staff: true },
-            coowner:    { id: "coowner",    display: "§4§lCo-Owner",    weight: 95,  inherits: [],            perms: ["*"], meta: {}, staff: true },
-            developer:  { id: "developer",  display: "§d§lDeveloper",   weight: 88,  inherits: ["headadmin"], perms: ["admin.*", "ranks.*", "warp.manage", "spawn.set", "presets.apply", "chat.*"], meta: {}, staff: true },
-            manager:    { id: "manager",    display: "§6§lManager",     weight: 85,  inherits: ["headadmin"], perms: ["admin.*", "ranks.*", "warp.manage", "spawn.set", "presets.apply", "chat.*"], meta: {}, staff: true },
-            headadmin:  { id: "headadmin",  display: "§c§lHead Admin",  weight: 80,  inherits: ["admin"],     perms: ["admin.ban", "admin.settings", "admin.holograms", "ranks.grant", "warp.manage", "spawn.set", "chat.viewall", "chat.manage"], meta: {}, staff: true },
-            admin:      { id: "admin",      display: "§cAdmin",         weight: 70,  inherits: ["moderator"], perms: ["admin.mute", "admin.tpatoggle", "admin.automod", "admin.logs", "admin.gamemode", "admin.nickname", "admin.tp", "admin.vanish", "admin.clearchat", "admin.lagclear", "admin.claims", "admin.broadcast", "chat.spy"], meta: {}, staff: true },
-            moderator:  { id: "moderator",  display: "§b§lModerator",   weight: 50,  inherits: ["member"],    perms: ["admin.panel", "ranks.view", "chat.staff", "admin.warn", "admin.kick", "admin.freeze", "admin.staffmode", "admin.reports", "admin.invsee"], meta: {}, staff: true },
-            ht2_elytra_mace:   { id: "ht2_elytra_mace",   display: "§dHt2 Elytra mace", weight: 15, inherits: ["member"], perms: [], meta: {}, staff: false },
-            ht1_elytra_mace:   { id: "ht1_elytra_mace",   display: "§9Ht1 Elytra mace", weight: 15, inherits: ["member"], perms: [], meta: {}, staff: false },
-            ht2:               { id: "ht2",               display: "§cHt2", weight: 15, inherits: ["member"], perms: [], meta: {}, staff: false },
-            ht1_sword:         { id: "ht1_sword",         display: "§aHt1 sword", weight: 15, inherits: ["member"], perms: [], meta: {}, staff: false },
-            ht1_at_sword:      { id: "ht1_at_sword",      display: "§dHt1 at sword", weight: 15, inherits: ["member"], perms: [], meta: {}, staff: false },
-            ht1_cart:          { id: "ht1_cart",          display: "§cHt1 Cart", weight: 15, inherits: ["member"], perms: [], meta: {}, staff: false },
-            ht1_gamemodes:     { id: "ht1_gamemodes",     display: "§bHt1 all gamemodes", weight: 15, inherits: ["member"], perms: [], meta: {}, staff: false },
-            vipplus:           { id: "vipplus",           display: "§aVip+", weight: 15, inherits: ["member"], perms: [], meta: {}, staff: false },
-            vip:               { id: "vip",               display: "§aVip", weight: 15, inherits: ["member"], perms: [], meta: {}, staff: false },
-            king_overworld:    { id: "king_overworld",    display: "§bKing of the Overworld", weight: 15, inherits: ["member"], perms: [], meta: {}, staff: false },
-            king_nether:       { id: "king_nether",       display: "§cKing of the nether", weight: 15, inherits: ["member"], perms: [], meta: {}, staff: false },
-            king_end:          { id: "king_end",          display: "§dKing of the end", weight: 15, inherits: ["member"], perms: [], meta: {}, staff: false },
-            king_abyss:        { id: "king_abyss",        display: "§aKing of abyss", weight: 15, inherits: ["member"], perms: [], meta: {}, staff: false },
-            king_dimensions:   { id: "king_dimensions",   display: "§cKing of all dimensions", weight: 15, inherits: ["member"], perms: [], meta: {}, staff: false },
-            queen_dimensions:  { id: "queen_dimensions",  display: "§bQueen of all Dimensions", weight: 15, inherits: ["member"], perms: [], meta: {}, staff: false },
-            emperor_end:       { id: "emperor_end",       display: "§dEmperor of the End", weight: 15, inherits: ["member"], perms: [], meta: {}, staff: false },
-            admiral_dimensions:{ id: "admiral_dimensions",display: "§eAdmiral of All Dimensions", weight: 15, inherits: ["member"], perms: [], meta: {}, staff: false },
-            god_builder:       { id: "god_builder",       display: "§aGOD BUILDER", weight: 15, inherits: ["member"], perms: [], meta: {}, staff: false },
-            head_builder:      { id: "head_builder",      display: "§dHead builder", weight: 15, inherits: ["member"], perms: [], meta: {}, staff: false },
-            void:              { id: "void",              display: "§0Void", weight: 15, inherits: ["member"], perms: [], meta: {}, staff: false },
-            dab_gf:            { id: "dab_gf",            display: "§adab gf :sob:", weight: 15, inherits: ["member"], perms: [], meta: {}, staff: false },
-            member:     { id: "member",     display: "§aMember",        weight: 10,  inherits: [],            perms: ["warp.use", "spawn.use", "report.use", "online.use", "-tpa.use"], meta: {}, staff: false, default: true }
         }
     },
     donor: {
@@ -206,10 +164,10 @@ export const PERMISSION_NODES = {
     "The panel": ["admin.panel", "admin.settings", "admin.logs", "ranks.view"],
     "Chat": ["chat.staff", "chat.viewall", "chat.manage", "chat.spy", "admin.broadcast", "admin.clearchat"],
     "Staff tools": ["admin.staffmode", "admin.vanish", "admin.tp", "admin.gamemode", "admin.nickname", "admin.holograms", "admin.invsee", "admin.lagclear", "admin.claims"],
-    "Punishments": ["admin.warn", "admin.mute", "admin.kick", "admin.ban", "admin.banperm", "admin.freeze", "admin.reports"],
+    "Punishments": ["admin.warn", "admin.mute", "admin.kick", "admin.ban", "admin.banperm", "admin.freeze", "admin.tpatoggle", "admin.reports"],
     "Pranks": ["admin.smite", "admin.sudo"],
     "Ranks & places": ["ranks.grant", "ranks.manage", "warp.manage", "spawn.set"],
-    "Server settings": ["presets.apply", "admin.commands", "admin.automod", "admin.allowlist", "admin.tpatoggle"]
+    "Server settings": ["presets.apply", "admin.commands", "admin.automod", "admin.allowlist"]
 }
 
 /**
@@ -243,21 +201,50 @@ export const PERMISSION_NODES = {
  * @param {string[]} nodes one group's nodes
  * @returns {string[]} a label per node, in the same order
  */
+/**
+ * Labels the generator below cannot work out, because the meaning is in the
+ * half it throws away.
+ *
+ * `nodeLabels` keeps the tail when the tails are unique, which is right 37
+ * times out of 42 — `admin.ban` is "ban", and nobody needed the "admin". It
+ * fails whenever the PREFIX carried the meaning: `presets.apply` came out as
+ * "apply", which is the vaguest word on a screen where it is the heaviest
+ * switch. Reported 2026-09-20: "what does apply mean too?"
+ *
+ * An override table rather than renaming the nodes, because a node id is
+ * written into every world's rank table — renaming `presets.apply` would
+ * silently strip it from every rank already holding it.
+ */
+const LABEL_OVERRIDES = {
+    "presets.apply": "server presets",
+    "ranks.view": "rank list",
+    "chat.manage": "channels",
+    "chat.viewall": "every channel",
+    "admin.tpatoggle": "block TPA"
+}
+
 export function nodeLabels(nodes) {
     const list = [...(nodes ?? [])]
-    if (list.length < 2) return list
+
+    // The override wins over every branch below, so it is applied ONCE on the
+    // way out rather than at each return — there are four of those and a fix
+    // that has to be repeated four times is a fix that will be repeated three.
+    // Keyed by NODE, because the label is exactly the thing being replaced.
+    const settle = labels => labels.map((label, i) => LABEL_OVERRIDES[list[i]] ?? label)
+
+    if (list.length < 2) return settle(list)
     const split = list.map(node => {
         const at = String(node).indexOf(".")
         return at === -1 ? [node, ""] : [node.slice(0, at), node.slice(at + 1)]
     })
 
     const allShare = (i) => split.every(parts => parts[i] === split[0][i]) && split[0][i] !== ""
-    if (allShare(0)) return split.map(parts => parts[1] || parts[0])
-    if (allShare(1)) return split.map(parts => parts[0])
+    if (allShare(0)) return settle(split.map(parts => parts[1] || parts[0]))
+    if (allShare(1)) return settle(split.map(parts => parts[0]))
 
     const tails = split.map(parts => parts[1] || parts[0])
-    if (new Set(tails).size === tails.length) return tails
-    return split.map(parts => parts[1] ? `${parts[0]} · ${parts[1]}` : parts[0])
+    if (new Set(tails).size === tails.length) return settle(tails)
+    return settle(split.map(parts => parts[1] ? `${parts[0]} · ${parts[1]}` : parts[0]))
 }
 
 /**
@@ -695,7 +682,13 @@ export function renderTags(playerOrId) {
     const limit = Number.isFinite(cap) && cap > 0 ? cap : ranks.length
     // renderTag answers "" for a rank whose name has been blanked, so a
     // switched-off tag still disappears rather than leaving empty brackets.
-    return ranks.slice(0, limit).map(rank => renderTag(rank)).join("")
+    //
+    // **Joined with a separator, and the empties dropped FIRST.** They used to
+    // be joined with "", so somebody holding two ran together as `[Owner][Dev]`
+    // with nothing between the brackets. Filtering before the join is what
+    // stops a blanked tag in the middle leaving a double space behind it.
+    const sep = String(setting("format.tagJoin") ?? " ")
+    return ranks.slice(0, limit).map(rank => renderTag(rank)).filter(Boolean).join(sep)
 }
 
 /** Their authority: the strongest rank they hold, whatever the display order. */
@@ -869,6 +862,25 @@ export function isOwner(playerOrId) {
     }
     if (!name) return false
     return CONFIG.owners.some(n => String(n).toLowerCase() === String(name).toLowerCase())
+}
+
+/**
+ * Is this player a real Minecraft operator, whatever the pack thinks of them?
+ *
+ * `isOperator` below answers a different question — "does op status count as
+ * staff HERE" — and a world that says no by turning `opIsStaff` off is talking
+ * about POWERS. This one is about PROTECTION, and the two must not share an
+ * answer: whether somebody may be struck down by an item should not flip
+ * because an owner decided op status no longer grants the panel.
+ *
+ * Kept separate rather than exporting `isOperator`, so nothing can reach for
+ * the powers question by accident when it meant this one.
+ */
+export function isRealOperator(player) {
+    try {
+        const level = player?.commandPermissionLevel
+        return typeof level === "number" && level >= (CommandPermissionLevel?.GameDirectors ?? 1)
+    } catch { return false }
 }
 
 function isOperator(player) {
