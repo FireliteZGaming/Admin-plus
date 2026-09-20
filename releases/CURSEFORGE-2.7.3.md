@@ -1,4 +1,4 @@
-## Admin+ v2.7.2 — Homes, Land Claims and Random Teleport
+## Admin+ v2.7.3 — Homes, Land Claims and Random Teleport
 
 Requires **Beta APIs** — world settings ▸ Game ▸ Experiments ▸ Beta APIs.
 With it off the addon does nothing and says nothing.
@@ -92,6 +92,10 @@ If you never knew teleport cooldowns were adjustable, this is why: they used to
 live on a screen called "Meta values" with nothing else on it.
 
 ### Also
+
+`/ec` and `/enderchest` now show the player list when you type them, the same as
+`/invsee` and the rest. They were the last two that still wanted the name typed
+out by hand.
 
 Waiting on `/home` no longer blocks a warp — cooldowns are tracked separately
 per command now.
