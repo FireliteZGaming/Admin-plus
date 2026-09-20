@@ -24,6 +24,7 @@ import "./features/chatUI.js"
 import { installSpawnProtection } from "./features/warps.js"
 import "./features/homes.js"
 import "./features/rtp.js"
+import { installBack } from "./features/back.js"
 import { installClaims } from "./features/claims.js"
 import { installAutomod } from "./features/automod.js"
 import "./features/cleanup.js"
@@ -156,6 +157,7 @@ installVanish()
 installPresence()
 installSignLog()
 installClaims()
+installBack()
 installBanHammer()
 installStaffMode()
 installAdminItems()

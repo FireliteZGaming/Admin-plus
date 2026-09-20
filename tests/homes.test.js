@@ -198,7 +198,7 @@ console.log("\nâ€” every number the rank editor can set is one something reads â
 // than no value, because it looks like it does something.
 {
     const readers = ["home.limit", "home.cooldown", "tpCooldown",
-                     "claim.limit", "claim.size", "rtp.cooldown"]
+                     "claim.limit", "claim.size", "rtp.cooldown", "back.cooldown"]
     const declared = Object.keys(RANK_VALUES).sort()
     check("the table and the readers agree", declared, readers.sort())
     for (const key of declared) {

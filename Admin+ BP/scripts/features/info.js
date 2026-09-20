@@ -40,6 +40,7 @@ const BASICS = [
     { cmd: "/spawn", what: "Go back to the world's starting point.", need: "spawn.use", on: "feature.spawn" },
     { cmd: "/warps", what: "A list of places the staff set up. Tap one to go there.", need: "warp.use", on: "feature.warps" },
     { cmd: "/home", what: "Your own saved places. Opens a screen to travel to one, or to make one where you stand. Only you can see them.", on: "feature.homes" },
+    { cmd: "/back", what: "Go back to where you were before a teleport — or to where you died, which is the useful one.", on: "feature.back" },
     { cmd: "/rtp", what: "Get dropped somewhere random and far away. Set a home before you wander off.", on: "feature.rtp" },
     { cmd: "/tpa Steve", what: "Ask Steve if you can teleport to them. They say yes or no.", need: "tpa.use", on: "feature.tpa" },
     { cmd: "/tpahere Steve", what: "Ask Steve to come to you instead.", need: "tpa.use", on: "feature.tpa" },

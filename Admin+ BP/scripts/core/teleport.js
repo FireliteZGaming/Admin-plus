@@ -3,6 +3,7 @@ import { CONFIG } from "../config.js"
 import { cooldownFor, isStaff, valueFor } from "./ranks.js"
 import { setting, flag } from "./settings.js"
 import { err, info } from "./util.js"
+import { mark } from "./back.js"
 
 // One teleport pipeline, shared by warps, spawn, TPA and /back.
 //
@@ -86,6 +87,10 @@ export function queueTeleport(player, label, action, key = "tpCooldown") {
 
     const ticks = exemptFromWait(player) ? 0 : warmupTicks()
     if (ticks <= 0) {
+        // Where they were, for /back. Laid at the moment the teleport commits
+        // rather than when it was asked for, so a warmup somebody walks out of
+        // leaves no mark behind.
+        mark(player)
         markUsed(player, key)
         action()
         return true
@@ -105,6 +110,7 @@ export function queueTeleport(player, label, action, key = "tpCooldown") {
         if (Date.now() < job.until) return
 
         cancelTeleport(player)
+        mark(player)
         markUsed(player, key)
         try {
             action()

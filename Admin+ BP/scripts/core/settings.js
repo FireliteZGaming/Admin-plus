@@ -154,6 +154,10 @@ export const DEFAULTS = {
     "feature.warps": {
         value: "true", label: "Warps", help: "true / false · /warp and /warps"
     },
+    "feature.back": {
+        value: "true", label: "Go back",
+        help: "true / false · /back returns somebody to where they were before a teleport, or to where they died"
+    },
     "feature.rtp": {
         value: "true", label: "Random teleport", help: "true / false · /rtp"
     },

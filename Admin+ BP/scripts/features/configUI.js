@@ -14,6 +14,7 @@ const FEATURES = [
     { key: "feature.warps", label: "Warps", detail: "/warp · /warps · the Warps panel" },
     { key: "feature.homes", label: "Homes", detail: "/home · travel to one, or make one" },
     { key: "feature.claims", label: "Land claims", detail: "/claim · /unclaim · /trust · protects blocks from strangers" },
+    { key: "feature.back", label: "Go back", detail: "/back · return to a teleport or a death" },
     { key: "feature.rtp", label: "Random teleport", detail: "/rtp · drops somebody somewhere safe and far away" },
     { key: "feature.spawn", label: "Spawn", detail: "/spawn and the spawn point" },
     { key: "feature.tpa", label: "Teleport requests", detail: "/tpa · /tpahere · /tpaccept · /tpadeny" },

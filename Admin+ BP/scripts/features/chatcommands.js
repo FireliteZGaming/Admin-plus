@@ -2,7 +2,7 @@ import { world, CustomCommandParamType } from "@minecraft/server"
 import { command } from "../core/registry.js"
 import { CONFIG } from "../config.js"
 import { ok, err, info } from "../core/util.js"
-import { isStaff } from "../core/ranks.js"
+import { isStaff, has } from "../core/ranks.js"
 import { displayName, nameTokens, stripCodes } from "../core/identity.js"
 import { isMuted } from "../core/moderation.js"
 import { render, flag } from "../core/settings.js"
@@ -25,7 +25,17 @@ import { record } from "../core/logs.js"
 command({
     name: "mutechat",
     description: "Mute or unmute chat — /mutechat [channel|all]",
-    perm: "chat.manage",
+    // **Muting the room answers to `admin.mute`, not to `chat.manage`.**
+    //
+    // It used to be chat.manage, which meant a Mod could not quiet a raid
+    // without also being handed the power to create, gate and reorder every
+    // channel on the server — two decisions behind one switch.
+    //
+    // A new `chat.mute` node was written and taken straight back out: muting
+    // is a node this pack already HAS, and a rank holding "mute" that cannot
+    // mute the room is the more confusing outcome. Mod carries admin.mute in
+    // every shipped ladder, so the gap closes with no new switch to explain.
+    perm: "admin.mute",
     optional: [{ name: "channel", type: CustomCommandParamType.String }],
     run: (player, [wanted]) => {
         const asked = String(wanted ?? "").trim().toLowerCase()

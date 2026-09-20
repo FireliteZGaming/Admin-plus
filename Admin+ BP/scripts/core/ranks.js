@@ -218,8 +218,16 @@ export const PERMISSION_NODES = {
 const LABEL_OVERRIDES = {
     "presets.apply": "server presets",
     "ranks.view": "rank list",
-    "chat.manage": "channels",
-    "chat.viewall": "every channel",
+    // **Named by the JOB, not by the noun.** These two sat next to each other
+    // reading "every channel" and "channels", which share a word and differ by
+    // a shrug — and "channels" did not say the main thing it does, which is
+    // make them. Reported 2026-09-20: "if i can't discern it right by looking
+    // at it, then it probably needs a clearer name."
+    //
+    // One is SEEING chat you are not in. The other is RUNNING the rooms:
+    // creating them, gating them, ordering them, and /mutechat.
+    "chat.manage": "make & edit chats",
+    "chat.viewall": "see all chats",
     "admin.tpatoggle": "block TPA",
     "admin.alerts": "staff alerts"
 }
@@ -1128,6 +1136,10 @@ export const RANK_VALUES = {
     "rtp.cooldown": {
         kind: "cooldown", label: "/rtp cooldown",
         hint: "it is a long walk back, so this is usually the longest", min: 0, max: 600, fallback: 60
+    },
+    "back.cooldown": {
+        kind: "cooldown", label: "/back cooldown",
+        hint: "a short one: the usual reason is a death", min: 0, max: 300, fallback: 10
     },
     "home.limit": {
         kind: "limit", label: "Homes allowed",
