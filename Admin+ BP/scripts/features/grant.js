@@ -6,7 +6,7 @@ import { ok, err, info } from "../core/util.js"
 import { displayName } from "../core/identity.js"
 import { record } from "../core/logs.js"
 import { has, canActOn, heldRankIds, grantRank, displacedBy, getRank } from "../core/ranks.js"
-import { grantableRanks, notify } from "./ranksUI.js"
+import { grantableRanks, notify, rankPlayersScreen } from "./ranksUI.js"
 import { DURATIONS, durationAt, setExpiry, sweep, timedGrants, remainingLabel } from "../core/grants.js"
 
 // /grant — hand somebody a rank, optionally with an end date.
@@ -104,10 +104,17 @@ command({
     picker: true,
     description: "Give somebody a rank, for a while or for good — /grant <player>",
     perm: "ranks.grant",
-    mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
+    optional: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     run: (player, [targets]) => {
         const target = (targets ?? [])[0]
-        if (!target) return err(player, "Nobody matched.")
+        // **Bare /grant opens the list, and that list includes people who are
+        // not here.** The picker is the engine's, so it can only ever offer
+        // players who are ONLINE — which meant `/grant Steve` while Steve was
+        // offline answered "nobody matched" for something the panel could do
+        // perfectly well. The storage side was never the problem: setRanks
+        // writes by player id, and onPlayerJoin syncs the tag when they come
+        // back. Only the command could not reach them.
+        if (!target) return rankPlayersScreen(player, () => {})
         return grantScreen(player, target.id, displayName(target))
     }
 })

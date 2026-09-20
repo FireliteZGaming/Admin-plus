@@ -62,7 +62,7 @@ export const PRESETS = {
             coowner:   { id: "coowner",   display: "§c§lCo-Owner",  weight: 90,  inherits: [],         perms: ["*"], meta: {}, staff: true },
             manager:   { id: "manager",   display: "§5§lManager",   weight: 80,  inherits: ["admin"],  perms: ["admin.*", "ranks.*", "warp.manage", "spawn.set", "presets.apply", "chat.*"], meta: {}, staff: true },
             admin:     { id: "admin",     display: "§6§lAdmin",     weight: 70,  inherits: ["mod"],    perms: ["admin.ban", "admin.nickname", "admin.gamemode", "admin.holograms", "ranks.grant", "warp.manage", "spawn.set", "chat.*"], meta: {}, staff: true },
-            mod:       { id: "mod",       display: "§aMod",         weight: 50,  inherits: ["member"], perms: [...STAFF_CORE, "admin.warn", "admin.kick", "admin.mute", "admin.freeze", "admin.staffmode", "admin.tpatoggle", "admin.reports", "admin.automod", "admin.clearchat", "admin.lagclear", "admin.claims", "admin.tp", "admin.vanish", "admin.gamemode", "admin.invsee", "admin.logs", "admin.broadcast", "admin.settings", "chat.spy"], meta: {}, staff: true },
+            mod:       { id: "mod",       display: "§aMod",         weight: 50,  inherits: ["member"], perms: [...STAFF_CORE, "admin.warn", "admin.kick", "admin.mute", "admin.freeze", "admin.staffmode", "admin.tpatoggle", "admin.reports", "admin.automod", "admin.clearchat", "admin.lagclear", "admin.claims", "admin.alerts", "admin.tp", "admin.vanish", "admin.gamemode", "admin.invsee", "admin.logs", "admin.broadcast", "admin.settings", "chat.spy"], meta: {}, staff: true },
             member:    { id: "member",    display: "§bMember",      weight: 10,  inherits: [],         perms: [...BASIC_PERMS], meta: {}, staff: false, default: true }
         }
     },
@@ -73,7 +73,7 @@ export const PRESETS = {
             owner:   { id: "owner",   display: "§4§lOwner",   weight: 100, inherits: [],         perms: ["*"], meta: {}, staff: true },
             manager: { id: "manager", display: "§5§lManager", weight: 85,  inherits: ["admin"],  perms: ["admin.*", "ranks.*", "warp.manage", "spawn.set", "presets.apply", "chat.*"], meta: {}, staff: true },
             admin:   { id: "admin",   display: "§6§lAdmin",   weight: 70,  inherits: ["mod"],    perms: ["admin.ban", "admin.nickname", "admin.gamemode", "admin.settings", "admin.holograms", "ranks.grant", "warp.manage", "spawn.set", "chat.viewall"], meta: {}, staff: true },
-            mod:     { id: "mod",     display: "§aMod",       weight: 50,  inherits: ["member"], perms: [...STAFF_CORE, "admin.warn", "admin.kick", "admin.mute", "admin.freeze", "admin.staffmode", "admin.tpatoggle", "admin.reports", "admin.automod", "admin.logs", "admin.invsee", "admin.tp", "admin.vanish", "admin.gamemode", "admin.clearchat", "admin.lagclear", "admin.claims", "admin.broadcast", "chat.spy"], meta: {}, staff: true },
+            mod:     { id: "mod",     display: "§aMod",       weight: 50,  inherits: ["member"], perms: [...STAFF_CORE, "admin.warn", "admin.kick", "admin.mute", "admin.freeze", "admin.staffmode", "admin.tpatoggle", "admin.reports", "admin.automod", "admin.logs", "admin.invsee", "admin.tp", "admin.vanish", "admin.gamemode", "admin.clearchat", "admin.lagclear", "admin.claims", "admin.alerts", "admin.broadcast", "chat.spy"], meta: {}, staff: true },
             member:  { id: "member",  display: "§bMember",    weight: 10,  inherits: [],         perms: [...BASIC_PERMS], meta: {}, staff: false, default: true }
         }
     },
@@ -163,7 +163,7 @@ export const PERMISSION_NODES = {
     "Everyone": ["warp.use", "spawn.use", "tpa.use", "report.use", "online.use"],
     "The panel": ["admin.panel", "admin.settings", "admin.logs", "ranks.view"],
     "Chat": ["chat.staff", "chat.viewall", "chat.manage", "chat.spy", "admin.broadcast", "admin.clearchat"],
-    "Staff tools": ["admin.staffmode", "admin.vanish", "admin.tp", "admin.gamemode", "admin.nickname", "admin.holograms", "admin.invsee", "admin.lagclear", "admin.claims"],
+    "Staff tools": ["admin.staffmode", "admin.vanish", "admin.tp", "admin.gamemode", "admin.nickname", "admin.holograms", "admin.invsee", "admin.lagclear", "admin.claims", "admin.alerts"],
     "Punishments": ["admin.warn", "admin.mute", "admin.kick", "admin.ban", "admin.banperm", "admin.freeze", "admin.tpatoggle", "admin.reports"],
     "Pranks": ["admin.smite", "admin.sudo"],
     "Ranks & places": ["ranks.grant", "ranks.manage", "warp.manage", "spawn.set"],
@@ -220,7 +220,8 @@ const LABEL_OVERRIDES = {
     "ranks.view": "rank list",
     "chat.manage": "channels",
     "chat.viewall": "every channel",
-    "admin.tpatoggle": "block TPA"
+    "admin.tpatoggle": "block TPA",
+    "admin.alerts": "staff alerts"
 }
 
 export function nodeLabels(nodes) {
@@ -725,6 +726,9 @@ export function moveHeldRank(playerId, rankId, delta) {
 export function setRanks(playerId, ids, name) {
     const clean = [...new Set(ids.filter(id => ranksTable.has(id)))]
     const existing = record(playerId)
+    // Read before the write below, or "were they staff a moment ago" is asked
+    // of the record that already answers no.
+    const wasStaff = playerRanks(playerId).some(r => r.staff)
 
     // DORMANT IDS. Applying a preset replaces the ladder, so a rank the player
     // holds may simply not exist for a while — heldRankIds() filters those out
@@ -749,9 +753,35 @@ export function setRanks(playerId, ids, name) {
         since: existing.since ?? Date.now()
     })
     const online = world.getAllPlayers().find(p => p.id === playerId)
-    if (online) syncPlayer(online)
+    if (online) {
+        syncPlayer(online)
+        // Only on the TRANSITION out of staff, and only for somebody actually
+        // here to notice. A listener rather than a call into the gamemode code,
+        // because this file has no business importing GameMode.
+        if (wasStaff && !playerRanks(playerId).some(r => r.staff)) {
+            for (const listen of demotionListeners) {
+                try { listen(online) } catch (e) { console.error(`[Admin+] demotion hook: ${e}`) }
+            }
+        }
+    }
     return clean
 }
+
+/**
+ * Called when somebody stops holding any staff rank, while they are online.
+ *
+ * **The gap this exists for:** nothing used to happen. A Mod in creative who
+ * got demoted stayed in creative indefinitely — and could no longer `/gm`
+ * themselves back, because the demotion took `admin.gamemode` with it. The
+ * creative flag is recoverable by staff; the netherite they spawned first is
+ * not.
+ *
+ * A registry rather than a direct call so core/ranks.js stays free of game
+ * state. It fires on the transition only, so it never touches somebody an
+ * owner deliberately left in creative.
+ */
+const demotionListeners = []
+export function onStaffLost(fn) { demotionListeners.push(fn) }
 
 export function grantRank(playerId, rankId, name) {
     if (!ranksTable.has(rankId)) return false

@@ -1,7 +1,7 @@
 import { GameMode, CustomCommandParamType } from "@minecraft/server"
 import { command, defineEnum } from "../core/registry.js"
 import { ok, err, info } from "../core/util.js"
-import { canActOn } from "../core/ranks.js"
+import { canActOn, onStaffLost } from "../core/ranks.js"
 import { record } from "../core/logs.js"
 
 // Gamemode, shaped the way people already type it.
@@ -81,3 +81,28 @@ for (const [name, mode] of [["gmc", GameMode.Creative], ["gms", GameMode.Surviva
         run: (player, [selected]) => applyMode(player, mode, selected)
     })
 }
+
+/**
+ * A demoted staff member does not keep creative.
+ *
+ * **Nothing used to happen here at all.** Somebody in creative who lost their
+ * staff rank stayed in creative for good, and could not put themselves back
+ * either, because the demotion took `admin.gamemode` with it. The mode is
+ * recoverable by staff; whatever they spawned in the meantime is not.
+ *
+ * Survival, not the world default, and deliberately: the two modes this moves
+ * people out of are creative and spectator, and a world whose default is one of
+ * those does not need this rule anyway.
+ *
+ * It fires on the TRANSITION out of staff, so an owner who deliberately leaves
+ * somebody in creative is never overruled — they never stopped being staff.
+ */
+onStaffLost(player => {
+    let mode
+    try { mode = player.getGameMode?.() } catch { mode = undefined }
+    if (mode !== GameMode.Creative && mode !== GameMode.Spectator) return
+    try {
+        player.setGameMode(GameMode.Survival)
+        info(player, "§7You are no longer staff, so you have been put back into survival.")
+    } catch { /* a runtime that will not let us; the demotion still stands */ }
+})

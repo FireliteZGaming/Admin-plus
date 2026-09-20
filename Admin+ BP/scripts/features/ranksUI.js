@@ -549,7 +549,7 @@ async function valuesScreen(player, rankId, kind, back) {
 
 // ============================================================ Ranks ▸ Players
 
-async function rankPlayersScreen(player, back) {
+export async function rankPlayersScreen(player, back) {
     const online = world.getAllPlayers()
     return pagedMenu(player, {
         title: hubTitle("ranks", "Ranks · players"),

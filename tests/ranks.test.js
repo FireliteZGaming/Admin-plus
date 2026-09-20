@@ -9,7 +9,7 @@ import {
     setRanks, grantRank, revokeRank, heldRankIds, playerRanks, displayRanks, primaryRank,
     moveHeldRank, onPlayerJoin, defaultRank, displacedBy, cooldownFor, saveRank as saveR, knownHolders,
     CREATOR_GAMERTAG, CREATOR_RANK, allRanks, rankState, rankGrant,
-    DEVELOPER_RANK, isTeamDeveloper, __setTeamDevelopers, nodeLabels, canTrollOn
+    DEVELOPER_RANK, isTeamDeveloper, __setTeamDevelopers, nodeLabels, canTrollOn, onStaffLost
 } from "../Admin+ BP/scripts/core/ranks.js"
 import { CONFIG } from "../Admin+ BP/scripts/config.js"
 
@@ -931,5 +931,75 @@ console.log("\n— surfaces that SHOW you another player, not just act on one �
         Object.keys(exempt).filter(f => !watching.find(w => w.file === f)).sort(), [])
 }
 
+
+console.log("\n— watching automod and retuning it are two different jobs —")
+// `admin.automod` used to be both: a moderator who should see "somebody is
+// mining forty blocks a second" had to be handed the spam ladder and the held
+// queue to get it. admin.alerts is the watching half.
+{
+    applyPreset("server")
+    const src = readFileSync(
+        new URL("../Admin+ BP/scripts/features/automod.js", import.meta.url), "utf8")
+    const code = src.split("\n").filter(l => !l.trim().startsWith("//")).join("\n")
+
+    check("the alert path asks for admin.alerts",
+        /has\(player, "admin\.alerts"\)/.test(code), true)
+    // EITHER node hears it. The new one is absent from every rank table
+    // already out there, so a world upgrading would have gone silent for its
+    // whole staff until somebody noticed.
+    check("and still accepts the old one, so an upgrade goes quiet for nobody",
+        /has\(player, "admin\.alerts"\)\s*\|\|\s*has\(player, "admin\.automod"\)/.test(code), true)
+
+    // The editing half did NOT move. A rank with alerts alone must not reach
+    // the config screen, or the split bought nothing.
+    check("changing automod still asks for admin.automod",
+        /has\(player, "admin\.automod"\)/.test(code), true)
+
+    const watcher = fakePlayer("Watcher")
+    saveR("watcher", { display: "§aWatcher", weight: 40, staff: true,
+        perms: ["admin.panel", "admin.alerts"], inherits: [] })
+    setRanks(watcher.id, ["watcher"], watcher.name)
+    check("a rank can be given alerts", has(watcher, "admin.alerts"), true)
+    check("without being given the controls", has(watcher, "admin.automod"), false)
+
+    // And the shipped ladders hand out both, so nothing changes for them.
+    const modly = fakePlayer("ModAlerts"); setRanks(modly.id, ["mod"], modly.name)
+    check("the shipped Mod still gets alerts", has(modly, "admin.alerts"), true)
+    check("and still tunes automod", has(modly, "admin.automod"), true)
+    applyPreset("server")
+}
+
+console.log("\n— a demoted staff member does not keep creative —")
+// Nothing used to happen here. Somebody in creative who lost their staff rank
+// stayed in creative for good, and could not put themselves back either,
+// because the demotion took admin.gamemode with it.
+{
+    applyPreset("server")
+    const seen = []
+    onStaffLost(p => seen.push(p.id))
+
+    const demoted = fakePlayer("Demoted")
+    __test.players.push(demoted)
+    setRanks(demoted.id, ["mod"], demoted.name)
+    check("nothing fires on the way UP", seen.length, 0)
+
+    setRanks(demoted.id, ["member"], demoted.name)
+    check("it fires on the way down", seen, [demoted.id])
+
+    // Staff to staff is not a demotion, and firing there would put an owner
+    // who promoted somebody into survival for their trouble.
+    seen.length = 0
+    setRanks(demoted.id, ["mod"], demoted.name)
+    setRanks(demoted.id, ["admin"], demoted.name)
+    check("moving between two staff ranks is not a demotion", seen, [])
+
+    // And somebody who was never staff losing a cosmetic rank is not either.
+    const civilian = fakePlayer("Civilian")
+    __test.players.push(civilian)
+    setRanks(civilian.id, ["member"], civilian.name)
+    seen.length = 0
+    setRanks(civilian.id, [], civilian.name)
+    check("nor is a member losing a rank", seen, [])
+}
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

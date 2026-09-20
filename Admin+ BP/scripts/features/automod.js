@@ -88,9 +88,26 @@ const TAG = "§6§l[Automod] §r"
  * in one place, because two copies of a sentinel that must agree is how
  * the multiline form quietly stopped being multiline.
  */
+/**
+ * Tell the staff who are meant to hear it.
+ *
+ * **Being told and being able to retune are two different jobs**, and
+ * `admin.automod` used to be both. A moderator who should see "somebody is
+ * mining forty blocks a second" had to be handed the spam ladder and the held
+ * queue to get it, because there was one switch where there are two decisions.
+ *
+ * `admin.alerts` is the watching half. `admin.automod` keeps the editing half —
+ * the config screen, the held queue and the panel buttons that reach them.
+ *
+ * EITHER node hears the alert, and that is deliberate rather than lazy: the new
+ * one is absent from every rank table already out there, so a world upgrading
+ * into this would have gone quiet for its whole staff until an owner noticed.
+ * Accepting the old node means the split only ever ADDS a capability. Same
+ * caveat the vanilla-commands switch hit in 2.6.4, handled the other way round.
+ */
 export function alertStaff(text) {
     for (const player of world.getAllPlayers()) {
-        if (has(player, "admin.automod")) {
+        if (has(player, "admin.alerts") || has(player, "admin.automod")) {
             player.sendMessage(`${TAG}${text}`)
         }
     }
