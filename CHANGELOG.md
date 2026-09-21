@@ -56,6 +56,62 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.7.6 — 2026-09-20
+
+**Two faults in 2.7.5's creator identity, both reported from a world.**
+
+### The name only changed above their head
+
+2.7.5 replaced the creator's gamertag on the NAMETAG and nowhere else, so they
+read as `Firelite` above their head and `FireliteZGaming` in the chat line
+directly under it. That is worse than doing neither, because it looks like two
+people.
+
+Every templated line goes through one funnel — `nameTokens` — so the fix belongs
+there rather than at the nine call sites it feeds. Chat, join, leave, the
+greeting, both directions of a private message, broadcasts and the staff notice
+all carry it now, and so do Admin+'s own sentences, which already followed a
+nickname and had no business treating this differently.
+
+Those surfaces print once and are never redrawn, so they get the STILL rather
+than the animation — which is exactly the string that was asked for, because
+frame 0 of the molten ramp is `§mF§4i§nr§ce§6l§pi§gt§ee`. It is BUILT from the
+ramp rather than pasted as a literal, so a hardcoded copy cannot drift the day
+the ramp is touched.
+
+**`{NAME}` is deliberately untouched** and stays the gamertag. It is what a ban
+matches and what the audit log stores, and neither may quietly become a display
+name.
+
+The creator's gamertag, name and style now live in `CONFIG.creator` — one place,
+because `core/identity.js` needs them too and cannot import `core/ranks.js`.
+
+### The colour never moved
+
+> *"they couldn't even see my name changing color"*
+
+Not replication, not the palette: **the string genuinely never changed.**
+
+The nametag renderer asked two questions — does this player have a creator
+identity, and does their rank name a style. The animation tick asked only the
+second. The creator's rank names no style, so the tick skipped them on every
+frame, and their name sat frozen on whatever frame had last painted it. The
+colours were right, which is exactly why it looked like a display fault rather
+than a logic one.
+
+Both now ask one function, `effectiveNametagStyle`. A second caller asking a
+narrower version of the same question is how this happened, and a shared answer
+is the only thing that stops it happening again. Six steps now give six
+different nametags where they gave one; a test asserts that, and asserts the
+rank-given path still animates so one case was not fixed by breaking the other.
+
+### If it still looks choppy
+
+`namecolour.speed` is ticks between steps. A nametag reaches other players as
+entity metadata, and how often the server pushes that is not something a pack
+controls — so if the wave stutters for others rather than for you, raise the
+number rather than lowering it.
+
 ## 2.7.5 — 2026-09-20
 
 **Names that shift colour.**

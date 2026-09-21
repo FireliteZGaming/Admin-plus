@@ -1,10 +1,11 @@
 import { __test } from "@minecraft/server"
 import "../Admin+ BP/scripts/main.js"
-import { setSetting, resetSetting } from "../Admin+ BP/scripts/core/settings.js"
-import { setRanks, saveRank, getRank, RANK_VALUES, nametagStyleFor, refreshNameTag, creatorIdentity, CREATOR_GAMERTAG } from "../Admin+ BP/scripts/core/ranks.js"
-import { setNickname } from "../Admin+ BP/scripts/core/identity.js"
+import { setSetting, resetSetting, render } from "../Admin+ BP/scripts/core/settings.js"
+import { setRanks, saveRank, getRank, RANK_VALUES, nametagStyleFor, effectiveNametagStyle, refreshNameTag, creatorIdentity, CREATOR_GAMERTAG } from "../Admin+ BP/scripts/core/ranks.js"
+import { setNickname, displayName, nameTokens, creatorStill, stripCodes } from "../Admin+ BP/scripts/core/identity.js"
 import { STYLES, STYLE_IDS, paint, currentFrame, advanceFrame, __resetFrames } from "../Admin+ BP/scripts/core/nametag.js"
 import { stepNameAnimation } from "../Admin+ BP/scripts/features/nameanim.js"
+import { CONFIG } from "../Admin+ BP/scripts/config.js"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -345,6 +346,156 @@ console.log("\n— the creator wears the name they go by —")
     check("switched off, they are just their gamertag",
         plainOf(creator.nameTag).includes("FireliteZGaming"), true)
     setSetting("creator.identity", "true")
+}
+
+console.log("\n— NO MATTER WHAT: every surface, not just the nametag —")
+// 2.7.5 did the nametag and stopped there, which meant the creator read as
+// `Firelite` above their head and `FireliteZGaming` in the chat line directly
+// under it. That is worse than doing neither, because it looks like two people.
+//
+// `nameTokens` is the single funnel every templated line goes through — chat,
+// join, leave, the greeting, both directions of a private message, broadcasts
+// and the staff notice — so the fix belongs there rather than at nine call
+// sites. This block checks the funnel and the surfaces it feeds.
+{
+    setSetting("creator.identity", "true")
+    setSetting("feature.namecolour", "true")
+    const CHOSEN = "§mF§4i§nr§ce§6l§pi§gt§ee"
+
+    const me = {
+        id: "w-1", name: CREATOR_GAMERTAG, nameTag: "",
+        getTags: () => [], addTag: () => true, removeTag: () => false,
+        sendMessage: () => {}, commandPermissionLevel: 0
+    }
+    __test.players.push(me)
+    setRanks(me.id, ["member"], me.name)
+    setNickname(me, "")
+
+    // The still is BUILT from the ramp, not pasted, so it cannot drift from the
+    // animation. This is the assertion that catches that drift.
+    check("the still is exactly the string that was asked for",
+        creatorStill(me), CHOSEN)
+    check("and it is frame 0 of the animated ramp, not a copy of it",
+        creatorStill(me), paint(CONFIG.creator.name, STYLES[CONFIG.creator.style].ramp, 0))
+
+    const tokens = nameTokens(me)
+    check("the NICKNAME token carries it", tokens.NICKNAME.includes(CHOSEN), true)
+    for (const key of ["format.chat", "format.join", "format.greeting"]) {
+        check(`${key} carries it`,
+            render(key, { ...nameTokens(me), TAG: "", MSG: "hi" }).includes(CHOSEN), true)
+    }
+
+    // The LEAVE line is built from a stored gamertag, because the Player object
+    // is gone by the time it prints. Join as one name and leave as another is
+    // exactly the seam this block exists to close.
+    check("and so does the leave line, which is built from a stored name",
+        render("format.leave", nameTokens(me.name)).includes(CHOSEN), true)
+
+    // Admin+'s own sentences follow too — they already followed a nickname, so
+    // not following this would have split the difference again.
+    check("Admin+'s own sentences say it, flattened", displayName(me), CONFIG.creator.name)
+
+    // {NAME} is untouched on purpose: it is what a ban matches and what the
+    // audit log stores, and neither may become a display name.
+    check("but {NAME} is still the gamertag", tokens.NAME, CREATOR_GAMERTAG)
+
+    console.log("    — and nobody else is touched —")
+    const other = {
+        id: "w-2", name: "SomebodyElse", nameTag: "",
+        getTags: () => [], addTag: () => true, removeTag: () => false,
+        sendMessage: () => {}, commandPermissionLevel: 0
+    }
+    __test.players.push(other)
+    setRanks(other.id, ["member"], other.name)
+    check("no still for anyone else", creatorStill(other), undefined)
+    check("their name is their name", displayName(other), "SomebodyElse")
+    check("and their chat line is untouched",
+        render("format.chat", { ...nameTokens(other), TAG: "", MSG: "hi" }).includes("SomebodyElse"), true)
+
+    console.log("    — a nickname still wins, everywhere —")
+    setNickname(me, "Zephyr")
+    check("the token takes the nickname", nameTokens(me).NICKNAME.includes("Zephyr"), true)
+    check("and not the default", nameTokens(me).NICKNAME.includes(CHOSEN), false)
+    check("sentences follow it too", displayName(me), "Zephyr")
+    setNickname(me, "")
+    check("clearing comes back to the default, not the gamertag",
+        nameTokens(me).NICKNAME.includes(CHOSEN), true)
+
+    console.log("    — the switch reaches every surface, not half of them —")
+    // Half-switchable was a real state: the flag was only read by the nametag,
+    // so turning it off restored the gamertag above their head and left it
+    // replaced in every chat line.
+    setSetting("creator.identity", "false")
+    check("off: no still", creatorStill(me), undefined)
+    check("off: chat is the gamertag",
+        render("format.chat", { ...nameTokens(me), TAG: "", MSG: "hi" }).includes(CREATOR_GAMERTAG), true)
+    check("off: sentences are the gamertag", displayName(me), CREATOR_GAMERTAG)
+    refreshNameTag(me)
+    check("off: the nametag agrees with them",
+        stripCodes(me.nameTag).includes(CREATOR_GAMERTAG), true)
+    setSetting("creator.identity", "true")
+}
+
+console.log("\n— the creator's name actually MOVES, which it did not —")
+// Reported from a world: "they couldn't even see my name changing color".
+//
+// It was not replication and it was not the palette. The renderer asked the
+// creator identity AND the rank; the animation tick asked only the rank. The
+// creator's rank names no style, so the tick skipped them on every frame and
+// their name sat frozen on whatever frame had painted it last. The colours were
+// right, which is why it looked like a display problem rather than a logic one.
+//
+// Both now ask effectiveNametagStyle. This block is the assertion that the tick
+// and the renderer agree about who is animated.
+{
+    setSetting("creator.identity", "true")
+    setSetting("feature.namecolour", "true")
+    const me = {
+        id: "m-1", name: CREATOR_GAMERTAG, nameTag: "",
+        getTags: () => [], addTag: () => true, removeTag: () => false,
+        sendMessage: () => {}, commandPermissionLevel: 0
+    }
+    __test.players.push(me)
+    setRanks(me.id, ["member"], me.name)
+    setNickname(me, "")
+
+    // The two questions that disagreed.
+    check("their RANK names no style, which is what fooled the tick",
+        nametagStyleFor(me), "none")
+    check("but what they are WEARING is molten", effectiveNametagStyle(me), "molten")
+
+    refreshNameTag(me)
+    const frames = new Set()
+    for (let i = 0; i < 6; i++) { stepNameAnimation([me]); frames.add(me.nameTag) }
+    check("six steps give six different nametags", frames.size, 6)
+    check("and the tick counts them as painted", stepNameAnimation([me]), 1)
+
+    // Same for somebody whose colour DOES come from a rank, so the shared
+    // function did not fix one case by breaking the other.
+    const other = {
+        id: "m-2", name: "Friend", nameTag: "",
+        getTags: () => [], addTag: () => true, removeTag: () => false,
+        sendMessage: () => {}, commandPermissionLevel: 0
+    }
+    __test.players.push(other)
+    saveRank("glow", { id: "glow", display: "", weight: 5, inherits: ["member"],
+                       perms: [], staff: false, meta: { "nametag.style": "rainbow" } })
+    setRanks(other.id, ["glow"], other.name)
+    check("a rank-given style still animates", effectiveNametagStyle(other), "rainbow")
+    refreshNameTag(other)
+    const theirs = new Set()
+    for (let i = 0; i < 6; i++) { stepNameAnimation([other]); theirs.add(other.nameTag) }
+    check("and moves too", theirs.size, 6)
+
+    // And somebody with neither is still skipped, so the cheap path stayed cheap.
+    const plain = {
+        id: "m-3", name: "Plain", nameTag: "Plain",
+        getTags: () => [], addTag: () => true, removeTag: () => false,
+        sendMessage: () => {}, commandPermissionLevel: 0
+    }
+    __test.players.push(plain)
+    setRanks(plain.id, ["member"], plain.name)
+    check("nobody else is repainted", stepNameAnimation([plain]), 0)
 }
 
 saveRank("member", { meta: { ...getRank("member")?.meta, "nametag.style": "none" } })

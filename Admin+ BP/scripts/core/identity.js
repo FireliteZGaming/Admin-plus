@@ -1,4 +1,7 @@
 import { Table } from "./storage.js"
+import { CONFIG } from "../config.js"
+import { STYLES, paint } from "./nametag.js"
+import { flag } from "./settings.js"
 
 // Display names.
 //
@@ -101,12 +104,69 @@ export function setNickname(playerOrId, value) {
  */
 export function displayName(player) {
     if (!player) return ""
-    return stripCodes(getNickname(player) ?? player.name)
+    // Follows the same order as styledName and then flattens it: a nickname
+    // first, the creator's own name next, the gamertag last. It has to follow,
+    // because this already followed a NICKNAME — leaving the creator default
+    // out would have meant Admin+'s own sentences saying FireliteZGaming while
+    // every other surface said Firelite, which is the split this set out to fix.
+    //
+    // Stripped, like everything else here. `{NAME}` is still the gamertag, and
+    // that is what a ban and the audit log use.
+    return stripCodes(getNickname(player) ?? creatorStill(player) ?? player.name)
 }
 
-/** The nickname exactly as it was written, codes and all. */
+/**
+ * The creator's own name, already coloured, or undefined for everyone else.
+ *
+ * **This is the "no matter what" part.** The nametag is drawn by core/ranks.js
+ * and animates; every OTHER surface — chat, join and leave lines, private
+ * messages, broadcasts, the greeting — comes through `nameTokens` below, and
+ * until 2.7.6 none of them knew about this, so the creator appeared as
+ * `Firelite` above their head and `FireliteZGaming` in the chat line under it.
+ *
+ * Those surfaces print once and are never redrawn, so they get the STILL rather
+ * than the animation — which is exactly the string that was asked for, since
+ * frame 0 of the molten ramp is `§mF§4i§nr§ce§6l§pi§gt§ee`.
+ *
+ * Built here from the ramp rather than pasted as a literal. A hardcoded copy
+ * would drift silently the day the ramp is touched, and then the name above
+ * their head and the name in chat would be two different colourings of the same
+ * word — which is the bug this function exists to remove, reintroduced in a
+ * subtler place.
+ *
+ * `matchesCreator` takes a NAME, not a player, so a leave line built from a
+ * stored gamertag resolves the same way a live player does.
+ */
+function matchesCreator(name) {
+    return String(name ?? "").toLowerCase()
+        === String(CONFIG.creator?.gamertag ?? "").toLowerCase()
+}
+
+export function creatorStill(nameOrPlayer) {
+    // The same switch the nametag obeys. Without it here the feature was only
+    // half-switchable: turning it off restored the gamertag above their head
+    // and left it replaced in every chat line, which is a worse state than
+    // either setting.
+    if (!flag("creator.identity")) return undefined
+    const name = typeof nameOrPlayer === "string" ? nameOrPlayer : nameOrPlayer?.name
+    if (!matchesCreator(name)) return undefined
+    const ramp = STYLES[CONFIG.creator?.style]?.ramp
+    const text = CONFIG.creator?.name ?? name
+    return ramp ? paint(text, ramp, 0) : text
+}
+
+/**
+ * What to call them: their nickname, else the creator's own name, else what
+ * they were born with.
+ *
+ * The order is the whole rule. A nickname they set beats the default — that is
+ * what "unless they replace my nametag" meant — and clearing it falls through
+ * to HERE rather than to the gamertag.
+ */
 export function styledName(playerOrId, fallback) {
-    return getNickname(playerOrId) ?? fallback ?? ""
+    const nick = getNickname(playerOrId)
+    if (nick !== undefined) return nick
+    return creatorStill(fallback) ?? fallback ?? ""
 }
 
 /** True when they are wearing a nickname rather than their account name. */
@@ -137,9 +197,13 @@ export function hasNickname(playerOrId) { return getNickname(playerOrId) !== und
  */
 export function nameTokens(playerOrName, nickname) {
     if (typeof playerOrName === "string") {
+        // The string branch is for somebody who is no longer here to ask — the
+        // LEAVE line is built from a stored gamertag, because the Player object
+        // is gone by the time it prints. It has to resolve the creator's name
+        // the same way, or they would join as one name and leave as another.
         return {
             NAME: stripCodes(playerOrName),
-            NICKNAME: terminate(nickname || playerOrName)
+            NICKNAME: terminate(nickname || creatorStill(playerOrName) || playerOrName)
         }
     }
     const real = playerOrName?.name ?? ""

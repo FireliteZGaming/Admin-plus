@@ -1,7 +1,7 @@
 // Admin+ — single tunable config. Everything an operator would want to change
 // lives here; runtime state (ranks, warps, bans) lives in world storage.
 
-export const ADMINPLUS_VERSION = "2.7.5"
+export const ADMINPLUS_VERSION = "2.7.6"
 
 export const CONFIG = {
     // Command namespace. Registration is always namespaced (/<ns>:<name>) —
@@ -16,6 +16,26 @@ export const CONFIG = {
     // Names that ALWAYS resolve to full permissions ("*"), regardless of ranks
     // or op status. Your safety net if a rank edit locks everyone out.
     owners: [],
+
+    /**
+     * The pack's creator, and the name they go by.
+     *
+     * Here rather than in core/ranks.js because TWO files need it and neither
+     * may import the other: ranks.js draws the nametag, identity.js decides
+     * what every other surface calls somebody, and ranks.js already imports
+     * identity.js. config.js imports nothing, so it is the one place both can
+     * read from without a cycle.
+     *
+     * `name` replaces the gamertag EVERYWHERE Admin+ renders them — chat, join
+     * and leave lines, private messages, broadcasts, the nametag — unless they
+     * have set a nickname, which beats it. `{NAME}` is untouched and stays the
+     * gamertag, because that is the token the audit log and a ban use.
+     */
+    creator: {
+        gamertag: "FireliteZGaming",
+        name: "Firelite",
+        style: "molten"
+    },
 
     // Treat Bedrock operators (commandPermissionLevel >= GameDirectors) as staff.
     opIsStaff: true,

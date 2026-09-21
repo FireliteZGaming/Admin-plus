@@ -515,7 +515,9 @@ export function playerRanks(playerOrId) {
  * replacing the whole ladder — and what stops it being granted to anyone else,
  * renamed, or edited in the rank screens.
  */
-export const CREATOR_GAMERTAG = "FireliteZGaming"
+// One source, in config.js, because core/identity.js needs it too and
+// cannot import this file — see the note beside CONFIG.creator.
+export const CREATOR_GAMERTAG = CONFIG.creator.gamertag
 
 /**
  * Gamertags on the Admin+ TEAM — people the creator has taken on to work on
@@ -1201,13 +1203,10 @@ export function exemptFromCooldowns(playerOrId) {
  * configuration — a developer-mode feature until there is a reason to make it
  * general. `creator.identity` turns it off without touching scripts.
  */
-const CREATOR_NAME = "Firelite"
-const CREATOR_STYLE = "molten"
-
 export function creatorIdentity(playerOrId) {
     if (!flag("creator.identity")) return undefined
     if (!isCreator(playerOrId)) return undefined
-    return { text: CREATOR_NAME, style: CREATOR_STYLE }
+    return { text: CONFIG.creator.name, style: CONFIG.creator.style }
 }
 
 /**
@@ -1222,6 +1221,28 @@ export function creatorIdentity(playerOrId) {
 export function nametagStyleFor(playerOrId) {
     const id = String(meta(playerOrId, "nametag.style", "none"))
     return STYLES[id] ? id : "none"
+}
+
+/**
+ * The style actually being drawn — rank OR creator identity.
+ *
+ * **This exists because the two were asked separately and disagreed.** The
+ * nametag renderer checked the creator identity and then the rank; the
+ * animation tick checked only the rank. The creator's rank names no style, so
+ * the tick skipped them every frame: their name was painted once with the
+ * molten colours and then never moved again. Reported from a world as
+ * *"they couldn't even see my name changing color"*, and it was not a
+ * replication problem — the string genuinely never changed.
+ *
+ * So there is one answer to "what is this player wearing" now, and both the
+ * renderer and the tick ask it. A second caller asking a narrower question is
+ * how that bug happened, and a shared function is the only thing that stops it
+ * happening again.
+ */
+export function effectiveNametagStyle(player) {
+    const creator = creatorIdentity(player)
+    if (creator && !hasNickname(player)) return creator.style
+    return nametagStyleFor(player)
 }
 
 export function valueFor(playerOrId, key) {
@@ -1368,13 +1389,11 @@ export function refreshNameTag(player) {
         // loses to a nickname deliberately — see creatorIdentity — and a
         // cleared nickname lands back on it rather than on the gamertag.
         const creator = creatorIdentity(player)
-        const wearingOwnNickname = hasNickname(player)
-        let styleId = nametagStyleFor(player)
-        if (creator && !wearingOwnNickname) {
-            tokens.NICKNAME = creator.text
-            // Their rank may name a style; theirs wins on their own name.
-            styleId = creator.style
-        }
+        if (creator && !hasNickname(player)) tokens.NICKNAME = creator.text
+        // ONE function answers this, and the animation tick asks the same one.
+        // Asking separately is what froze the creator's name — see the note on
+        // effectiveNametagStyle.
+        const styleId = effectiveNametagStyle(player)
 
         if (styleId !== "none" && flag("feature.namecolour")) {
             const ramp = STYLES[styleId]?.ramp
