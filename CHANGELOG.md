@@ -56,6 +56,109 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.7.4 — 2026-09-20
+
+Four sessions of work that had never been cut into a version, so nothing since
+2.7.3 was loadable. That is the headline: the `/ec` picker, land claims and the
+rest were all correct in source and unreachable in a world.
+
+**Homes are one command.** `/sethome`, `/homes` and `/delhome` are gone. `/home`
+opens a screen with Teleport and Homes on it, and Homes is where you make, move,
+rename or delete one. Four commands was the Essentials shape — four things to
+remember, three of them used once a week. `/home <name>` still goes straight
+there, because that is what somebody types on their fourth day.
+
+**Homes ship off, like land claims.** Both hand players something new to own,
+and a world should switch that on rather than find it running after an update.
+
+**`/back` returns you to where you were.** Third thing off the "removed on
+purpose, do not build unasked" list, after `bring` and homes.
+
+Two things lay a mark and they are not equal. A teleport is convenient; a DEATH
+is where your things are, and is the only reason the command is worth having. So
+a death mark is never overwritten by a teleport mark — dying and then warping to
+spawn must not lose the coordinates of your stuff. A second death does replace
+the first, because the newest body is the one you want.
+
+The mark is laid when a teleport COMMITS, not when it is asked for, so a warmup
+somebody walks out of leaves nothing behind. It is cleared on use, or `/back` is
+a two-way shuttle rather than an undo — and the return trip lays its own mark
+first, so `/back` twice puts you where you started. `back.cooldown` defaults to
+10s, deliberately much shorter than `/rtp`'s minute: the usual reason to use it
+is that you just died, and making somebody wait for their things is a
+punishment.
+
+**The ban hammer will not fall on an operator**, whoever swings it. This sits
+ABOVE the ladder check because the ladder cannot express it: `canActOn` is
+equal-or-below, so two operators on one rank could hammer each other — and an
+operator holding NO rank is below everybody, which made the person who owns the
+world the easiest target in it.
+
+**`/mutechat` now answers to `admin.mute`.** It was `chat.manage`, which meant a
+Mod could not quiet a raid without also being handed the power to create, gate
+and reorder every channel on the server. Mod carries `admin.mute` in every
+shipped ladder, so the gap closes with no new switch to explain.
+
+Two rank switches are renamed to say what they do: `chat.manage` is **make &
+edit chats** rather than claiming the mute it never had, and `chat.viewall` is
+**see all chats**. "Every channel" and "channels" used to sit next to each other
+sharing a word and differing by a shrug.
+
+**Watching automod and retuning it are two different jobs.** `admin.automod` was
+both, so a moderator who should see "somebody is mining forty blocks a second"
+had to be handed the spam ladder and the held queue to get it. `admin.alerts` is
+the watching half; `admin.automod` keeps the editing. The alert path accepts
+EITHER node, deliberately: the new one is absent from every rank table already
+out there, so a world upgrading would have gone silent for its whole staff. The
+split only ever adds.
+
+**A demoted staff member no longer keeps creative.** Nothing used to happen at
+all — they stayed in creative for good and could not put themselves back,
+because the demotion took `admin.gamemode` with it. The change fires on the
+TRANSITION out of staff, so an owner who deliberately leaves somebody in
+creative is never overruled.
+
+**Bare `/grant` opens the player list, offline included.** The picker is the
+engine's and can only offer players who are online, so `/grant Steve` while
+Steve was offline answered "nobody matched" for something the panel did
+perfectly well.
+
+**Land claims have a route into the logs.** Claims started writing
+`claim.created` and `claim.removed` in 2.7.0 and the Logs screen reached
+neither: they appeared in the flat Actions list and under no filter, which is
+the same fault 2.6.6 was written to fix, reintroduced four versions later by a
+feature that had no reason to know the screen existed.
+
+The fix that matters is the test. It reads every action string the pack hands to
+`record()` straight out of the source and asks the screen whether it can reach
+each one — so a new action under an existing prefix passes on its own, and a
+brand new prefix fails until somebody files it.
+
+**The action log sorted on timestamp alone.** `record()` is synchronous, so
+entries in one tick share a millisecond exactly, and a filter group's sort input
+is its prefixes concatenated — every `mod.*`, then every `automod.*`. A stable
+sort leaves tied entries in prefix order rather than time order, so automod
+muting somebody in the same millisecond a staff member banned them read
+backwards, on the one screen whose whole job is saying what happened first.
+`seq` already existed for this and was not being used.
+
+### Two things caught by re-reading rather than by playing
+
+**The claims explosion hook could never have worked.** It read
+`event.impactedBlocks` and set `event.cancel`; an `ExplosionBeforeEvent` carries
+`getImpactedBlocks()` and `setImpactedBlocks()`, and each block knows its own
+dimension. **The test passed anyway, because the stub had been written from the
+same guess as the code** — a test and its stub agreeing proves nothing when one
+person wrote both. The stub now models the real event.
+
+Filtering also beats cancelling: a creeper on a claim border used to have its
+whole blast cancelled, protecting unclaimed ground nobody had paid for. Now the
+claimed blocks are removed from the list and the rest goes up.
+
+**`GameMode.creative` is `undefined`** — this pack and the stub use
+`GameMode.Creative`. The lowercase form would have made the demotion guard true
+for every mode and reset everybody to `undefined`.
+
 ## 2.7.3 — 2026-09-20
 
 **`/ec` and `/enderchest` get the player picker**, which every other command
