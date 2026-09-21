@@ -87,12 +87,36 @@ export function watchSign(player, block, was = "") {
     // somebody doing it on purpose, must not be able to grow this without end.
     if (watching.size >= WATCH_CAP) return false
 
+    // **Remember WHERE, not the Block.** A Block handle is only good while its
+    // chunk stays loaded; read one after the chunk has gone and the API throws
+    // LocationInUnloadedChunkError, which the safe() below turns into "" — so
+    // the watch quietly decided the sign was blank and recorded nothing.
+    //
+    // That is exactly the shape of this feature's failure: somebody places a
+    // sign, walks off while typing or gets carried out of the chunk, and the
+    // handle is dead for the remaining nineteen seconds of looks. Re-fetching
+    // from the dimension recovers the moment the chunk is back, because
+    // getBlock returns undefined for an unloaded chunk rather than throwing.
+    //
+    // Held across four timeouts up to twenty seconds apart, which is a long
+    // time in chunk terms. The test could not see this: the stub handed out a
+    // plain object that worked forever.
+    const home = block?.dimension
+    const at = block?.location
+    const lookUp = () => {
+        try { return home?.getBlock?.(at) ?? undefined } catch { return undefined }
+    }
+    // Read the coordinate NOW, while the handle is certainly good. Asking for
+    // it twenty seconds later is the same stale-handle throw, and it would lose
+    // the one detail that makes a logged sign actionable: where to go and look.
+    const where = whereIs(block)
+
     watching.set(key, true)
     let done = false
     for (const delay of LOOKS) {
         system.runTimeout(() => {
             if (done) return
-            const now = signText(block)
+            const now = signText(lookUp())
             if (!now || now === was) {
                 // Last look and still nothing worth saying: stop watching, so
                 // the slot is free for the next sign.
@@ -105,7 +129,7 @@ export function watchSign(player, block, was = "") {
             // player put in front of everyone, which is what that table is
             // for. Where it stands is kept as its own field so the line reads
             // as the words and the coordinate waits on the detail view.
-            noteSign(player, now, whereIs(block), was || undefined)
+            noteSign(player, now, where, was || undefined)
         }, delay)
     }
     return true

@@ -30,11 +30,19 @@ function fakeSign(text = "", at = { x: 10, y: 64, z: -20 }) {
         location: at,
         dimension: __test.dimension,
         text,
-        getComponent: id => id === "minecraft:sign"
-            ? { getText: () => block.text, setText: t => { block.text = t } }
-            : undefined
+        getComponent: id => {
+            // A HELD handle throws once its chunk has gone, the way the real
+            // API raises LocationInUnloadedChunkError. Without this the stub
+            // handed out an object that worked forever, and a watch holding a
+            // Block across twenty seconds of ticks passed every test.
+            if (block.__loaded === false) throw new Error("LocationInUnloadedChunkError")
+            return id === "minecraft:sign"
+                ? { getText: () => block.text, setText: t => { block.text = t } }
+                : undefined
+        }
     }
-    return block
+    // Put it in the world so dimension.getBlock() can find it again.
+    return __test.putBlock(block)
 }
 
 /** A block that is not a sign at all. */
@@ -61,7 +69,7 @@ console.log("\n— text typed after the sign goes down is still caught —")
 // event — checked against every pack installed on this machine. So the block is
 // watched and read back.
 {
-    clearLogs(); __resetChatLog(); __clearSignWatches()
+    clearLogs(); __resetChatLog(); __clearSignWatches(); __test.timers.length = 0
     const sign = fakeSign("")
     __test.emitPlaceBlock(player, sign)
     check("nothing is recorded while it is still blank", recent(10).length, 0)
@@ -88,7 +96,7 @@ console.log("\n— text typed after the sign goes down is still caught —")
 
 console.log("\n— a sign nobody writes on is not an entry —")
 {
-    clearLogs(); __resetChatLog(); __clearSignWatches()
+    clearLogs(); __resetChatLog(); __clearSignWatches(); __test.timers.length = 0
     __test.emitPlaceBlock(player, fakeSign(""))
     __test.runTimers()
     check("placing a blank sign records nothing", recentSigns(10).length, 0)
@@ -101,7 +109,7 @@ console.log("\n— editing an existing sign is a different entry —")
 // A place-only hook misses this entirely, and it is the more suspicious case:
 // changing somebody else's sign at spawn.
 {
-    clearLogs(); __resetChatLog(); __clearSignWatches()
+    clearLogs(); __resetChatLog(); __clearSignWatches(); __test.timers.length = 0
     const sign = fakeSign("shop: 5 gold")
     __test.emitInteractBlock(player, sign)
     __test.runTimers()
@@ -122,7 +130,7 @@ console.log("\n— editing an existing sign is a different entry —")
 
 console.log("\n— the switch, and the ceiling —")
 {
-    clearLogs(); __resetChatLog(); __clearSignWatches()
+    clearLogs(); __resetChatLog(); __clearSignWatches(); __test.timers.length = 0
     setSetting("logs.signs", "false")
     const sign = fakeSign("")
     __test.emitPlaceBlock(player, sign)
@@ -143,6 +151,80 @@ console.log("\n— the switch, and the ceiling —")
     __clearSignWatches()
 }
 
+console.log("\n— the chunk unloads under the watch —")
+// **The failure this feature actually had, and the reason no test saw it.**
+//
+// A sign is placed blank and the words arrive afterwards, so the watch reads
+// the block back at 2, 5, 10 and 20 seconds. It used to hold the Block object
+// from the event across all four. A Block handle is only valid while its chunk
+// stays loaded — read one after the chunk has gone and the real API throws
+// LocationInUnloadedChunkError, which signText's safe() turns into "". The
+// watch then decided the sign was blank and recorded nothing, silently.
+//
+// Twenty seconds is a long time in chunk terms: place a sign, walk off while
+// typing, and every remaining look is dead. Nothing was ever logged.
+//
+// The stub could not show this, because it handed out a plain object that
+// worked forever — the same trap as the explosion hook in 2.7.4, where the test
+// and the stub agreed because one person wrote both. The stub now models both
+// halves of the real behaviour: a held handle throws, and dimension.getBlock
+// returns undefined for an unloaded chunk and works again once it is back.
+{
+    clearLogs(); __resetChatLog(); __clearSignWatches(); __test.timers.length = 0
+
+    const sign = fakeSign("", { x: 300, y: 70, z: 300 })
+    __test.emitPlaceBlock(player, sign)
+
+    // They type, and walk out of the chunk before the watch looks.
+    sign.text = "free diamonds at spawn"
+    __test.unloadBlock(sign)
+    __test.runTimers()
+    check("a gone chunk records nothing yet, rather than a blank sign",
+        recentSigns(10).length, 0)
+
+    // The handle the old code held is dead for good — this is the state it
+    // spent the remaining nineteen seconds in.
+    let threw = false
+    try { sign.getComponent("minecraft:sign") } catch { threw = true }
+    check("and the handle it used to hold really is dead", threw, true)
+
+    // **The honest limit.** All four looks were spent while the chunk was gone,
+    // so this sign is lost for good. Re-fetching does not buy back a chunk that
+    // stayed away for the whole twenty seconds, and nothing could.
+    __test.reloadBlock(sign)
+    __test.runTimers()
+    check("looks spent while it was gone are gone — this one is lost", recentSigns(10).length, 0)
+}
+
+console.log("\n— what re-fetching actually buys —")
+// The commoner case by far, and the one the old code got wrong: the handle from
+// the event goes stale while the LOCATION stays perfectly readable. A fresh
+// getBlock returns a working handle; the snapshot the old code held does not.
+{
+    clearLogs(); __resetChatLog(); __clearSignWatches(); __test.timers.length = 0
+
+    const fromEvent = fakeSign("", { x: 400, y: 70, z: 400 })
+    __test.emitPlaceBlock(player, fromEvent)
+
+    // The words arrive, and the engine hands out a NEW handle for that block —
+    // which is what a later getBlock returns. The event's handle is dead.
+    const live = fakeSign("free diamonds at spawn", { x: 400, y: 70, z: 400 })
+    __test.unloadBlock(fromEvent)
+    __test.putBlock(live)
+
+    __test.runTimers()
+    const found = recentSigns(10).find(s => s.text === "free diamonds at spawn")
+    check("the words are recorded off the live block", !!found, true)
+    check("named to the player who placed it", found?.name, player.name)
+    check("with the coordinate read before anything went stale",
+        found?.where?.includes("400, 70, 400"), true)
+
+    // And the proof it was the re-fetch: reading the event's own handle throws.
+    let threw = false
+    try { fromEvent.getComponent("minecraft:sign") } catch { threw = true }
+    check("while the handle the old code held is dead", threw, true)
+}
+
 console.log("\n— command blocks: who, where, and honestly not what —")
 // **The command inside cannot be read.** Bedrock has no NBT and the script API
 // exposes no command-block component — settled by WorldEdit, which keeps a list
@@ -152,7 +234,7 @@ console.log("\n— command blocks: who, where, and honestly not what —")
 //
 // So this pins the useful half, and pins that the honest half stays absent.
 {
-    clearLogs(); __resetChatLog(); __clearSignWatches()
+    clearLogs(); __resetChatLog(); __clearSignWatches(); __test.timers.length = 0
     const at = { x: -8, y: 72, z: 300 }
     const cmd = { location: at, dimension: __test.dimension, typeId: "minecraft:command_block",
                   getComponent: () => undefined }

@@ -56,6 +56,46 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.7.7 — 2026-09-20
+
+**Sign logging held a Block handle for twenty seconds, which is not a thing you
+may do.**
+
+Reported as an empty Signs screen. A sign is placed blank and the words arrive
+afterwards in a client-side screen scripts cannot see, so the watch reads the
+block back at 2, 5, 10 and 20 seconds — and it was holding the `Block` object
+from the event across all four.
+
+A Block handle is only valid while its chunk stays loaded. Read one after the
+chunk has gone and the API throws `LocationInUnloadedChunkError`, which
+`signText`'s `safe()` turns into `""` — so the watch concluded the sign was
+blank and recorded nothing, silently and with no warning anywhere. Twenty
+seconds is a long time in chunk terms: place a sign, walk off while typing, and
+every remaining look is dead.
+
+It remembers WHERE now and re-fetches with `dimension.getBlock` on each look,
+which is the documented-safe shape. The coordinate is read once up front too,
+while the handle is certainly good — asking for it twenty seconds later was the
+same stale-handle throw, and it would have lost the one detail that makes a
+logged sign actionable.
+
+**The honest limit:** if the chunk stays unloaded for the whole twenty seconds,
+the sign is still lost. Nothing can buy that back. What re-fetching buys is the
+commoner case — the event's handle goes stale while the location stays perfectly
+readable — and that case now works where it silently did not.
+
+### The stub was wrong in the same way the code was
+
+No test could see any of this, because the stub handed out a plain object that
+worked forever. That is the fault 2.7.4 hit with the explosion hook, in a
+different file: **a test and its stub agreeing proves nothing when one person
+wrote both.**
+
+`@minecraft/server`'s stub now models `dimension.getBlock` and both halves of
+the real behaviour — a held handle throws once its chunk has gone, and
+`getBlock` returns `undefined` for an unloaded chunk and works again once it is
+back. Putting the old held-handle code back fails three assertions by name.
+
 ## 2.7.6 — 2026-09-20
 
 **Two faults in 2.7.5's creator identity, both reported from a world.**
