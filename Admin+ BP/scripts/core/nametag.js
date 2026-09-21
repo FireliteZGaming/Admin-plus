@@ -58,8 +58,11 @@ export const STYLES = {
     ice: {
         label: "Ice",
         hint: "deep water to frost",
-        // §s is diamond, the closest the palette gets to pale cyan.
-        ramp: "13bsfsb3"
+        // §s is diamond, the closest the palette gets to pale cyan — and it
+        // sits BELOW §b in brightness, so it belongs before it. The other
+        // order dipped from 219 to 155 and back to 255, which is a stutter
+        // travelling along the name that no assertion would have caught.
+        ramp: "13sbfbs3"
     },
     toxic: {
         label: "Toxic",
@@ -69,7 +72,11 @@ export const STYLES = {
     void: {
         label: "Void",
         hint: "amethyst out of the dark",
-        ramp: "85udu5"
+        // Was "85udu5", which opened on grey and then went DARKER before
+        // climbing — a 37-unit brightness dip, visible as a stutter. Black is
+        // the honest floor for something called Void, and it keeps every stop
+        // in the purple family.
+        ramp: "05udu5"
     },
     gold: {
         label: "Gold",
@@ -81,7 +88,8 @@ export const STYLES = {
     sakura: {
         label: "Sakura",
         hint: "pink and white",
-        ramp: "5dufud"
+        // §u amethyst is darker than §d, so it goes first. Same dip as Ice.
+        ramp: "5udfdu"
     },
     molten: {
         label: "Molten",

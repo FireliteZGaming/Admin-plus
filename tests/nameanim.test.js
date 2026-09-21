@@ -36,6 +36,75 @@ console.log("\n— the palettes —")
         STYLE_IDS.every(id => STYLES[id].label && (id === "none" || STYLES[id].hint)), true)
 }
 
+console.log("\n— a ramp rises to one peak and comes back —")
+// **Found by looking at the rendered output, not by any assertion.** Ice was
+// `13bsfsb3` and Sakura was `5dufud`, and both dipped on the way up: a material
+// colour (§s diamond, §u amethyst) is DARKER than the legacy colour beside it,
+// so brightness went 219 → 155 → 255 and the wave visibly stuttered before the
+// highlight. Every existing test passed, because every existing test asked
+// whether the codes were real and whether the wave moved — never what it looked
+// like.
+//
+// So this is that question, made mechanical. A mirrored ramp must climb to a
+// single brightest stop and descend; two peaks, or a dip on the climb, is the
+// stutter above. Rainbow is exempt because it is a hue WHEEL — its brightness
+// genuinely goes up and down as it travels round, and that is the point of it.
+{
+    // Bedrock's palette as the game draws it. Only the codes the ramps use.
+    const HEX = {
+        "0": 0x000000, "1": 0x0000AA, "2": 0x00AA00, "3": 0x00AAAA,
+        "4": 0xAA0000, "5": 0xAA00AA, "6": 0xFFAA00, "7": 0xAAAAAA,
+        "8": 0x555555, "9": 0x5555FF, a: 0x55FF55, b: 0x55FFFF,
+        c: 0xFF5555, d: 0xFF55FF, e: 0xFFFF55, f: 0xFFFFFF,
+        g: 0xDDD605, h: 0xE3D4D1, i: 0xCECACA, j: 0x443A3B,
+        m: 0x971607, n: 0xB4684D, p: 0xDEB12D, q: 0x47A036,
+        s: 0x2CBAA8, t: 0x21497B, u: 0x9A5CC6, v: 0xEB7114
+    }
+    const lum = (code) => {
+        const n = HEX[code]
+        return 0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)
+    }
+
+    /**
+     * How many times the brightness changes direction VISIBLY.
+     *
+     * The floor matters. Molten's first two stops are §m #971607 and §4
+     * #AA0000 — a 12-unit dip between two near-black reds, which nobody can
+     * see and which is the creator's own chosen order besides. The dips that
+     * actually stuttered were 20 (Sakura), 37 (Void) and 64 (Ice), all of them
+     * in the bright half where the eye is looking. 15 separates the two
+     * cleanly and is about 6% of the palette's range.
+     */
+    const FLOOR = 15
+    const turns = (ramp) => {
+        const l = [...ramp].map(lum)
+        let count = 0, dir = 0
+        for (let i = 1; i < l.length; i++) {
+            const delta = l[i] - l[i - 1]
+            if (Math.abs(delta) < FLOOR) continue
+            const step = Math.sign(delta)
+            if (dir !== 0 && step !== dir) count++
+            dir = step
+        }
+        return count
+    }
+
+    for (const id of STYLE_IDS) {
+        const ramp = STYLES[id].ramp
+        if (!ramp || id === "rainbow") continue
+        // One turn: up to the peak, then down. That is the whole shape.
+        check(`${id} climbs to one peak and back`, turns(ramp), 1)
+    }
+
+    // The check is not vacuous: the two ramps that shipped wrong fail it.
+    check("the old Ice ramp would have failed this", turns("13bsfsb3") > 1, true)
+    check("and so would the old Sakura one", turns("5dufud") > 1, true)
+    check("and the old Void one", turns("85udu5") > 1, true)
+    // And the floor does not simply pass everything: a ramp built to stutter
+    // still fails, so the tolerance has not quietly disabled the check.
+    check("a ramp that really does stutter is still caught", turns("0f0f") > 1, true)
+}
+
 console.log("\n— painting —")
 {
     check("one code per character", codesIn(paint("abc", "c6e", 0)).length, 3)
