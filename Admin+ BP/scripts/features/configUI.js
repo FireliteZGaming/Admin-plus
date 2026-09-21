@@ -16,6 +16,7 @@ const FEATURES = [
     { key: "feature.claims", label: "Land claims", detail: "/claim · /unclaim · /trust · protects blocks from strangers" },
     { key: "feature.back", label: "Go back", detail: "/back · return to a teleport or a death" },
     { key: "feature.rtp", label: "Random teleport", detail: "/rtp · drops somebody somewhere safe and far away" },
+    { key: "feature.namecolour", label: "Colour-shifting nametags", detail: "a rank can give its holders a colour that travels along their name" },
     { key: "feature.spawn", label: "Spawn", detail: "/spawn and the spawn point" },
     { key: "feature.tpa", label: "Teleport requests", detail: "/tpa · /tpahere · /tpaccept · /tpadeny" },
     { key: "feature.reports", label: "Reports", detail: "/report and the pinned queue" },

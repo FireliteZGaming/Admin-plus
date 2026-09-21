@@ -56,6 +56,88 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.7.5 — 2026-09-20
+
+**Names that shift colour.**
+
+A rank can now give its holders a colour that travels along their nametag.
+Eight palettes — Rainbow, Fire, Ice, Toxic, Void, Gold, Sakura, Molten — chosen
+in Ranks ▸ a rank ▸ **Nametag colour**, which draws each one in its own colours
+on that rank's own name so the choice is made by looking rather than by
+guessing what "Void" means.
+
+### What "smooth" can honestly mean here
+
+**Bedrock has no true RGB in a nametag.** There is no `§#FF8800`; there is a
+fixed palette — the sixteen legacy codes plus the twelve material ones added in
+1.21.20 — and that is the whole of it. So this cannot interpolate between two
+arbitrary colours, and anything claiming to would be lying about what the
+renderer does.
+
+What it does instead: hold a ramp of palette colours, paint one per character,
+and move the ramp one step along the name each frame. The colours stay discrete;
+the wave travels. Travelling colour reads as continuous even when every stop is
+a step, which is why the same trick looks fluid in Java plugins on a far smaller
+palette than this one.
+
+Four of the ramps lean on the **material colours** — `§g` minecoin gold, `§m`
+redstone, `§n` copper, `§p` gold, `§q` emerald, `§s` diamond, `§u` amethyst.
+Almost nothing uses them, because almost everything was written before they
+existed, so these do not look like every other rainbow name.
+
+### The creator wears the name they go by
+
+The pack's creator has the gamertag `FireliteZGaming` and goes by `Firelite`.
+They picked `§mF§4i§nr§ce§6l§pi§gt§ee` for it, and **frame 0 of the Molten ramp
+on that text is byte-for-byte that string** — the still they chose is what
+renders, and the animation is that still moving. A test pins the two equal, so
+reordering the ramp fails the suite rather than quietly rendering something they
+did not pick.
+
+It is a DEFAULT, not an override:
+
+- a nickname they set **beats** it
+- clearing that nickname comes back **here**, not to the bare gamertag — which
+  is the whole point, since the reset should land on the name they use
+- a rank supplies the TAG beside the name and this supplies the NAME, so rank
+  changes never contend with it. The Creator badge still draws alongside.
+
+Gated on `isCreator`, so it is one person by construction rather than by
+configuration. `creator.identity` turns it off.
+
+### Cost
+
+A second timer, separate from the 100-tick one that re-stamps nametags, because
+dropping *that* to three ticks would have made every player pay for a feature
+almost none of them use. The new one does nothing at all unless somebody is
+actually wearing a style: three cheap gates before anything is iterated, and the
+rank is asked before any work is done per player.
+
+`namecolour.speed` is ticks between steps, so smaller is faster — 3 reads as a
+smooth flow, 1 is frantic, 10 is a slow drift.
+
+### Found while building it
+
+**Three of the pack's own guards caught omissions in this feature**, which is
+the first time they have all fired on one change:
+
+- a `feature.` key with no row on the Configuration screen — the rule that a
+  switch nobody can find is a section nobody can turn on
+- a settings prefix with no heading written for it
+- `RANK_VALUES` assuming every entry is a number
+
+That last one was a real design question rather than a slip. `nametag.style` is
+a CHOICE — no range to clamp, no number to compare — and the easy way out was to
+keep it out of `RANK_VALUES` entirely. It stayed in, and the test learned to
+check by `kind` instead, because the table exists precisely so that a value the
+code reads and nobody can set cannot happen, and the style deserves that
+guarantee as much as a cooldown does.
+
+`feature.nameAnim` was renamed **`feature.namecolour`** on the way: the test
+that checks Configuration rows matches `feature\.[a-z]+`, which encodes a real
+convention — every other feature key is one lowercase word. Fitting the
+convention beat widening the guard.
+
 ## 2.7.4 — 2026-09-20
 
 Four sessions of work that had never been cut into a version, so nothing since

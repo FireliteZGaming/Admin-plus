@@ -1,9 +1,10 @@
 import { world, system, CommandPermissionLevel } from "@minecraft/server"
 import { CONFIG } from "../config.js"
 import { Table, cleanId } from "./storage.js"
-import { displayName, nameTokens } from "./identity.js"
+import { displayName, nameTokens, stripCodes, hasNickname } from "./identity.js"
 import { render, renderTag, nameTagsEnabled, flag, setting } from "./settings.js"
 import { OP_COMMANDS } from "./opcommands.js"
+import { STYLES, STYLE_IDS, paint, currentFrame } from "./nametag.js"
 
 // Admin+ rank engine — see RANKS_PLAN.md for the design rationale.
 //
@@ -1152,6 +1153,15 @@ export const RANK_VALUES = {
     "claim.size": {
         kind: "limit", label: "Claim size (blocks across)",
         hint: "the widest a single claim may be", min: 16, max: 256, fallback: 64
+    },
+    // Not a number, so it is not a slider — `kind` is what the editor switches
+    // on, and this is the first entry that is a choice. It lives in this table
+    // anyway for the reason the table exists: a value the code reads and nobody
+    // can set is the failure mode being designed out.
+    "nametag.style": {
+        kind: "style", label: "Nametag colour",
+        hint: "a colour that travels along the name",
+        options: STYLE_IDS, fallback: "none"
     }
 }
 
@@ -1171,6 +1181,49 @@ export function exemptFromCooldowns(playerOrId) {
  * unlimited homes" is a decision an owner should make on the rank rather than
  * something the pack assumes.
  */
+/**
+ * The name the CREATOR wears when they have not said otherwise.
+ *
+ * Asked for on 2026-09-20: the gamertag is `FireliteZGaming`, the name they
+ * actually go by is `Firelite`, and they picked `§mF§4i§nr§ce§6l§pi§gt§ee` for
+ * it. Frame 0 of the `molten` ramp on this text is that exact string, so the
+ * still they chose is what this renders and the animation is that still moving.
+ *
+ * **It is a DEFAULT, not an override.** A nickname they set beats it — that is
+ * what "unless they replace my nametag" means — and clearing the nickname comes
+ * back HERE rather than to the bare gamertag, which is the whole point: the
+ * reset lands on the name they use, not on the account name.
+ *
+ * Rank changes do not touch it either. A rank supplies the TAG beside the name;
+ * this supplies the name, and the two never contend.
+ *
+ * Gated on `isCreator`, so it is one person by construction rather than by
+ * configuration — a developer-mode feature until there is a reason to make it
+ * general. `creator.identity` turns it off without touching scripts.
+ */
+const CREATOR_NAME = "Firelite"
+const CREATOR_STYLE = "molten"
+
+export function creatorIdentity(playerOrId) {
+    if (!flag("creator.identity")) return undefined
+    if (!isCreator(playerOrId)) return undefined
+    return { text: CREATOR_NAME, style: CREATOR_STYLE }
+}
+
+/**
+ * The nametag style this player's ranks give them, as a style id.
+ *
+ * Its own function rather than `valueFor`, because that one is about NUMBERS —
+ * it clamps to min/max and collapses cooldowns to zero for staff, neither of
+ * which means anything for a choice. `meta` already walks the ranks in
+ * hierarchy order, so the highest rank that names a style wins, and a rank
+ * saying `none` deliberately beats a lower one saying `rainbow`.
+ */
+export function nametagStyleFor(playerOrId) {
+    const id = String(meta(playerOrId, "nametag.style", "none"))
+    return STYLES[id] ? id : "none"
+}
+
 export function valueFor(playerOrId, key) {
     const spec = RANK_VALUES[key]
     if (!spec) return undefined
@@ -1299,10 +1352,42 @@ export function refreshNameTag(player) {
     if (!nameTagsEnabled()) return
     try {
         const rank = primaryRank(player)
+        const tokens = nameTokens(player)
+
+        // A shifting colour, when the rank grants one. It replaces the NICKNAME
+        // token rather than wrapping the whole line, so the rank tag keeps its
+        // own colours — the name is the thing being decorated, not the row.
+        //
+        // **It strips whatever codes the nickname carried.** Painting one code
+        // per character over a string that already has its own interleaves two
+        // sets and renders as rubbish, so the plain text is what gets painted.
+        // Somebody wearing an animated style gives up hand-coloured lettering;
+        // that is the trade, and it is why `none` is the default rather than a
+        // rank quietly overriding what a player chose for themselves.
+        // The creator's default name, when they have not set a nickname. It
+        // loses to a nickname deliberately — see creatorIdentity — and a
+        // cleared nickname lands back on it rather than on the gamertag.
+        const creator = creatorIdentity(player)
+        const wearingOwnNickname = hasNickname(player)
+        let styleId = nametagStyleFor(player)
+        if (creator && !wearingOwnNickname) {
+            tokens.NICKNAME = creator.text
+            // Their rank may name a style; theirs wins on their own name.
+            styleId = creator.style
+        }
+
+        if (styleId !== "none" && flag("feature.namecolour")) {
+            const ramp = STYLES[styleId]?.ramp
+            if (ramp) {
+                tokens.NICKNAME = paint(
+                    stripCodes(tokens.NICKNAME), ramp, currentFrame())
+            }
+        }
+
         const tag = render("format.nameTag", {
             TAG: renderTags(player),
             RANK: rank?.display ?? "",
-            ...nameTokens(player)
+            ...tokens
         })
         // Only write when it actually changed. This runs for every player on a
         // timer, and assigning a nametag is a native call whether the string is

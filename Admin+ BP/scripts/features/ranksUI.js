@@ -1,17 +1,18 @@
 import { world } from "@minecraft/server"
 import { menu, pagedMenu, modal, confirm, title, subtitle } from "../core/ui.js"
 import { hubTitle, hubButton, hubEntry } from "../core/theme.js"
-import { setting } from "../core/settings.js"
+import { setting, flag } from "../core/settings.js"
 import { record } from "../core/logs.js"
 import { ok, err, info } from "../core/util.js"
 import { stripCodes } from "../core/identity.js"
+import { STYLES, STYLE_IDS, paint } from "../core/nametag.js"
 import {
     ladder, getRank, saveRank, deleteRank, normaliseRankId, moveRank,
     PRESETS, BUNDLES, PERMISSION_NODES, RANK_VALUES,
     applyPreset, restoreSnapshot, hasSnapshot, snapshot,
     canEditRank, canActOn, has, rankState, rankGrant, displacedBy, defaultRank,
     playerRanks, displayRanks, heldRankIds, primaryRank, moveHeldRank,
-    setRanks, grantRank, revokeRank, knownHolders, nodeLabels
+    setRanks, grantRank, revokeRank, knownHolders, nodeLabels, refreshNameTag
 } from "../core/ranks.js"
 
 // /admin ▸ Ranks
@@ -123,6 +124,7 @@ export async function rankScreen(player, rankId, back) {
             { text: "§bPermissions §8· on / off", run: () => nodeGroupsScreen(player, rankId, () => rankScreen(player, rankId, back)) },
             { text: "§bInheritance", run: () => inheritScreen(player, rankId, () => rankScreen(player, rankId, back)) },
             { text: "§bCooldowns & limits §8· numbers", run: () => valuesScreen(player, rankId, "cooldown", () => rankScreen(player, rankId, back)) },
+            { text: "§bNametag colour §8· a colour that travels along the name", run: () => nametagStyleScreen(player, rankId, () => rankScreen(player, rankId, back)) },
             { text: "§cDelete rank", run: () => deleteScreen(player, rankId, back) }
         ].filter(Boolean) : [],
         back
@@ -509,6 +511,52 @@ function inheritsFrom(rankId, ancestorId, seen = new Set()) {
  * and a single form of five sliders is a wall. They link to each other rather
  * than sitting behind separate buttons, so getting between them is one tap.
  */
+/**
+ * The one rank value that is a CHOICE rather than a number.
+ *
+ * Its own screen rather than a field on the values form, because that form is
+ * generated from `RANK_VALUES` as sliders and a dropdown among five sliders is
+ * the kind of mixed form where people mis-tap. It also gets to SHOW each style,
+ * which a dropdown of names cannot: the list below paints every option in its
+ * own colours, on this rank's own name, so the choice is made by looking rather
+ * than by guessing what "Void" means.
+ */
+async function nametagStyleScreen(player, rankId, back) {
+    const rank = getRank(rankId)
+    if (!rank) return back()
+    const current = String(rank.meta?.["nametag.style"] ?? "none")
+    const sample = stripCodes(rank.display) || rankId
+
+    return pagedMenu(player, {
+        title: title(`Nametag · ${rankId}`),
+        body: [
+            subtitle("A colour that travels along the name, for everyone holding this rank."),
+            flag("feature.namecolour")
+                ? "§8Each one is drawn below in its own colours."
+                : "§c§lTurned off server-wide.§r §8Settings ▸ < Code > ▸ feature.namecolour",
+            "§8Bedrock has no true RGB in a nametag, so the colour moves rather than blends."
+        ].join("\n"),
+        items: STYLE_IDS,
+        render: (id) => {
+            const style = STYLES[id]
+            const shown = id === "none"
+                ? `§7${sample}`
+                : paint(sample, style.ramp, 0)
+            const mark = id === current ? " §a✓" : ""
+            return { text: `${shown}§r${mark}\n§8${style.label} — ${style.hint}` }
+        },
+        onPick: (id) => {
+            saveRank(rankId, { meta: { ...rank.meta, "nametag.style": id } })
+            ok(player, `${rankId} now wears §f${STYLES[id].label}§a.`)
+            // Repaint immediately rather than waiting on the tick, so the
+            // change is visible the moment the form closes.
+            for (const p of world.getAllPlayers()) refreshNameTag(p)
+            return nametagStyleScreen(player, rankId, back)
+        },
+        back
+    })
+}
+
 async function valuesScreen(player, rankId, kind, back) {
     const rank = getRank(rankId)
     if (!rank) return back()

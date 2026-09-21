@@ -78,6 +78,7 @@ export const GROUPS = {
     teleport: "Teleporting",
     tpa: "TPA",
     rtp: "Random teleport",
+    namecolour: "Colour-shifting nametags",
     commands: "Vanilla commands without op",
     ranks: "Ranks",
     staff: "Staff"

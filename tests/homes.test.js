@@ -7,6 +7,7 @@ import {
     normaliseHomeId, playersWithHomes, __resetHomes
 } from "../Admin+ BP/scripts/core/homes.js"
 import { remaining, start, waitLine, __resetCooldowns } from "../Admin+ BP/scripts/core/cooldowns.js"
+import { STYLES } from "../Admin+ BP/scripts/core/nametag.js"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -193,19 +194,34 @@ console.log("\n— how a wait reads —")
     check("and the remainder", waitLine(95), "1m 35s")
 }
 
-console.log("\n— every number the rank editor can set is one something reads —")
+console.log("\n— every value the rank editor can set is one something reads —")
 // The same rule CLAUDE.md states for switches: a value nobody reads is worse
 // than no value, because it looks like it does something.
+//
+// **The table holds two shapes now.** Until 2.7.5 every entry was a number with
+// a min, a max and a fallback, and this block assumed so. `nametag.style` is a
+// CHOICE — there is no range to clamp and no number to compare — so the checks
+// are split by `kind` rather than the new entry being quietly left out of the
+// table, which would have cost it the very guarantee the table exists for.
 {
     const readers = ["home.limit", "home.cooldown", "tpCooldown",
-                     "claim.limit", "claim.size", "rtp.cooldown", "back.cooldown"]
+                     "claim.limit", "claim.size", "rtp.cooldown", "back.cooldown",
+                     "nametag.style"]
     const declared = Object.keys(RANK_VALUES).sort()
     check("the table and the readers agree", declared, readers.sort())
     for (const key of declared) {
         const spec = RANK_VALUES[key]
-        check(`${key} has a usable range`, spec.min < spec.max, true)
-        check(`${key}'s fallback sits inside it`,
-            spec.fallback >= spec.min && spec.fallback <= spec.max, true)
+        if (spec.kind === "style") {
+            check(`${key} offers something to pick`, spec.options?.length > 1, true)
+            check(`${key}'s fallback is one of them`,
+                spec.options.includes(spec.fallback), true)
+            check(`${key}'s options are all real styles`,
+                spec.options.filter(id => !STYLES[id]), [])
+        } else {
+            check(`${key} has a usable range`, spec.min < spec.max, true)
+            check(`${key}'s fallback sits inside it`,
+                spec.fallback >= spec.min && spec.fallback <= spec.max, true)
+        }
     }
 }
 

@@ -161,6 +161,19 @@ export const DEFAULTS = {
     "feature.rtp": {
         value: "true", label: "Random teleport", help: "true / false · /rtp"
     },
+    "feature.namecolour": {
+        value: "true", label: "Colour-shifting nametags",
+        help: "true / false · lets a rank give its holders a colour that travels along their nametag · set the colour per rank in Ranks ▸ a rank ▸ Nametag colour"
+    },
+    "creator.identity": {
+        value: "true", label: "Creator's own name",
+        help: "true / false · the pack's creator wears the name they go by, with its colours, unless they set a nickname · affects exactly one gamertag and nobody else"
+    },
+    "namecolour.speed": {
+        value: "3",
+        label: "Nametag colour speed",
+        help: "Ticks between steps, so SMALLER is faster. 1 is frantic, 3 reads as a smooth flow, 10 is a slow drift. Each step is one character, so a long name takes longer to cycle than a short one."
+    },
     "rtp.range": {
         value: "4000",
         label: "Random teleport: how far",

@@ -32,6 +32,7 @@ import "./features/vanish.js"
 import "./features/online.js"
 import { installPresence } from "./features/presence.js"
 import { installSignLog } from "./features/signlog.js"
+import { installNameAnimation } from "./features/nameanim.js"
 import { installVanish } from "./core/vanish.js"
 import "./features/reports.js"
 import "./features/warn.js"
@@ -156,6 +157,7 @@ installAutomod()
 installVanish()
 installPresence()
 installSignLog()
+installNameAnimation()
 installClaims()
 installBack()
 installBanHammer()
