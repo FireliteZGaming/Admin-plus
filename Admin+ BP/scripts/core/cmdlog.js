@@ -21,10 +21,10 @@ import { setting, flag } from "./settings.js"
 // would show it. Refusals are marked rather than filtered, so a reader can see
 // the attempt and the outcome in one place.
 //
-// WHAT WAS TYPED, not what was executed. `/a:kill @e[type=cow]` is stored as
-// the player wrote it, not as the eleven commands it became — a log of what
-// somebody did should read like the thing they did. The expansion is an
-// implementation detail of core/execute.js and belongs to the audit log.
+// WHAT WAS TYPED, not what was executed. `/gm creative @a` is stored as the
+// player wrote it, not as the players it reached — a log of what somebody did
+// should read like the thing they did. What it expanded to belongs to the
+// audit log.
 //
 // Arguments are captured BEFORE selector resolution, while a picker slot is
 // still the text that was chosen. After resolution that slot holds entity
@@ -101,9 +101,8 @@ export function noteCommand(player, name, args, refused) {
 /**
  * Attach what a command actually BECAME to the entry just written for it.
  *
- * The `/a:` passthroughs expand before they run — `/a:kill @e[type=cow]` goes
- * out as a tagged selector, and `@a` becomes one execution per player. That
- * expansion is worth keeping and is not worth a second log entry: the same
+ * A command can say what it actually did: `/clock day` records `time set
+ * 1000`. That is worth keeping and is not worth a second log entry: the same
  * command appearing twice is the confusion this reorganisation exists to end.
  *
  * Matches the newest entry from this player that has no expansion recorded

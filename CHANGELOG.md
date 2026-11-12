@@ -56,6 +56,44 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.8.4 — 2026-11-12
+
+**/clock and /sky are Admin+'s own commands.**
+
+1. **/clock** sets the time. Type a time the game names, and the game suggests
+   them as you type: `/clock day`, `noon`, `sunset`, `night`, `midnight`,
+   `sunrise`. For a number, `/clock set 6000` (0 to 24000; 6000 is noon).
+   Typed alone, `/clock` shows the six times as buttons, each with its clock
+   time, plus "A number". `/clock set` with no number asks for one.
+2. **/sky** sets the weather: `/sky clear`, `/sky rain`, `/sky thunder`,
+   suggested as you type. Add minutes for how long it lasts: `/sky rain 10`.
+   Typed alone, it shows the three as buttons.
+
+Both set the time and weather directly through the game's script API, so they
+need no operator. Who may use them is the rank switch now called "time and
+weather" (Permissions ▸ Administrative ▸ Server settings). It is the old
+"commands" switch, so ranks that had it keep it.
+
+This fixes `/clock` on its own: it used to ask set, add or query, then run
+without a value and fail.
+
+### The rest of the vanilla command machinery is gone
+
+With /clock and /sky built in, nothing used the code that wrapped vanilla
+commands. Removed: the wrapper registration, its parameter table, the
+selector tagging and entity routes, the operator-level command runner, and the
+per-command `cmd.*` permission mechanism. The check that no Admin+ command
+takes a name the game owns stays, in a list of its own.
+
+### The console's help was wrong
+
+It said the console runs at operator level. Since 2.8.2 it runs Admin+
+commands with the person's own rank. It says so now, with `clock day` among
+the examples.
+
+Tested under Node: 52 suites, 2,624 checks, including a new test for /clock
+and /sky. **Not yet run in game.**
+
 ## 2.8.3 — 2026-11-12
 
 **Server is Settings, Automod, Server presets and Advanced.**

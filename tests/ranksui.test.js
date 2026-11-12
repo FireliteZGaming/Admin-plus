@@ -284,7 +284,7 @@ console.log("\n— \"switch it on here\" names the real buttons —")
     const at = "Ranks ▸ the rank ▸ Permissions ▸ "
     check("a prank node", whereToGrant("admin.smite"), `${at}Administrative ▸ Pranks ▸ smite`)
     check("a punishment node", whereToGrant("admin.banperm"), `${at}Administrative ▸ Punishments ▸ banperm`)
-    check("the switch for vanilla commands", whereToGrant("admin.commands"), `${at}Administrative ▸ Server settings ▸ commands`)
+    check("the switch for /clock and /sky", whereToGrant("admin.commands"), `${at}Administrative ▸ Server settings ▸ time and weather`)
     check("an everyday node sits under Member", whereToGrant("warp.use"), `${at}Member ▸ What they can use ▸ warp`)
     check("a node nobody lists still gets an answer", whereToGrant("made.up"), `${at}made.up`)
     for (const [group, nodes] of Object.entries(PERMISSION_NODES)) {

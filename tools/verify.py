@@ -201,36 +201,6 @@ for f in js:
         if total > LIMIT:
             fail(f"/{name.group(1)} declares {total} parameters; Bedrock allows {LIMIT}")
 
-# The vanilla passthroughs register in a LOOP, with `name: registered` — a
-# variable, not a literal — so the scan above cannot see a single one of them.
-# For one build it did not, and this file cheerfully reported "54 commands" while
-# 56 more went unchecked for duplicates and for the eight-parameter limit. They
-# are read out of the table instead, resolved through the same CODENAME map the
-# pack registers with.
-vp = io.open("Admin+ BP/scripts/core/vanillaparams.js", encoding="utf-8").read()
-codename = dict(re.findall(r'\["([a-z]+)",\s*"([a-z]+)"\]',
-                           vp[vp.index("export const CODENAME"):vp.index("export const GAME_OWNED")]))
-passthrough = 0
-# `.*?` between help and params rather than nothing, because a row may carry
-# other keys in between — `fixed:` on replaceitem is the first, and pinning the
-# shape any tighter is how this regex silently stopped matching once already.
-for m in re.finditer(r'\{\s*name:\s*"([a-z]+)",\s*help:\s*"[^"]*",.*?params:\s*\[(.*?)\]\s*\}',
-                     vp[vp.index("export const COMMANDS"):], re.S):
-    vanilla_name, params = m.group(1), m.group(2)
-    total = len(re.findall(r'\["', params))
-    registered = codename.get(vanilla_name, vanilla_name)
-    cmds.append((registered, total))
-    passthrough += 1
-    if total > LIMIT:
-        fail(f"/{registered} (vanilla {vanilla_name}) declares {total} parameters; Bedrock allows {LIMIT}")
-# Cross-checked against a much simpler count of the same table rather than a
-# magic number, so removing a passthrough on purpose does not trip it but the
-# scan regex silently falling out of step with the table does.
-declared = len(re.findall(r'\bhelp:\s*"', vp[vp.index("export const COMMANDS"):]))
-if passthrough != declared:
-    fail(f"read {passthrough} vanilla passthroughs but the table declares {declared}"
-         " — the scan regex is out of step with the table")
-
 dupes = [c for c in {n for n, _ in cmds} if [n for n, _ in cmds].count(c) > 1]
 if dupes:
     fail(f"duplicate command names: {dupes}")

@@ -296,14 +296,10 @@ const CODE = sources(SRC_DIR)
     .map(src => src.replace(DECLARATION, "").replace(NAMING_TABLES, ""))
     .join("\n")
 
-// The Operator group is the one checked DYNAMICALLY — has(player,
-// commandNode(name)) — so no literal "cmd.kill" exists anywhere for the
-// substring test below to find. Rather than exempt fifty-six nodes on trust,
-// pin the single line that enforces them: delete it and this fails, which is
-// exactly the guarantee the rule is after.
-const enforcedInExecute = CODE.includes("deniedFor(player, commandNode(name))")
-check("the Operator group is enforced where commands actually run",
-    enforcedInExecute, true)
+// The Operator group, one `cmd.<name>` node per vanilla command, went with the
+// vanilla wrappers in 2.8.4. A cmd.* node would now be a switch nothing reads.
+check("no per-command cmd.* node is declared",
+    Object.values(PERMISSION_NODES).flat().filter(node => node.startsWith("cmd.")), [])
 
 const declared = [...new Set(Object.values(PERMISSION_NODES).flat())]
 const unused = declared.filter(node => {
@@ -652,8 +648,8 @@ check("mixed prefixes shorten when the tails are unique",
 check("a node whose meaning is in its prefix is named by hand",
     nodeLabels(["presets.apply", "admin.commands", "admin.automod"])[0], "server presets")
 check("and the rest of that group still comes from the generator",
-    nodeLabels(["presets.apply", "admin.commands", "admin.automod"]).slice(1),
-    ["commands", "automod"])
+    nodeLabels(["presets.apply", "admin.allowlist", "admin.automod"]).slice(1),
+    ["allowlist", "automod"])
 // It has to survive the OTHER branches too, not just this one.
 check("an override applies when a shared prefix is stripped",
     nodeLabels(["chat.staff", "chat.manage", "chat.spy"]), ["staff", "make & edit chats", "spy"])
@@ -803,7 +799,7 @@ console.log("\n— the hierarchy audit, command by command —")
 {
     const dir = new URL("../Admin+ BP/scripts/features/", import.meta.url)
     const sources = [
-        ...readdirSync(dir).filter(f => f.endsWith(".js") && f !== "vanillacmds.js")
+        ...readdirSync(dir).filter(f => f.endsWith(".js"))
             .map(f => [f, readFileSync(new URL(f, dir), "utf8")]),
         ["main.js", readFileSync(new URL("../Admin+ BP/scripts/main.js", import.meta.url), "utf8")]
     ]

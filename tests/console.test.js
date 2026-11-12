@@ -6,7 +6,6 @@ import {
 } from "../Admin+ BP/scripts/core/ranks.js"
 import { canUseConsole } from "../Admin+ BP/scripts/features/console.js"
 import { setSetting, resetSetting } from "../Admin+ BP/scripts/core/settings.js"
-import { checkCommand } from "../Admin+ BP/scripts/core/execute.js"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -100,10 +99,7 @@ console.log("\n— it runs Admin+ commands only —")
 // that whitelist had stopped being checked, so in practice it reached any
 // vanilla command short of /op. Admin+'s own commands each check the person's
 // rank, so the console reaches nothing they could not have typed themselves.
-// The shared gate still refuses the commands that would hand the world over.
-check("op is refused", checkCommand("op Steve").ok, false)
-check("nor deop", checkCommand("deop Steve").ok, false)
-check("nor a command that runs another command", checkCommand("execute as @a run op @s").ok, false)
+// The source checks below pin that: no runAsServer, no runCommand.
 
 console.log("\n— the three promises the badge rule makes, in the source —")
 // These are asserted by reading the code because they are the fence, and a

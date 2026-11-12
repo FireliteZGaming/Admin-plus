@@ -1,10 +1,7 @@
-import { CustomCommandParamType, __test } from "@minecraft/server"
+import { __test } from "@minecraft/server"
 import { resolveSelector, SELECTOR_HELP, SELECTOR_HINT } from "../Admin+ BP/scripts/core/selector.js"
 import { setNickname } from "../Admin+ BP/scripts/core/identity.js"
-import { COMMANDS, ENUMS, SELECTOR_TYPES, CODENAME, codenameFor, GAME_OWNED } from "../Admin+ BP/scripts/core/vanillaparams.js"
-import { buildLine, tempTag } from "../Admin+ BP/scripts/features/vanillacmds.js"
-import { DEFAULTS } from "../Admin+ BP/scripts/core/settings.js"
-import { commandSpecs } from "../Admin+ BP/scripts/core/registry.js"
+import { GAME_OWNED } from "../Admin+ BP/scripts/core/gameowned.js"
 import { readFileSync, readdirSync } from "node:fs"
 
 let passed = 0, failed = 0
@@ -14,102 +11,13 @@ function check(name, actual, expected) {
     else { failed++; console.log(`  FAIL ${name}\n         expected ${e}\n         actual   ${a}`) }
 }
 
-const P = CustomCommandParamType
+// Names: what a player types to mean somebody, and which command names the
+// game already owns. Moved here from the vanilla wrapper test when the
+// wrappers went in 2.8.4; the resolver and the names are still in use.
 
-console.log("\n— only time and weather are wrapped —")
-// 2.8.2, the user's call: the other 52 were excessive op commands. Pinned so a
-// wrapper cannot creep back in without somebody deciding it should.
-const names = COMMANDS.map(c => c.name)
-check("time and weather, nothing else", names, ["time", "weather"])
-check("no command is registered twice", names.length, new Set(names).size)
-
-console.log("\n— shapes Bedrock will actually accept —")
-// Over eight parameters and the registration is REFUSED WHOLE, with only a line
-// in the content log. /broadcast shipped broken exactly that way once.
-check("none asks for more than eight parameters",
-    COMMANDS.filter(c => (c.params ?? []).length > 8).map(c => c.name), [])
-// Mandatory parameters must all come before optional ones; the registry builds
-// two separate lists and a row interleaving them would silently reorder the
-// arguments.
-check("no row puts a mandatory parameter after an optional one",
-    COMMANDS.filter(c => {
-        const flags = (c.params ?? []).map(p => !!p[2])
-        return flags.indexOf(true) !== -1 && flags.lastIndexOf(false) > flags.indexOf(true)
-    }).map(c => c.name), [])
-check("every row has a help line", COMMANDS.filter(c => !c.help).map(c => c.name), [])
-check("every parameter names a real type",
-    COMMANDS.flatMap(c => (c.params ?? []).filter(p => p[1] === undefined).map(() => c.name)), [])
-
-console.log("\n— enum parameters point at a real vocabulary —")
-// Bedrock links an Enum parameter to its values BY NAME. A row naming an enum
-// that was never registered produces a parameter that offers nothing and
-// accepts nothing, and says so nowhere.
-check("every Enum parameter names a registered enum",
-    COMMANDS.flatMap(c => (c.params ?? [])
-        .filter(p => p[1] === P.Enum && !(p[3] in ENUMS))
-        .map(p => `${c.name}:${p[3]}`)), [])
-check("and no non-Enum parameter claims one",
-    COMMANDS.flatMap(c => (c.params ?? [])
-        .filter(p => p[1] !== P.Enum && p[3])
-        .map(p => `${c.name}:${p[3]}`)), [])
-check("every enum has values", Object.entries(ENUMS).filter(([, v]) => !v.length).map(([k]) => k), [])
-// ...and every enum is USED. The registration loop registers all of them with
-// Bedrock, so one no parameter names is a registration that offers nothing —
-// the same "a node exists only if the code checks it" rule the rest of the pack
-// follows. `timeset` and `riderule` were both sitting here doing exactly that:
-// riderule went dead when /mount's optional pair was corrected, and timeset
-// never worked because `/time set` takes a number OR a word and a parameter
-// cannot be both.
-{
-    const named = new Set(COMMANDS.flatMap(c => (c.params ?? []).map(p => p[3]).filter(Boolean)))
-    check("no enum is defined without a parameter naming it",
-        Object.keys(ENUMS).filter(k => !named.has(k)), [])
-}
-check("every enum value is a bare identifier",
-    Object.entries(ENUMS).flatMap(([k, v]) => v.filter(x => !/^[a-z_0-9]+$/.test(x)).map(x => `${k}:${x}`)), [])
-
-console.log("\n— time and weather, rebuilt as the game reads them —")
-{
-    const time = COMMANDS.find(c => c.name === "time")
-    const weather = COMMANDS.find(c => c.name === "weather")
-    check("/clock set day", buildLine(time, ["set", "day"], "T", []), "time set day")
-    check("a number works too, because the value is text",
-        buildLine(time, ["set", "1000"], "T", []), "time set 1000")
-    check("/clock query daytime", buildLine(time, ["query", "daytime"], "T", []), "time query daytime")
-    check("/sky clear", buildLine(weather, ["clear"], "T", []), "weather clear")
-    check("with a duration", buildLine(weather, ["rain", 6000], "T", []), "weather rain 6000")
-}
-
-console.log("\n— rebuilding the command line —")
-const spec = { name: "kill", params: [["targets", P.EntitySelector, true]] }
-
-// A selector arrives as TEXT and is pasted straight through, because the engine
-// expands a custom command's selector argument at the CALLER's permission level
-// — so `/a:zkill @p` was refused with "insufficient permissions for selector
-// expansion" before this code ever ran, for exactly the people /a:z* exists for.
-// The dimension expands it instead, at operator level, when the command runs.
-{
-    check("a selector is pasted through as typed",
-        buildLine(spec, ["@p"], "T1", []), "kill @p")
-    check("filters and all", buildLine(spec, ["@e[type=cow,r=5]"], "T1", []),
-        "kill @e[type=cow,r=5]")
-    check("and it is never quoted, because a quoted selector is a NAME",
-        buildLine(spec, ['"@e[type=cow, r=5]"'], "T1", []), "kill @e[type=cow, r=5]")
-}
-
-{
-    // Both rows reach the game as registered commands.
-    const rows = new Map(COMMANDS.map(c => [codenameFor(c.name), c]))
-    const built = commandSpecs().filter(spec => rows.has(spec.name))
-    check("every command in the table is registered", built.length, COMMANDS.length)
-}
-
-console.log("\n— the two names, and the ones the game owns —")
-// The game owns /time and /weather, and its versions refuse a ranked player
-// who is not an operator, so ours are /clock and /sky.
 const dir = new URL("../Admin+ BP/scripts/features/", import.meta.url)
 const ours = readdirSync(dir)
-    .filter(f => f.endsWith(".js") && f !== "vanillacmds.js")
+    .filter(f => f.endsWith(".js"))
     .flatMap(f => [...readFileSync(new URL(f, dir), "utf8")
         .matchAll(/command\(\{[^}]*?name:\s*"([a-z0-9_]+)"/gs)].map(m => m[1]))
     .concat(["admin", "tp"])              // registered in main.js
@@ -118,49 +26,14 @@ const ours = readdirSync(dir)
 // — it wrote down its own expectation and then agreed with itself, so when the
 // z prefix was removed in 2.1.15 every assertion below still passed while
 // testing nothing at all. If the naming changes again, this has to notice.
-const vanilla = COMMANDS.map(c => codenameFor(c.name))
+
+console.log("\n— time and weather have names of their own —")
 check("our own commands were found", ours.length > 30, true)
-check("time is /clock and weather is /sky", vanilla, ["clock", "sky"])
-check("neither is a name the game owns", vanilla.filter(n => GAME_OWNED.has(n)), [])
-check("nor one of our own", vanilla.filter(n => ours.includes(n)), [])
-check("every CODENAME key is a wrapped command",
-    [...CODENAME.keys()].filter(k => !COMMANDS.some(c => c.name === k)), [])
-// The 52 that went in 2.8.2 are still the game's, so none of their names may
-// be reused for a pack command whose bare form would never reach it.
-check("the game still owns every name it ever did",
-    ["kill", "give", "fill", "summon", "effect", "gamemode", "teleport", "tp"]
-        .filter(n => !GAME_OWNED.has(n)), [])
-
-console.log("\n— a count written in prose goes stale silently —")
-// vanillaparams.js, vanillacmds.js and verify.py all said "56" for the whole
-// life of a 55-row table. When `tp` was dropped, that stale number was read
-// back as if it were the truth and the correction landed one short — a wrong
-// comment is worse than no comment, because it gets quoted. So every count
-// stated in the prose is checked against the table it describes.
-{
-    const counted = ["../Admin+ BP/scripts/core/vanillaparams.js",
-                     "../Admin+ BP/scripts/features/vanillacmds.js",
-                     "../tools/verify.py",
-                     "./vanillacmds.test.js"]
-    const pattern = /\b(?:all|the) (\d{2})(?= (?:below|of these|vanilla passthroughs|this file|interleave|got renamed|is renamed|share the list))/gi
-    const stale = []
-    for (const path of counted) {
-        const text = readFileSync(new URL(path, import.meta.url), "utf8")
-        for (const m of text.matchAll(pattern)) {
-            if (Number(m[1]) !== COMMANDS.length) stale.push(`${path}: "${m[0]}"`)
-        }
-    }
-    check("no comment states a stale command count", stale, [])
-}
-
-console.log("\n— the tag has to be unique —")
-// Two commands resolving at once must not pick up each other's entities.
-const tags = new Set()
-for (let i = 0; i < 500; i++) tags.add(tempTag())
-check("500 tags, 500 distinct", tags.size, 500)
-check("and none of them could be a player's own tag",
-    [...tags].every(t => t.startsWith("apcmd_")), true)
-
+check("/clock and /sky are pack commands", ["clock", "sky"].filter(n => ours.includes(n)), ["clock", "sky"])
+check("and the game owns neither", ["clock", "sky"].filter(n => GAME_OWNED.has(n)), [])
+check("the game still owns time and weather themselves", ["time", "weather"].filter(n => GAME_OWNED.has(n)), ["time", "weather"])
+check("and every name Admin+ used to wrap",
+    ["kill", "give", "fill", "summon", "effect", "gamemode", "teleport", "tp"].filter(n => !GAME_OWNED.has(n)), [])
 
 console.log("\n— a name is whatever is on the screen, nickname included —")
 // Admin+ shows a nicknamed player as their nickname everywhere: the list, the
@@ -282,7 +155,7 @@ console.log("\n— the two surfaces that can still say it —")
         SELECTOR_HINT.includes("§f"), true)
 
     // The suffix is the only thing a person sees while typing the argument.
-    const src = readFileSync("Admin+ BP/scripts/features/vanillacmds.js", "utf8")
+    const src = readFileSync("Admin+ BP/scripts/core/registry.js", "utf8")
     check("selector parameters are renamed so the hint is on screen",
         src.includes("`${name}_or_me`") && src.includes("`${name}_me_or_all`"), true)
     check("/tp carries it too, in the required form",
@@ -308,7 +181,7 @@ console.log("\n— how many commands still ask the engine to expand a selector �
     const dir = new URL("../Admin+ BP/scripts/features/", import.meta.url)
     const sources = [
         ...readdirSync(dir)
-            .filter(f => f.endsWith(".js") && f !== "vanillacmds.js")
+            .filter(f => f.endsWith(".js"))
             .map(f => [f, readFileSync(new URL(f, dir), "utf8")]),
         ["main.js", readFileSync(new URL("../Admin+ BP/scripts/main.js", import.meta.url), "utf8")]
     ]
@@ -374,8 +247,6 @@ console.log("\n— the pack's OWN names, checked against the ones the game owns 
         ["port", "items"].filter(n => ours.includes(n)), ["port", "items"])
     check("and the game owns neither of them",
         ["port", "items"].filter(n => GAME_OWNED.has(n)), [])
-    check("nor does any passthrough codename claim one",
-        ["port", "items"].filter(n => [...CODENAME.values()].includes(n)), [])
 }
 
 console.log(`\n${passed} passed, ${failed} failed\n`)

@@ -407,7 +407,8 @@ function chatReadLine(entry) {
  * down the list trying what sticks looks exactly like a column of refusals,
  * and nothing else in the pack would show it.
  *
- * `ran` is what a `/a:` passthrough actually expanded to. Shown underneath
+ * `ran` is what a command actually did, such as /clock day setting the time to
+ * 1000. Shown underneath
  * only when it differs from what was typed, because for most commands it does
  * not and a line repeated back adds nothing.
  */

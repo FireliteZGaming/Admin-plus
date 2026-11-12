@@ -17,7 +17,8 @@ import { displayName } from "./identity.js"
 // messages are prefixed, and this one was bare.
 //
 // Nothing downstream can help with that. The `@a`-vs-`@e` rule, running per
-// entity with `@s`, the direct script-API routes in entityapi.js — all correct,
+// entity with `@s`, the direct script-API routes (all removed with the vanilla
+// wrappers in 2.8.4) — all correct,
 // all reached only if the handler starts, and it does not.
 //
 // A literal NAME works, because a name is not a selector and needs no

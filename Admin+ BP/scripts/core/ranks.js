@@ -145,7 +145,8 @@ export const DEFAULT_RANKS = JSON.parse(JSON.stringify(PRESETS.server.ranks))
  * mechanism survives: `commandNode()` still builds `cmd.<name>` and a rank
  * carrying `-cmd.fill` is still refused it. What replaced the fifty-five is the
  * single `admin.commands` switch in Server settings, which was declared for
- * exactly this and had never been wired to anything.
+ * exactly this and had never been wired to anything. Since 2.8.4 it gates only
+ * /clock and /sky, and the editor calls it "time and weather".
  *
  * **`admin.troll` became `admin.smite` and `admin.sudo`.** One switch called
  * "troll" tells a thirteen-year-old nothing about what they are handing over,
@@ -230,7 +231,10 @@ const LABEL_OVERRIDES = {
     "chat.manage": "make & edit chats",
     "chat.viewall": "see all chats",
     "admin.tpatoggle": "block TPA",
-    "admin.alerts": "staff alerts"
+    "admin.alerts": "staff alerts",
+    // What it gates since 2.8.4: /clock and /sky. The id stays, so ranks that
+    // already hold it keep the right.
+    "admin.commands": "time and weather"
 }
 
 export function nodeLabels(nodes) {
@@ -279,11 +283,6 @@ export function whereToGrant(node) {
         return `Ranks ▸ the rank ▸ Permissions ▸ ${half} ▸ ${nodeLabels(nodes)[at]}`
     }
     return `Ranks ▸ the rank ▸ Permissions ▸ ${node}`
-}
-
-/** The permission node governing one vanilla command. */
-export function commandNode(name) {
-    return `cmd.${String(name).trim().toLowerCase()}`
 }
 
 /** Checkbox-sized groupings for the rank editor form. */
@@ -1141,29 +1140,6 @@ export function rankGrant(rankOrId, node) {
 
 /** Just the state, for callers that do not care where it came from. */
 export function rankState(rankOrId, node) { return rankGrant(rankOrId, node).state }
-
-/**
- * Is this node explicitly DENIED for this player?
- *
- * The opposite default to has(). Vanilla commands are on for everybody unless a
- * rank says otherwise, so the question is never "were you granted this" — it is
- * "did somebody take it away". Same resolver as has(): heaviest rank with an
- * opinion wins, wildcards and inheritance included, so `-cmd.gamemode` on a rank
- * refuses it there and nowhere else.
- */
-export function deniedFor(player, node) {
-    if (!player || isOwner(player)) return false
-    for (const rank of playerRanks(player)) {
-        let best = 0
-        let granted = true
-        for (const pattern of effectivePerms(rank)) {
-            const score = matchScore(pattern, node)
-            if (score > best) { best = score; granted = !pattern.startsWith("-") }
-        }
-        if (best > 0) return !granted
-    }
-    return false
-}
 
 /** Does this player have a permission node? */
 export function has(player, node) {

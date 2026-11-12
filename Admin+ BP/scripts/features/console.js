@@ -83,9 +83,9 @@ export async function consoleScreen(player, back = () => {}, last = "") {
             id: "line",
             type: "text",
             label: [
-                "§8Runs at operator level, from the server's seat.",
-                "§8Admin+ commands by name — §fgm creative Steve§8, §fban Alex§8 — no §fa:§8 needed.",
-                "§8Time and weather too: §fclock set day§8, §fsky clear§8. No other vanilla commands.",
+                "§8Runs Admin+ commands, with what your rank allows.",
+                "§8Type them by name: §fgm creative Steve§8, §fban Alex§8, §fclock day§8. No §fa:§8 needed.",
+                "§8No vanilla commands: those need operator.",
                 last ? `\n${last}` : ""
             ].join("\n"),
             placeholder: "gm creative @a",

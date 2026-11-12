@@ -29,8 +29,6 @@ import { askFor, askable } from "./ask.js"
 //   - A player argument offers the game's own player list. `picker: false`
 //     opts a command out, back to typed text.
 //   - A `rest: true` text argument takes a plain sentence, no quotes.
-// The "vanilla" group is typed exactly like the commands it wraps, so the
-// first and third rules leave it alone.
 
 const PARAM_LIMIT = 8
 const pending = []
@@ -142,7 +140,7 @@ function selectorSlots(spec) {
 
 /** Does this command ask for what it was not given? */
 function asks(spec) {
-    return spec.group !== "vanilla" && (spec.mandatory ?? []).every(askable)
+    return (spec.mandatory ?? []).every(askable)
 }
 
 /**

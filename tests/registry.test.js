@@ -78,7 +78,7 @@ const defOf = name => registered.get(full(name))?.def
 const paramsOf = def => [...(def?.mandatoryParameters ?? []), ...(def?.optionalParameters ?? [])]
 const isSelector = p => p.type === P.PlayerSelector || p.type === P.EntitySelector
 const isProbe = spec => spec.name.startsWith("__")
-const ours = commandSpecs().filter(spec => spec.group !== "vanilla" && !isProbe(spec))
+const ours = commandSpecs().filter(spec => !isProbe(spec))
 
 console.log("\n— every command actually reached the engine —")
 {
@@ -152,13 +152,6 @@ console.log("\n— rule 2: an argument left off is asked for —")
         .map(spec => spec.name)
     check("no command of ours can be refused by the engine for a missing argument",
         stillMandatory, [])
-
-    // The exemption is real, not accidental: the vanilla passthroughs are typed
-    // exactly like the commands they wrap.
-    const vanillaMandatory = commandSpecs()
-        .filter(spec => spec.group === "vanilla")
-        .filter(spec => (defOf(spec.name)?.mandatoryParameters ?? []).length > 0)
-    check("the vanilla passthroughs keep theirs", vanillaMandatory.length > 0, true)
 
     check("needed arguments keep their order, ahead of the optional ones",
         paramsOf(defOf("__askprobe")).slice(0, 3).map(p => p.name), ["who", colour, "note"])
