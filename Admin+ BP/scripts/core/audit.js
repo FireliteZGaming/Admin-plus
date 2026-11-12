@@ -141,8 +141,6 @@ const PHRASES = {
     "rank.grant": (t, d) => `Gave ${t} ${d}`,
     "rank.revoke": (t, d) => `Took ${d} from ${t}`,
     "rank.set": (t, d) => `Set ${t} to ${d}`,
-    "tag.give": (t, d) => `Gave ${t} the ${d} tag`,
-    "tag.take": (t, d) => `Took the ${d} tag from ${t}`,
     // Done to a PLACE, not a person, so the sentence names the act. Loud on
     // purpose: everybody within sixty blocks sees the sky go dark anyway, and
     // staff being told who called it in is the difference between an event and

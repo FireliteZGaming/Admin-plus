@@ -1,8 +1,13 @@
 import { __test } from "@minecraft/server"
 import "../Admin+ BP/scripts/main.js"
 import { setSetting, resetSetting, nameTagsEnabled } from "../Admin+ BP/scripts/core/settings.js"
-import { saveRank, setRanks, onPlayerJoin, applyPreset, renderTags, refreshNameTag, chatColourFor, chatNameFor } from "../Admin+ BP/scripts/core/ranks.js"
-import { saveTag, giveTag, takeTag, deleteTag, tagsOf, allTags, holderCount, __resetTags } from "../Admin+ BP/scripts/core/tags.js"
+import {
+    saveRank, setRanks, grantRank, revokeRank, deleteRank, heldRankIds, getRank, ladder, has,
+    onPlayerJoin, applyPreset, renderTags, refreshNameTag, rankType,
+    chatColourFor, chatNameFor, nameFontFor, chatFontFor
+} from "../Admin+ BP/scripts/core/ranks.js"
+import { setNameFont, nameTokens } from "../Admin+ BP/scripts/core/identity.js"
+import { applyFont } from "../Admin+ BP/scripts/core/fonts.js"
 import { formatChatLine } from "../Admin+ BP/scripts/features/chat.js"
 import { mute, unmute } from "../Admin+ BP/scripts/core/moderation.js"
 
@@ -13,8 +18,8 @@ function check(name, actual, expected) {
     else { failed++; console.log(`  FAIL ${name}\n         expected ${e}\n         actual   ${a}`) }
 }
 
-// The switches for a server that runs another chat or rank mod, cosmetic
-// tags, and the name and chat colours a rank sets in Basics.
+// The switches for a server that runs another chat or rank mod, the four rank
+// types, and the colours and fonts a rank sets in Basics.
 
 let n = 0
 function makePlayer(name) {
@@ -30,49 +35,87 @@ function makePlayer(name) {
 }
 
 applyPreset("server")
-__resetTags()
 const steve = makePlayer("Steve")
 const alex = makePlayer("Alex")
 setRanks(steve.id, ["mod"], steve.name)
 setRanks(alex.id, ["member"], alex.name)
 const plain = s => String(s).replace(/§./g, "")
 
-console.log("\n— cosmetic tags sit outside the rank order —")
+console.log("\n— cosmetic ranks sit outside the rank order —")
 {
-    saveTag("builder", { name: "Builder", display: "§6Builder" })
-    saveTag("artist", { name: "Artist", display: "§dArtist" })
-    check("tags are listed by name, not by any order of authority",
-        allTags().map(t => t.id), ["artist", "builder"])
-    check("giving a tag works once", giveTag(steve.id, "builder"), true)
-    check("and twice is refused, not duplicated", giveTag(steve.id, "builder"), false)
-    check("a tag that does not exist cannot be given", giveTag(steve.id, "nope"), false)
-    check("the tag shows after the rank tag", plain(renderTags(steve)), "[Mod] [Builder]")
-    check("its holder count", holderCount("builder"), 1)
+    saveRank("builder", { display: "§6Builder", type: "cosmetic" })
+    saveRank("artist", { display: "§dArtist", type: "cosmetic" })
+    check("a cosmetic rank is not in the order", ladder().some(r => r.id === "builder"), false)
+    check("and weighs nothing", getRank("builder")?.weight, 0)
 
-    // A tag is decoration: it changes nothing about who outranks whom.
-    giveTag(alex.id, "artist")
-    check("a member with a tag is still just a member", plain(renderTags(alex)), "[Member] [Artist]")
+    grantRank(steve.id, "builder", steve.name)
+    check("its tag shows after the rank tag", plain(renderTags(steve)), "[Mod] [Builder]")
+    check("and it does not replace their rank", heldRankIds(steve.id).includes("mod"), true)
 
-    check("taking it away works", takeTag(steve.id, "builder"), true)
-    check("and leaves only the rank", plain(renderTags(steve)), "[Mod]")
+    grantRank(alex.id, "artist", alex.name)
+    check("it does not replace the starting rank either", plain(renderTags(alex)), "[Member] [Artist]")
 
-    giveTag(steve.id, "builder")
-    deleteTag("builder")
-    check("deleting a tag takes it off everyone", tagsOf(steve.id).length, 0)
+    saveRank("artist", { perms: ["warp.manage"] })
+    check("a cosmetic rank gives no permissions, even ones written on it", has(alex, "warp.manage"), false)
+
+    revokeRank(steve.id, "builder", steve.name)
+    check("taking it away leaves only the rank", plain(renderTags(steve)), "[Mod]")
+
+    grantRank(steve.id, "builder", steve.name)
+    deleteRank("builder")
+    check("deleting a cosmetic rank takes it off everyone", heldRankIds(steve.id).includes("builder"), false)
+}
+
+console.log("\n— unlisted ranks work without showing —")
+{
+    saveRank("secret", { display: "§7Secret", type: "unlisted", perms: ["warp.manage"] })
+    grantRank(alex.id, "secret", alex.name)
+    check("an unlisted rank's permissions apply", has(alex, "warp.manage"), true)
+    check("but it shows no tag", plain(renderTags(alex)), "[Member] [Artist]")
+    check("and the starting rank stays", heldRankIds(alex.id).includes("member"), true)
+    check("it is not in the order", ladder().some(r => r.id === "secret"), false)
+    revokeRank(alex.id, "secret", alex.name)
+}
+
+console.log("\n— old ranks read their type from the staff flag —")
+{
+    check("a staff rank from before types is Staff", rankType({ staff: true }), "staff")
+    check("and any other is Default", rankType({ staff: false }), "default")
+}
+
+console.log("\n— a template keeps cosmetic and unlisted ranks —")
+{
+    saveRank("secret", { display: "§7Secret", type: "unlisted" })
+    applyPreset("server")
+    check("the cosmetic rank is still there", getRank("artist")?.type, "cosmetic")
+    check("and the unlisted one", getRank("secret")?.type, "unlisted")
+    setRanks(steve.id, ["mod"], steve.name)
+}
+
+console.log("\n— a new rank joins the order on a weight of its own —")
+{
+    saveRank("first", { display: "§aFirst" })
+    saveRank("second", { display: "§aSecond" })
+    const order = ladder().map(r => r.id)
+    check("each new rank goes to the very bottom", order.slice(-2), ["first", "second"])
+    const weights = ladder().map(r => r.weight)
+    check("and no two ranks share a weight", new Set(weights).size, weights.length)
+    deleteRank("first")
+    deleteRank("second")
 }
 
 console.log("\n— rank tags can be switched off —")
 {
-    giveTag(steve.id, "artist")
+    grantRank(steve.id, "artist", steve.name)
     setSetting("feature.ranktags", "false")
     check("with rank tags off, only cosmetic tags show", plain(renderTags(steve)), "[Artist]")
-    check("and somebody with no cosmetic tag shows nothing at all", plain(renderTags(makePlayer("Nobody"))), "")
+    check("and somebody with no cosmetic rank shows nothing at all", plain(renderTags(makePlayer("Nobody"))), "")
     setSetting("feature.tags", "false")
     check("with both off there is no tag", renderTags(steve), "")
     resetSetting("feature.tags")
     resetSetting("feature.ranktags")
     check("back on, both return", plain(renderTags(steve)), "[Mod] [Artist]")
-    takeTag(steve.id, "artist")
+    revokeRank(steve.id, "artist", steve.name)
 }
 
 console.log("\n— names above heads can be handed to another mod —")
@@ -123,6 +166,30 @@ console.log("\n— name colour and chat colour, from the rank —")
     check("something that is not a colour code gives no colour", chatColourFor(alex), "")
     saveRank("member", { meta: {} })
     check("and no value gives none", chatColourFor(alex), "")
+}
+
+console.log("\n— fonts: the player's own, then the rank's —")
+{
+    check("no font anywhere is Normal", nameFontFor(alex), "normal")
+
+    saveRank("member", { font: "smallcaps", fontName: true, fontChat: false })
+    check("a rank's font can go on its players' names", nameFontFor(alex), "smallcaps")
+    check("names in templated lines use it", nameTokens(alex).NICKNAME, applyFont("Alex", "smallcaps"))
+    check("but not their messages unless switched on", chatFontFor(alex), "normal")
+
+    saveRank("member", { fontChat: true })
+    check("switched on, messages use it too", chatFontFor(alex), "smallcaps")
+    check("and the chat line shows it", formatChatLine(alex, "hi", undefined, false).includes(applyFont("hi", "smallcaps")), true)
+
+    setNameFont(alex, "circled")
+    check("the player's own font beats the rank's", nameFontFor(alex), "circled")
+    setNameFont(alex, "normal")
+
+    saveRank("member", { font: "normal", fontName: false, fontChat: false })
+    saveRank("artist", { font: "tiny", fontName: true, fontChat: true })
+    grantRank(alex.id, "artist", alex.name)
+    check("a cosmetic rank's font never reaches names", nameFontFor(alex), "normal")
+    check("or messages", chatFontFor(alex), "normal")
 }
 
 console.log(`\n${passed} passed, ${failed} failed\n`)

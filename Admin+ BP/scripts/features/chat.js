@@ -1,7 +1,8 @@
 import { world, system } from "@minecraft/server"
 import { noteChat } from "../core/chatlog.js"
 import { CONFIG } from "../config.js"
-import { primaryRank, isStaff, renderTags, chatNameFor, chatColourFor } from "../core/ranks.js"
+import { primaryRank, isStaff, renderTags, chatNameFor, chatColourFor, chatFontFor } from "../core/ranks.js"
+import { applyFont } from "../core/fonts.js"
 import { displayName, nameTokens, stripCodes } from "../core/identity.js"
 import { render, flag } from "../core/settings.js"
 import { screen } from "../core/chatfilter.js"
@@ -50,7 +51,7 @@ export function formatChatLine(sender, message, channel, labelled) {
         // gets the still frame of a moving effect, because a chat line is
         // printed once and never redrawn.
         NICKNAME: chatNameFor(sender, names.NICKNAME),
-        MSG: `${chatColourFor(sender)}${message}`,
+        MSG: `${chatColourFor(sender)}${applyFont(message, chatFontFor(sender))}`,
         CHANNEL: channel?.display ?? ""
     }
     // Dropping the tag can leave a leading space where it used to sit.

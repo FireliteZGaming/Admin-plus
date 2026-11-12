@@ -228,9 +228,6 @@ for (const file of scriptFiles("Admin+ BP/scripts")) {
 const NO_AUDIENCE = new Set([
     "automod.ore", "automod.breaks", "automod.spam", "automod.config",
     "admin.clearchat", "admin.lagclear", "chat.broadcast", "dev.banhammer",
-    // Deleting a cosmetic tag is done to the tag list, not to a person. Giving
-    // and taking one ARE done to a person, and have their own sentences.
-    "tag.delete",
     // Taking a barrier out of the panel is done to the world, not to a person.
     // It is logged so there is a record of who has them.
     "admin.opblock",

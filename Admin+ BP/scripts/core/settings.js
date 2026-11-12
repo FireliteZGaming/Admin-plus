@@ -324,8 +324,8 @@ export const DEFAULTS = {
         help: "true / false · off: Admin+ never changes the name above a player's head, so another mod can"
     },
     "feature.tags": {
-        value: "true", label: "Cosmetic tags",
-        help: "true / false · tags that only change how a name looks, with no place in the rank order and no permissions"
+        value: "true", label: "Cosmetic ranks",
+        help: "true / false · show the tags of cosmetic ranks: ranks that only change how a name looks, with no place in the rank order and no permissions"
     },
     "creator.console": {
         value: "true",

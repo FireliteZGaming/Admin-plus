@@ -1,7 +1,7 @@
 import { CustomCommandParamType } from "@minecraft/server"
 import { command } from "../core/registry.js"
 import { ok, err } from "../core/util.js"
-import { displayName, getNickname, setNickname, NICK_MAX } from "../core/identity.js"
+import { displayName, getNickname, setNickname, NICK_MAX, withCodes } from "../core/identity.js"
 import { canActOn, refreshNameTag } from "../core/ranks.js"
 import { record } from "../core/logs.js"
 import { nicknameScreen } from "./actions.js"
@@ -34,9 +34,10 @@ command({
             return err(player, `${displayName(target)} outranks you.`)
         }
 
-        const text = String(wanted ?? "")
+        // & works like §, the same as in the Display form.
+        const text = withCodes(String(wanted ?? ""))
         if (text.trim().length > NICK_MAX) {
-            return err(player, `Display names cap at ${NICK_MAX} characters.`)
+            return err(player, `Display names cap at ${NICK_MAX} characters, codes included.`)
         }
 
         const previous = getNickname(target)

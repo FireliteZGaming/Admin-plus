@@ -11,9 +11,33 @@ import { CONFIG } from "../config.js"
 const PAGE_SIZE = 24
 
 /**
+ * A header, label or divider: part of a menu that splits a list into sections
+ * and cannot be pressed. Written in a button list as `{ header: "text" }`,
+ * `{ label: "text" }` or `{ divider: true }`.
+ */
+export function isDecoration(entry) {
+    return !!entry && (entry.divider === true || entry.header !== undefined || entry.label !== undefined)
+}
+
+/**
+ * Draw one. A game too old to have these parts skips them rather than failing,
+ * so the menu still works, just without the sections.
+ */
+function decorate(form, entry) {
+    if (entry.divider === true) { if (typeof form.divider === "function") form.divider() }
+    else if (entry.header !== undefined) { if (typeof form.header === "function") form.header(entry.header) }
+    else if (typeof form.label === "function") form.label(entry.label)
+}
+
+/**
  * A menu screen.
+ *
+ * Headers, labels and dividers take no place in `actions`. The game numbers
+ * only the BUTTONS when it says which one was pressed ("the index of the button
+ * that was pushed", Microsoft's ActionFormResponse docs, read 2026-11-11), so
+ * counting a divider here would shift every button after it by one.
  * @param {import("@minecraft/server").Player} player
- * @param {{title: string, body?: string, buttons: {text: string, icon?: string, run: () => any}[], back?: () => any}} spec
+ * @param {{title: string, body?: string, buttons: ({text: string, icon?: string, run: () => any}|{header?: string, label?: string, divider?: boolean})[], back?: () => any}} spec
  */
 export async function menu(player, spec) {
     const form = new ActionFormData().title(spec.title)
@@ -21,6 +45,7 @@ export async function menu(player, spec) {
     const actions = []
     for (const button of spec.buttons) {
         if (!button) continue
+        if (isDecoration(button)) { decorate(form, button); continue }
         form.button(button.text, button.icon)
         actions.push(button.run)
     }
@@ -45,6 +70,8 @@ export async function pagedMenu(player, spec) {
     const slice = spec.items.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
     const buttons = slice.map(item => {
         const rendered = spec.render(item)
+        // A section header or divider in the list is drawn as it is.
+        if (isDecoration(rendered)) return rendered
         return { text: rendered.text, icon: rendered.icon, run: () => spec.onPick(item) }
     })
     for (const button of spec.extra ?? []) buttons.push(button)

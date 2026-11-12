@@ -23,7 +23,7 @@ const FEATURES = [
     { key: "feature.adminchat", label: "Admin+ chat", detail: "off: chat is left to the game or another mod. Mutes still work" },
     { key: "feature.chat", label: "Chat rooms", detail: "off means one chat for everyone" },
     { key: "feature.ranktags", label: "Rank tags", detail: "tags in chat and above heads. Off: ranks still work, unseen" },
-    { key: "feature.tags", label: "Cosmetic tags", detail: "tags that only change how a name looks" },
+    { key: "feature.tags", label: "Cosmetic ranks", detail: "show the tags of cosmetic ranks" },
     { key: "feature.nametags", label: "Names above heads", detail: "off: Admin+ leaves nametags alone" },
     { key: "feature.namecolour", label: "Name colours", detail: "a colour or moving effect, set per rank" },
     { key: "feature.pm", label: "Private messages", detail: "/pm, /r and /prchat" },

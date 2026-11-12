@@ -73,8 +73,8 @@ const GROUPS = [
     },
     {
         id: "people", label: "Ranks & names",
-        hint: "ranks and cosmetic tags given and taken, nicknames",
-        prefixes: ["rank", "name", "tag"]
+        hint: "ranks given and taken, nicknames",
+        prefixes: ["rank", "name"]
     },
     {
         id: "stafftools", label: "Staff tools",

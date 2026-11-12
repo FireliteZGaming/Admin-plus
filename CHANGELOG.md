@@ -56,6 +56,94 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.8.1 — 2026-11-11
+
+**Rank types, typed names and fonts, a Basics button on every player, and the
+rank list in two sections.**
+
+### Ranks have a type
+
+The Staff rank switch is now a Rank type list in Basics, like Discord roles:
+
+1. **Default**: a normal rank in the order, like VIP. Giving it replaces the
+   starting rank.
+2. **Staff**: the same, plus staff tools under Permissions ▸ Administrative.
+3. **Cosmetic**: a tag added beside the player's rank. No place in the order
+   and no permissions.
+4. **Unlisted**: shows no tag, but its permissions still apply.
+
+Cosmetic and unlisted ranks weigh nothing, so they never make anyone outrank
+anyone, and rank templates keep them. Ranks made before this read their type
+from the old staff switch, so an existing world keeps working as it was.
+
+The separate cosmetic tags from 2.8.0 are gone. A cosmetic rank does the same
+job from the same list as every other rank. 2.8.0 was never deployed, so no
+world has tags to lose.
+
+### The rank list has two sections
+
+Ranks now shows:
+
+1. **In the order**: Default and Staff ranks, strongest first.
+2. **Cosmetic and unlisted**: ranks with no order. With none yet, it says how
+   to make one.
+
+A divider sits between them. Every rank's button names its type (staff,
+default, cosmetic, unlisted), and the starting rank says "new players get it".
+Giving and taking a rank use the same two sections.
+
+### Names are typed
+
+A rank's name is typed with its colours, the way Essentials explains it: put
+`&` and a code in front, and everything after it takes that colour. `&c&lAdmin`
+shows as a bold red Admin. `§` works too. The colour list for names is gone.
+
+The Bold and Italic switches start on when the name already has `&l` or `&o`.
+Flip one and it adds or removes that code across the whole name. Leave it, and
+the name keeps exactly the codes you typed. A name with no colour shows white.
+
+Chat colour is typed the same way: `&e`, or just `e`.
+
+### Fonts
+
+Rank Basics and a player's Display have a font list: Normal, Small caps, Tiny
+and Circled. Fonts are look-alike letters, so they need no resource pack. Under
+a rank's font are three switches:
+
+1. Apply to the rank tag (on by default).
+2. Apply to their name.
+3. Apply to their messages.
+
+A player's own font beats a rank's. A cosmetic rank's font only changes its own
+tag.
+
+### Players ▸ a player ▸ Basics
+
+The Display name and Ranks buttons are one Basics button with two choices:
+
+1. **Display**: the display name in a text box, filled in with the current
+   name, and the font. Their gamertag or an empty box means no display name.
+2. **Ranks**: give, take away, change the tag order, or replace all their
+   ranks.
+
+Basics lists the current display name, font and ranks above the two buttons.
+`/nick` takes `&` codes too.
+
+### Fixes
+
+1. A new rank could land on the same weight as the bottom rank, so neither
+   outranked the other. A rank joining the order now gets a weight of its own.
+2. Changing a player's tag order could do nothing when an unlisted rank sat
+   between two tags. Tags now swap past hidden ranks, and move only among ranks
+   of their own type, because staff tags always come first.
+3. The starting rank cannot be made cosmetic or unlisted, which would have left
+   new players with no rank.
+4. Closing the form that bare `/nick` opens no longer throws an error.
+
+Tested under Node: 52 suites, 2,887 checks. **Not yet run in game.** The two
+things most worth checking: that the fonts draw, and that tapping a rank under
+a section header opens that rank.
+
 ## 2.8.0 — 2026-11-11
 
 **Cosmetic tags, a rank editor in two parts, and switches for servers that run

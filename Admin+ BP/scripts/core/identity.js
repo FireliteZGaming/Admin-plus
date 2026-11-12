@@ -56,12 +56,54 @@ export function terminate(text) {
     return raw.includes("§") ? `${raw}§r` : raw
 }
 
+/**
+ * Colour codes typed by hand, the way Essentials explains it: a code in front
+ * of the words colours everything after it. `&` works as well as `§`, because
+ * `&` is on every keyboard and `§` is not.
+ */
+export function withCodes(text) {
+    return String(text ?? "").replace(/&([0-9a-jk-v])/gi, (_, c) => `§${c.toLowerCase()}`)
+}
+
+/** Written back with `&`, for a text box: easier to read and to edit. */
+export function asTyped(text) {
+    return String(text ?? "").replace(/§([0-9a-jk-v])/gi, "&$1")
+}
+
 export const NICK_MAX = 30
 
 const nicknames = new Table("nicknames", {})
 
 function idOf(playerOrId) {
     return typeof playerOrId === "string" ? playerOrId : playerOrId?.id
+}
+
+/**
+ * Each player's own name font (core/fonts.js), set in Players ▸ a player ▸
+ * Basics beside their display name. Stored apart from the nickname, so the
+ * nickname stays exactly what was typed.
+ */
+const nameFonts = new Table("nameFonts", {})
+
+export function getNameFont(playerOrId) {
+    return nameFonts.get(idOf(playerOrId)) || "normal"
+}
+
+export function setNameFont(playerOrId, fontId) {
+    const id = idOf(playerOrId)
+    if (!fontId || fontId === "normal") nameFonts.delete(id)
+    else nameFonts.set(id, String(fontId))
+}
+
+/**
+ * How a name is dressed before a template draws it: the font. core/ranks.js
+ * registers this, because a rank can give its players a name font and only
+ * ranks.js knows who holds what; identity.js cannot import ranks.js without a
+ * cycle.
+ */
+let decorateName = (player, text) => text
+export function setNameDecorator(fn) {
+    decorateName = typeof fn === "function" ? fn : (player, text) => text
 }
 
 /** The raw nickname, or undefined when they use their real name. */
@@ -209,7 +251,8 @@ export function nameTokens(playerOrName, nickname) {
     const real = playerOrName?.name ?? ""
     return {
         NAME: stripCodes(real),
-        NICKNAME: terminate(styledName(playerOrName, real) || real)
+        // In their name font, if they or their rank have one.
+        NICKNAME: terminate(decorateName(playerOrName, styledName(playerOrName, real) || real))
     }
 }
 

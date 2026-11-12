@@ -2,9 +2,10 @@ import { world, GameMode } from "@minecraft/server"
 import { menu, pagedMenu, modal, confirm, subtitle } from "../core/ui.js"
 import { hubTitle } from "../core/theme.js"
 import { ok, err, info, formatDuration } from "../core/util.js"
-import { primaryRank, playerRanks, canActOn, canSeeActionsOf, has, refreshNameTag, knownHolders, getRank, heldRankIds, renderTags } from "../core/ranks.js"
+import { primaryRank, playerRanks, canActOn, canSeeActionsOf, has, refreshNameTag, knownHolders, getRank, heldRankIds, renderTags, nameFontFor } from "../core/ranks.js"
 import { invseeScreen } from "./invsee.js"
-import { displayName, getNickname, setNickname, NICK_MAX } from "../core/identity.js"
+import { displayName, getNickname, setNickname, NICK_MAX, getNameFont, setNameFont, withCodes, asTyped } from "../core/identity.js"
+import { FONT_IDS, FONTS, fontOptions } from "../core/fonts.js"
 import { flag } from "../core/settings.js"
 import {
     kick, ban, mute, unmute, isMuted, hasMuteTag, isFrozen, setFrozen,
@@ -16,7 +17,7 @@ import { record } from "../core/logs.js"
 import { warningLine, warningCount } from "../core/warnings.js"
 import { warningsScreen } from "./warn.js"
 import { forceVisible, isVanished } from "./vanish.js"
-import { playerRankScreen } from "./ranksUI.js"
+import { playerRankScreen, rankNames } from "./ranksUI.js"
 import { chatAvailable } from "./chat.js"
 import { matches, relevance } from "../core/ask.js"
 
@@ -108,7 +109,7 @@ async function offlineActionsScreen(player, row, back) {
     const allowed = canActOn(player, row.id)
     const again = () => offlineActionsScreen(player, row, back)
     const record = banRecord(row.id)
-    const ranks = playerRanks(row.id).map(r => r.display).join("§7, ") || "§7none"
+    const ranks = rankNames(playerRanks(row.id))
 
     return menu(player, {
         title: hubTitle("actions", row.name),
@@ -181,7 +182,7 @@ async function playerActionsScreen(player, target, back) {
     const nick = getNickname(target)
     const allowed = canActOn(player, target)
     const again = () => playerActionsScreen(player, target, back)
-    const ranks = playerRanks(target).map(r => r.display).join("§7, ") || "§7none"
+    const ranks = rankNames(playerRanks(target))
 
     const body = [
         `${renderTags(target)}§r ${displayName(target)}`,
@@ -198,12 +199,11 @@ async function playerActionsScreen(player, target, back) {
         title: hubTitle("actions", displayName(target)),
         body,
         buttons: [
-            // Display name first: it is the thing you are most often here to change.
-            allowed && has(player, "admin.nickname")
-                ? { text: `§bDisplay name\n§8${nick ? nick + "§8 — tap to edit or clear" : "using their account name"}`, run: () => nicknameScreen(player, target, again) }
-                : null,
-            has(player, "ranks.grant")
-                ? { text: "§bRanks\n§8Add, remove, reorder their tags", run: () => playerRankScreen(player, target.id, target.name, again) }
+            // Basics first: how they look and what ranks they have, the
+            // things most often changed. One door for both, as asked for on
+            // 2026-11-11: "you can either choose Display or Rank".
+            (allowed && has(player, "admin.nickname")) || has(player, "ranks.grant")
+                ? { text: "§bBasics\n§8Display name, font and ranks", run: () => basicsMenu(player, target, again) }
                 : null,
             allowed && has(player, "admin.gamemode")
                 ? { text: "§bGamemode", run: () => gamemodeScreen(player, target, again) }
@@ -453,41 +453,114 @@ function gameModeOf(target) {
     try { return target.getGameMode?.() ?? "unknown" } catch { return "unknown" }
 }
 
-// --------------------------------------------------------------- display name
+// --------------------------------------------------------------------- basics
 
+/**
+ * Basics: how a player looks and what ranks they have. Two doors, Display and
+ * Ranks, with what each one holds now written above them.
+ */
+export async function basicsMenu(player, target, back) {
+    const again = () => basicsMenu(player, target, back)
+    const nick = getNickname(target)
+    const own = getNameFont(target)
+    const shown = nameFontFor(target)
+    const font = shown !== own
+        ? `${FONTS[own]?.label ?? "Normal"} §8(their rank gives ${FONTS[shown]?.label ?? shown})`
+        : (FONTS[own]?.label ?? "Normal")
+    return menu(player, {
+        title: hubTitle("actions", `Basics · ${target.name}`),
+        body: [
+            `§fDisplay name: §r${nick ? `${nick}§r` : "§7their gamertag"}`,
+            `§fFont: §7${font}`,
+            `§fRanks: §r${rankNames(playerRanks(target))}`
+        ].join("\n"),
+        buttons: [
+            canActOn(player, target) && has(player, "admin.nickname")
+                ? { text: "§bDisplay\n§8Display name and font", run: () => nicknameScreen(player, target, again) }
+                : null,
+            has(player, "ranks.grant")
+                ? { text: "§bRanks\n§8Give, take away, change the tag order", run: () => playerRankScreen(player, target.id, target.name, again) }
+                : null
+        ],
+        back
+    })
+}
+
+/**
+ * Display: their display name and their font, in one form.
+ *
+ * The name box starts with the name they show now, codes written with &, so
+ * changing it is editing rather than retyping. Colour is typed into the name,
+ * the way players already do it; there is no colour list. Font is a list,
+ * because look-alike letters are not something anybody can type.
+ *
+ * Their gamertag, typed plain, or an empty box means no display name.
+ */
 export async function nicknameScreen(player, target, back) {
-    const current = getNickname(target) ?? ""
-    const values = await modal(player, hubTitle("actions", `Display name · ${target.name}`), [
+    // Bare /nick opens this with nowhere to go back to.
+    const done = () => back?.()
+    const current = getNickname(target) ?? target.name
+    const fontAt = Math.max(0, FONT_IDS.indexOf(getNameFont(target)))
+    const values = await modal(player, hubTitle("actions", `Display · ${target.name}`), [
         {
             id: "nick",
             type: "text",
-            label: `Display name §7(max ${NICK_MAX} chars, §§ colours allowed)\n§8Clear the box to fall back to their account name.`,
+            label: [
+                `Display name §8(up to ${NICK_MAX} characters, codes count)`,
+                "§8Put & and a code in front for colour: §7&b&lSteve§8 shows as §b§lSteve",
+                "§8Their gamertag or an empty box means no display name."
+            ].join("\n"),
             placeholder: target.name,
-            default: current
+            default: asTyped(current)
+        },
+        {
+            id: "font",
+            type: "dropdown",
+            label: "Font\n§8Their name in chat and above their head. On Normal, a rank's name font can show instead.",
+            options: fontOptions(),
+            default: fontAt
         }
     ])
-    if (!values) return back()
+    if (!values) return done()
 
-    const wanted = String(values.nick ?? "")
-    if (wanted.trim().length > NICK_MAX) {
-        err(player, `Display names cap at ${NICK_MAX} characters.`)
-        return back()
+    const wanted = withCodes(String(values.nick ?? "")).trim()
+    if (wanted.length > NICK_MAX) {
+        err(player, `Display names cap at ${NICK_MAX} characters, codes included.`)
+        return done()
     }
+    // Their own gamertag with no codes is the same as no display name.
+    const plainGamertag = wanted === target.name
 
     const previous = getNickname(target)
-    const applied = setNickname(target, wanted)
+    const applied = setNickname(target, plainGamertag ? "" : wanted)
+    const fontBefore = getNameFont(target)
+    const font = FONT_IDS[values.font] ?? "normal"
+    setNameFont(target, font)
     refreshNameTag(target)
-    record(player, applied ? "name.set" : "name.clear", target,
-        applied ? applied : "back to account name", { kind: "nickname", previous })
 
-    if (!applied) {
-        ok(player, `Cleared §f${target.name}§a's display name.`)
-        info(target, "Your display name was reset to your account name.")
-    } else {
-        ok(player, `§f${target.name}§a now shows as ${applied}§a.`)
-        info(target, `Your display name is now ${applied}§7.`)
+    const nameChanged = (applied ?? "") !== (previous ?? "")
+    const fontChanged = font !== fontBefore
+    if (nameChanged) {
+        record(player, applied ? "name.set" : "name.clear", target,
+            applied ? applied : "back to account name", { kind: "nickname", previous })
     }
-    return back()
+    if (!nameChanged && !fontChanged) {
+        info(player, "Nothing changed.")
+        return done()
+    }
+
+    const what = [
+        nameChanged ? (applied ? `shows as ${applied}§r§a` : "is their gamertag again") : null,
+        fontChanged ? `uses the §f${FONTS[font].label}§a font` : null
+    ].filter(Boolean).join(" and ")
+    ok(player, `§f${target.name}§a's name ${what}.`)
+    if (target.id !== player.id) {
+        info(target, [
+            nameChanged ? (applied ? `Your display name is now ${applied}§r§7.` : "Your display name is your gamertag again.") : null,
+            fontChanged ? `Your name now uses the ${FONTS[font].label} font.` : null
+        ].filter(Boolean).join(" "))
+    }
+    return done()
 }
 
 // ------------------------------------------------------------------ gamemode

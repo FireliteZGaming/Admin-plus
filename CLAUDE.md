@@ -222,12 +222,20 @@ value in the wrong key.
   claims, My settings, Help. Personal things (your homes, your claims) live in
   `/menu`; staff tools in `/admin`. Rarely used config sits in Server ▸
   Advanced. Keep new screens inside this shape rather than adding root buttons.
-- **A rank is Basics and Permissions (2.8.0, the user's own split, 2026-11-11).**
-  Basics: name, rank colour, name colour, chat colour, staff, default.
-  Permissions: Member (what players can use, limits, cooldowns) and
-  Administrative (staff tools, shown only for a staff rank). Cosmetic tags
-  (`core/tags.js`) are NOT ranks: no order, no permissions, never in
-  `playerRanks()`. Keep them out of anything that decides authority.
+- **A rank is Basics and Permissions (2.8.0, the user's own split, 2026-11-11),
+  and it has a TYPE (2.8.1).** Basics: a TYPED name (`&` or `§` codes; Bold and
+  Italic switches that read the codes and only rewrite them when flipped), a
+  font with three switches (rank tag, their name, their messages), the type,
+  name colour, typed chat colour, starting rank. Permissions: Member (use,
+  limits, cooldowns) and Administrative (Staff type only). There is no colour
+  LIST for names: people type codes, the user's call.
+- **The four types (the user's, modelled on Discord roles).** Default and Staff
+  are IN THE ORDER. Cosmetic (a tag, no permissions) and Unlisted (permissions,
+  no tag) weigh 0 and are never in `ladder()`; weight 0 is what keeps them out
+  of authority, so never give one a weight. The Ranks list shows the two
+  groups as separate sections, and every rank button names its type.
+- **Players ▸ a player ▸ Basics is Display (display name and font) and Ranks**
+  (2.8.1, asked for 2026-11-11). A player's own font beats a rank's.
 - **Player-facing text follows the 7 C's** (clear, concise, concrete, correct,
   coherent, complete, courteous). Name things by what a player recognises, not
   by how the code is built: "What it can do", not "Permissions" or "nodes".

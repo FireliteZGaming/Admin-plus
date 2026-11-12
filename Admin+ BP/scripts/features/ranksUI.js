@@ -1,30 +1,33 @@
 import { world } from "@minecraft/server"
-import { menu, pagedMenu, modal, confirm, subtitle } from "../core/ui.js"
-import { hubTitle, hubButton, hubEntry } from "../core/theme.js"
+import { menu, pagedMenu, modal, confirm, subtitle, isDecoration } from "../core/ui.js"
+import { hubTitle, hubEntry } from "../core/theme.js"
 import { setting, flag, render, renderTag } from "../core/settings.js"
-import { allTags, getTag, saveTag, deleteTag, tagIdFor, tagsOf, giveTag, takeTag, holderCount } from "../core/tags.js"
 import { record } from "../core/logs.js"
 import { ok, err, info } from "../core/util.js"
-import { stripCodes, displayName } from "../core/identity.js"
+import { stripCodes, displayName, withCodes, asTyped } from "../core/identity.js"
 import { STYLES, STYLE_IDS, paint } from "../core/nametag.js"
+import { FONTS, FONT_IDS, applyFont, fontOptions } from "../core/fonts.js"
 import {
     ladder, getRank, saveRank, deleteRank, normaliseRankId, moveRank,
     PRESETS, BUNDLES, PERMISSION_NODES, RANK_VALUES,
     applyPreset, restoreSnapshot, hasSnapshot, snapshot,
     canEditRank, canActOn, has, rankState, rankGrant, displacedBy, defaultRank,
-    playerRanks, displayRanks, heldRankIds, primaryRank, moveHeldRank,
-    setRanks, grantRank, revokeRank, knownHolders, nodeLabels, refreshNameTag, topWeight
+    displayRanks, heldRankIds, primaryRank,
+    setRanks, grantRank, revokeRank, knownHolders, nodeLabels, topWeight,
+    RANK_TYPES, rankType, isRanked, unrankedRanks
 } from "../core/ranks.js"
 
 // /admin ▸ Ranks
 //
-// Opening Ranks shows the ranks themselves, strongest first, because that is
-// what somebody came to look at. Everything else hangs off that list:
+// Opening Ranks shows the ranks in two sections, split by a divider as the
+// user asked on 2026-11-11: the ranks in the order (Default and Staff),
+// strongest first, then the cosmetic and unlisted ranks, which have no order.
+// Every rank's button says its type. Everything else hangs off that list:
 //
-//   tap a rank         change its name, colour, permissions, limits, effect
-//   + New rank         a name and a colour; no ids and no § codes to type
+//   tap a rank         Basics (name, font, type, colours) and Permissions
+//   + New rank         a typed name, a font and a type
 //   Give a rank        pick a player, then give or take ranks
-//   Rank templates     replace the whole list with a ready-made one
+//   Rank templates     replace the order with a ready-made one
 //
 // Two orders, kept apart on purpose:
 //   the LIST order is the hierarchy. A rank outranks everything below it, and
@@ -34,31 +37,131 @@ import {
 // The numbers a rank carries live in RANK_VALUES in core/ranks.js, beside the
 // code that reads them.
 
-/** The colours a rank can be given without typing a § code. */
-const COLOURS = [
-    ["White", "f"], ["Gray", "7"], ["Dark gray", "8"], ["Black", "0"],
-    ["Red", "c"], ["Dark red", "4"], ["Gold", "6"], ["Yellow", "e"],
-    ["Green", "a"], ["Dark green", "2"], ["Aqua", "b"], ["Dark aqua", "3"],
-    ["Blue", "9"], ["Dark blue", "1"], ["Pink", "d"], ["Purple", "5"]
-]
-const COLOUR_OPTIONS = COLOURS.map(([label, code]) => `§${code}${label}`)
+// ------------------------------------------------------------ typed names
+//
+// A rank's name is TYPED, colour codes and all, the way players already do it
+// and the way Essentials explains it: put the code in front of the words and
+// everything after it takes that colour. A list of sixteen colours could never
+// offer what typing does (two colours, VIP+), so there is no colour list for
+// the name any more. The user's call, 2026-11-11.
+//
+// The Bold and Italic switches are shortcuts for the same codes: they read
+// what was typed (a name with &l in it shows Bold on) and switching one on
+// just puts the code in front of the words.
 
 /**
- * How a rank's display text is made up, read back so the editor can show it.
- * `simple` means one colour and maybe bold, which the colour list can redraw
- * exactly. Anything fancier (two colours, like VIP+) is kept unless changed.
- * Bedrock has no strikethrough or underline: k, l, o and r are the only
- * formatting letters, and every other code is a colour.
+ * Switch one formatting code (l bold, o italic) on or off for the whole name.
+ * On puts the code at the start and after every colour code and reset, so
+ * the whole name has it even where a colour change would end it. Off takes
+ * every copy out.
  */
-function lookOf(display) {
-    const text = String(display ?? "")
-    return {
-        name: stripCodes(text),
-        code: (text.match(/§([0-9a-jmnpqstuv])/i) ?? [])[1],
-        bold: text.includes("§l"),
-        simple: /^(§[0-9a-jmnpqstuv])?(§l)?[^§]*$/i.test(text)
-    }
+function setFormat(text, code, on) {
+    let out = text.replace(new RegExp(`§${code}`, "gi"), "")
+    if (!on) return out
+    out = out.replace(/§[0-9a-jmnpqrstuv]/gi, m => `${m}§${code}`)
+    if (!/^(?:§[0-9a-v])*§[0-9a-jmnpqrstuv]/i.test(out)) out = `§${code}${out}`
+    return out
 }
+
+/** Does this name use the code (l bold, o italic) anywhere? */
+const uses = (text, code) => new RegExp(`§${code}`, "i").test(withCodes(text))
+
+/**
+ * What the name box and its switches add up to.
+ *
+ * A switch that was flipped wins: on adds the code to the whole name, off
+ * takes every copy out. A switch left as it was leaves the box alone, so a
+ * name typed with its own &l keeps exactly the bold it was typed with. That is
+ * the "it auto turns on" the user asked for: the switch starts on when the
+ * name already has the code.
+ *
+ * `text` is kept for the box. `display` is what shows, in `font`. A name with
+ * no colour code shows white rather than taking the dark grey of the brackets
+ * around it.
+ */
+function buildName(typed, { bold = false, italic = false, wasBold = false, wasItalic = false, font = "normal" } = {}) {
+    let text = withCodes(typed).trim()
+    if (bold !== wasBold) text = setFormat(text, "l", bold)
+    if (italic !== wasItalic) text = setFormat(text, "o", italic)
+    const shown = /^(?:§[klor])*§[0-9a-jmnpqstuv]/i.test(text) ? text : `§f${text}`
+    return { text: asTyped(text), display: applyFont(shown, font) }
+}
+
+/** The box shows what was typed. Ranks from before 2.8.1 never stored it. */
+const typedOf = rank => rank?.text ?? asTyped(rank?.display ?? "")
+
+/** The name field's help: how to colour it, with an example and the codes. */
+const NAME_HELP = [
+    "Name",
+    "§8Colour it by putting & and a code in front of the words.",
+    "§8Example: §7&c&lAdmin§8 shows as §c§lAdmin",
+    "§0&0 §1&1 §2&2 §3&3 §4&4 §5&5 §6&6 §7&7 §8&8 §9&9 §a&a §b&b §c&c §d&d §e&e §f&f",
+    "§8&l bold · &o italic · & and § both work"
+].join("\n")
+
+/** Fonts are look-alike letters; the list names each font in itself. */
+const FONT_HELP = "Font\n§8Look-alike letters, like Discord's fonts. They draw smoother than normal text."
+
+/** Chat colour is typed too: one code, or nothing for the normal colour. */
+const CHAT_HELP = "Chat colour\n§8A code like &e for what they type. Leave it empty for normal."
+function chatCodeFrom(typed) {
+    const value = String(typed ?? "").trim()
+    // The letter on its own counts too: "e" is as clear as "&e".
+    if (/^[0-9a-jmnpqstuv]$/i.test(value)) return value.toLowerCase()
+    const match = withCodes(value).match(/§([0-9a-jmnpqstuv])/i)
+    return match ? match[1].toLowerCase() : ""
+}
+
+/** The four types, in RANK_TYPES order, and what each one means. */
+const TYPE_OPTIONS = ["Default", "Staff", "Cosmetic", "Unlisted"]
+const TYPE_HELP = [
+    "Rank type",
+    "§8Default: a normal rank, like VIP. Replaces the starting rank.",
+    "§8Staff: the same, plus staff permissions.",
+    "§8Cosmetic: a tag added beside the others. No permissions.",
+    "§8Unlisted: hidden. Gives permissions without a tag."
+].join("\n")
+
+/** The type as one word, the same word as in the Rank type list. */
+const typeWord = rank => TYPE_OPTIONS[RANK_TYPES.indexOf(rankType(rank))].toLowerCase()
+
+/**
+ * The line under a rank's name on its button: its type first, always, so
+ * nobody has to guess whether they are editing a rank in the order or a
+ * cosmetic one. Asked for on 2026-11-11.
+ */
+function typeNote(rank) {
+    const type = rankType(rank)
+    if (type === "cosmetic") return "cosmetic · a tag beside their rank"
+    if (type === "unlisted") return "unlisted · hidden, no tag"
+    return rank.default ? `${typeWord(rank)} · new players get it` : typeWord(rank)
+}
+
+/** A list of ranks for a body line: hidden ones marked, "none" when empty. */
+export function rankNames(ranks) {
+    return ranks
+        .map(rank => rankType(rank) === "unlisted" ? `${rank.display}§r §8(hidden)` : `${rank.display}§r`)
+        .join("§7, ") || "§7none"
+}
+
+/**
+ * Ranks under two headers: those in the order, then cosmetic and unlisted.
+ * An empty section is left out.
+ */
+function sectioned(ranks) {
+    const ranked = ranks.filter(isRanked)
+    const unranked = ranks.filter(rank => !isRanked(rank))
+    const items = []
+    if (ranked.length) items.push({ header: "In the order" }, ...ranked)
+    if (unranked.length) {
+        if (items.length) items.push({ divider: true })
+        items.push({ header: "Cosmetic and unlisted" }, ...unranked)
+    }
+    return items
+}
+
+/** A rank's button in any list: its name, then its type. */
+const rankButton = rank => ({ text: `${rank.display}§r\n§8${typeNote(rank)}` })
 
 /** A rank's name as plain text, for titles and messages. */
 const nameOf = rank => stripCodes(String(rank?.display ?? "")) || rank?.id || "this rank"
@@ -85,16 +188,29 @@ function nameColourOptions() {
     })
 }
 
-/** Chat colour choices: Default, then the plain colours. */
-const CHAT_OPTIONS = ["§7Default", ...COLOUR_OPTIONS]
-
-/** One chat line, drawn the way this rank would make it look. */
+/**
+ * One chat line, drawn the way this rank would make it look. A cosmetic tag is
+ * shown beside the starting rank's, which is how it really appears; an
+ * unlisted rank shows no tag at all.
+ */
 function previewLine(rank) {
-    const style = STYLES[String(rank.meta?.["nametag.style"] ?? "none")]
-    const name = style?.ramp ? paint("Steve", style.ramp, 0) : "Steve"
-    const code = String(rank.meta?.["chat.colour"] ?? "")
-    const colour = COLOURS.some(([, c]) => c === code) ? `§${code}` : ""
-    return render("format.chat", { TAG: renderTag(rank), RANK: rank.display, NAME: "Steve", NICKNAME: name, MSG: `${colour}hello!` })
+    const type = rankType(rank)
+    if (type === "unlisted") return "§7no tag: unlisted ranks are not shown"
+    // A cosmetic rank changes only its own tag, so the rest stays plain.
+    const own = type !== "cosmetic"
+    const looks = own ? (rank.meta ?? {}) : {}
+    const font = own && rank.font ? rank.font : "normal"
+    const style = STYLES[String(looks["nametag.style"] ?? "none")]
+    const base = applyFont("Steve", rank.fontName ? font : "normal")
+    const name = style?.ramp ? paint(base, style.ramp, 0) : base
+    const code = String(looks["chat.colour"] ?? "")
+    const colour = /^[0-9a-jmnpqstuv]$/i.test(code) ? `§${code}` : ""
+    const message = applyFont("hello!", rank.fontChat ? font : "normal")
+    const starter = defaultRank()
+    const tag = type === "cosmetic" && starter
+        ? [renderTag(starter), renderTag(rank)].filter(Boolean).join(" ")
+        : renderTag(rank)
+    return render("format.chat", { TAG: tag, RANK: rank.display, NAME: "Steve", NICKNAME: name, MSG: `${colour}${message}` })
 }
 
 export async function ranksScreen(player, back) {
@@ -107,29 +223,44 @@ export async function ranksScreen(player, back) {
 // ================================================================ the list
 
 function ladderLine(rank, index) {
-    const flags = []
-    if (rank.staff) flags.push("staff")
-    if (rank.default) flags.push("new players get it")
-    const suffix = flags.length ? `\n§8${flags.join(" · ")}` : ""
-    return `§8${index + 1}. §r${rank.display}§r${suffix}`
+    // Cosmetic and unlisted ranks have no number, because they have no place.
+    if (!isRanked(rank)) return `§r${rank.display}§r\n§8${typeNote(rank)}`
+    return `§8${index + 1}. §r${rank.display}§r\n§8${typeNote(rank)}`
 }
 
+/**
+ * The rank list, in two sections with a divider between them, asked for on
+ * 2026-11-11 "so people understand what they are editing": ranks in the
+ * order, then cosmetic and unlisted ranks. Each section says what its ranks
+ * are, and an empty second section says how to make one.
+ */
 async function ladderScreen(player, back) {
     const ranks = ladder()
+    const unranked = unrankedRanks()
     const again = () => ladderScreen(player, back)
     return pagedMenu(player, {
         title: hubTitle("ranks", "Ranks"),
-        body: subtitle("Strongest first. A rank outranks every rank below it.\nTap a rank to change it."),
-        items: ranks,
-        render: (rank) => ({ text: ladderLine(rank, ranks.indexOf(rank)) }),
+        body: subtitle("Tap a rank to change it."),
+        items: [
+            { header: "In the order" },
+            { label: "§8Strongest first. Each rank outranks the ranks below it." },
+            ...ranks,
+            { divider: true },
+            { header: "Cosmetic and unlisted" },
+            {
+                label: unranked.length
+                    ? "§8No order and no power over anyone. Cosmetic adds a tag; unlisted is hidden."
+                    : "§8None yet. Make one with + New rank and pick its type."
+            },
+            ...unranked,
+            { divider: true }
+        ],
+        render: item => isDecoration(item) ? item : { text: ladderLine(item, ranks.indexOf(item)) },
         onPick: rank => rankScreen(player, rank.id, again),
         extra: [
-            { text: hubEntry("presets", "+ New rank", "Pick a name and a colour"), run: () => createRankScreen(player, again) },
+            { text: hubEntry("presets", "+ New rank", "A name, a font and a type"), run: () => createRankScreen(player, again) },
             { text: hubEntry("ranks", "Give a rank to a player", "Or take one away"), run: () => rankPlayersScreen(player, again) },
-            flag("feature.tags")
-                ? { text: hubEntry("presets", "Cosmetic tags", "Tags that only change how a name looks"), run: () => tagsScreen(player, again) }
-                : null,
-            { text: hubEntry("presets", "Rank templates", "Replace the whole list with a ready-made one"), run: () => presetsScreen(player, again) },
+            { text: hubEntry("presets", "Rank templates", "Replace the order with a ready-made one"), run: () => presetsScreen(player, again) },
             hasSnapshot()
                 ? { text: "§8↺ Undo last change\n§8Puts back the list from before the last template or delete", run: () => undoScreen(player, again) }
                 : null
@@ -152,6 +283,8 @@ export async function rankScreen(player, rankId, back) {
     const rank = getRank(rankId)
     if (!rank) { err(player, "That rank no longer exists."); return back() }
 
+    const type = rankType(rank)
+    const ranked = isRanked(rank)
     const rows = ladder()
     const index = rows.findIndex(r => r.id === rankId)
     const editable = canEditRank(player, rank)
@@ -165,32 +298,39 @@ export async function rankScreen(player, rankId, back) {
         return `§7${group}: §f${on === nodes.length ? "all" : `${on} of ${nodes.length}`}`
     }).filter(Boolean)
     const parents = (rank.inherits ?? []).map(id => getRank(id)).filter(Boolean)
-    const notes = [rank.staff ? "staff" : null, rank.default ? "new players get it" : null].filter(Boolean)
 
     const body = [
         `${rank.display}§r`,
-        subtitle(`Number ${index + 1} of ${rows.length}${notes.length ? ` · ${notes.join(" · ")}` : ""}`),
+        subtitle(ranked ? `Number ${index + 1} of ${rows.length} in the order · ${typeNote(rank)}` : typeNote(rank)),
         "",
         `§fIn chat: §r${previewLine(rank)}`,
         "",
-        "§fWhat it can do:",
-        ...(groups.length ? groups : ["§7Nothing yet"]),
-        parents.length ? `\n§fAlso gets everything from: §r${parents.map(r => r.display + "§r").join("§7, ")}` : "",
+        // A cosmetic rank gives nothing, so there is nothing to list.
+        ...(type === "cosmetic"
+            ? ["§7A cosmetic rank only changes how a name looks. It gives no permissions."]
+            : [
+                "§fWhat it can do:",
+                ...(groups.length ? groups : ["§7Nothing yet"]),
+                parents.length ? `\n§fAlso gets everything from: §r${parents.map(r => r.display + "§r").join("§7, ")}` : ""
+            ]),
         editable ? "" : "\n§cThis rank is at or above yours, so you can only look."
     ].join("\n")
 
-    const canMoveUp = editable && index > 0 && canEditRank(player, rows[index - 1])
-    const canMoveDown = editable && index < rows.length - 1
+    // Only a rank in the order has a place to move to.
+    const canMoveUp = ranked && editable && index > 0 && canEditRank(player, rows[index - 1])
+    const canMoveDown = ranked && editable && index < rows.length - 1
 
     return menu(player, {
         title: hubTitle("ranks", nameOf(rank)),
         body,
         buttons: editable ? [
             // Two doors, as the user laid it out on 2026-11-11: Basics is how
-            // the rank looks and whether it is staff; Permissions is what it
-            // can do, split into Member and Administrative.
-            { text: hubEntry("ranks", "Basics", "Name, colours, and whether it is staff"), run: () => basicsScreen(player, rankId, again) },
-            { text: hubEntry("ranks", "Permissions", rank.staff ? "Member and administrative" : "What players with it can do"), run: () => permissionsScreen(player, rankId, again) },
+            // the rank looks and what type it is; Permissions is what it can
+            // do, split into Member and Administrative.
+            { text: hubEntry("ranks", "Basics", "Name, font, type and colours"), run: () => basicsScreen(player, rankId, again) },
+            type !== "cosmetic"
+                ? { text: hubEntry("ranks", "Permissions", type === "staff" ? "Member and administrative" : "What players with it can do"), run: () => permissionsScreen(player, rankId, again) }
+                : null,
             canMoveUp ? { text: `§7▲ Move up §8· above ${nameOf(rows[index - 1])}`, run: () => { moveRank(rankId, -1); return again() } } : null,
             canMoveDown ? { text: `§7▼ Move down §8· below ${nameOf(rows[index + 1])}`, run: () => { moveRank(rankId, 1); return again() } } : null,
             { text: "§cDelete this rank", run: () => deleteScreen(player, rankId, back) }
@@ -200,13 +340,12 @@ export async function rankScreen(player, rankId, back) {
 }
 
 /**
- * A new rank from a name and a colour.
+ * A new rank: a typed name, a font and a type.
  *
- * There used to be an id field ("lowercase, no spaces, also the tag") and a
- * display field that wanted § codes typed by hand. Both are gone: the id is
- * made from the name, and the colour comes from a list drawn in its own
- * colours. There also used to be a "replaces lower ranks" switch that was
- * never saved anywhere, so it did nothing; it is gone too.
+ * The name is typed with its colours, the way players already write them
+ * (see "typed names" at the top), and the id is made from its letters, so
+ * nobody types an id. Only Default and Staff ranks take a place in the order,
+ * and a cosmetic rank inherits nothing, because it gives no permissions.
  *
  * Only places and parents at or below the maker's own rank are offered, so
  * making a rank can never hand out more than its maker has.
@@ -219,13 +358,14 @@ export async function createRankScreen(player, back) {
     const fallbackAt = usable.findIndex(r => r.id === fallback?.id)
 
     const values = await modal(player, hubTitle("ranks", "New rank"), [
-        { id: "name", type: "text", label: "Name\n§8Shown in chat and above heads", placeholder: "Helper" },
-        { id: "colour", type: "dropdown", label: "Colour", options: COLOUR_OPTIONS, default: 7 },
+        { id: "name", type: "text", label: NAME_HELP, placeholder: "&eHelper" },
         { id: "bold", type: "toggle", label: "Bold", default: false },
-        { id: "staff", type: "toggle", label: "Staff rank\n§8Gets staff chat and staff alerts", default: false },
+        { id: "italic", type: "toggle", label: "Italic", default: false },
+        { id: "font", type: "dropdown", label: `${FONT_HELP}\n§8It goes on the rank tag. Basics can put it on names and messages too.`, options: fontOptions(), default: 0 },
+        { id: "type", type: "dropdown", label: TYPE_HELP, options: TYPE_OPTIONS, default: 0 },
         {
             id: "from", type: "dropdown",
-            label: "Also gets everything from\n§8It starts with all of that rank's permissions",
+            label: "Also gets everything from\n§8It starts with all of that rank's permissions. Not for cosmetic ranks.",
             options: ["§7No other rank", ...usable.map(r => `${r.display}§r`)],
             // New players' rank by default, so the new rank never loses the
             // basics when it replaces that one.
@@ -233,7 +373,7 @@ export async function createRankScreen(player, back) {
         },
         {
             id: "below", type: "dropdown",
-            label: "Put it just below",
+            label: "Put it just below\n§8Only Default and Staff ranks have a place in the order.",
             options: usable.map(r => `${r.display}§r`),
             // Just above the new players' rank, where Helper, VIP or Builder
             // usually belongs.
@@ -242,79 +382,133 @@ export async function createRankScreen(player, back) {
     ])
     if (!values) return back()
 
-    const name = stripCodes(String(values.name ?? "")).trim()
-    if (!name) { err(player, "Give the rank a name."); return back() }
-    const base = normaliseRankId(name)
+    const typed = String(values.name ?? "")
+    const plain = stripCodes(withCodes(typed)).trim()
+    if (!plain) { err(player, "Give the rank a name."); return back() }
+    const base = normaliseRankId(plain)
     if (!base) { err(player, "Use letters or numbers in the name."); return back() }
     let id = base
     for (let n = 2; getRank(id); n++) id = `${base}${n}`
 
-    const code = (COLOURS[values.colour] ?? COLOURS[7])[1]
-    const display = `§${code}${values.bold ? "§l" : ""}${name}`
-    const parent = values.from ? usable[values.from - 1] : undefined
-    saveRank(id, { display, staff: !!values.staff, inherits: parent ? [parent.id] : [], perms: [], meta: {} })
+    const type = RANK_TYPES[values.type] ?? "default"
+    const ranked = type === "default" || type === "staff"
+    const font = FONT_IDS[values.font] ?? "normal"
+    const name = buildName(typed, { bold: !!values.bold, italic: !!values.italic, font })
+    const parent = type !== "cosmetic" && values.from ? usable[values.from - 1] : undefined
+    saveRank(id, {
+        display: name.display, text: name.text, font,
+        fontTag: true, fontName: false, fontChat: false,
+        type, inherits: parent ? [parent.id] : [], perms: [], meta: {}
+    })
 
-    // A new rank lands at the bottom. Walk it up to just below the chosen one.
-    const target = usable[values.below] ?? usable[usable.length - 1]
-    for (let guard = 0; guard < 64; guard++) {
-        const order = ladder().map(r => r.id)
-        if (order.indexOf(id) <= order.indexOf(target.id) + 1) break
-        if (!moveRank(id, -1)) break
+    // A rank in the order lands at the bottom. Walk it up to just below the
+    // chosen one.
+    if (ranked) {
+        const target = usable[values.below] ?? usable[usable.length - 1]
+        for (let guard = 0; guard < 64; guard++) {
+            const order = ladder().map(r => r.id)
+            if (order.indexOf(id) <= order.indexOf(target.id) + 1) break
+            if (!moveRank(id, -1)) break
+        }
     }
 
-    ok(player, `Made the ${display}§a rank. Use §fWhat it can do§a to give it more.`)
+    ok(player, {
+        default: `Made the ${name.display}§a rank. Its permissions are under Permissions.`,
+        staff: `Made the ${name.display}§a staff rank. Staff tools are under Permissions ▸ Administrative.`,
+        cosmetic: `Made the ${name.display}§a cosmetic rank. Give it to players from Give a rank.`,
+        unlisted: `Made the ${name.display}§a unlisted rank. It shows no tag. Give it to players from Give a rank.`
+    }[type])
     return rankScreen(player, id, back)
 }
 
+/**
+ * A rank's Basics: how it looks and what type it is.
+ *
+ * The form is built for the rank's type, so it asks only what applies: an
+ * unlisted rank has no tag to put a font on, and a cosmetic rank changes only
+ * its own tag, so it has no name font, name colour or chat colour. A field
+ * that is not shown keeps its saved value.
+ */
 export async function basicsScreen(player, rankId, back) {
     const rank = getRank(rankId)
     if (!rank) return back()
-    const look = lookOf(rank.display)
-    // A rank with more than one colour (VIP+) cannot be redrawn from one
-    // colour, so the list offers to keep it as it is.
-    const options = look.simple ? COLOUR_OPTIONS : ["§7Keep the current colours", ...COLOUR_OPTIONS]
-    const shift = look.simple ? 0 : 1
-    const current = look.simple ? Math.max(0, COLOURS.findIndex(([, code]) => code === look.code)) : 0
-
+    const type = rankType(rank)
+    const ranked = isRanked(rank)
+    const typed = typedOf(rank)
+    const wasBold = uses(typed, "l")
+    const wasItalic = uses(typed, "o")
+    const fontAt = Math.max(0, FONT_IDS.indexOf(rank.font ?? "normal"))
     const styleAt = Math.max(0, STYLE_IDS.indexOf(String(rank.meta?.["nametag.style"] ?? "none")))
-    const chatAt = COLOURS.findIndex(([, code]) => code === String(rank.meta?.["chat.colour"] ?? "")) + 1
+    const chatCode = String(rank.meta?.["chat.colour"] ?? "")
     const coloursOff = flag("feature.namecolour") ? "" : "\n§cName colours are turned off in Server ▸ Features."
 
-    const values = await modal(player, hubTitle("ranks", `Basics · ${look.name || rankId}`), [
-        { id: "name", type: "text", label: "Name", default: look.name },
-        { id: "colour", type: "dropdown", label: "Rank colour\n§8The colour of the tag", options, default: current },
-        { id: "bold", type: "toggle", label: "Bold tag", default: look.bold },
-        { id: "nameColour", type: "dropdown", label: `Name colour\n§8The player's name, in chat and above their head${coloursOff}`, options: nameColourOptions(), default: styleAt },
-        { id: "chatColour", type: "dropdown", label: "Chat colour\n§8The colour of what they type", options: CHAT_OPTIONS, default: chatAt },
-        { id: "staff", type: "toggle", label: "Staff rank\n§8Staff chat, staff alerts and administrative permissions", default: !!rank.staff },
-        { id: "isDefault", type: "toggle", label: "New players get this rank", default: !!rank.default }
-    ])
+    const values = await modal(player, hubTitle("ranks", `Basics · ${nameOf(rank)}`), [
+        { id: "name", type: "text", label: NAME_HELP, default: typed },
+        { id: "bold", type: "toggle", label: "Bold", default: wasBold },
+        { id: "italic", type: "toggle", label: "Italic", default: wasItalic },
+        { id: "font", type: "dropdown", label: FONT_HELP, options: fontOptions(), default: fontAt },
+        // Where the font goes, right under it, as the user laid it out.
+        type !== "unlisted" ? { id: "fontTag", type: "toggle", label: "Apply to the rank tag", default: rank.fontTag ?? true } : null,
+        type !== "cosmetic" ? { id: "fontName", type: "toggle", label: "Apply to their name", default: !!rank.fontName } : null,
+        type !== "cosmetic" ? { id: "fontChat", type: "toggle", label: "Apply to their messages", default: !!rank.fontChat } : null,
+        { id: "type", type: "dropdown", label: TYPE_HELP, options: TYPE_OPTIONS, default: RANK_TYPES.indexOf(type) },
+        type !== "cosmetic"
+            ? { id: "nameColour", type: "dropdown", label: `Name colour\n§8The player's name, in chat and above their head${coloursOff}`, options: nameColourOptions(), default: styleAt }
+            : null,
+        type !== "cosmetic"
+            ? { id: "chatColour", type: "text", label: CHAT_HELP, placeholder: "&e", default: chatCode ? `&${chatCode}` : "" }
+            : null,
+        ranked
+            ? { id: "isDefault", type: "toggle", label: "New players get this rank\n§8The starting rank. Only one rank can be it.", default: !!rank.default }
+            : null
+    ].filter(Boolean))
     if (!values) return back()
 
-    // "Default" removes the value rather than storing "none", so a lower rank's
-    // colour can still show through.
-    const meta = { ...(rank.meta ?? {}) }
-    const styleId = STYLE_IDS[values.nameColour]
-    if (!styleId || styleId === "none") delete meta["nametag.style"]
-    else meta["nametag.style"] = styleId
-    const chatCode = COLOURS[values.chatColour - 1]?.[1]
-    if (chatCode) meta["chat.colour"] = chatCode
-    else delete meta["chat.colour"]
-
-    const name = stripCodes(String(values.name ?? "")).trim() || look.name
-    let display
-    if (!look.simple && values.colour === 0) {
-        // Kept as it is, unless the name or bold changed. Then it is rebuilt
-        // from the first colour it had.
-        display = name === look.name && !!values.bold === look.bold
-            ? rank.display
-            : `§${look.code ?? "f"}${values.bold ? "§l" : ""}${name}`
-    } else {
-        const code = (COLOURS[values.colour - shift] ?? COLOURS[0])[1]
-        display = `§${code}${values.bold ? "§l" : ""}${name}`
+    const newType = RANK_TYPES[values.type] ?? type
+    const nowRanked = newType === "default" || newType === "staff"
+    // The starting rank has to stay in the order, or new players would start
+    // with nothing. Unticking it in the same form is the way out.
+    if (!nowRanked && values.isDefault) {
+        err(player, "New players get this rank, so it must stay Default or Staff. Make another rank the starting rank first.")
+        return back()
     }
-    saveRank(rankId, { display, staff: !!values.staff, default: !!values.isDefault, meta })
-    ok(player, `Saved ${display}§a.`)
+
+    const font = FONT_IDS[values.font] ?? "normal"
+    const fontTag = "fontTag" in values ? !!values.fontTag : (rank.fontTag ?? true)
+    const fontName = "fontName" in values ? !!values.fontName : !!rank.fontName
+    const fontChat = "fontChat" in values ? !!values.fontChat : !!rank.fontChat
+
+    // An emptied box keeps the old name, as it always has.
+    const wanted = stripCodes(withCodes(values.name ?? "")).trim() ? String(values.name) : typed
+    const name = buildName(wanted, {
+        bold: !!values.bold, italic: !!values.italic, wasBold, wasItalic,
+        font: fontTag ? font : "normal"
+    })
+
+    // "Default" removes the value rather than storing "none", so a lower
+    // rank's colour can still show through.
+    const meta = { ...(rank.meta ?? {}) }
+    if ("nameColour" in values) {
+        const styleId = STYLE_IDS[values.nameColour]
+        if (!styleId || styleId === "none") delete meta["nametag.style"]
+        else meta["nametag.style"] = styleId
+    }
+    if ("chatColour" in values) {
+        const code = chatCodeFrom(values.chatColour)
+        if (code) meta["chat.colour"] = code
+        else delete meta["chat.colour"]
+    }
+
+    saveRank(rankId, {
+        display: name.display, text: name.text, font, fontTag, fontName, fontChat,
+        type: newType, meta,
+        default: "isDefault" in values ? !!values.isDefault : !!rank.default
+    })
+
+    const moved = ranked === nowRanked ? ""
+        : nowRanked ? " It joined the order at the bottom. Move it up from its page."
+        : " It left the order, so it no longer outranks anyone."
+    ok(player, `Saved ${name.display}§a.${moved}`)
     return back()
 }
 
@@ -329,152 +523,6 @@ async function deleteScreen(player, rankId, back) {
     record(player, "rank.delete", undefined, rankId, { kind: "ladder" })
     ok(player, `Deleted ${shown}§a.`)
     return back()
-}
-
-// ============================================================ cosmetic tags
-
-/** Repaint one player's nametag, if they are here, after their tags change. */
-function refreshPlayer(playerId) {
-    const target = world.getAllPlayers().find(p => p.id === playerId)
-    if (target) refreshNameTag(target)
-}
-
-/**
- * Cosmetic tags: a word beside a name with no place in the rank order and no
- * permissions, asked for on 2026-11-11. Stored in core/tags.js, drawn after a
- * player's rank tags by renderTags.
- */
-async function tagsScreen(player, back) {
-    const again = () => tagsScreen(player, back)
-    const list = allTags()
-    const players = n => `${n} player${n === 1 ? "" : "s"}`
-    return pagedMenu(player, {
-        title: hubTitle("presets", "Cosmetic tags"),
-        body: subtitle(list.length
-            ? "A tag only changes how a name looks. Tags have no order\nand give no permissions. Tap one to change it."
-            : "No tags yet. A tag only changes how a name looks:\nit has no order and gives no permissions."),
-        items: list,
-        render: tag => ({ text: `${renderTag(tag)}§r\n§8${players(holderCount(tag.id))}` }),
-        onPick: tag => tagScreen(player, tag.id, again),
-        extra: [
-            { text: hubEntry("presets", "+ New tag", "Pick a name and a colour"), run: () => tagFormScreen(player, undefined, again) },
-            { text: hubEntry("ranks", "Give a tag to a player", "Or take one away"), run: () => rankPlayersScreen(player, again) }
-        ],
-        back
-    })
-}
-
-async function tagScreen(player, tagId, back) {
-    const tag = getTag(tagId)
-    if (!tag) { err(player, "That tag no longer exists."); return back() }
-    const again = () => tagScreen(player, tagId, back)
-    const count = holderCount(tagId)
-    return menu(player, {
-        title: hubTitle("presets", tag.name),
-        body: [
-            `${renderTag(tag)}§r`,
-            subtitle(`${count} player${count === 1 ? " has" : "s have"} it. It gives no permissions.`)
-        ].join("\n"),
-        buttons: [
-            { text: hubEntry("presets", "Name and colour", "How it looks"), run: () => tagFormScreen(player, tagId, again) },
-            {
-                text: "§cDelete this tag",
-                run: async () => {
-                    const yes = await confirm(player, hubTitle("presets", "Delete tag"),
-                        `Delete ${tag.display}§r?\n\n§7Everyone who has it loses it.`, "§cDelete")
-                    if (!yes) return again()
-                    deleteTag(tagId)
-                    for (const p of world.getAllPlayers()) refreshNameTag(p)
-                    record(player, "tag.delete", undefined, tag.name)
-                    ok(player, `Deleted ${tag.display}§a.`)
-                    return back()
-                }
-            }
-        ],
-        back
-    })
-}
-
-/** Make a tag, or change one: a name and a colour, like a rank. */
-async function tagFormScreen(player, tagId, back) {
-    const tag = tagId ? getTag(tagId) : undefined
-    const look = lookOf(tag?.display ?? "")
-    const keep = tag && !look.simple
-    const options = keep ? ["§7Keep the current colours", ...COLOUR_OPTIONS] : COLOUR_OPTIONS
-    const shift = keep ? 1 : 0
-    const current = !tag ? 6 : keep ? 0 : Math.max(0, COLOURS.findIndex(([, code]) => code === look.code))
-
-    const values = await modal(player, hubTitle("presets", tag ? `Tag · ${tag.name}` : "New tag"), [
-        { id: "name", type: "text", label: "Name\n§8Shown beside the player's name", placeholder: "Builder", default: tag?.name ?? "" },
-        { id: "colour", type: "dropdown", label: "Colour", options, default: current },
-        { id: "bold", type: "toggle", label: "Bold", default: tag ? look.bold : false }
-    ])
-    if (!values) return back()
-
-    const name = stripCodes(String(values.name ?? "")).trim()
-    if (!name) { err(player, "Give the tag a name."); return back() }
-    let display
-    if (keep && values.colour === 0) {
-        display = name === look.name && !!values.bold === look.bold
-            ? tag.display
-            : `§${look.code ?? "f"}${values.bold ? "§l" : ""}${name}`
-    } else {
-        const code = (COLOURS[values.colour - shift] ?? COLOURS[6])[1]
-        display = `§${code}${values.bold ? "§l" : ""}${name}`
-    }
-
-    let id = tagId
-    if (!id) {
-        const base = tagIdFor(name)
-        if (!base) { err(player, "Use letters or numbers in the name."); return back() }
-        id = base
-        for (let n = 2; getTag(id); n++) id = `${base}${n}`
-    }
-    saveTag(id, { name, display })
-    for (const p of world.getAllPlayers()) refreshNameTag(p)
-    ok(player, tag
-        ? `Saved ${display}§a.`
-        : `Made the ${display}§a tag. Give it to someone from Give a tag to a player.`)
-    return back()
-}
-
-async function giveTagScreen(player, targetId, targetName, back) {
-    const held = new Set(tagsOf(targetId).map(tag => tag.id))
-    const options = allTags().filter(tag => !held.has(tag.id))
-    if (!options.length) { info(player, "They already have every tag."); return back() }
-    return pagedMenu(player, {
-        title: hubTitle("presets", `Give a tag · ${targetName}`),
-        items: options,
-        render: tag => ({ text: `${renderTag(tag)}§r` }),
-        onPick: tag => {
-            giveTag(targetId, tag.id)
-            refreshPlayer(targetId)
-            record(player, "tag.give", { id: targetId, name: targetName }, tag.name)
-            ok(player, `${targetName} now has the ${tag.display}§a tag.`)
-            notify(targetId, `You were given the ${tag.display}§r tag.`)
-            return back()
-        },
-        back
-    })
-}
-
-async function takeTagScreen(player, targetId, targetName, back) {
-    const held = tagsOf(targetId)
-    if (!held.length) { info(player, "They have no tags."); return back() }
-    return pagedMenu(player, {
-        title: hubTitle("presets", `Take a tag away · ${targetName}`),
-        items: held,
-        render: tag => ({ text: `${renderTag(tag)}§r` }),
-        onPick: tag => {
-            takeTag(targetId, tag.id)
-            refreshPlayer(targetId)
-            record(player, "tag.take", { id: targetId, name: targetName }, tag.name)
-            ok(player, `Took the ${tag.display}§a tag from ${targetName}.`)
-            notify(targetId, `The ${tag.display}§r tag was taken away.`)
-            return back()
-        },
-        back
-    })
 }
 
 // ---------------------------------------------------------------- templates
@@ -572,6 +620,7 @@ async function permissionsScreen(player, rankId, back) {
     const rank = getRank(rankId)
     if (!rank) return back()
     const again = () => permissionsScreen(player, rankId, back)
+    const staff = rankType(rank) === "staff"
     const adminOn = countOn(rank, ADMIN_GROUPS)
     const parents = (rank.inherits ?? []).map(id => getRank(id)).filter(Boolean)
 
@@ -579,14 +628,14 @@ async function permissionsScreen(player, rankId, back) {
         title: hubTitle("ranks", `Permissions · ${nameOf(rank)}`),
         body: [
             subtitle("What players with this rank can do."),
-            rank.staff ? "" : "§8Administrative permissions show here when Staff rank is on in Basics.",
-            !rank.staff && adminOn
+            staff ? "" : "§8Administrative permissions show here when the rank type is Staff (in Basics).",
+            !staff && adminOn
                 ? `§cThis rank is not staff, but it still has ${adminOn} administrative permission${adminOn === 1 ? "" : "s"}.`
                 : ""
         ].filter(Boolean).join("\n"),
         buttons: [
             { text: hubEntry("ranks", "Member", `What they can use, limits and cooldowns · ${countOn(rank, MEMBER_GROUPS)} of ${countAll(MEMBER_GROUPS)} on`), run: () => memberPermissionsScreen(player, rankId, again) },
-            rank.staff || adminOn
+            staff || adminOn
                 ? { text: hubEntry("actions", "Administrative", `Staff tools · ${adminOn} of ${countAll(ADMIN_GROUPS)} on`), run: () => adminPermissionsScreen(player, rankId, again) }
                 : null,
             { text: hubEntry("ranks", "Also gets permissions from", parents.length ? parents.map(nameOf).join(", ") : "No other rank"), run: () => inheritScreen(player, rankId, again) }
@@ -800,14 +849,17 @@ async function nodePageScreen(player, rankId, group, nodes, back) {
 async function inheritScreen(player, rankId, back) {
     const rank = getRank(rankId)
     if (!rank) return back()
-    const others = ladder().filter(r => r.id !== rankId)
+    // Ranks in the order, then unlisted ones, which can carry a set of
+    // permissions on their own. Cosmetic ranks give none, so they are left out.
+    const others = [...ladder(), ...unrankedRanks().filter(r => rankType(r) === "unlisted")]
+        .filter(r => r.id !== rankId)
     if (!others.length) { info(player, "There are no other ranks to take permissions from."); return back() }
 
     const values = await modal(player, hubTitle("ranks", `Also gets permissions from · ${nameOf(rank)}`),
         others.map(other => ({
             id: other.id,
             type: "toggle",
-            label: `${other.display}§r`,
+            label: `${other.display}§r${isRanked(other) ? "" : " §8(unlisted)"}`,
             default: rank.inherits?.includes(other.id)
         })))
     if (!values) return back()
@@ -890,7 +942,7 @@ async function valuesScreen(player, rankId, kind, back) {
 export async function rankPlayersScreen(player, back) {
     const online = world.getAllPlayers()
     return pagedMenu(player, {
-        title: hubTitle("ranks", flag("feature.tags") ? "Give ranks and tags" : "Give a rank to a player"),
+        title: hubTitle("ranks", "Give a rank to a player"),
         body: subtitle(`${online.length} online. Tap a player.`),
         items: online,
         render: target => {
@@ -923,58 +975,76 @@ async function offlinePlayersScreen(player, back) {
     })
 }
 
-/** One player's ranks: what they have, plus give, take away and tag order. */
+/**
+ * One player's ranks: the tags they show, in order, and any unlisted ranks
+ * they hold, which show nothing but still count. Give, take away, tag order.
+ */
 export async function playerRankScreen(player, targetId, targetName, back) {
-    const held = displayRanks(targetId)
-    const list = held.length
-        ? held.map((r, i) => `  §8${i + 1}. §r${r.display}${i === 0 ? " §8← shown as their tag" : ""}`).join("\n")
+    const shown = displayRanks(targetId)
+    const hidden = heldRankIds(targetId).map(getRank).filter(rank => rank && rankType(rank) === "unlisted")
+    const list = shown.length
+        ? shown.map((r, i) => `  §8${i + 1}. §r${r.display}§r §8· ${typeWord(r)}`).join("\n")
         : "  §7none"
     const allowed = canActOn(player, targetId) && has(player, "ranks.grant")
     const online = world.getAllPlayers().some(p => p.id === targetId)
     const again = () => playerRankScreen(player, targetId, targetName, back)
-    const tags = flag("feature.tags")
-    const heldTags = tags ? tagsOf(targetId) : []
 
     return menu(player, {
         title: hubTitle("ranks", targetName || "Unknown"),
         body: [
             online ? "§a• online" : "§8offline",
             "",
-            "§fRanks:",
+            "§fTheir tags, in order:",
             list,
-            tags ? `\n§fCosmetic tags: §r${heldTags.map(tag => renderTag(tag)).join(" ") || "§7none"}` : "",
+            hidden.length ? `\n§fUnlisted, so not shown: §r${hidden.map(r => `${r.display}§r`).join("§7, ")}` : "",
             "",
             "§7What they can do comes from all their ranks together.",
-            "§7The order only picks which rank tag they show.",
             allowed ? "" : "\n§cThey outrank you, so you can't change their ranks."
         ].join("\n"),
         buttons: allowed ? [
             { text: "§a+ Give a rank", run: () => addRankScreen(player, targetId, targetName, again) },
             { text: "§c- Take a rank away", run: () => removeRankScreen(player, targetId, targetName, again) },
-            held.length > 1
-                ? { text: "§7Change which tag shows", run: () => displayOrderScreen(player, targetId, targetName, again) }
+            shown.length > 1
+                ? { text: "§7Change the tag order", run: () => displayOrderScreen(player, targetId, targetName, again) }
                 : null,
-            { text: "§bReplace all their ranks with one", run: () => setRankScreen(player, targetId, targetName, again) },
-            tags && allTags().length
-                ? { text: "§6+ Give a cosmetic tag", run: () => giveTagScreen(player, targetId, targetName, again) }
-                : null,
-            tags && heldTags.length
-                ? { text: "§6- Take a cosmetic tag away", run: () => takeTagScreen(player, targetId, targetName, again) }
-                : null
+            { text: "§bReplace all their ranks with one", run: () => setRankScreen(player, targetId, targetName, again) }
         ].filter(Boolean) : [],
         back
     })
 }
 
-/** Reorder just this player's ranks. It changes the tag, never authority. */
+/**
+ * Two of a player's shown ranks trade places. A rank only moves among ranks
+ * of its own type, because staff tags always come first, then other ranks in
+ * the order, then cosmetic ones (see heldRankObjects in core/ranks.js).
+ * Swapping in the stored list, rather than stepping one place, is what skips
+ * the unlisted ranks hidden between them.
+ */
+function canSwap(shown, index, delta) {
+    const other = shown[index + delta]
+    return !!other && rankType(other) === rankType(shown[index])
+}
+function swapShown(targetId, shown, index, delta) {
+    if (!canSwap(shown, index, delta)) return false
+    const held = heldRankIds(targetId)
+    const a = held.indexOf(shown[index].id)
+    const b = held.indexOf(shown[index + delta].id)
+    if (a < 0 || b < 0) return false
+    ;[held[a], held[b]] = [held[b], held[a]]
+    setRanks(targetId, held)
+    return true
+}
+
+/** Reorder just this player's tags. It changes how they look, never authority. */
 async function displayOrderScreen(player, targetId, targetName, back) {
-    const held = displayRanks(targetId)
-    if (held.length < 2) return back()
+    const shown = displayRanks(targetId)
+    if (shown.length < 2) return back()
+    const cap = Number(setting("format.tagCount"))
     return menu(player, {
-        title: hubTitle("ranks", `Which tag shows · ${targetName}`),
-        body: subtitle("The top rank is the tag they show.\n§8This does not change what they can do."),
-        buttons: held.map((rank, index) => ({
-            text: `§8${index + 1}. §r${rank.display}${index === 0 ? " §8← tag" : ""}`,
+        title: hubTitle("ranks", `Tag order · ${targetName}`),
+        body: subtitle(`${cap > 0 ? `The first ${cap} tags show, in this order.` : "Their tags show in this order."}\n§8Staff tags come first, then other ranks, then cosmetic ones.\n§8This does not change what they can do.`),
+        buttons: shown.map((rank, index) => ({
+            text: `§8${index + 1}. §r${rank.display}§r\n§8${typeWord(rank)}`,
             run: () => moveHeldScreen(player, targetId, targetName, rank.id, () => displayOrderScreen(player, targetId, targetName, back))
         })),
         back
@@ -982,25 +1052,34 @@ async function displayOrderScreen(player, targetId, targetName, back) {
 }
 
 async function moveHeldScreen(player, targetId, targetName, rankId, back) {
-    const held = displayRanks(targetId)
-    const index = held.findIndex(r => r.id === rankId)
-    const rank = held[index]
+    const shown = displayRanks(targetId)
+    const index = shown.findIndex(r => r.id === rankId)
+    const rank = shown[index]
     if (!rank) return back()
+    const again = () => moveHeldScreen(player, targetId, targetName, rankId, back)
+    const up = canSwap(shown, index, -1)
+    const down = canSwap(shown, index, 1)
     return menu(player, {
         title: hubTitle("ranks", nameOf(rank)),
-        body: `${rank.display}§r\n${subtitle(`Number ${index + 1} of ${held.length}`)}`,
+        body: [
+            `${rank.display}§r`,
+            subtitle(`Number ${index + 1} of ${shown.length}`),
+            up || down ? "" : "§8It is the only one of its type, so it stays where it is."
+        ].filter(Boolean).join("\n"),
         buttons: [
-            index > 0 ? { text: "§7▲ Move up", run: () => { moveHeldRank(targetId, rankId, -1); return moveHeldScreen(player, targetId, targetName, rankId, back) } } : null,
-            index < held.length - 1 ? { text: "§7▼ Move down", run: () => { moveHeldRank(targetId, rankId, 1); return moveHeldScreen(player, targetId, targetName, rankId, back) } } : null,
-            index > 0 ? { text: "§b★ Make this their tag", run: () => { while (moveHeldRank(targetId, rankId, -1)) { /* to the top */ } ok(player, `${targetName} now shows ${rank.display}§a.`); return back() } } : null
+            up ? { text: "§7▲ Move up", run: () => { swapShown(targetId, shown, index, -1); return again() } } : null,
+            down ? { text: "§7▼ Move down", run: () => { swapShown(targetId, shown, index, 1); return again() } } : null
         ].filter(Boolean),
         back
     })
 }
 
-/** Ranks the actor may hand out: strictly below their own row. */
+/**
+ * Ranks the actor may hand out: ranks in the order strictly below their own
+ * row, plus cosmetic and unlisted ranks.
+ */
 export function grantableRanks(player) {
-    return ladder().filter(rank => canEditRank(player, rank))
+    return [...ladder(), ...unrankedRanks()].filter(rank => canEditRank(player, rank))
 }
 
 async function addRankScreen(player, targetId, targetName, back) {
@@ -1009,8 +1088,9 @@ async function addRankScreen(player, targetId, targetName, back) {
     if (!options.length) { err(player, "There are no more ranks below your own to give."); return back() }
     return pagedMenu(player, {
         title: hubTitle("ranks", `Give a rank · ${targetName}`),
-        items: options,
-        render: rank => ({ text: `${rank.display}§r` }),
+        body: subtitle("A rank in the order replaces their starting rank.\nA cosmetic or unlisted rank is added beside what they have."),
+        items: sectioned(options),
+        render: item => isDecoration(item) ? item : rankButton(item),
         onPick: async rank => {
             // Say what giving this rank takes away before it happens. (The
             // old prompt also pointed at a "Replaces lower ranks" switch,
@@ -1041,8 +1121,8 @@ async function removeRankScreen(player, targetId, targetName, back) {
     if (!held.length) { err(player, "They have no ranks you are allowed to take away."); return back() }
     return pagedMenu(player, {
         title: hubTitle("ranks", `Take a rank away · ${targetName}`),
-        items: held,
-        render: rank => ({ text: `${rank.display}§r` }),
+        items: sectioned(held),
+        render: item => isDecoration(item) ? item : rankButton(item),
         onPick: rank => {
             const before = heldRankIds(targetId)
             revokeRank(targetId, rank.id, targetName)
@@ -1057,13 +1137,16 @@ async function removeRankScreen(player, targetId, targetName, back) {
 }
 
 async function setRankScreen(player, targetId, targetName, back) {
-    const options = grantableRanks(player)
+    // Only ranks in the order: replacing everything with a cosmetic tag would
+    // leave them with just the starting rank beside it, which is not what the
+    // button says.
+    const options = grantableRanks(player).filter(isRanked)
     if (!options.length) { err(player, "There are no ranks below your own to give."); return back() }
     return pagedMenu(player, {
         title: hubTitle("ranks", `Replace all ranks · ${targetName}`),
         body: subtitle("Removes every rank they have and gives them this one."),
         items: options,
-        render: rank => ({ text: `${rank.display}§r` }),
+        render: rankButton,
         onPick: async rank => {
             const yes = await confirm(player, hubTitle("ranks", "Replace all ranks"),
                 `Give §f${targetName}§r only ${rank.display}§r?\n\n§7Their other ranks are removed.`, "§aReplace")

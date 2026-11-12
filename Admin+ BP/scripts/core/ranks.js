@@ -1,11 +1,11 @@
 import { world, system, CommandPermissionLevel } from "@minecraft/server"
 import { CONFIG } from "../config.js"
 import { Table, cleanId } from "./storage.js"
-import { displayName, nameTokens, stripCodes, hasNickname } from "./identity.js"
+import { displayName, nameTokens, stripCodes, hasNickname, getNameFont, setNameDecorator } from "./identity.js"
 import { render, renderTag, nameTagsEnabled, flag, setting } from "./settings.js"
 import { OP_COMMANDS } from "./opcommands.js"
 import { STYLES, STYLE_IDS, paint, currentFrame } from "./nametag.js"
-import { tagsOf } from "./tags.js"
+import { applyFont } from "./fonts.js"
 
 // Admin+ rank engine — see RANKS_PLAN.md for the design rationale.
 //
@@ -315,6 +315,42 @@ export function allRanks() {
 
 export function getRank(id) { return ranksTable.get(id) }
 
+/**
+ * A rank's TYPE, chosen in Basics. The user's own four, 2026-11-11, modelled on
+ * Discord roles rather than a single staff switch:
+ *
+ *   default   a normal rank in the order, like VIP. Giving it replaces the
+ *             starting rank.
+ *   staff     the same, plus staff permissions, staff chat and staff alerts.
+ *   cosmetic  a tag added beside the others. No place in the order, no
+ *             permissions, and it never replaces the starting rank.
+ *   unlisted  hidden: gives its permissions without showing a tag, and never
+ *             replaces the starting rank.
+ *
+ * Cosmetic and unlisted ranks have NO place in the order and weigh 0, so they
+ * can never make anybody outrank anybody. Ranks saved before types existed
+ * read their type from `staff`, so nothing in an old world changes.
+ */
+export const RANK_TYPES = ["default", "staff", "cosmetic", "unlisted"]
+
+export function rankType(rank) {
+    const type = String(rank?.type ?? "")
+    if (RANK_TYPES.includes(type)) return type
+    return rank?.staff ? "staff" : "default"
+}
+
+/** In the ranking order: Default and Staff. Cosmetic and Unlisted are not. */
+export function isRanked(rank) {
+    const type = rankType(rank)
+    return type === "default" || type === "staff"
+}
+
+/** The ranks with no place in the order, sorted by name. */
+export function unrankedRanks() {
+    const plain = rank => String(rank.display ?? rank.id).replace(/§./g, "")
+    return allRanks().filter(rank => !isRanked(rank)).sort((a, b) => plain(a).localeCompare(plain(b)))
+}
+
 // ------------------------------------------------------------- the ladder
 //
 // The rank list IS the hierarchy: row 1 outranks row 2, and that single fact
@@ -335,8 +371,8 @@ function restack(orderedIds) {
     ranksTable.flush()
 }
 
-/** The ladder, strongest first. */
-export function ladder() { return allRanks() }
+/** The ladder, strongest first: the ranks that have a place in the order. */
+export function ladder() { return allRanks().filter(isRanked) }
 
 /** Move a rank one row up (-1) or down (+1). Returns false at the ends. */
 export function moveRank(id, delta) {
@@ -372,21 +408,50 @@ export function saveRank(id, data) {
     const rankId = normaliseRankId(id)
     if (!rankId) return undefined
     const existing = ranksTable.get(rankId)
-    // A brand-new rank joins at the BOTTOM of the ladder — the safe end. Moving
-    // it up is a deliberate act on the ladder screen.
-    const bottomWeight = Math.min(...Object.values(ranksTable.data).map(r => r.weight ?? 0), LADDER_STEP)
+
+    // The type: given outright, or worked out from the older `staff` flag, or
+    // kept as it was.
+    let type = RANK_TYPES.includes(data.type) ? data.type : undefined
+    if (!type && data.staff !== undefined) {
+        type = data.staff ? "staff" : (existing && !isRanked(existing) ? rankType(existing) : "default")
+    }
+    if (!type) type = existing ? rankType(existing) : "default"
+    const ranked = type === "default" || type === "staff"
+    const wasRanked = existing ? isRanked(existing) : false
+
+    // A rank joining the order joins at the BOTTOM — the safe end. Moving it up
+    // is a deliberate act on the rank list. A rank outside the order weighs 0,
+    // so it can never make anybody outrank anybody.
+    const bottomWeight = Math.min(...Object.values(ranksTable.data)
+        .filter(r => r.id !== rankId && isRanked(r)).map(r => r.weight ?? 0), LADDER_STEP)
+    let weight
+    if (!ranked) weight = 0
+    else if (Number.isFinite(Number(data.weight))) weight = Number(data.weight)
+    else if (existing && wasRanked) weight = existing.weight ?? 0
+    else weight = Math.max(1, bottomWeight - LADDER_STEP)
+
     /** @type {Rank} */
     const rank = {
         id: rankId,
         display: data.display ?? existing?.display ?? `§7${rankId}`,
-        weight: Number.isFinite(Number(data.weight))
-            ? Number(data.weight)
-            : (existing?.weight ?? Math.max(1, bottomWeight - LADDER_STEP)),
+        // What was typed into the name box (with & codes) and the font it is
+        // drawn in. `display` is the finished result of the two; these are
+        // kept so the box shows what was typed, not the converted letters.
+        text: data.text ?? existing?.text,
+        font: data.font ?? existing?.font,
+        // Where the font goes: the rank's own tag (on unless switched off),
+        // its players' names, and what they type.
+        fontTag: data.fontTag ?? existing?.fontTag,
+        fontName: data.fontName ?? existing?.fontName,
+        fontChat: data.fontChat ?? existing?.fontChat,
+        weight,
+        type,
         inherits: data.inherits ?? existing?.inherits ?? [],
         perms: data.perms ?? existing?.perms ?? [],
         meta: data.meta ?? existing?.meta ?? {},
-        staff: data.staff ?? existing?.staff ?? false,
-        default: data.default ?? existing?.default ?? false
+        staff: type === "staff",
+        // Only a rank in the order can be the one everybody starts with.
+        default: ranked && (data.default ?? existing?.default ?? false)
     }
     // Only one default rank at a time.
     if (rank.default) {
@@ -395,6 +460,14 @@ export function saveRank(id, data) {
         }
     }
     ranksTable.set(rankId, rank)
+    // A rank that has just joined the order goes to the very bottom on a
+    // weight of its own. The weight worked out above has a floor of 1, so a
+    // second new rank used to land on the same weight as the first, and two
+    // ranks on one weight outrank neither. Restacking is what Move up and Move
+    // down already do.
+    if (ranked && !wasRanked && !Number.isFinite(Number(data.weight))) {
+        restack([...ladder().filter(r => r.id !== rankId).map(r => r.id), rankId])
+    }
     resyncAll()
     return rank
 }
@@ -416,7 +489,11 @@ export function applyPreset(key) {
     const preset = PRESETS[key]
     if (!preset) return false
     snapshot()
-    ranksTable.replace(JSON.parse(JSON.stringify(preset.ranks)))
+    // A template replaces the ORDER. Cosmetic and unlisted ranks are not part
+    // of it, so they stay, unless the template has a rank with the same id.
+    const kept = Object.fromEntries(Object.entries(ranksTable.data)
+        .filter(([id, rank]) => !isRanked(rank) && !(id in preset.ranks)))
+    ranksTable.replace({ ...JSON.parse(JSON.stringify(preset.ranks)), ...kept })
     resyncAll()
     return true
 }
@@ -460,9 +537,12 @@ export function memberSince(playerOrId) {
 export function heldRankIds(playerOrId) {
     const id = typeof playerOrId === "string" ? playerOrId : playerOrId?.id
     const held = (record(id).ranks ?? []).filter(r => ranksTable.has(r))
-    if (held.length) return held
+    // Everybody holds at least one rank IN THE ORDER. Somebody holding only a
+    // cosmetic or unlisted rank still has the starting rank beside it, or a
+    // cosmetic tag would cost them the basics everybody gets.
+    if (held.some(r => isRanked(ranksTable.get(r)))) return held
     const fallback = defaultRank()
-    return fallback ? [fallback.id] : []
+    return fallback ? [fallback.id, ...held] : held
 }
 
 // Two orderings live side by side, and keeping them apart is the whole trick:
@@ -635,10 +715,15 @@ function onlyDefaultRank(playerOrId) {
  * the twenty cosmetic tags on a PvP ladder keep whatever order their holder put
  * them in. It only guarantees that no cosmetic rank outranks a staff one.
  */
-/** What they actually hold, staff first. No badges — this is the real list. */
+/**
+ * What they actually hold: staff first, then other ranks in the order, then
+ * cosmetic, then unlisted. No badges — this is the real list. Each group keeps
+ * the holder's own order.
+ */
 function heldRankObjects(playerOrId) {
     const held = heldRankIds(playerOrId).map(id => ranksTable.get(id)).filter(Boolean)
-    return [...held.filter(r => r.staff), ...held.filter(r => !r.staff)]
+    const of = type => held.filter(rank => rankType(rank) === type)
+    return [...of("staff"), ...of("default"), ...of("cosmetic"), ...of("unlisted")]
 }
 
 export function displayRanks(playerOrId) {
@@ -661,7 +746,8 @@ export function displayRanks(playerOrId) {
     // lists are now built separately rather than one from the other.
     const badge = packBadge(playerOrId)
     if (badge && onlyDefaultRank(playerOrId)) return [badge]
-    return ordered
+    // An unlisted rank is held and works, but never shows.
+    return ordered.filter(rank => rankType(rank) !== "unlisted")
 }
 
 export { CREATOR_RANK, DEVELOPER_RANK, isCreator, isTeamDeveloper, packBadge }
@@ -687,12 +773,12 @@ export function primaryRank(playerOrId) { return displayRanks(playerOrId)[0] }
  * `format.tagCount` is the cap; 0 means show them all.
  */
 export function renderTags(playerOrId) {
-    const id = typeof playerOrId === "string" ? playerOrId : playerOrId?.id
-    // Rank tags first, then cosmetic tags (core/tags.js), each half behind its
-    // own switch in Server ▸ Features. Cosmetic tags have no order of their
-    // own, so they come in the order they were given.
-    const ranks = flag("feature.ranktags") ? displayRanks(playerOrId) : []
-    const cosmetic = flag("feature.tags") ? tagsOf(id) : []
+    // Tags of ranks in the order first, then cosmetic ranks' tags, each half
+    // behind its own switch in Server ▸ Features. Unlisted ranks never show:
+    // displayRanks has already left them out.
+    const shown = displayRanks(playerOrId)
+    const ranks = flag("feature.ranktags") ? shown.filter(rank => rankType(rank) !== "cosmetic") : []
+    const cosmetic = flag("feature.tags") ? shown.filter(rank => rankType(rank) === "cosmetic") : []
     // Nobody with no rank at all loses their "no rank" tag — that is a separate
     // setting and it still gets the last word. Not when rank tags are off.
     if (!ranks.length && !cosmetic.length) {
@@ -820,9 +906,12 @@ export function grantRank(playerId, rankId, name) {
     // rank weighs — including a cosmetic one sitting BELOW it, which is the
     // case the old weight comparison got wrong: member outweighed a new rank,
     // so a brand-new rank left the player as Member-and-that.
+    //
+    // A cosmetic or unlisted rank replaces nothing: it is added beside what
+    // they already have, starting rank included.
     const fallback = defaultRank()
     let held = heldRankIds(playerId).filter(id => id !== rankId)
-    if (fallback && rankId !== fallback.id) held = held.filter(id => id !== fallback.id)
+    if (fallback && rankId !== fallback.id && isRanked(rank)) held = held.filter(id => id !== fallback.id)
 
     // Insert by LADDER position rather than appending. The tag a player wears is
     // the first entry in their display order, so appending meant granting Mod to
@@ -847,6 +936,7 @@ export function grantRank(playerId, rankId, name) {
 export function displacedBy(playerId, rankId) {
     const fallback = defaultRank()
     if (!ranksTable.has(rankId) || !fallback || rankId === fallback.id) return []
+    if (!isRanked(ranksTable.get(rankId))) return []
     return heldRankIds(playerId).includes(fallback.id) ? [fallback] : []
 }
 
@@ -887,6 +977,9 @@ function matchScore(pattern, node) {
 /** A rank's own nodes first, then everything it inherits (cycle-safe). */
 function effectivePerms(rank, seen = new Set()) {
     if (!rank || seen.has(rank.id)) return []
+    // A cosmetic rank is a tag and nothing else, even if permissions were left
+    // on it from before it was made cosmetic.
+    if (rankType(rank) === "cosmetic") return []
     seen.add(rank.id)
     const out = [...(rank.perms ?? [])]
     for (const parentId of rank.inherits ?? []) {
@@ -1093,9 +1186,14 @@ export function has(player, node) {
     return isOperator(player)
 }
 
-/** Resolved meta value — heaviest rank that defines the key wins. */
+/**
+ * Resolved meta value — heaviest rank that defines the key wins. Unlisted
+ * ranks weigh 0, so they fill in only what the ranks in the order leave unset.
+ * Cosmetic ranks set nothing.
+ */
 export function meta(playerOrId, key, fallback) {
     for (const rank of playerRanks(playerOrId)) {
+        if (rankType(rank) === "cosmetic") continue
         const value = rank.meta?.[key]
         if (value !== undefined && value !== null) return value
     }
@@ -1194,6 +1292,34 @@ export function chatColourFor(playerOrId) {
     const code = String(meta(playerOrId, "chat.colour", "") ?? "")
     return CHAT_COLOUR.test(code) ? `§${code}` : ""
 }
+
+/**
+ * The font for a player's name. Their own, set in Players ▸ a player ▸ Basics,
+ * wins; otherwise the highest rank whose font is switched on for names.
+ * Cosmetic ranks only ever change their own tag.
+ */
+export function nameFontFor(playerOrId) {
+    const own = getNameFont(playerOrId)
+    if (own && own !== "normal") return own
+    for (const rank of playerRanks(playerOrId)) {
+        if (rankType(rank) === "cosmetic") continue
+        if (rank.fontName && rank.font && rank.font !== "normal") return rank.font
+    }
+    return "normal"
+}
+
+/** The font for what they type: the highest rank whose font is on for messages. */
+export function chatFontFor(playerOrId) {
+    for (const rank of playerRanks(playerOrId)) {
+        if (rankType(rank) === "cosmetic") continue
+        if (rank.fontChat && rank.font && rank.font !== "normal") return rank.font
+    }
+    return "normal"
+}
+
+// Every templated line (chat, nametag, join, leave, private messages) asks
+// identity.js for a name; this is how that name gets its font.
+setNameDecorator((player, text) => applyFont(text, nameFontFor(player)))
 
 /**
  * Their name for a chat line, in their name colour.
@@ -1431,7 +1557,7 @@ export function refreshNameTag(player) {
         // loses to a nickname deliberately — see creatorIdentity — and a
         // cleared nickname lands back on it rather than on the gamertag.
         const creator = creatorIdentity(player)
-        if (creator && !hasNickname(player)) tokens.NICKNAME = creator.text
+        if (creator && !hasNickname(player)) tokens.NICKNAME = applyFont(creator.text, nameFontFor(player))
         // ONE function answers this, and the animation tick asks the same one.
         // Asking separately is what froze the creator's name — see the note on
         // effectiveNametagStyle.
