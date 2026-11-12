@@ -18,7 +18,6 @@ import { automodHubScreen } from "./automodUI.js"
 import { serverPresetsScreen } from "./serverPresets.js"
 import { hologramsScreen } from "./holograms.js"
 import { creditsScreen } from "./credits.js"
-import { detectServerPreset } from "../core/serverPresets.js"
 import { infoScreen } from "./info.js"
 
 // /admin — the staff panel.
@@ -128,7 +127,7 @@ function serverButtons(player, back) {
             ? { text: hubButton("settings", "Automod", "Ore alerts, fast breaking, chat flooding, chat screening"), run: () => automodHubScreen(player, back) }
             : null,
         has(player, "presets.apply")
-            ? { text: hubButton("presets", "Server presets", `Set up the whole server in one step · now: ${detectServerPreset().label}`), run: () => serverPresetsScreen(player, back) }
+            ? { text: hubButton("presets", "Server presets", "Coming soon · suggest ideas on the Discord"), run: () => serverPresetsScreen(player, back) }
             : null,
         settings || canUseCode(player)
             ? { text: hubButton("settings", "Advanced", "Every setting, saved setups and reset"), run: () => advancedScreen(player, back) }

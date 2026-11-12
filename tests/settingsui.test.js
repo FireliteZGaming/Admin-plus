@@ -5,6 +5,8 @@ import { setRanks, onPlayerJoin, applyPreset } from "../Admin+ BP/scripts/core/r
 import { GROUPS, settingKeys, settingsScreen, pageScreen } from "../Admin+ BP/scripts/features/settingsUI.js"
 import { automodHubScreen } from "../Admin+ BP/scripts/features/automodUI.js"
 import { openPanel } from "../Admin+ BP/scripts/features/panel.js"
+import { creditsScreen } from "../Admin+ BP/scripts/features/credits.js"
+import { CONFIG } from "../Admin+ BP/scripts/config.js"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -127,6 +129,34 @@ console.log("\n— Automod is its own door —")
     check("a held message now also mutes", setting("filter.action"), "mute")
     check("for ten minutes", setting("filter.muteSeconds"), "600")
     for (const key of ["filter.profanity", "filter.action", "filter.muteSeconds"]) resetSetting(key)
+}
+
+console.log("\n— Server presets asks for ideas on the Discord —")
+// The user, 2026-11-12: "when people click on it it says join the discord to
+// suggest ideas for presets".
+{
+    __ui.answers.length = 0
+    await openPanel(boss)
+    const serverAt = buttonsOf(lastForm()).findIndex(text => text.includes("Server"))
+    __ui.answers.push(press(serverAt), press(2))
+    await openPanel(boss)
+    const screen = lastForm()
+    const body = String(screen.parts.find(p => p[0] === "body")?.[1] ?? "")
+    check("it is the presets screen", String(screen.parts.find(p => p[0] === "title")?.[1]).includes("Server presets"), true)
+    check("it asks for ideas on the Discord", body.includes("Join the Discord to suggest ideas"), true)
+    check("and offers no old preset to pick", buttonsOf(screen).map(t => t.replace(/§./g, "")), ["< Back"])
+    check("with no link set, it says one is coming", body.includes("link is coming soon"), true)
+
+    CONFIG.brand.discord = "discord.gg/example"
+    __ui.answers.push(press(serverAt), press(2))
+    await openPanel(boss)
+    check("with a link set, it prints the link",
+        String(lastForm().parts.find(p => p[0] === "body")?.[1] ?? "").includes("discord.gg/example"), true)
+
+    await creditsScreen(boss, () => {})
+    const credits = String(lastForm().parts.find(p => p[0] === "body")?.[1] ?? "")
+    check("Credits has a place for the Discord", credits.includes("§fDiscord") && credits.includes("discord.gg/example"), true)
+    CONFIG.brand.discord = ""
 }
 
 console.log(`\n${passed} passed, ${failed} failed\n`)

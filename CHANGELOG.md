@@ -56,6 +56,21 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.8.6 — 2026-11-12
+
+**Server presets asks for ideas, and Credits has a place for the Discord.**
+
+1. **Server presets** no longer offers the four old shapes (Server, Realm, SMP,
+   Quiet survival). It says new presets are on the way and asks people to
+   suggest ideas on the Discord. The four are still defined, and
+   `/scriptevent` can still apply them, so nothing that relied on them breaks.
+2. **Credits** has a Discord section, for help, updates and preset ideas.
+
+The Discord link is one setting, `brand.discord` in `config.js`. Until it is
+filled in, both screens say the link is coming soon.
+
+Tested under Node: 52 suites, 2,634 checks. **Not yet run in game.**
+
 ## 2.8.5 — 2026-11-12
 
 **Colour codes use §, and a player's actions have their own button.**

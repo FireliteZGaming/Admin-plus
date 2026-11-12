@@ -1,7 +1,7 @@
 // Admin+ — single tunable config. Everything an operator would want to change
 // lives here; runtime state (ranks, warps, bans) lives in world storage.
 
-export const ADMINPLUS_VERSION = "2.8.5"
+export const ADMINPLUS_VERSION = "2.8.6"
 
 export const CONFIG = {
     // Command namespace. Registration is always namespaced (/<ns>:<name>) —
@@ -45,7 +45,11 @@ export const CONFIG = {
         accent: "§b",
         ok: "§a",
         err: "§c",
-        info: "§7"
+        info: "§7",
+        // The Admin+ Discord invite, as it should be printed, e.g.
+        // "discord.gg/abcd123". Shown in Credits and on Server presets, where
+        // people are asked to suggest presets. Empty prints "link coming soon".
+        discord: ""
     },
 
     // Feature switches — turning one off unregisters its commands entirely.

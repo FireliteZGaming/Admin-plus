@@ -7,6 +7,7 @@ import { tableReport } from "../core/storage.js"
 import { ladder } from "../core/ranks.js"
 import { detectServerPreset } from "../core/serverPresets.js"
 import { ADMINPLUS_VERSION, CONFIG } from "../config.js"
+import { discordLine } from "../core/links.js"
 
 // /admin ▸ About ▸ Credits
 //
@@ -93,6 +94,12 @@ export async function creditsScreen(player, back) {
             "",
             "§8Nothing from that second list ships here — those are ideas,",
             "§8rewritten. Tap any of them to read what was taken.",
+            "",
+            // Its own place, asked for on 2026-11-12: where to get help, hear
+            // about updates and suggest presets.
+            "§fDiscord",
+            "§7Help, updates, and ideas for new presets:",
+            `  ${discordLine()}`,
             "",
             "§fWhere it lives",
             ...HOMES.map(home => `§8· ${home.where}\n  §7${home.url}`)

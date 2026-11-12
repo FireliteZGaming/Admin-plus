@@ -270,6 +270,11 @@ value in the wrong key.
   new admin need gets a purpose-built Admin+ command like these, never a
   vanilla wrapper. No Admin+ command may take a name in `core/gameowned.js`.
   The Creator & Dev console runs Admin+ commands only.
+- **Server presets are on hold (2.8.6, the user, 2026-11-12).** The screen asks
+  people to suggest ideas on the Discord instead of offering presets. The old
+  four stay in `core/serverPresets.js` (scriptevent still applies them) so
+  presets can return. The Discord link is `CONFIG.brand.discord`, printed by
+  `core/links.js`; empty means "coming soon".
 - **No economy or shop**, ever. The `+` means essentials.
 - **Fly, god, heal, feed: dropped.** Removed on purpose, not missing. Do not
   build them unasked. Three things came OFF this list because the user asked
