@@ -245,6 +245,14 @@ value in the wrong key.
 - **Player-facing text follows the 7 C's** (clear, concise, concrete, correct,
   coherent, complete, courteous). Name things by what a player recognises, not
   by how the code is built: "What it can do", not "Permissions" or "nodes".
+  **One word per thing (2.8.8, the user asked for every line to follow the
+  7 C's):** display name (not nickname), chat room (not channel), settings
+  (not config or values), rank list or order (not ladder), a player (not
+  somebody), expires (not lapses), Saved setups. One message per situation:
+  "Nobody matched that name.", "Skipped because they outrank you: ...",
+  "Couldn't read your position. Try again.", "That ... no longer exists."
+  No " — " joining two thoughts in anything a player reads. The Beta APIs
+  warning in `core/health.js` is the user's own wording from 1.1.0: leave it.
 - **Three command rules, and `core/registry.js` applies them to every command**
   (2.7.8, asked for 2026-11-11: "one command might have a list you can choose
   from but the other might not, which is wrong"):
