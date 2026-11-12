@@ -254,6 +254,8 @@ const NO_AUDIENCE = new Set([
     "hologram.create", "hologram.edit", "hologram.move", "hologram.delete", "hologram.clear",
     "rank.delete", "rank.preset",
     "warp.create", "warp.move", "warp.delete", "warp.access", "warp.spawnSet", "warp.spawnEdit",
+    // The Omnitool's spawn (2.9.0) is done to the world, not to a person.
+    "omni.spawnOn", "omni.spawnArea", "omni.spawnPoint", "omni.spawnDelete",
     // A sign is not a person, so there is no target to notify — same shape as a
     // warp. And it stays unannounced on purpose even though there IS an actor:
     // a survival world writes signs constantly, for shops and labels and

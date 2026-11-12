@@ -78,6 +78,7 @@ export const GROUPS = {
     tpa: "TPA",
     rtp: "Random teleport",
     namecolour: "Name colour effects",
+    omni: "Omnitool",
     ranks: "Ranks",
     staff: "Staff"
 }

@@ -86,8 +86,8 @@ const GROUPS = [
     },
     {
         id: "server", label: "Server",
-        hint: "< Code > edits, presets, warps, the creator console",
-        prefixes: ["config", "warp", "creator", "dev"]
+        hint: "< Code > edits, presets, warps, spawn, the creator console",
+        prefixes: ["config", "warp", "omni", "creator", "dev"]
     },
     {
         id: "reports", label: "Reports",

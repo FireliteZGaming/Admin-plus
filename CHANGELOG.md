@@ -56,6 +56,53 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.9.0 — 2026-11-12
+
+**World tools: `/wts`, the Omnitool, and spawn as an area.**
+
+A new section with its own switch (Server ▸ Settings ▸ Omnitool ▸ General),
+designed by the user.
+
+### /wts
+1. `/wts` (or `/worldtools`) opens World tools. Staff with the new Omnitool
+   permission (Staff tools ▸ Omnitool) get the Omnitool from it.
+2. Land claims are in World tools too, for everyone, while claims are on. With
+   claims off, a player without the Omnitool permission can't open `/wts`.
+
+### The Omnitool
+1. A stick for admins that selects areas the way WorldEdit does. It never
+   edits blocks: WorldEdit already does that, and does it well.
+2. Left click a block sets pos1, right click sets pos2, and the block is never
+   broken or used. Shift + right click saves or cancels while editing.
+3. It changes look between a stick, a blaze rod and a breeze rod, all with
+   the enchant shine, using the game's own textures. It doesn't change while
+   it's in your hand, and it can't be dropped while you're editing.
+4. A white dotted outline shows the selection: corners and edges for a box,
+   three rings for a sphere. Only the person using it sees it, unless
+   "Everyone sees the outline" is on.
+5. A selection clears when its owner leaves, or after 10 idle minutes (a
+   setting).
+
+### Spawn as an area
+1. The first time, the Omnitool asks: "Do you want to enable Spawn through the
+   Omnitool?" Yes sets simple spawn (a point and a radius) aside.
+2. Pick a shape (sphere first, or cuboid), click the blocks, then confirm.
+   For a sphere, pos1 is the centre and pos2 sets the radius. For a cuboid,
+   they're opposite corners.
+3. The first time, it asks where `/spawn` sends players: Set spawn point
+   (click a block), Keep current, or Don't set spawn (turns `/spawn` off).
+4. Once spawn exists, a click offers: Flash the border (about 10 seconds),
+   Recalibrate, Set spawn point, Settings, and Delete at the bottom.
+5. Delete, or turning "Spawn through the Omnitool" off, puts simple spawn
+   back exactly as it was: its point, and each setting stored or not.
+6. Spawn protection uses the area while Omnitool spawn is on. Places ▸ Warps
+   and spawn shows the area and the same settings.
+
+Tested under Node: 54 suites, 2,752 checks. The new `tests/worldtools.test.js`
+has 61 checks; with Delete's restore switched off, 7 of them fail. **Not yet
+run in game**: clicks, the outline, the item looks and the lock all need a
+world.
+
 ## 2.8.8 — 2026-11-12
 
 **Every line players read, rewritten to be plain.**

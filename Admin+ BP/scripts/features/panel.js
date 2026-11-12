@@ -121,7 +121,7 @@ function serverButtons(player, back) {
     const settings = has(player, "admin.settings")
     return [
         settings
-            ? { text: hubButton("settings", "Settings", "Switch things on and off: travel, chat, names, moderation, extras"), run: () => settingsScreen(player, back) }
+            ? { text: hubButton("settings", "Settings", "Switch things on and off: travel, chat, names, moderation, extras, Omnitool"), run: () => settingsScreen(player, back) }
             : null,
         has(player, "admin.automod")
             ? { text: hubButton("settings", "Automod", "Ore alerts, fast breaking, chat flooding, chat screening"), run: () => automodHubScreen(player, back) }

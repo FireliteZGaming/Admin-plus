@@ -293,6 +293,17 @@ value in the wrong key.
   Logs undo needs the action's own permission (`UNDO_NEEDS` in
   `features/logsUI.js`). Owners and operators are not limited. Any new way to
   change ranks goes through these; `tests/rankgap.test.js` tries every door.
+- **World tools (2.9.0, the user's design, 2026-11-12).** `/wts` holds the
+  Omnitool (admin, `admin.omnitool`) and land claims (everyone, while claims
+  are on). The Omnitool SELECTS like WorldEdit and never edits blocks: "WorldEdit
+  is its own existing mod ... and a great one". Its state lives on the player
+  (`features/worldtools.js` sessions), never on the item, because the item
+  swaps between three looks. Spawn as an area is `core/omnitool.js`: turning
+  it on sets simple spawn aside, and Delete or the switch puts it back
+  exactly. The switch can change anywhere, so `reconcileSpawn()` catches up
+  every 30 ticks; it writes, so never call it from a before-event. The full
+  design is in Obsidian: Firelite ▸ Projects ▸ Minecraft ▸ Bedrock ▸ Mods ▸
+  Admin+ ▸ World Tools.
 - **No economy or shop**, ever. The `+` means essentials.
 - **Fly, god, heal, feed: dropped.** Removed on purpose, not missing. Do not
   build them unasked. Three things came OFF this list because the user asked

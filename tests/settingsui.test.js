@@ -48,7 +48,7 @@ console.log("\n— Server holds Settings, Automod, Server presets and Advanced �
 
 console.log("\n— the groups say what they hold —")
 {
-    check("five groups", GROUPS.map(g => g.label), ["Travel", "Chat", "Names and tags", "Moderation", "Player extras"])
+    check("six groups", GROUPS.map(g => g.label), ["Travel", "Chat", "Names and tags", "Moderation", "Player extras", "Omnitool"])
     // A group's button text is its hint. Every page inside should be named in
     // it, or near enough, so nobody has to open a group to find out.
     check("every group and page has a hint", GROUPS.flatMap(g => [g, ...g.pages]).filter(x => !x.hint).map(x => x.label), [])

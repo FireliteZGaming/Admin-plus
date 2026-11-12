@@ -165,7 +165,7 @@ export const PERMISSION_NODES = {
     "Everyone": ["warp.use", "spawn.use", "tpa.use", "report.use", "online.use"],
     "The panel": ["admin.panel", "admin.settings", "admin.logs", "ranks.view"],
     "Chat": ["chat.staff", "chat.viewall", "chat.manage", "chat.spy", "admin.broadcast", "admin.clearchat"],
-    "Staff tools": ["admin.staffmode", "admin.vanish", "admin.tp", "admin.gamemode", "admin.nickname", "admin.holograms", "admin.invsee", "admin.lagclear", "admin.claims", "admin.alerts"],
+    "Staff tools": ["admin.staffmode", "admin.vanish", "admin.tp", "admin.gamemode", "admin.nickname", "admin.holograms", "admin.invsee", "admin.lagclear", "admin.claims", "admin.alerts", "admin.omnitool"],
     "Punishments": ["admin.warn", "admin.mute", "admin.kick", "admin.ban", "admin.banperm", "admin.freeze", "admin.tpatoggle", "admin.reports"],
     "Pranks": ["admin.smite", "admin.sudo"],
     "Ranks and places": ["ranks.grant", "ranks.manage", "warp.manage", "spawn.set"],
@@ -219,6 +219,7 @@ export const PERMISSION_NODES = {
  */
 const LABEL_OVERRIDES = {
     "presets.apply": "server presets",
+    "admin.omnitool": "Omnitool",
     "ranks.view": "rank list",
     // **Named by the JOB, not by the noun.** These two sat next to each other
     // reading "every channel" and "channels", which share a word and differ by

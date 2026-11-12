@@ -125,6 +125,15 @@ export function setSpawn(player) {
 
 export function clearSpawn() { spawn.delete("point") }
 
+/**
+ * Put back a spawn point exactly as it was saved, or none. Used when the
+ * Omnitool's spawn is deleted and simple spawn comes back (core/omnitool.js).
+ */
+export function restoreSpawnPoint(point) {
+    if (point && typeof point.x === "number") spawn.set("point", { ...point })
+    else spawn.delete("point")
+}
+
 // ------------------------------------------------------------- teleporting
 
 /** Resolve a stored dimension id, falling back to the overworld. */

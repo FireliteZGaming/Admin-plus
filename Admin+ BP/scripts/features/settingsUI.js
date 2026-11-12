@@ -195,6 +195,25 @@ export const GROUPS = [
             },
             { label: "Ender chests", hint: "/ec: open your ender chest anywhere", fields: [sw("feature.enderchest", "Ender chests", "/ec opens your ender chest anywhere. Staff can open another player's.")] }
         ]
+    },
+    {
+        // The user's own path, 2026-11-12: "settings < Omnitool < General
+        // (which is where all the toggles are)".
+        id: "omnitool",
+        label: "Omnitool",
+        hint: "World tools, spawn as an area, the outline",
+        body: "The Omnitool and /wts.",
+        pages: [
+            {
+                label: "General", hint: "Every Omnitool switch",
+                fields: [
+                    sw("feature.worldtools", "World tools", "/wts and the Omnitool"),
+                    sw("omni.spawn", "Spawn through the Omnitool", "Off deletes the Omnitool spawn and puts simple spawn back exactly as it was"),
+                    sw("omni.outlineEveryone", "Everyone sees the outline", "Off shows it only to the person using the stick"),
+                    num("omni.idleMinutes", "Minutes before an idle selection clears", "It also clears when they leave", 5, 30)
+                ]
+            }
+        ]
     }
 ]
 

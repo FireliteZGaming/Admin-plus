@@ -13,6 +13,7 @@ import {
 import { queueTeleport } from "../core/teleport.js"
 import { record } from "../core/logs.js"
 import { pickFrom } from "../core/ask.js"
+import { currentSpawnPoint, spawnRecord, describeRegion, insideSpawnArea, reconcileSpawn } from "../core/omnitool.js"
 
 // Warps — /warp, /warps, /spawn for everyone; everything else on one screen per
 // destination.
@@ -74,8 +75,9 @@ command({
     perm: "spawn.use",
     run: (player) => {
         if (!flag("feature.spawn")) return err(player, "Spawn is turned off on this server.")
-        const point = getSpawn()
-        if (!point) return err(player, "Spawn hasn't been set. Staff can set it in /admin ▸ Places ▸ Warps and spawn.")
+        // The Omnitool's spawn point while Omnitool spawn is on, else simple spawn's.
+        const point = currentSpawnPoint()
+        if (!point) return err(player, "Spawn hasn't been set. Staff can set it in /admin ▸ Places ▸ Warps and spawn, or with the Omnitool (/wts).")
         queueTeleport(player, "spawn", () => {
             if (teleportTo(player, point)) ok(player, "Welcome to spawn.")
             else err(player, "Spawn points at a dimension that isn't loaded.")
@@ -132,23 +134,55 @@ export async function warpsScreen(player, back) {
 }
 
 function spawnRow() {
+    const omni = spawnRecord()
+    if (omni.on) {
+        const area = omni.region ? describeRegion(omni.region) : "no area yet"
+        return `§eSpawn§r\n§8Omnitool · ${area} · ${flag("spawn.protect") ? "protected" : "unprotected"}`
+    }
     if (!getSpawn()) return "§eSpawn§r\n§8not set yet"
     const guard = flag("spawn.protect") ? `protected ${setting("spawn.radius")} blocks` : "unprotected"
     return `§eSpawn§r\n§8set · ${guard}`
 }
 
+const placeOf = point =>
+    `${Math.round(point.x)}, ${Math.round(point.y)}, ${Math.round(point.z)} in ${String(point.dimension).replace("minecraft:", "").replace(/_/g, " ")}`
+
 /** Spawn behaves like a warp, so it gets the same kind of screen. */
 async function spawnScreen(player, back) {
-    const point = getSpawn()
+    reconcileSpawn()
+    const omni = spawnRecord()
+    const point = currentSpawnPoint()
     const manage = has(player, "spawn.set")
     const again = () => spawnScreen(player, back)
+
+    // While the Omnitool runs spawn, its area and point are changed with the
+    // stick. This screen still shows them and holds the same settings.
+    if (omni.on) {
+        return menu(player, {
+            title: hubTitle("warps", "Spawn"),
+            body: [
+                subtitle("Set with the Omnitool."),
+                "",
+                `§fArea: §7${omni.region ? `${omni.region.shape}, ${describeRegion(omni.region)}` : "none yet"}`,
+                `§fSpawn point: §7${point ? placeOf(point) : "none"}`,
+                `§fProtection: §r${flag("spawn.protect") ? "§aon" : "§8off"}`,
+                "",
+                "§8Change the area or the point with the Omnitool: /wts."
+            ].join("\n"),
+            buttons: [
+                point && flag("feature.spawn")
+                    ? { text: "§bGo there", run: () => { queueTeleport(player, "spawn", () => { if (teleportTo(player, point)) ok(player, "Welcome to spawn.") }); return again() } }
+                    : null,
+                manage ? { text: "§bSettings §8· protection and /spawn", run: () => spawnSettingsScreen(player, again) } : null
+            ].filter(Boolean),
+            back
+        })
+    }
 
     return menu(player, {
         title: hubTitle("warps", "Spawn"),
         body: [
-            point
-                ? subtitle(`${Math.round(point.x)}, ${Math.round(point.y)}, ${Math.round(point.z)} in ${String(point.dimension).replace("minecraft:", "").replace(/_/g, " ")}`)
-                : "§cNo spawn set yet.",
+            point ? subtitle(placeOf(point)) : "§cNo spawn set yet.",
             "",
             `§fProtection: §r${flag("spawn.protect") ? `§aon §8· ${setting("spawn.radius")} blocks` : "§8off"}`,
             flag("spawn.protect") ? "§8No building and no PvP nearby, except for staff." : ""
@@ -171,6 +205,28 @@ async function spawnScreen(player, back) {
         ].filter(Boolean),
         back
     })
+}
+
+/**
+ * Spawn's settings, shown both here and in the Omnitool's Spawn menu, as the
+ * user asked ("in the Omnitool and the settings ... where ever you managed
+ * spawn before"). With Omnitool spawn on there is no radius: the area is the
+ * shape drawn with the stick.
+ */
+export async function spawnSettingsScreen(player, back) {
+    if (!spawnRecord().on) return spawnEditScreen(player, back)
+    const values = await modal(player, hubTitle("warps", "Spawn settings"), [
+        { id: "protect", type: "toggle", label: "Protect the spawn area\n§8No building and no PvP inside it, except for staff", default: flag("spawn.protect") },
+        { id: "command", type: "toggle", label: "/spawn takes players there\n§8Needs a spawn point", default: flag("feature.spawn") }
+    ])
+    if (!values) return back()
+    setSetting("spawn.protect", values.protect ? "true" : "false")
+    setSetting("feature.spawn", values.command ? "true" : "false")
+    record(player, "warp.spawnEdit", undefined,
+        `protection ${values.protect ? "on" : "off"} · /spawn ${values.command ? "on" : "off"} · Omnitool area`)
+    ok(player, `Saved. Protection ${values.protect ? "on" : "off"}, /spawn ${values.command ? "on" : "off"}.`)
+    if (values.command && !currentSpawnPoint()) info(player, "§7/spawn needs a spawn point. Set one with the Omnitool.")
+    return back()
 }
 
 async function spawnEditScreen(player, back) {
@@ -376,21 +432,14 @@ async function deleteScreen(player, warpId, back) {
 
 // --------------------------------------------------------- spawn protection
 
-/** Is this position inside the protected area? */
+/**
+ * Is this position inside the protected area? Simple spawn's circle, or the
+ * Omnitool's sphere or cuboid while Omnitool spawn is on (core/omnitool.js).
+ * Called from before-events, so it only reads.
+ */
 function insideSpawn(location, dimensionId) {
     if (!flag("spawn.protect")) return false
-    const point = getSpawn()
-    if (!point || dimensionId !== point.dimension) return false
-
-    const radius = Number(setting("spawn.radius"))
-    if (!Number.isFinite(radius) || radius <= 0) return false
-
-    // Squared distance, so there is no square root on every block event. The
-    // dimension has to match too — a spawn in the overworld should not protect
-    // the same coordinates in the nether.
-    const dx = location.x - point.x
-    const dz = location.z - point.z
-    return dx * dx + dz * dz <= radius * radius
+    return insideSpawnArea(location, dimensionId)
 }
 
 function exempt(player) {

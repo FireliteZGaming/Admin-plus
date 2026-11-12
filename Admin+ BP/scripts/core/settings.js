@@ -193,6 +193,23 @@ export const DEFAULTS = {
         value: "false", label: "Land claims",
         help: "true / false · /claim, /unclaim, /trust. Off by default, because it changes who can break blocks. Set how many and how big for each rank in Ranks ▸ a rank ▸ Permissions ▸ Member ▸ Limits."
     },
+    // World tools (2.9.0): /wts and the Omnitool. Settings ▸ Omnitool ▸ General.
+    "feature.worldtools": {
+        value: "true", label: "World tools",
+        help: "true / false · /wts and the Omnitool. Who can use the Omnitool is set per rank (Staff tools ▸ Omnitool)."
+    },
+    "omni.spawn": {
+        value: "false", label: "Spawn through the Omnitool",
+        help: "true / false · spawn is an area made with the Omnitool. Off deletes it and puts simple spawn (a point and a radius) back exactly as it was."
+    },
+    "omni.outlineEveryone": {
+        value: "false", label: "Everyone sees the outline",
+        help: "true / false · off shows the Omnitool's outline only to the person using it"
+    },
+    "omni.idleMinutes": {
+        value: "10", label: "Minutes before an idle selection clears",
+        help: "minutes · an Omnitool selection clears when its owner leaves, or doesn't move or use the stick for this long"
+    },
     "feature.homes": {
         // OFF, like land claims. Both hand players a new thing to own, and a
         // world should decide to switch that on rather than find it already

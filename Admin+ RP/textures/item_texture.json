@@ -1,0 +1,9 @@
+{
+    "resource_pack_name": "Admin+",
+    "texture_name": "atlas.items",
+    "texture_data": {
+        "adminplus_omnitool_stick": { "textures": "textures/items/stick" },
+        "adminplus_omnitool_blaze": { "textures": "textures/items/blaze_rod" },
+        "adminplus_omnitool_breeze": { "textures": "textures/items/breeze_rod" }
+    }
+}
