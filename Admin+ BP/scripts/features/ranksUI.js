@@ -1,7 +1,8 @@
 import { world } from "@minecraft/server"
 import { menu, pagedMenu, modal, confirm, subtitle } from "../core/ui.js"
 import { hubTitle, hubButton, hubEntry } from "../core/theme.js"
-import { setting, flag } from "../core/settings.js"
+import { setting, flag, render, renderTag } from "../core/settings.js"
+import { allTags, getTag, saveTag, deleteTag, tagIdFor, tagsOf, giveTag, takeTag, holderCount } from "../core/tags.js"
 import { record } from "../core/logs.js"
 import { ok, err, info } from "../core/util.js"
 import { stripCodes, displayName } from "../core/identity.js"
@@ -62,6 +63,40 @@ function lookOf(display) {
 /** A rank's name as plain text, for titles and messages. */
 const nameOf = rank => stripCodes(String(rank?.display ?? "")) || rank?.id || "this rank"
 
+/** Does a player holding this rank end up with the node, however it arrives? */
+const holds = (rank, node) => ["own", "wildcard", "inherited"].includes(rankGrant(rank, node).state)
+
+/**
+ * The two halves of a rank's permissions, as split on 2026-11-11: Member is
+ * what any player with the rank can do, Administrative is staff tools.
+ */
+const MEMBER_GROUPS = ["Everyone"]
+const ADMIN_GROUPS = Object.keys(PERMISSION_NODES).filter(group => !MEMBER_GROUPS.includes(group))
+const countOn = (rank, groups) => groups.reduce((n, g) => n + PERMISSION_NODES[g].filter(node => holds(rank, node)).length, 0)
+const countAll = groups => groups.reduce((n, g) => n + PERMISSION_NODES[g].length, 0)
+
+/** Name colour choices: Default, the plain colours, then the moving effects. */
+function nameColourOptions() {
+    return STYLE_IDS.map(id => {
+        const style = STYLES[id]
+        if (id === "none") return "§7Default"
+        if (style.still) return `§${style.ramp}${style.label}`
+        return `${paint(style.label, style.ramp, 0)}§r §8(moves)`
+    })
+}
+
+/** Chat colour choices: Default, then the plain colours. */
+const CHAT_OPTIONS = ["§7Default", ...COLOUR_OPTIONS]
+
+/** One chat line, drawn the way this rank would make it look. */
+function previewLine(rank) {
+    const style = STYLES[String(rank.meta?.["nametag.style"] ?? "none")]
+    const name = style?.ramp ? paint("Steve", style.ramp, 0) : "Steve"
+    const code = String(rank.meta?.["chat.colour"] ?? "")
+    const colour = COLOURS.some(([, c]) => c === code) ? `§${code}` : ""
+    return render("format.chat", { TAG: renderTag(rank), RANK: rank.display, NAME: "Steve", NICKNAME: name, MSG: `${colour}hello!` })
+}
+
 export async function ranksScreen(player, back) {
     // Somebody who may hand out ranks but not edit them goes straight to the
     // one thing they can do.
@@ -91,6 +126,9 @@ async function ladderScreen(player, back) {
         extra: [
             { text: hubEntry("presets", "+ New rank", "Pick a name and a colour"), run: () => createRankScreen(player, again) },
             { text: hubEntry("ranks", "Give a rank to a player", "Or take one away"), run: () => rankPlayersScreen(player, again) },
+            flag("feature.tags")
+                ? { text: hubEntry("presets", "Cosmetic tags", "Tags that only change how a name looks"), run: () => tagsScreen(player, again) }
+                : null,
             { text: hubEntry("presets", "Rank templates", "Replace the whole list with a ready-made one"), run: () => presetsScreen(player, again) },
             hasSnapshot()
                 ? { text: "§8↺ Undo last change\n§8Puts back the list from before the last template or delete", run: () => undoScreen(player, again) }
@@ -133,6 +171,8 @@ export async function rankScreen(player, rankId, back) {
         `${rank.display}§r`,
         subtitle(`Number ${index + 1} of ${rows.length}${notes.length ? ` · ${notes.join(" · ")}` : ""}`),
         "",
+        `§fIn chat: §r${previewLine(rank)}`,
+        "",
         "§fWhat it can do:",
         ...(groups.length ? groups : ["§7Nothing yet"]),
         parents.length ? `\n§fAlso gets everything from: §r${parents.map(r => r.display + "§r").join("§7, ")}` : "",
@@ -146,11 +186,11 @@ export async function rankScreen(player, rankId, back) {
         title: hubTitle("ranks", nameOf(rank)),
         body,
         buttons: editable ? [
-            { text: hubEntry("ranks", "Name and colour", "How it looks, and whether it is staff"), run: () => basicsScreen(player, rankId, again) },
-            { text: hubEntry("ranks", "What it can do", "Turn permissions on and off"), run: () => nodeGroupsScreen(player, rankId, again) },
-            { text: hubEntry("ranks", "Limits and cooldowns", "Homes, land claims and wait times"), run: () => valuesScreen(player, rankId, "limit", again) },
-            { text: hubEntry("ranks", "Name effect", "Colours that move along the name"), run: () => nametagStyleScreen(player, rankId, again) },
-            { text: hubEntry("ranks", "Also gets permissions from", parents.length ? parents.map(nameOf).join(", ") : "No other rank"), run: () => inheritScreen(player, rankId, again) },
+            // Two doors, as the user laid it out on 2026-11-11: Basics is how
+            // the rank looks and whether it is staff; Permissions is what it
+            // can do, split into Member and Administrative.
+            { text: hubEntry("ranks", "Basics", "Name, colours, and whether it is staff"), run: () => basicsScreen(player, rankId, again) },
+            { text: hubEntry("ranks", "Permissions", rank.staff ? "Member and administrative" : "What players with it can do"), run: () => permissionsScreen(player, rankId, again) },
             canMoveUp ? { text: `§7▲ Move up §8· above ${nameOf(rows[index - 1])}`, run: () => { moveRank(rankId, -1); return again() } } : null,
             canMoveDown ? { text: `§7▼ Move down §8· below ${nameOf(rows[index + 1])}`, run: () => { moveRank(rankId, 1); return again() } } : null,
             { text: "§cDelete this rank", run: () => deleteScreen(player, rankId, back) }
@@ -236,14 +276,30 @@ export async function basicsScreen(player, rankId, back) {
     const shift = look.simple ? 0 : 1
     const current = look.simple ? Math.max(0, COLOURS.findIndex(([, code]) => code === look.code)) : 0
 
-    const values = await modal(player, hubTitle("ranks", `Name and colour · ${look.name || rankId}`), [
+    const styleAt = Math.max(0, STYLE_IDS.indexOf(String(rank.meta?.["nametag.style"] ?? "none")))
+    const chatAt = COLOURS.findIndex(([, code]) => code === String(rank.meta?.["chat.colour"] ?? "")) + 1
+    const coloursOff = flag("feature.namecolour") ? "" : "\n§cName colours are turned off in Server ▸ Features."
+
+    const values = await modal(player, hubTitle("ranks", `Basics · ${look.name || rankId}`), [
         { id: "name", type: "text", label: "Name", default: look.name },
-        { id: "colour", type: "dropdown", label: "Colour", options, default: current },
-        { id: "bold", type: "toggle", label: "Bold", default: look.bold },
-        { id: "staff", type: "toggle", label: "Staff rank\n§8Gets staff chat and staff alerts", default: !!rank.staff },
+        { id: "colour", type: "dropdown", label: "Rank colour\n§8The colour of the tag", options, default: current },
+        { id: "bold", type: "toggle", label: "Bold tag", default: look.bold },
+        { id: "nameColour", type: "dropdown", label: `Name colour\n§8The player's name, in chat and above their head${coloursOff}`, options: nameColourOptions(), default: styleAt },
+        { id: "chatColour", type: "dropdown", label: "Chat colour\n§8The colour of what they type", options: CHAT_OPTIONS, default: chatAt },
+        { id: "staff", type: "toggle", label: "Staff rank\n§8Staff chat, staff alerts and administrative permissions", default: !!rank.staff },
         { id: "isDefault", type: "toggle", label: "New players get this rank", default: !!rank.default }
     ])
     if (!values) return back()
+
+    // "Default" removes the value rather than storing "none", so a lower rank's
+    // colour can still show through.
+    const meta = { ...(rank.meta ?? {}) }
+    const styleId = STYLE_IDS[values.nameColour]
+    if (!styleId || styleId === "none") delete meta["nametag.style"]
+    else meta["nametag.style"] = styleId
+    const chatCode = COLOURS[values.chatColour - 1]?.[1]
+    if (chatCode) meta["chat.colour"] = chatCode
+    else delete meta["chat.colour"]
 
     const name = stripCodes(String(values.name ?? "")).trim() || look.name
     let display
@@ -257,7 +313,7 @@ export async function basicsScreen(player, rankId, back) {
         const code = (COLOURS[values.colour - shift] ?? COLOURS[0])[1]
         display = `§${code}${values.bold ? "§l" : ""}${name}`
     }
-    saveRank(rankId, { display, staff: !!values.staff, default: !!values.isDefault })
+    saveRank(rankId, { display, staff: !!values.staff, default: !!values.isDefault, meta })
     ok(player, `Saved ${display}§a.`)
     return back()
 }
@@ -273,6 +329,152 @@ async function deleteScreen(player, rankId, back) {
     record(player, "rank.delete", undefined, rankId, { kind: "ladder" })
     ok(player, `Deleted ${shown}§a.`)
     return back()
+}
+
+// ============================================================ cosmetic tags
+
+/** Repaint one player's nametag, if they are here, after their tags change. */
+function refreshPlayer(playerId) {
+    const target = world.getAllPlayers().find(p => p.id === playerId)
+    if (target) refreshNameTag(target)
+}
+
+/**
+ * Cosmetic tags: a word beside a name with no place in the rank order and no
+ * permissions, asked for on 2026-11-11. Stored in core/tags.js, drawn after a
+ * player's rank tags by renderTags.
+ */
+async function tagsScreen(player, back) {
+    const again = () => tagsScreen(player, back)
+    const list = allTags()
+    const players = n => `${n} player${n === 1 ? "" : "s"}`
+    return pagedMenu(player, {
+        title: hubTitle("presets", "Cosmetic tags"),
+        body: subtitle(list.length
+            ? "A tag only changes how a name looks. Tags have no order\nand give no permissions. Tap one to change it."
+            : "No tags yet. A tag only changes how a name looks:\nit has no order and gives no permissions."),
+        items: list,
+        render: tag => ({ text: `${renderTag(tag)}§r\n§8${players(holderCount(tag.id))}` }),
+        onPick: tag => tagScreen(player, tag.id, again),
+        extra: [
+            { text: hubEntry("presets", "+ New tag", "Pick a name and a colour"), run: () => tagFormScreen(player, undefined, again) },
+            { text: hubEntry("ranks", "Give a tag to a player", "Or take one away"), run: () => rankPlayersScreen(player, again) }
+        ],
+        back
+    })
+}
+
+async function tagScreen(player, tagId, back) {
+    const tag = getTag(tagId)
+    if (!tag) { err(player, "That tag no longer exists."); return back() }
+    const again = () => tagScreen(player, tagId, back)
+    const count = holderCount(tagId)
+    return menu(player, {
+        title: hubTitle("presets", tag.name),
+        body: [
+            `${renderTag(tag)}§r`,
+            subtitle(`${count} player${count === 1 ? " has" : "s have"} it. It gives no permissions.`)
+        ].join("\n"),
+        buttons: [
+            { text: hubEntry("presets", "Name and colour", "How it looks"), run: () => tagFormScreen(player, tagId, again) },
+            {
+                text: "§cDelete this tag",
+                run: async () => {
+                    const yes = await confirm(player, hubTitle("presets", "Delete tag"),
+                        `Delete ${tag.display}§r?\n\n§7Everyone who has it loses it.`, "§cDelete")
+                    if (!yes) return again()
+                    deleteTag(tagId)
+                    for (const p of world.getAllPlayers()) refreshNameTag(p)
+                    record(player, "tag.delete", undefined, tag.name)
+                    ok(player, `Deleted ${tag.display}§a.`)
+                    return back()
+                }
+            }
+        ],
+        back
+    })
+}
+
+/** Make a tag, or change one: a name and a colour, like a rank. */
+async function tagFormScreen(player, tagId, back) {
+    const tag = tagId ? getTag(tagId) : undefined
+    const look = lookOf(tag?.display ?? "")
+    const keep = tag && !look.simple
+    const options = keep ? ["§7Keep the current colours", ...COLOUR_OPTIONS] : COLOUR_OPTIONS
+    const shift = keep ? 1 : 0
+    const current = !tag ? 6 : keep ? 0 : Math.max(0, COLOURS.findIndex(([, code]) => code === look.code))
+
+    const values = await modal(player, hubTitle("presets", tag ? `Tag · ${tag.name}` : "New tag"), [
+        { id: "name", type: "text", label: "Name\n§8Shown beside the player's name", placeholder: "Builder", default: tag?.name ?? "" },
+        { id: "colour", type: "dropdown", label: "Colour", options, default: current },
+        { id: "bold", type: "toggle", label: "Bold", default: tag ? look.bold : false }
+    ])
+    if (!values) return back()
+
+    const name = stripCodes(String(values.name ?? "")).trim()
+    if (!name) { err(player, "Give the tag a name."); return back() }
+    let display
+    if (keep && values.colour === 0) {
+        display = name === look.name && !!values.bold === look.bold
+            ? tag.display
+            : `§${look.code ?? "f"}${values.bold ? "§l" : ""}${name}`
+    } else {
+        const code = (COLOURS[values.colour - shift] ?? COLOURS[6])[1]
+        display = `§${code}${values.bold ? "§l" : ""}${name}`
+    }
+
+    let id = tagId
+    if (!id) {
+        const base = tagIdFor(name)
+        if (!base) { err(player, "Use letters or numbers in the name."); return back() }
+        id = base
+        for (let n = 2; getTag(id); n++) id = `${base}${n}`
+    }
+    saveTag(id, { name, display })
+    for (const p of world.getAllPlayers()) refreshNameTag(p)
+    ok(player, tag
+        ? `Saved ${display}§a.`
+        : `Made the ${display}§a tag. Give it to someone from Give a tag to a player.`)
+    return back()
+}
+
+async function giveTagScreen(player, targetId, targetName, back) {
+    const held = new Set(tagsOf(targetId).map(tag => tag.id))
+    const options = allTags().filter(tag => !held.has(tag.id))
+    if (!options.length) { info(player, "They already have every tag."); return back() }
+    return pagedMenu(player, {
+        title: hubTitle("presets", `Give a tag · ${targetName}`),
+        items: options,
+        render: tag => ({ text: `${renderTag(tag)}§r` }),
+        onPick: tag => {
+            giveTag(targetId, tag.id)
+            refreshPlayer(targetId)
+            record(player, "tag.give", { id: targetId, name: targetName }, tag.name)
+            ok(player, `${targetName} now has the ${tag.display}§a tag.`)
+            notify(targetId, `You were given the ${tag.display}§r tag.`)
+            return back()
+        },
+        back
+    })
+}
+
+async function takeTagScreen(player, targetId, targetName, back) {
+    const held = tagsOf(targetId)
+    if (!held.length) { info(player, "They have no tags."); return back() }
+    return pagedMenu(player, {
+        title: hubTitle("presets", `Take a tag away · ${targetName}`),
+        items: held,
+        render: tag => ({ text: `${renderTag(tag)}§r` }),
+        onPick: tag => {
+            takeTag(targetId, tag.id)
+            refreshPlayer(targetId)
+            record(player, "tag.take", { id: targetId, name: targetName }, tag.name)
+            ok(player, `Took the ${tag.display}§a tag from ${targetName}.`)
+            notify(targetId, `The ${tag.display}§r tag was taken away.`)
+            return back()
+        },
+        back
+    })
 }
 
 // ---------------------------------------------------------------- templates
@@ -331,7 +533,7 @@ async function quickFillScreen(player, rankId, back) {
 
     return menu(player, {
         title: hubTitle("ranks", `Ready-made sets · ${nameOf(rank)}`),
-        body: subtitle("Each one switches on a group of permissions in one tap.\n§8Nothing is switched off here. Do that in What it can do."),
+        body: subtitle("Each one switches on a group of permissions in one tap.\n§8Nothing is switched off here. Do that inside each group."),
         buttons: Object.keys(BUNDLES).map(key => {
             const bundle = BUNDLES[key]
             const done = has(key)
@@ -355,38 +557,86 @@ async function quickFillScreen(player, rankId, back) {
     })
 }
 
-async function nodeGroupsScreen(player, rankId, back) {
+/**
+ * A rank's permissions, in the two halves the user laid out on 2026-11-11:
+ *
+ *   Member           what any player with this rank can do, plus how many
+ *                    homes and claims they get and how long they wait
+ *   Administrative   staff tools, shown only for a staff rank
+ *
+ * Administrative stays visible on a rank that is not staff but still holds
+ * some of those permissions, with a line saying so, so nothing it can do is
+ * ever hidden from the person editing it.
+ */
+async function permissionsScreen(player, rankId, back) {
     const rank = getRank(rankId)
     if (!rank) return back()
+    const again = () => permissionsScreen(player, rankId, back)
+    const adminOn = countOn(rank, ADMIN_GROUPS)
+    const parents = (rank.inherits ?? []).map(id => getRank(id)).filter(Boolean)
+
     return menu(player, {
-        title: hubTitle("ranks", `What it can do · ${nameOf(rank)}`),
-        body: subtitle("Each switch turns one permission on or off for this rank.\n§8Off means this rank adds nothing. Players still get what\n§8their other ranks give them."),
+        title: hubTitle("ranks", `Permissions · ${nameOf(rank)}`),
+        body: [
+            subtitle("What players with this rank can do."),
+            rank.staff ? "" : "§8Administrative permissions show here when Staff rank is on in Basics.",
+            !rank.staff && adminOn
+                ? `§cThis rank is not staff, but it still has ${adminOn} administrative permission${adminOn === 1 ? "" : "s"}.`
+                : ""
+        ].filter(Boolean).join("\n"),
         buttons: [
-            // The shortcut lives WITH the thing it is a shortcut for, so the
-            // relationship is visible instead of needing to be explained.
-            {
-                text: "§eReady-made sets §8· switch on a group at once",
-                run: () => quickFillScreen(player, rankId, () => nodeGroupsScreen(player, rankId, back))
-            },
-            // Each group says how much of it is on, counted the way the
-            // switches inside are drawn, so the number and the page agree.
-            ...Object.entries(PERMISSION_NODES).map(([group, nodes]) => {
-                const on = nodes.filter(node => ["own", "wildcard", "inherited"].includes(rankGrant(rank, node).state)).length
+            { text: hubEntry("ranks", "Member", `What they can use, limits and cooldowns · ${countOn(rank, MEMBER_GROUPS)} of ${countAll(MEMBER_GROUPS)} on`), run: () => memberPermissionsScreen(player, rankId, again) },
+            rank.staff || adminOn
+                ? { text: hubEntry("actions", "Administrative", `Staff tools · ${adminOn} of ${countAll(ADMIN_GROUPS)} on`), run: () => adminPermissionsScreen(player, rankId, again) }
+                : null,
+            { text: hubEntry("ranks", "Also gets permissions from", parents.length ? parents.map(nameOf).join(", ") : "No other rank"), run: () => inheritScreen(player, rankId, again) }
+        ].filter(Boolean),
+        back
+    })
+}
+
+async function memberPermissionsScreen(player, rankId, back) {
+    const rank = getRank(rankId)
+    if (!rank) return back()
+    const again = () => memberPermissionsScreen(player, rankId, back)
+    return menu(player, {
+        title: hubTitle("ranks", `Member · ${nameOf(rank)}`),
+        body: subtitle("What any player with this rank can do."),
+        buttons: [
+            ...MEMBER_GROUPS.map(group => {
+                const nodes = PERMISSION_NODES[group]
+                const on = nodes.filter(node => holds(rank, node)).length
                 return {
-                    text: hubEntry("ranks", group, `${on} of ${nodes.length} on`),
-                    run: () => nodeGroupScreen(player, rankId, group, () => nodeGroupsScreen(player, rankId, back))
+                    text: hubEntry("ranks", "What they can use", `Warps, spawn, requests, reports, who is online · ${on} of ${nodes.length} on`),
+                    run: () => nodeGroupScreen(player, rankId, group, again)
                 }
             }),
-            // **Numbers belong with the switches, not on a separate screen
-            // called "Meta".** "May they set homes" and "how many" are one
-            // question asked twice, and answering them in two different places
-            // is how a rank ends up allowed something it has a limit of zero
-            // for. Asked for 2026-09-19, in the shape Essentials uses: a
-            // permission that carries a value.
-            {
-                text: "§bLimits and cooldowns §8· numbers, not switches",
-                run: () => valuesScreen(player, rankId, "limit", () => nodeGroupsScreen(player, rankId, back))
-            }
+            // Numbers belong beside the switches: "may they set homes" and
+            // "how many" are one question asked twice.
+            { text: hubEntry("ranks", "Limits", "How many homes and land claims"), run: () => valuesScreen(player, rankId, "limit", again) },
+            { text: hubEntry("ranks", "Cooldowns", "How long to wait between teleports"), run: () => valuesScreen(player, rankId, "cooldown", again) }
+        ],
+        back
+    })
+}
+
+async function adminPermissionsScreen(player, rankId, back) {
+    const rank = getRank(rankId)
+    if (!rank) return back()
+    const again = () => adminPermissionsScreen(player, rankId, back)
+    return menu(player, {
+        title: hubTitle("actions", `Administrative · ${nameOf(rank)}`),
+        body: subtitle("Staff tools. Each switch turns one on or off for this rank.\n§8Off means this rank adds nothing. Players still get what\n§8their other ranks give them."),
+        buttons: [
+            // The shortcut sits with the thing it is a shortcut for.
+            { text: "§eReady-made sets §8· switch on a group at once", run: () => quickFillScreen(player, rankId, again) },
+            // Each group says how much of it is on, counted the way the
+            // switches inside are drawn, so the number and the page agree.
+            ...ADMIN_GROUPS.map(group => {
+                const nodes = PERMISSION_NODES[group]
+                const on = nodes.filter(node => holds(rank, node)).length
+                return { text: hubEntry("actions", group, `${on} of ${nodes.length} on`), run: () => nodeGroupScreen(player, rankId, group, again) }
+            })
         ],
         back
     })
@@ -593,51 +843,6 @@ function inheritsFrom(rankId, ancestorId, seen = new Set()) {
  * and a single form of five sliders is a wall. They link to each other rather
  * than sitting behind separate buttons, so getting between them is one tap.
  */
-/**
- * The one rank value that is a CHOICE rather than a number.
- *
- * Its own screen rather than a field on the values form, because that form is
- * generated from `RANK_VALUES` as sliders and a dropdown among five sliders is
- * the kind of mixed form where people mis-tap. It also gets to SHOW each style,
- * which a dropdown of names cannot: the list below paints every option in its
- * own colours, on this rank's own name, so the choice is made by looking rather
- * than by guessing what "Void" means.
- */
-async function nametagStyleScreen(player, rankId, back) {
-    const rank = getRank(rankId)
-    if (!rank) return back()
-    const current = String(rank.meta?.["nametag.style"] ?? "none")
-    const sample = stripCodes(rank.display) || rankId
-
-    return pagedMenu(player, {
-        title: hubTitle("ranks", `Name effect · ${nameOf(rank)}`),
-        body: [
-            subtitle("Colours that move along the name above their head.\nIn chat, the same colours stand still."),
-            flag("feature.namecolour")
-                ? "§8Each effect is shown on this rank's name."
-                : "§cName effects are off for the whole server.§r §8Turn them on in Server ▸ Features.",
-            "§8While an effect is on, it replaces a nickname's own colours."
-        ].join("\n"),
-        items: STYLE_IDS,
-        render: (id) => {
-            const style = STYLES[id]
-            const shown = id === "none"
-                ? `§7${sample}`
-                : paint(sample, style.ramp, 0)
-            const mark = id === current ? " §a✓" : ""
-            return { text: `${shown}§r${mark}\n§8${style.label} · ${style.hint}` }
-        },
-        onPick: (id) => {
-            saveRank(rankId, { meta: { ...rank.meta, "nametag.style": id } })
-            ok(player, `${rank.display}§a now uses §f${STYLES[id].label}§a.`)
-            // Repaint immediately rather than waiting on the tick, so the
-            // change is visible the moment the form closes.
-            for (const p of world.getAllPlayers()) refreshNameTag(p)
-            return nametagStyleScreen(player, rankId, back)
-        },
-        back
-    })
-}
 
 async function valuesScreen(player, rankId, kind, back) {
     const rank = getRank(rankId)
@@ -685,7 +890,7 @@ async function valuesScreen(player, rankId, kind, back) {
 export async function rankPlayersScreen(player, back) {
     const online = world.getAllPlayers()
     return pagedMenu(player, {
-        title: hubTitle("ranks", "Give a rank to a player"),
+        title: hubTitle("ranks", flag("feature.tags") ? "Give ranks and tags" : "Give a rank to a player"),
         body: subtitle(`${online.length} online. Tap a player.`),
         items: online,
         render: target => {
@@ -727,6 +932,8 @@ export async function playerRankScreen(player, targetId, targetName, back) {
     const allowed = canActOn(player, targetId) && has(player, "ranks.grant")
     const online = world.getAllPlayers().some(p => p.id === targetId)
     const again = () => playerRankScreen(player, targetId, targetName, back)
+    const tags = flag("feature.tags")
+    const heldTags = tags ? tagsOf(targetId) : []
 
     return menu(player, {
         title: hubTitle("ranks", targetName || "Unknown"),
@@ -735,9 +942,10 @@ export async function playerRankScreen(player, targetId, targetName, back) {
             "",
             "§fRanks:",
             list,
+            tags ? `\n§fCosmetic tags: §r${heldTags.map(tag => renderTag(tag)).join(" ") || "§7none"}` : "",
             "",
             "§7What they can do comes from all their ranks together.",
-            "§7The order only picks which tag they show.",
+            "§7The order only picks which rank tag they show.",
             allowed ? "" : "\n§cThey outrank you, so you can't change their ranks."
         ].join("\n"),
         buttons: allowed ? [
@@ -746,7 +954,13 @@ export async function playerRankScreen(player, targetId, targetName, back) {
             held.length > 1
                 ? { text: "§7Change which tag shows", run: () => displayOrderScreen(player, targetId, targetName, again) }
                 : null,
-            { text: "§bReplace all their ranks with one", run: () => setRankScreen(player, targetId, targetName, again) }
+            { text: "§bReplace all their ranks with one", run: () => setRankScreen(player, targetId, targetName, again) },
+            tags && allTags().length
+                ? { text: "§6+ Give a cosmetic tag", run: () => giveTagScreen(player, targetId, targetName, again) }
+                : null,
+            tags && heldTags.length
+                ? { text: "§6- Take a cosmetic tag away", run: () => takeTagScreen(player, targetId, targetName, again) }
+                : null
         ].filter(Boolean) : [],
         back
     })

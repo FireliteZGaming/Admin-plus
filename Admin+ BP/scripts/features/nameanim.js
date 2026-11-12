@@ -1,7 +1,7 @@
 import { world, system } from "@minecraft/server"
 import { flag, setting, nameTagsEnabled } from "../core/settings.js"
 import { refreshNameTag, effectiveNametagStyle } from "../core/ranks.js"
-import { advanceFrame } from "../core/nametag.js"
+import { advanceFrame, STYLES } from "../core/nametag.js"
 
 // The clock behind a colour that travels along a nametag.
 //
@@ -49,7 +49,10 @@ export function stepNameAnimation(players) {
         // only the rank, and the creator's colour does not come from a rank —
         // so this loop skipped them every frame and their name sat frozen on
         // whatever frame last painted it.
-        if (effectiveNametagStyle(player) === "none") continue
+        // A single still colour never changes, so it is painted when the
+        // nametag is drawn and skipped here.
+        const style = effectiveNametagStyle(player)
+        if (style === "none" || STYLES[style]?.still) continue
         refreshNameTag(player)
         painted++
     }

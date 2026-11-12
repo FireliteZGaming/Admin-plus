@@ -67,6 +67,7 @@ command({
     description: "Choose which chat you type in",
     optional: [{ name: "channel", type: CustomCommandParamType.String }],
     run: (player, [name]) => {
+        if (!flag("feature.adminchat")) return err(player, "Admin+ chat is turned off on this server.")
         if (!name) return chatScreen(player)
 
         const wanted = String(name).trim().toLowerCase()

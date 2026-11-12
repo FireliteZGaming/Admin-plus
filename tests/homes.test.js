@@ -206,11 +206,16 @@ console.log("\nâ€” every value the rank editor can set is one something reads â€
 {
     const readers = ["home.limit", "home.cooldown", "tpCooldown",
                      "claim.limit", "claim.size", "rtp.cooldown", "back.cooldown",
-                     "nametag.style"]
+                     "nametag.style", "chat.colour"]
     const declared = Object.keys(RANK_VALUES).sort()
     check("the table and the readers agree", declared, readers.sort())
     for (const key of declared) {
         const spec = RANK_VALUES[key]
+        // A colour is a single code, or nothing; there is no range to clamp.
+        if (spec.kind === "colour") {
+            check(`${key}'s fallback is no colour`, spec.fallback, "")
+            continue
+        }
         if (spec.kind === "style") {
             check(`${key} offers something to pick`, spec.options?.length > 1, true)
             check(`${key}'s fallback is one of them`,

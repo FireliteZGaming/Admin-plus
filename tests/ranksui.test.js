@@ -2,6 +2,7 @@ import { __test } from "@minecraft/server"
 import { __ui } from "@minecraft/server-ui"
 import { ladder, getRank, saveRank, setRanks, onPlayerJoin, applyPreset } from "../Admin+ BP/scripts/core/ranks.js"
 import { createRankScreen, basicsScreen } from "../Admin+ BP/scripts/features/ranksUI.js"
+import { STYLE_IDS } from "../Admin+ BP/scripts/core/nametag.js"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -65,24 +66,53 @@ console.log("\n— the same name twice, and codes typed by hand —")
     check("a blank name makes nothing", order(), before)
 }
 
-console.log("\n— changing the name and colour later —")
+// Basics, in field order: name, rank colour, bold, name colour, chat colour,
+// staff, new players get it.
+console.log("\n— changing the name and colour later, in Basics —")
 {
     // One colour: the list can redraw it exactly.
-    __ui.answers.push(submit("Helpers", 4, false, false, false))
+    __ui.answers.push(submit("Helpers", 4, false, 0, 0, false, false))
     await basicsScreen(boss, "helper", () => {})
     check("a simple rank is redrawn from the list", getRank("helper")?.display, "§cHelpers")
     check("the id does not change with the name, so holders keep it", !!getRank("helper"), true)
 
     // Two colours, like VIP+: offered as "keep the current colours".
     saveRank("vipplus", { display: "§e§lVIP§6+" })
-    __ui.answers.push(submit("VIP+", 0, true, false, false))
+    __ui.answers.push(submit("VIP+", 0, true, 0, 0, false, false))
     await basicsScreen(boss, "vipplus", () => {})
     check("kept exactly when nothing else changed", getRank("vipplus")?.display, "§e§lVIP§6+")
 
     // The list is shifted by one there, so Red (fifth colour) is option 5.
-    __ui.answers.push(submit("VIP+", 5, true, false, false))
+    __ui.answers.push(submit("VIP+", 5, true, 0, 0, false, false))
     await basicsScreen(boss, "vipplus", () => {})
     check("and redrawn in one colour when a colour is picked", getRank("vipplus")?.display, "§c§lVIP+")
+}
+
+console.log("\n— name colour and chat colour live in Basics —")
+{
+    // Name colour options: Default, the 16 plain colours, then the moving
+    // effects, in STYLE_IDS order. Chat colour: Default, then the 16 colours.
+    const aqua = STYLE_IDS.indexOf("colour_aqua")
+    const rainbow = STYLE_IDS.indexOf("rainbow")
+    __ui.answers.push(submit("Helpers", 4, false, aqua, 8, false, false))
+    await basicsScreen(boss, "helper", () => {})
+    check("a plain name colour is stored as a still style", getRank("helper")?.meta?.["nametag.style"], "colour_aqua")
+    check("and the chat colour as its colour code (Yellow is e)", getRank("helper")?.meta?.["chat.colour"], "e")
+
+    __ui.answers.push(submit("Helpers", 4, false, rainbow, 0, false, false))
+    await basicsScreen(boss, "helper", () => {})
+    check("a moving effect is the same list, further down", getRank("helper")?.meta?.["nametag.style"], "rainbow")
+    check("Default chat colour removes the value rather than storing one",
+        "chat.colour" in (getRank("helper")?.meta ?? {}), false)
+
+    __ui.answers.push(submit("Helpers", 4, false, 0, 0, false, false))
+    await basicsScreen(boss, "helper", () => {})
+    check("Default name colour removes it too, so a lower rank's can show through",
+        "nametag.style" in (getRank("helper")?.meta ?? {}), false)
+
+    __ui.answers.push(submit("Helpers", 4, false, 0, 0, true, false))
+    await basicsScreen(boss, "helper", () => {})
+    check("the staff switch lives in Basics", getRank("helper")?.staff, true)
 }
 
 console.log(`\n${passed} passed, ${failed} failed\n`)

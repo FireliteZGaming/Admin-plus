@@ -1,7 +1,7 @@
 import { world, system } from "@minecraft/server"
 import { noteChat } from "../core/chatlog.js"
 import { CONFIG } from "../config.js"
-import { primaryRank, isStaff, renderTags } from "../core/ranks.js"
+import { primaryRank, isStaff, renderTags, chatNameFor, chatColourFor } from "../core/ranks.js"
 import { displayName, nameTokens, stripCodes } from "../core/identity.js"
 import { render, flag } from "../core/settings.js"
 import { screen } from "../core/chatfilter.js"
@@ -41,11 +41,16 @@ export function formatChatLine(sender, message, channel, labelled) {
     // showInChat only decides whether the RANK TAG is drawn. It must never
     // decide whether routing happens — see installChat.
     const withTag = CONFIG.ranks.showInChat
+    const names = nameTokens(sender)
     const tokens = {
         TAG: withTag ? renderTags(sender) : "",
-        RANK: withTag ? (rank?.display ?? "") : "",
-        ...nameTokens(sender),
-        MSG: message,
+        RANK: withTag && flag("feature.ranktags") ? (rank?.display ?? "") : "",
+        ...names,
+        // The name colour and chat colour from their rank's Basics. The name
+        // gets the still frame of a moving effect, because a chat line is
+        // printed once and never redrawn.
+        NICKNAME: chatNameFor(sender, names.NICKNAME),
+        MSG: `${chatColourFor(sender)}${message}`,
         CHANNEL: channel?.display ?? ""
     }
     // Dropping the tag can leave a leading space where it used to sit.
@@ -94,6 +99,17 @@ export function installChat() {
             system.run(() => {
                 player.sendMessage(`${CONFIG.brand.prefix}§cYou are muted: ${record.reason}${left}`)
             })
+            return
+        }
+
+        // **Admin+ chat switched off** (Server ▸ Features), for a server where
+        // another mod owns chat. The message is left alone, so the game or that
+        // mod delivers it. Only the mute above still applies, because a mute
+        // that stopped working when chat was handed over would be no mute.
+        // Still logged, so staff can read back what was said.
+        if (!flag("feature.adminchat")) {
+            const said = eventData.message
+            system.run(() => noteChat(player, said, undefined))
             return
         }
 

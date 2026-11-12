@@ -222,6 +222,12 @@ value in the wrong key.
   claims, My settings, Help. Personal things (your homes, your claims) live in
   `/menu`; staff tools in `/admin`. Rarely used config sits in Server ▸
   Advanced. Keep new screens inside this shape rather than adding root buttons.
+- **A rank is Basics and Permissions (2.8.0, the user's own split, 2026-11-11).**
+  Basics: name, rank colour, name colour, chat colour, staff, default.
+  Permissions: Member (what players can use, limits, cooldowns) and
+  Administrative (staff tools, shown only for a staff rank). Cosmetic tags
+  (`core/tags.js`) are NOT ranks: no order, no permissions, never in
+  `playerRanks()`. Keep them out of anything that decides authority.
 - **Player-facing text follows the 7 C's** (clear, concise, concrete, correct,
   coherent, complete, courteous). Name things by what a player recognises, not
   by how the code is built: "What it can do", not "Permissions" or "nodes".

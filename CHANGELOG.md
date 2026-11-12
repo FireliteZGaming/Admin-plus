@@ -56,6 +56,64 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.8.0 — 2026-11-11
+
+**Cosmetic tags, a rank editor in two parts, and switches for servers that run
+another mod.** A minor version, because cosmetic tags are a new section with
+their own switch.
+
+### A rank opens on Basics and Permissions
+
+Tap a rank and there are two choices:
+
+1. **Basics**: name, rank colour, bold, **name colour**, **chat colour**, staff
+   rank, and whether new players get it.
+2. **Permissions**, in two halves:
+   - **Member**: what any player with the rank can use, how many homes and
+     land claims they get, and their cooldowns.
+   - **Administrative**: staff tools. It only shows for a staff rank, so
+     switching Staff rank on in Basics is what makes a rank staff.
+
+"Also gets permissions from" moved inside Permissions. The rank screen shows a
+sample chat line drawn in the rank's own colours.
+
+### Name colour and chat colour
+
+- **Name colour** is one list: Default, sixteen plain colours, then the moving
+  effects (Rainbow, Fire and the rest). It colours the name in chat and above
+  the head. The separate Name effect screen is gone; it lives here now.
+- **Chat colour** colours what the player types.
+- "Default" leaves the colour to the player's other ranks.
+
+This also fixes something 2.7.9 said wrongly: a rank's name effect never
+appeared in chat, only above the head. It does now.
+
+### Cosmetic tags
+
+Ranks ▸ Cosmetic tags. A tag is a word beside a name, such as [Builder] or
+[Event Winner]. Tags have no order, give no permissions, and never decide who
+outranks whom. Make one with a name and a colour, then give it to players from
+their rank screen. Tags show after rank tags, inside the same limit on how
+many tags show.
+
+### Switches for servers with other mods
+
+Server ▸ Features has four new switches:
+
+1. **Admin+ chat**: off leaves chat to the game or another mod. No chat rooms,
+   tags or filter in chat. Mutes still work, and chat is still logged.
+2. **Rank tags**: off hides rank tags in chat and above heads. Ranks still
+   decide what people can use.
+3. **Names above heads**: off means Admin+ never changes nametags. Turning it
+   off puts every name back to the plain gamertag once.
+4. **Cosmetic tags**: the new section.
+
+`/chat` and `/mutechat` say plainly that Admin+ chat is off rather than
+appearing to work.
+
+Tested under Node: 52 suites, 2,828 checks, including a new test for the
+switches, cosmetic tags and colours. **Not yet run in game.**
+
 ## 2.7.9 — 2026-11-11
 
 **A cleanup sweep: fewer buttons, plainer words, and ranks anyone can make.**

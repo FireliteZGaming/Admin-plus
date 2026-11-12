@@ -37,12 +37,27 @@
  * broken rather than deliberate — so the ramps below either go round a wheel
  * (rainbow) or turn back on themselves (everything else).
  */
+/**
+ * One colour, standing still: the plain choice beside the moving effects.
+ *
+ * A one-letter ramp paints every character the same, so these need no code of
+ * their own. `still` tells the animation tick to leave them alone, because a
+ * name that never changes does not need repainting every few ticks.
+ */
+const STILL_STYLES = Object.fromEntries([
+    ["white", "White", "f"], ["gray", "Gray", "7"], ["dark_gray", "Dark gray", "8"], ["black", "Black", "0"],
+    ["red", "Red", "c"], ["dark_red", "Dark red", "4"], ["gold", "Gold", "6"], ["yellow", "Yellow", "e"],
+    ["green", "Green", "a"], ["dark_green", "Dark green", "2"], ["aqua", "Aqua", "b"], ["dark_aqua", "Dark aqua", "3"],
+    ["blue", "Blue", "9"], ["dark_blue", "Dark blue", "1"], ["pink", "Pink", "d"], ["purple", "Purple", "5"]
+].map(([word, label, code]) => [`colour_${word}`, { label, hint: "one colour", ramp: code, still: true }]))
+
 export const STYLES = {
     none: {
         label: "None",
         hint: "the name, plain",
         ramp: ""
     },
+    ...STILL_STYLES,
     rainbow: {
         label: "Rainbow",
         hint: "every colour, in turn",

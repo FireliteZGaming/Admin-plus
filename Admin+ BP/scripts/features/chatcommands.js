@@ -38,6 +38,9 @@ command({
     perm: "admin.mute",
     optional: [{ name: "channel", type: CustomCommandParamType.String }],
     run: (player, [wanted]) => {
+        // With Admin+ chat off, nothing here reads a room's mute, so muting one
+        // would look like it worked and do nothing.
+        if (!flag("feature.adminchat")) return err(player, "Admin+ chat is turned off on this server, so chats can't be muted here.")
         const asked = String(wanted ?? "").trim().toLowerCase()
 
         if (asked === "all" || asked === "*") {

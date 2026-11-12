@@ -5,6 +5,7 @@ import { displayName, nameTokens, stripCodes, hasNickname } from "./identity.js"
 import { render, renderTag, nameTagsEnabled, flag, setting } from "./settings.js"
 import { OP_COMMANDS } from "./opcommands.js"
 import { STYLES, STYLE_IDS, paint, currentFrame } from "./nametag.js"
+import { tagsOf } from "./tags.js"
 
 // Admin+ rank engine — see RANKS_PLAN.md for the design rationale.
 //
@@ -686,12 +687,20 @@ export function primaryRank(playerOrId) { return displayRanks(playerOrId)[0] }
  * `format.tagCount` is the cap; 0 means show them all.
  */
 export function renderTags(playerOrId) {
-    const ranks = displayRanks(playerOrId)
+    const id = typeof playerOrId === "string" ? playerOrId : playerOrId?.id
+    // Rank tags first, then cosmetic tags (core/tags.js), each half behind its
+    // own switch in Server ▸ Features. Cosmetic tags have no order of their
+    // own, so they come in the order they were given.
+    const ranks = flag("feature.ranktags") ? displayRanks(playerOrId) : []
+    const cosmetic = flag("feature.tags") ? tagsOf(id) : []
     // Nobody with no rank at all loses their "no rank" tag — that is a separate
-    // setting and it still gets the last word.
-    if (!ranks.length) return renderTag(undefined)
+    // setting and it still gets the last word. Not when rank tags are off.
+    if (!ranks.length && !cosmetic.length) {
+        return flag("feature.ranktags") ? renderTag(undefined) : ""
+    }
+    const all = [...ranks, ...cosmetic]
     const cap = Number(setting("format.tagCount"))
-    const limit = Number.isFinite(cap) && cap > 0 ? cap : ranks.length
+    const limit = Number.isFinite(cap) && cap > 0 ? cap : all.length
     // renderTag answers "" for a rank whose name has been blanked, so a
     // switched-off tag still disappears rather than leaving empty brackets.
     //
@@ -700,7 +709,7 @@ export function renderTags(playerOrId) {
     // with nothing between the brackets. Filtering before the join is what
     // stops a blanked tag in the middle leaving a double space behind it.
     const sep = String(setting("format.tagJoin") ?? " ")
-    return ranks.slice(0, limit).map(rank => renderTag(rank)).filter(Boolean).join(sep)
+    return all.slice(0, limit).map(rank => renderTag(rank)).filter(Boolean).join(sep)
 }
 
 /** Their authority: the strongest rank they hold, whatever the display order. */
@@ -1161,10 +1170,43 @@ export const RANK_VALUES = {
     // anyway for the reason the table exists: a value the code reads and nobody
     // can set is the failure mode being designed out.
     "nametag.style": {
-        kind: "style", label: "Name effect",
-        hint: "colours that move along the name",
+        kind: "style", label: "Name colour",
+        hint: "one colour, or colours that move along the name",
         options: STYLE_IDS, fallback: "none"
+    },
+    // The colour of what they type, set in Basics beside the name colour. A
+    // single colour code, or nothing for the chat line's own colour.
+    "chat.colour": {
+        kind: "colour", label: "Chat colour",
+        hint: "the colour of their messages",
+        fallback: ""
     }
+}
+
+/** The colour codes a chat colour may be: every colour, no formatting letter. */
+const CHAT_COLOUR = /^[0-9a-jmnpqstuv]$/i
+
+/**
+ * The chat colour their ranks give them, as a `§` code, or "" for none.
+ * The highest rank that sets one wins, like every other rank value.
+ */
+export function chatColourFor(playerOrId) {
+    const code = String(meta(playerOrId, "chat.colour", "") ?? "")
+    return CHAT_COLOUR.test(code) ? `§${code}` : ""
+}
+
+/**
+ * Their name for a chat line, in their name colour.
+ *
+ * Chat is printed once and never redrawn, so a moving effect is drawn at its
+ * first frame. A nickname's own colours are replaced, exactly as they are
+ * above the head. Name colours switched off, or none set: unchanged.
+ */
+export function chatNameFor(player, text) {
+    if (!flag("feature.namecolour")) return text
+    const ramp = STYLES[effectiveNametagStyle(player)]?.ramp
+    if (!ramp) return text
+    return paint(stripCodes(text), ramp, 0)
 }
 
 /** Is this person exempt from waiting, by rank or by ownership? */

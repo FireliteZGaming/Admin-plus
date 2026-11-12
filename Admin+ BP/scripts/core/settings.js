@@ -162,8 +162,8 @@ export const DEFAULTS = {
         value: "true", label: "Random teleport", help: "true / false · /rtp"
     },
     "feature.namecolour": {
-        value: "true", label: "Name effects",
-        help: "true / false · lets a rank give its players colours that move along their name · pick the effect in Ranks ▸ a rank ▸ Name effect"
+        value: "true", label: "Name colours",
+        help: "true / false · lets a rank colour its players' names, with one colour or a moving effect · set it in Ranks ▸ a rank ▸ Basics"
     },
     "creator.identity": {
         value: "true", label: "Creator's own name",
@@ -307,6 +307,25 @@ export const DEFAULTS = {
     },
     "feature.chat": {
         value: "true", label: "Chat channels", help: "true / false · off means one plain chat for everyone"
+    },
+    // The four switches for a server that runs another mod alongside this one,
+    // asked for on 2026-11-11: "if people don't want ranks or chat at all for
+    // any reason like mods or other reasons, they can".
+    "feature.adminchat": {
+        value: "true", label: "Admin+ chat",
+        help: "true / false · off: Admin+ leaves chat to the game or another mod. No chat rooms, tags or filter in chat. Mutes still work, and chat is still logged"
+    },
+    "feature.ranktags": {
+        value: "true", label: "Rank tags",
+        help: "true / false · off: no rank tags in chat or above heads. Ranks still decide what people can use"
+    },
+    "feature.nametags": {
+        value: "true", label: "Names above heads",
+        help: "true / false · off: Admin+ never changes the name above a player's head, so another mod can"
+    },
+    "feature.tags": {
+        value: "true", label: "Cosmetic tags",
+        help: "true / false · tags that only change how a name looks, with no place in the rank order and no permissions"
     },
     "creator.console": {
         value: "true",
@@ -649,5 +668,9 @@ export function flag(key) {
     return !["false", "0", "off", "no", ""].includes(raw)
 }
 
-/** Whether nametag rendering is on at all (still a compile-time switch). */
-export function nameTagsEnabled() { return CONFIG.ranks.showOnNameTag }
+/**
+ * Whether Admin+ may write the name above a player's head at all: the
+ * compile-time switch, and the "Names above heads" switch in Server ▸ Features
+ * for a server where another mod draws nametags.
+ */
+export function nameTagsEnabled() { return CONFIG.ranks.showOnNameTag && flag("feature.nametags") }

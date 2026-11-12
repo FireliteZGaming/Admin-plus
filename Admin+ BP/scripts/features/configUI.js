@@ -1,3 +1,4 @@
+import { world } from "@minecraft/server"
 import { menu, modal, subtitle } from "../core/ui.js"
 import { hubTitle } from "../core/theme.js"
 import { ok, info } from "../core/util.js"
@@ -18,11 +19,16 @@ const FEATURES = [
     { key: "feature.rtp", label: "Random teleport", detail: "/rtp: a safe spot far away" },
     { key: "feature.tpa", label: "Teleport requests", detail: "/tpa and /tpahere" },
     { key: "feature.claims", label: "Land claims", detail: "/claim: players protect their builds" },
+    // For a server running another chat or rank mod: each one hands a job back.
+    { key: "feature.adminchat", label: "Admin+ chat", detail: "off: chat is left to the game or another mod. Mutes still work" },
     { key: "feature.chat", label: "Chat rooms", detail: "off means one chat for everyone" },
+    { key: "feature.ranktags", label: "Rank tags", detail: "tags in chat and above heads. Off: ranks still work, unseen" },
+    { key: "feature.tags", label: "Cosmetic tags", detail: "tags that only change how a name looks" },
+    { key: "feature.nametags", label: "Names above heads", detail: "off: Admin+ leaves nametags alone" },
+    { key: "feature.namecolour", label: "Name colours", detail: "a colour or moving effect, set per rank" },
     { key: "feature.pm", label: "Private messages", detail: "/pm, /r and /prchat" },
     { key: "feature.emote", label: "Emotes", detail: "/emote" },
     { key: "feature.reports", label: "Reports", detail: "/report, and the list staff see" },
-    { key: "feature.namecolour", label: "Name effects", detail: "colours that move along a name, set per rank" },
     { key: "feature.enderchest", label: "Ender chests", detail: "/ec: open your ender chest anywhere" }
 ]
 
@@ -63,6 +69,15 @@ async function togglesScreen(player, back) {
     }
 
     if (!changed.length) { info(player, "Nothing changed."); return back() }
+
+    // Handing nametags back: put every name back to the plain gamertag once,
+    // so the last thing Admin+ wrote does not stay up there for good.
+    if (!flag("feature.nametags") && values["feature.nametags"] === false) {
+        for (const p of world.getAllPlayers()) {
+            try { p.nameTag = p.name } catch { /* left mid-loop */ }
+        }
+    }
+
     ok(player, `Updated: §r${changed.join("§a, ")}§a.`)
     return back()
 }

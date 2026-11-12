@@ -92,10 +92,20 @@ console.log("\n— a ramp rises to one peak and comes back —")
 
     for (const id of STYLE_IDS) {
         const ramp = STYLES[id].ramp
-        if (!ramp || id === "rainbow") continue
+        // A still colour is one stop and never moves, so it has no shape to
+        // check; the next block holds it to being exactly that.
+        if (!ramp || id === "rainbow" || STYLES[id].still) continue
         // One turn: up to the peak, then down. That is the whole shape.
         check(`${id} climbs to one peak and back`, turns(ramp), 1)
     }
+
+    // The plain colours in Basics: one code each, all sixteen, none repeated.
+    const still = STYLE_IDS.filter(id => STYLES[id].still)
+    check("there are sixteen plain name colours", still.length, 16)
+    check("each is exactly one colour code", still.every(id => STYLES[id].ramp.length === 1), true)
+    check("and no two are the same colour", new Set(still.map(id => STYLES[id].ramp)).size, 16)
+    check("they sit after none and before the moving effects",
+        STYLE_IDS.slice(1, 17).every(id => STYLES[id].still), true)
 
     // The check is not vacuous: the two ramps that shipped wrong fail it.
     check("the old Ice ramp would have failed this", turns("13bsfsb3") > 1, true)
