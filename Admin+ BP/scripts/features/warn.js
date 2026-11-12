@@ -33,7 +33,7 @@ command({
     ],
     run: (player, [action, selected]) => {
         const targets = selected ?? []
-        if (!targets.length) return err(player, "No player matched that selector.")
+        if (!targets.length) return err(player, "Nobody matched that name.")
         if (targets.length > 1) return err(player, "Pick one player.")
 
         const target = targets[0]
@@ -100,8 +100,8 @@ function tellAbout(staff, target) {
     const list = warningsFor(target)
     if (!list.length) return info(staff, `§f${displayName(target)}§7 has no warnings.`)
     staff.sendMessage([
-        `§e§l${displayName(target)}§r§7 — ${list.length} warning${list.length === 1 ? "" : "s"}`,
-        ...list.slice(0, 10).map(w => `§8· §f${w.reason} §8— ${w.by}, ${ago(w.at)}${w.note ? ` §8(${w.note})` : ""}`)
+        `§e§l${displayName(target)}§r§7: ${list.length} warning${list.length === 1 ? "" : "s"}`,
+        ...list.slice(0, 10).map(w => `§8· §f${w.reason} §8(${w.by}, ${ago(w.at)})${w.note ? ` §8(${w.note})` : ""}`)
     ].join("\n"))
 }
 
@@ -130,13 +130,13 @@ export async function addScreen(staff, target, back, error) {
         {
             id: "detail",
             type: "text",
-            label: "What happened §8· required, and they will read this",
+            label: "What happened §8· required. They will see this.",
             placeholder: "said X to Y in chat after being asked to stop"
         },
         {
             id: "note",
             type: "text",
-            label: "§7Staff note §8· optional, NOT shown to them",
+            label: "§7Staff note §8· optional. They won't see this.",
             placeholder: "second time this week"
         },
         // Severity is the only thing that decides whether this is still on
@@ -203,13 +203,13 @@ export async function removeScreen(staff, target, back) {
                     `§8Given by ${warning.by}, ${formatDate(warning.at)}`,
                     warning.note ? `§8Note: ${warning.note}` : "",
                     "",
-                    "§8It leaves their record. The audit log keeps that it existed."
+                    "§8It comes off their record. The log still shows it was given."
                 ].filter(Boolean).join("\n"),
                 "§cRemove")
             if (!yes) return removeScreen(staff, target, back)
 
             const gone = removeWarning(target, warning.id)
-            if (!gone) { info(staff, "Already gone."); return removeScreen(staff, target, back) }
+            if (!gone) { info(staff, "That warning was already removed."); return removeScreen(staff, target, back) }
 
             record(staff, "mod.unwarn", target, gone.reason)
             ok(staff, `Removed. §f${displayName(target)}§a now has §f${warningCount(target)}§a.`)

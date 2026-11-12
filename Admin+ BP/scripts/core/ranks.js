@@ -101,7 +101,7 @@ export const PRESETS = {
         }
     },
     roleplay: {
-        name: "Roleplay / Factions",
+        name: "Roleplay and factions",
         description: "Overseer and Warden as staff, plus Noble, Merchant and Citizen.",
         ranks: {
             owner:    { id: "owner",    display: "§4§lOverseer", weight: 100, inherits: [],           perms: ["*"], meta: {}, staff: true },
@@ -168,7 +168,7 @@ export const PERMISSION_NODES = {
     "Staff tools": ["admin.staffmode", "admin.vanish", "admin.tp", "admin.gamemode", "admin.nickname", "admin.holograms", "admin.invsee", "admin.lagclear", "admin.claims", "admin.alerts"],
     "Punishments": ["admin.warn", "admin.mute", "admin.kick", "admin.ban", "admin.banperm", "admin.freeze", "admin.tpatoggle", "admin.reports"],
     "Pranks": ["admin.smite", "admin.sudo"],
-    "Ranks & places": ["ranks.grant", "ranks.manage", "warp.manage", "spawn.set"],
+    "Ranks and places": ["ranks.grant", "ranks.manage", "warp.manage", "spawn.set"],
     "Server settings": ["presets.apply", "admin.commands", "admin.automod", "admin.allowlist"]
 }
 
@@ -228,7 +228,7 @@ const LABEL_OVERRIDES = {
     //
     // One is SEEING chat you are not in. The other is RUNNING the rooms:
     // creating them, gating them, ordering them, and /mutechat.
-    "chat.manage": "make & edit chats",
+    "chat.manage": "make and edit chats",
     "chat.viewall": "see all chats",
     "admin.tpatoggle": "block TPA",
     "admin.alerts": "staff alerts",
@@ -287,11 +287,11 @@ export function whereToGrant(node) {
 
 /** Checkbox-sized groupings for the rank editor form. */
 export const BUNDLES = {
-    "mod_light":   { label: "Moderation — light", nodes: ["admin.panel", "ranks.view", "admin.warn", "admin.kick", "admin.mute", "admin.freeze", "admin.tpatoggle", "admin.reports"] },
-    "mod_full":    { label: "Moderation — full",  nodes: ["admin.panel", "ranks.view", "admin.warn", "admin.kick", "admin.mute", "admin.freeze", "admin.staffmode", "admin.tpatoggle", "admin.reports", "admin.automod", "admin.ban", "admin.invsee", "admin.logs"] },
+    "mod_light":   { label: "Moderation, light", nodes: ["admin.panel", "ranks.view", "admin.warn", "admin.kick", "admin.mute", "admin.freeze", "admin.tpatoggle", "admin.reports"] },
+    "mod_full":    { label: "Moderation, full",  nodes: ["admin.panel", "ranks.view", "admin.warn", "admin.kick", "admin.mute", "admin.freeze", "admin.staffmode", "admin.tpatoggle", "admin.reports", "admin.automod", "admin.ban", "admin.invsee", "admin.logs"] },
     "staff_tools": { label: "Staff tools",        nodes: ["admin.tp", "admin.vanish", "admin.gamemode"] },
     "holograms":   { label: "Floating text",      nodes: ["admin.holograms"] },
-    "identity":    { label: "Names & voice",      nodes: ["admin.nickname"] },
+    "identity":    { label: "Names and voice",      nodes: ["admin.nickname"] },
     "chat":        { label: "Staff chat",         nodes: ["chat.staff"] },
     "chat_all":    { label: "See every chat",     nodes: ["chat.staff", "chat.viewall", "chat.spy"] },
     "chat_manage": { label: "Run the chats",      nodes: ["chat.staff", "chat.manage", "admin.broadcast"] },
@@ -1236,23 +1236,23 @@ export const RANK_VALUES = {
     },
     "rtp.cooldown": {
         kind: "cooldown", label: "/rtp cooldown",
-        hint: "it is a long walk back, so this is usually the longest", min: 0, max: 600, fallback: 60
+        hint: "usually the longest, since the walk back is long", min: 0, max: 600, fallback: 60
     },
     "back.cooldown": {
         kind: "cooldown", label: "/back cooldown",
-        hint: "a short one: the usual reason is a death", min: 0, max: 300, fallback: 10
+        hint: "usually short, since most people use it after dying", min: 0, max: 300, fallback: 10
     },
     "home.limit": {
         kind: "limit", label: "Homes allowed",
-        hint: "0 stops this rank setting any", min: 0, max: 25, fallback: 3
+        hint: "0 means this rank can't set any", min: 0, max: 25, fallback: 3
     },
     "claim.limit": {
         kind: "limit", label: "Land claims allowed",
-        hint: "0 stops this rank claiming ground", min: 0, max: 10, fallback: 1
+        hint: "0 means this rank can't claim land", min: 0, max: 10, fallback: 1
     },
     "claim.size": {
         kind: "limit", label: "Claim size (blocks across)",
-        hint: "the widest a single claim may be", min: 16, max: 256, fallback: 64
+        hint: "the widest one claim can be", min: 16, max: 256, fallback: 64
     },
     // Not a number, so it is not a slider — `kind` is what the editor switches
     // on, and this is the first entry that is a choice. It lives in this table

@@ -106,7 +106,7 @@ check("with room for the config to keep growing", block.length < cap / 2, true)
 console.log("\n— an empty document must not wipe the config —")
 // Submitting REPLACES the override table with whatever came back. A real
 // multi-line box makes select-all-and-type a one-gesture accident, so the empty
-// case is refused rather than obeyed. Factory Reset is the deliberate door and
+// case is refused rather than obeyed. Factory reset is the deliberate door and
 // it asks first.
 check("an empty field is refused", blockHasNoConfig(""), true)
 check("so is whitespace", blockHasNoConfig("   \n\n\t "), true)

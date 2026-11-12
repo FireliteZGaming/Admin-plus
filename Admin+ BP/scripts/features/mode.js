@@ -37,7 +37,7 @@ command({
 
         if (wanted === "developer") {
             if (!hasOperator(player)) {
-                return err(player, "Developer mode needs operator status. Ask whoever runs this world.")
+                return err(player, "Only operators can use developer mode. Ask the world's owner.")
             }
             if (canUseCode(player)) {
                 return info(player, "§7You're already in developer mode. §f/mode default§7 leaves it.")

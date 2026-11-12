@@ -50,7 +50,7 @@ function applyMode(player, mode, selected) {
     }
     if (changed.length === 1 && changed[0] === player.name) ok(player, `You are now in §f${label}§a.`)
     else if (changed.length) ok(player, `Set §f${changed.join(", ")}§a to §f${label}§a.`)
-    if (blocked.length) err(player, `Outranked you, skipped: §f${blocked.join(", ")}`)
+    if (blocked.length) err(player, `Skipped because they outrank you: §f${blocked.join(", ")}`)
     // Tell the people whose mode someone else changed.
     for (const target of targets) {
         if (target.id !== player.id && changed.includes(target.name)) {
@@ -111,6 +111,6 @@ onStaffLost(player => {
     if (mode !== GameMode.Creative && mode !== GameMode.Spectator) return
     try {
         player.setGameMode(GameMode.Survival)
-        info(player, "§7You are no longer staff, so you have been put back into survival.")
+        info(player, "§7You are no longer staff, so you were put back in survival.")
     } catch { /* a runtime that will not let us; the demotion still stands */ }
 })

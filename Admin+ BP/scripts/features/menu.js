@@ -82,7 +82,7 @@ export function statsLines(player) {
     const mute = muteRecord(player)
     if (mute) {
         lines.push(mute.until
-            ? `§c⚠ Muted — ${remainingLabel(mute.until)} left`
+            ? `§c⚠ Muted: ${remainingLabel(mute.until)} left`
             : "§c⚠ Muted")
         if (mute.reason) lines.push(`§8   "${mute.reason}"`)
     }
@@ -102,7 +102,7 @@ export async function openMenu(player) {
     }
 
     buttons.push({
-        text: hubButton("ranks", "People", "Teleport to someone, private chat, or report"),
+        text: hubButton("ranks", "People", "Teleport, private chat and reports"),
         run: () => peopleScreen(player, again)
     })
 
@@ -156,7 +156,7 @@ function travelButtons(player, back) {
     }
     return [
         flag("feature.spawn") && has(player, "spawn.use")
-            ? { text: hubEntry("warps", "Spawn", "Back to where everyone starts"), run: () => run("spawn") }
+            ? { text: hubEntry("warps", "Spawn", "The world's starting point"), run: () => run("spawn") }
             : null,
         flag("feature.warps") && has(player, "warp.use")
             ? { text: hubEntry("warps", "Warps", "Places the staff have set up"), run: () => warpListScreen(player, back) }
@@ -222,11 +222,11 @@ async function personScreen(player, target, back) {
     const buttons = []
     if (flag("feature.tpa")) {
         buttons.push({
-            text: hubEntry("warps", "Teleport to them", "Asks first — they can say no"),
+            text: hubEntry("warps", "Teleport to them", "Asks first. They can say no."),
             run: () => { requestTo(player, still); return back() }
         })
         buttons.push({
-            text: hubEntry("warps", "Ask them to come here", "Asks first — they can say no"),
+            text: hubEntry("warps", "Ask them to come here", "Asks first. They can say no."),
             run: () => { requestHere(player, still); return back() }
         })
     }
@@ -249,7 +249,7 @@ async function personScreen(player, target, back) {
             `§f${displayName(still)}§r${primaryRank(still) ? ` §8·§r ${primaryRank(still).display}` : ""}`,
             isStaff(still) ? "§8Staff" : "",
             "",
-            buttons.length ? "§8Nothing here happens without their say-so." : "§7There is nothing you can do from here."
+            buttons.length ? "§8Nothing here happens unless they agree." : "§7Nothing here is open to you for this player."
         ].filter(Boolean).join("\n"),
         buttons,
         back

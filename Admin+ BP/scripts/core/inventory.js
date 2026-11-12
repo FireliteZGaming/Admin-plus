@@ -217,10 +217,10 @@ export function deposit(player, ref) {
     } catch {
         return { ok: false, reason: "Couldn't put that in your ender chest." }
     }
-    if (leftover) return { ok: false, reason: "Your ender chest is full — nothing was moved." }
+    if (leftover) return { ok: false, reason: "Your ender chest is full, so nothing was moved." }
 
     if (!clearSlot(player, ref)) {
-        return { ok: false, reason: "Stored a copy but couldn't clear your slot — remove it by hand." }
+        return { ok: false, reason: "Stored a copy, but couldn't clear your slot. Remove the extra copy yourself." }
     }
     return { ok: true, item }
 }
@@ -246,7 +246,7 @@ export function moveTo(owner, fromRef, toRef) {
         return { ok: false, reason: "Worn slots can't be rearranged from here." }
     }
     if (fromRef.kind === toRef.kind && fromRef.index === toRef.index) {
-        return { ok: false, reason: "That is where it already is." }
+        return { ok: false, reason: "It is already there." }
     }
 
     const from = containerFor(owner, fromRef)
@@ -264,7 +264,7 @@ export function moveTo(owner, fromRef, toRef) {
 
     const cleared = safe(() => { from.setItem(fromRef.index, displaced); return true }, false)
     if (!cleared) {
-        return { ok: false, reason: "Moved it, but couldn't clear the old slot — check for a copy." }
+        return { ok: false, reason: "Moved it, but couldn't clear the old slot. Check for an extra copy." }
     }
 
     return { ok: true, item: describeItem(stack, toRef), swapped: !!displaced }
@@ -326,12 +326,12 @@ export function transfer(viewer, target, ref) {
     } catch {
         return { ok: false, reason: "Couldn't put that in your inventory." }
     }
-    if (leftover) return { ok: false, reason: "Your inventory is full — nothing was taken." }
+    if (leftover) return { ok: false, reason: "Your inventory is full, so nothing was taken." }
 
     if (!clearSlot(target, ref)) {
         // The item is in both inventories at this point, which is a dupe. Say so
         // loudly rather than let it pass as a success.
-        return { ok: false, reason: "Took a copy but couldn't clear their slot — remove it by hand." }
+        return { ok: false, reason: "Took a copy, but couldn't clear their slot. Remove the extra copy yourself." }
     }
     return { ok: true, item }
 }

@@ -47,7 +47,7 @@ const ITEMS = {
         gate: p => has(p, "admin.banperm"),
         make: () => makeBanHammer(),
         name: HAMMER_NAME,
-        lines: ["§7Swing it at somebody to ban them."],
+        lines: ["§7Hit a player with it to ban them."],
         typeId: "minecraft:mace"
     },
     teleport: {
@@ -78,9 +78,9 @@ const ITEMS = {
         slot: 15,
         gate: p => has(p, "admin.tp"),
         make: () => signItem("minecraft:ender_eye", "§d§lEnder Eye",
-            "§7Use it to pick who you jump to."),
+            "§7Use it to pick a player to jump to."),
         name: "§d§lEnder Eye",
-        lines: ["§7Use it to pick who you jump to.", "§8Or a location, or whatever you are looking at."],
+        lines: ["§7Use it to pick a player to jump to.", "§8Or a location, or the block you're looking at."],
         typeId: "minecraft:ender_eye"
     },
     knockback: {
@@ -92,9 +92,9 @@ const ITEMS = {
         // admin.staffmode, which meant every staff member got it whatever the
         // ladder said and switching the troll section off did not take it away.
         gate: p => trollAllowed(p),
-        make: () => signItem("minecraft:stick", "§c§lKnockback", "§7Hit somebody to send them flying."),
+        make: () => signItem("minecraft:stick", "§c§lKnockback", "§7Hit a player to send them flying."),
         name: "§c§lKnockback",
-        lines: ["§7Hit somebody to send them flying."],
+        lines: ["§7Hit a player to send them flying."],
         typeId: "minecraft:stick"
     }
 }
@@ -164,7 +164,7 @@ command({
     // keys. (An operator passes every gate anyway — see has() in core/ranks.js.)
     run: (player) => {
         if (!chestUIAvailable()) {
-            return err(player, "The item chest can't draw on this runtime.")
+            return err(player, "The item chest can't open here. Check that the Admin+ resource pack is on.")
         }
 
         // Only the slots this person is allowed to take. An empty chest means
@@ -235,7 +235,7 @@ command({
             return false
         }, false)
         if (held) {
-            return info(player, `${ITEMS.eye.name}§7 is already in your inventory — use it.`)
+            return info(player, `${ITEMS.eye.name}§7 is already in your inventory.`)
         }
         give(player, "eye")
     }
@@ -425,7 +425,7 @@ function openEye(player) {
     const others = jumpTargets(player)
     menu(player, {
         title: hubTitle("warps", "Ender Eye"),
-        body: subtitle("Pick somebody, or a place."),
+        body: subtitle("Pick a player or a place."),
         buttons: [
             {
                 text: others.length
@@ -498,7 +498,7 @@ function eyePlayerActions(player, target, back) {
             act("§eBring here", `Move ${name} to you`, () => bringHere(player, target)),
             act("§bTeleport", "Send them to coordinates",
                 () => jumpToCoordinates(player, target, () => eyePlayerActions(player, target, back))),
-            act("§dSwap places", `Trade positions with ${name}`, () => swapWith(player, target))
+            act("§dSwap places", `Swap places with ${name}`, () => swapWith(player, target))
         ],
         back
     })
@@ -600,7 +600,7 @@ export function worldHeight(index) {
 export function heightProblem(y, index) {
     const w = worldHeight(index)
     if (y >= w.min && y < w.max) return undefined
-    return `§f${w.label}§c only goes from §f${w.min}§c to §f${w.max - 1}§c — §f${Math.round(y)}§c is outside it.`
+    return `§f${w.label}§c goes from §f${w.min}§c to §f${w.max - 1}§c. §f${Math.round(y)}§c is outside that.`
 }
 
 /**
@@ -667,7 +667,7 @@ async function jumpToCoordinates(player, subject = player, back) {
         return err(player, `${bad.join(" and ")} ${bad.length > 1 ? "are not numbers" : "is not a number"}. Type a number, or §f~§c for where ${self ? "you are" : "they are"} now.`)
     }
     if (Math.abs(x) > FAR || Math.abs(z) > FAR) {
-        return err(player, "That is outside the world — X and Z stop at 30 million.")
+        return err(player, "That is outside the world. X and Z stop at 30 million.")
     }
 
     // Picking a world is what makes the height dangerous. `~` in the Y box means

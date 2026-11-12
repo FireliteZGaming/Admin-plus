@@ -94,7 +94,7 @@ export async function pickPlayer(viewer, options = {}) {
     const reopen = text => pickPlayer(viewer, { ...options, filter: text })
     const search = async () => {
         const values = await modal(viewer, hubTitle("actions", "Search players"), [
-            { id: "text", type: "text", label: "Gamertag or nickname", placeholder: "part of a name" }
+            { id: "text", type: "text", label: "Gamertag or display name", placeholder: "part of a name" }
         ])
         return reopen(String(values?.text ?? "").trim())
     }
@@ -102,14 +102,14 @@ export async function pickPlayer(viewer, options = {}) {
     const extra = []
     if (filter) extra.push({ text: `§8Clear search §7"${filter}"`, run: () => reopen("") })
     else if (everyone.length >= SEARCH_FROM) {
-        extra.push({ text: "§7Search§r\n§8Find somebody by name or nickname", run: search })
+        extra.push({ text: "§7Search§r\n§8Find a player by gamertag or display name", run: search })
     }
 
     return pagedMenu(viewer, {
         title: hubTitle("actions", title),
         body: subtitle(filter
             ? `${rows.length} match${rows.length === 1 ? "" : "es"} for "§f${filter}§7".`
-            : body ?? "Pick somebody. Nearest first."),
+            : body ?? "Pick a player. Nearest first."),
         items: rows,
         render: row => {
             const tag = renderTags(row.player)

@@ -24,7 +24,7 @@ console.log("\n— ids are cleaned, not trusted —")
 check("case is folded", save("RULES2", { kind: "text", text: "x", ...AT }).holo.id, "rules2")
 check("spaces and punctuation go", save("my rules!", { kind: "text", text: "x", ...AT }).holo.id, "myrules")
 check("an id with nothing usable is refused", save("!!!", { kind: "text", text: "x" }).ok, false)
-check("and says why", /usable/.test(save("!!!", {}).reason), true)
+check("and says why", /letters or numbers/.test(save("!!!", {}).reason), true)
 
 console.log("\n— tokens —")
 check("{ONLINE} counts players", render({ kind: "text", text: "{ONLINE} online" }), "0 online")

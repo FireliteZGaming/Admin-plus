@@ -56,9 +56,9 @@ export async function swing(attacker, victim) {
         const last = warned.get(attacker.id) ?? 0
         if (Date.now() - last > WARN_GAP) {
             warned.set(attacker.id, Date.now())
-            info(attacker, "§8The Ban Hammer is inert — it answers to permanent-ban permission.")
+            info(attacker, "§8The Ban Hammer does nothing for you. It needs the permanent ban permission.")
         }
-        trace(attacker, victim, "refused — the swinger cannot ban permanently")
+        trace(attacker, victim, "refused: no permanent ban permission")
         return { ok: false, reason: "not allowed to ban permanently" }
     }
 
@@ -76,8 +76,8 @@ export async function swing(attacker, victim) {
     // `opIsStaff`, which is a world saying op does not grant POWERS here. It is
     // not a world saying its operators may be struck down.
     if (isRealOperator(victim)) {
-        err(attacker, `${displayName(victim)}§c is an operator — the hammer will not fall on them.`)
-        trace(attacker, victim, "refused — the target is an operator")
+        err(attacker, `${displayName(victim)}§c is an operator, so the hammer can't ban them.`)
+        trace(attacker, victim, "refused: the target is an operator")
         return { ok: false, reason: "operator" }
     }
 
@@ -94,14 +94,14 @@ export async function swing(attacker, victim) {
     // stated rule and the ladder is how you change it: make the people who
     // should be untouchable heavier, not equal.
     if (!canActOn(attacker, victim)) {
-        err(attacker, `${displayName(victim)}§c outranks you — the hammer will not fall on them.`)
-        trace(attacker, victim, "refused — the target outranks the swinger")
+        err(attacker, `${displayName(victim)}§c outranks you, so the hammer can't ban them.`)
+        trace(attacker, victim, "refused: the target outranks them")
         return { ok: false, reason: "outranked" }
     }
 
     if (isBanned(victim)) {
         info(attacker, `${displayName(victim)}§7 is already banned.`)
-        trace(attacker, victim, "refused — already banned")
+        trace(attacker, victim, "refused: already banned")
         return { ok: false, reason: "already banned" }
     }
 
@@ -121,8 +121,8 @@ export async function swing(attacker, victim) {
     // see through immediately.
     announce(`§c${name}§c was struck down. §5${REASON}`)
     err(attacker, `${name}§c is banned, but could not be removed from the world.`)
-    info(attacker, "§7That happens with the world host, who cannot be kicked by anything. §8The ban is recorded and shows in the panel.")
-    trace(attacker, victim, "banned, but the kick failed (host?)")
+    info(attacker, "§7The world host can't be kicked. §8The ban is saved and shows in the panel.")
+    trace(attacker, victim, "banned, but not kicked (likely the world host)")
     return { ok: true, name, kicked: false }
 }
 
@@ -148,7 +148,7 @@ export function installBanHammer() {
         if (!isBanHammer(mainhand(attacker))) return
 
         if (victim.typeId !== "minecraft:player") {
-            trace(attacker, victim, `no effect — ${victim.typeId} is not a player`)
+            trace(attacker, victim, `no effect: ${victim.typeId} is not a player`)
             return
         }
         if (attacker.id === victim.id) return
@@ -158,7 +158,7 @@ export function installBanHammer() {
         // already logs against, so it gets caught and traced like the rest.
         system.run(() => {
             swing(attacker, victim).catch(e =>
-                trace(attacker, victim, `swing threw: ${String(e).replace(/^Error: /, "")}`))
+                trace(attacker, victim, `swing failed: ${String(e).replace(/^Error: /, "")}`))
         })
     })
 

@@ -75,8 +75,8 @@ const GROUPS = [
         prefixes: ["chat"]
     },
     {
-        id: "people", label: "Ranks & names",
-        hint: "ranks given and taken, nicknames",
+        id: "people", label: "Ranks and names",
+        hint: "ranks given and taken, display names",
         prefixes: ["rank", "name"]
     },
     {
@@ -178,7 +178,7 @@ export async function logsScreen(player, back) {
             { text: hubButton("settings", "Actions", "What staff and the server did"), run: () => listScreen(player, "Actions", recent(120), again) },
             { text: hubButton("chat", "Chat", `What people said and wrote · ${chatLogSize()} lines`), run: () => chatScreen(player, again) },
             { text: hubButton("settings", "Commands", `What was typed · ${commandLogSize()} lines`), run: () => commandsScreen(player, again) },
-            { text: hubButton("settings", "Players", "One person, across all three"), run: () => peopleScreen(player, again) },
+            { text: hubButton("settings", "Players", "One player, across all three"), run: () => peopleScreen(player, again) },
             { text: hubButton("settings", "Filter", "Actions, by kind"), run: () => filterScreen(player, again) },
             { text: hubButton("settings", "Search", "By name or wording"), run: () => searchScreen(player, again) }
         ],
@@ -497,9 +497,9 @@ async function chatScreen(player, back) {
             signs
                 ? { text: hubEntry("chat", "Signs only", `${signs} written on signs`), run: () => chatListScreen(player, "Signs", readableChat(player, recentSigns(150)), again) }
                 : null,
-            { text: hubEntry("chat", "Search", "Find a word, or everything one person said"), run: () => chatSearchScreen(player, again) },
+            { text: hubEntry("chat", "Search", "Find a word, or everything one player said"), run: () => chatSearchScreen(player, again) },
             has(player, "admin.settings")
-                ? { text: hubEntry("actions", "Clear the chat log", "Throws away every line kept"), run: () => clearChatScreen(player, again) }
+                ? { text: hubEntry("actions", "Clear the chat log", "Deletes every saved line"), run: () => clearChatScreen(player, again) }
                 : null
         ].filter(Boolean),
         back
@@ -518,7 +518,7 @@ async function chatSearchScreen(player, back) {
 
 async function clearChatScreen(player, back) {
     const yes = await confirm(player, hubTitle("chat", "Clear chat log"),
-        `Throw away all ${chatLogSize()} recorded lines?\n\n§8The action log is not touched.`,
+        `Delete all ${chatLogSize()} saved lines?\n\n§8The action log is not touched.`,
         "§cClear")
     if (!yes) return back()
     clearChatLog()
@@ -549,19 +549,19 @@ async function commandsScreen(player, back) {
         title: hubTitle("settings", "Commands"),
         body: [
             subtitle(kept ? `${kept} commands kept.` : "Nothing recorded yet."),
-            "§8Every command typed, whether it ran or was turned away."
+            "§8Every command typed, whether it ran or was refused."
         ].join("\n"),
         buttons: [
             { text: hubEntry("settings", "Recent", "Everything typed, newest first"), run: () => commandListScreen(player, "Recent commands", recentCommands(150), again) },
             refused
-                ? { text: hubEntry("actions", "Refused", `${refused} turned away — no permission, or nobody matched`), run: () => commandListScreen(player, "Refused commands", refusedCommands(150), again) }
+                ? { text: hubEntry("actions", "Refused", `${refused} refused (no permission, or nobody matched)`), run: () => commandListScreen(player, "Refused commands", refusedCommands(150), again) }
                 : null,
             blocks.length
                 ? { text: hubEntry("settings", "Command blocks", `${blocks.length} placed or broken · who and where`), run: () => listScreen(player, "Command blocks", blocks, again) }
                 : null,
-            { text: hubEntry("settings", "Search", "Find a command, an argument, or one person"), run: () => commandSearchScreen(player, again) },
+            { text: hubEntry("settings", "Search", "Find a command, an argument, or one player"), run: () => commandSearchScreen(player, again) },
             has(player, "admin.settings")
-                ? { text: hubEntry("actions", "Clear the command log", "Throws away every command kept"), run: () => clearCommandsScreen(player, again) }
+                ? { text: hubEntry("actions", "Clear the command log", "Deletes every saved command"), run: () => clearCommandsScreen(player, again) }
                 : null
         ].filter(Boolean),
         back
@@ -580,7 +580,7 @@ async function commandSearchScreen(player, back) {
 
 async function clearCommandsScreen(player, back) {
     const yes = await confirm(player, hubTitle("settings", "Clear command log"),
-        `Throw away all ${commandLogSize()} recorded commands?\n\n§8The action log and the chat log are not touched.`,
+        `Delete all ${commandLogSize()} saved commands?\n\n§8The action log and the chat log are not touched.`,
         "§cClear")
     if (!yes) return back()
     clearCommandLog()
@@ -590,10 +590,10 @@ async function clearCommandsScreen(player, back) {
 
 async function peopleScreen(player, back) {
     const seen = people()
-    if (!seen.length) { info(player, "The log hasn't seen anyone yet."); return back() }
+    if (!seen.length) { info(player, "Nobody is in the log yet."); return back() }
     return pagedMenu(player, {
         title: hubTitle("settings", "Logs · players"),
-        body: subtitle("Everyone the log has touched, either side."),
+        body: subtitle("Every player in the log, whether they acted or were acted on."),
         items: seen,
         render: person => ({
             text: `§f${person.name}§r\n§8${readableLog(player, about(person.id)).length} received`
@@ -619,8 +619,8 @@ async function personScreen(player, person, back) {
             `§fCommands typed: §7${typed.length}`
         ].join("\n"),
         buttons: [
-            { text: hubEntry("actions", "Received", "What staff did to them — the appeal view"), run: () => listScreen(player, `${person.name} · received`, received, () => personScreen(player, person, back)) },
-            { text: hubEntry("ranks", "Did", "What they did as staff — the audit view"), run: () => listScreen(player, `${person.name} · did`, did, () => personScreen(player, person, back)) },
+            { text: hubEntry("actions", "Received", "What staff did to them, for appeals"), run: () => listScreen(player, `${person.name} · received`, received, () => personScreen(player, person, back)) },
+            { text: hubEntry("ranks", "Did", "What they did as staff, to check their work"), run: () => listScreen(player, `${person.name} · did`, did, () => personScreen(player, person, back)) },
             // The third question people actually ask about somebody, and the
             // one the action log could never answer.
             said.length
@@ -709,7 +709,7 @@ async function searchScreen(player, back) {
 
 async function entryScreen(player, entryId, back) {
     const entry = getEntry(entryId)
-    if (!entry) { info(player, "That entry has aged out of the log."); return back() }
+    if (!entry) { info(player, "That entry is too old and was removed from the log."); return back() }
     // Checked again here, not only in the list that led here. This screen is
     // reachable by id and it is where an UNDO lives — the one place where being
     // able to read an entry turns into being able to change what it did.
@@ -794,7 +794,7 @@ async function undoScreen(player, entryId, back) {
     if (!yes) return back()
 
     const applied = applyUndo(entry)
-    if (!applied) { err(player, "Couldn't undo that — the thing it changed is gone."); return back() }
+    if (!applied) { err(player, "Couldn't undo that. What it changed no longer exists."); return back() }
     markUndone(entry, player)
     ok(player, "Undone.")
     return back()
@@ -810,8 +810,8 @@ function describeUndo(entry) {
         case "nickname": return entry.undo.previous
             ? `Put §f${entry.target?.name}§r's display name back to ${entry.undo.previous}§r?`
             : `Clear §f${entry.target?.name}§r's display name again?`
-        case "config": return "Restore the config to what it was before this edit?"
-        case "ladder": return "Restore the rank ladder from the snapshot taken before this change?"
+        case "config": return "Put every setting back to how it was before this change?"
+        case "ladder": return "Put the whole rank list back to how it was before this change?"
         default: return "Undo this change?"
     }
 }

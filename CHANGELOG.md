@@ -56,6 +56,47 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.8.8 — 2026-11-12
+
+**Every line players read, rewritten to be plain.**
+
+The user asked for every screen and message to follow the 7 C's (clear,
+concise, concrete, correct, coherent, complete, courteous), after spotting
+"Where it lives" in Credits. All of the roughly 2,400 strings in the scripts
+were read, and about 500 were rewritten. What changed, by kind:
+
+1. **No more dashes as joiners.** 125 lines used " — " to glue two thoughts
+   together. Each is now two sentences, or a colon, or "so". The three left
+   are in console logs no player sees.
+2. **One word for one thing.** "Display name" everywhere (not nickname or
+   account name), "chat room" (not channel), "settings" (not config or
+   values), "rank list" (not ladder), "a player" (not somebody), "expires"
+   (not lapses), "Saved setups" for saved settings, both on the button and
+   inside the screen.
+3. **The same situation says the same thing.** "Nobody matched that name."
+   wherever a name finds no one. "Skipped because they outrank you: ..."
+   wherever some targets were skipped. "Couldn't read your position. Try
+   again." wherever the game could not say where you stand. "That ... no
+   longer exists." for anything deleted while you looked at it.
+4. **No developer words.** No "node", "runtime", "selector", "sentinel",
+   "wire format" or "beta-gated" in what players read.
+5. **Facts fixed while reading.** The console setting no longer describes
+   the vanilla-command whitelist removed in 2.8.2. The chat screening switch
+   no longer says flagged messages are never punished (warn and mute exist
+   since 2.8.3). Paths that pointed at "Limits and cooldowns" now point at
+   Ranks ▸ a rank ▸ Permissions ▸ Member ▸ Limits. /info no longer calls
+   smite harmless, or says only the owner gives ranks.
+6. **Credits.** "Where it lives" is now "Links", and the technique notes
+   are in plain words.
+7. **Pack descriptions** in the game's pack list lose the dash and the
+   capital REQUIRES.
+
+Left as it was, on purpose: the Beta APIs warning ("Turn on Beta-API's or
+Update/Install the latest version of this mod"), because it is worded exactly
+as asked for in 1.1.0 and a test pins it.
+
+Tested under Node: 53 suites, 2,691 checks. **Not yet run in game.**
+
 ## 2.8.7 — 2026-11-12
 
 **Nobody can give out a permission they don't have.**

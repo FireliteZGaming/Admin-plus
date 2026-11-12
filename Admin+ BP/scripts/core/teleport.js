@@ -97,14 +97,14 @@ export function queueTeleport(player, label, action, key = "tpCooldown") {
     }
 
     const from = player.location
-    info(player, `Teleporting to §f${label}§7 in §f${Math.round(ticks / 20)}s§7 — don't move.`)
+    info(player, `Teleporting to §f${label}§7 in §f${Math.round(ticks / 20)}s§7. Don't move.`)
 
     const runner = system.runInterval(() => {
         const job = pending.get(player.id)
         if (!job) return
 
         if (flag("teleport.cancelOnMove") && moved(player, from)) {
-            cancelTeleport(player, "§cTeleport cancelled — you moved.")
+            cancelTeleport(player, "§cTeleport cancelled because you moved.")
             return
         }
         if (Date.now() < job.until) return

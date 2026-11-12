@@ -281,7 +281,7 @@ export function resolveSelector(text, player, playersOnly = false) {
                 break
             default:
                 return { ok: false, entities: [],
-                    reason: `"${raw}" is not a selector I know. ${SELECTOR_HINT}` }
+                    reason: `"${raw}" isn't a target Admin+ knows. ${SELECTOR_HINT}` }
         }
     } catch (e) {
         return { ok: false, entities: [], reason: String(e).replace(/^Error: /, "") }

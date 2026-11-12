@@ -29,7 +29,7 @@ export const SERVER_PRESETS = {
     server: {
         id: "server",
         label: "Server",
-        description: "The full staff ladder, a protected spawn, alerts on.",
+        description: "Every staff rank, a protected spawn, alerts on.",
         ladder: "server",
         config: {
             "spawn.protect": "true",
@@ -44,12 +44,12 @@ export const SERVER_PRESETS = {
             "feature.chat": "true"
         },
         channels: ["general", "staff"],
-        notes: "A public survival server with a real staff team: seven ranks, staff chat, automod watching, and teleports that make you stand still for a moment."
+        notes: "A public survival server with a staff team: seven ranks, staff chat, automod, and a short wait before each teleport."
     },
     realm: {
         id: "realm",
         label: "Realm",
-        description: "Three ranks, quick teleports, light automod, chatty.",
+        description: "Three ranks, fast teleports, light automod, join messages on.",
         ladder: "realm",
         config: {
             "spawn.protect": "true",
@@ -64,12 +64,12 @@ export const SERVER_PRESETS = {
             "feature.chat": "true"
         },
         channels: ["general", "staff"],
-        notes: "A handful of friends. Everyone roughly trusts everyone, so teleports are instant and ore alerts would just be noise — but spam and impossible mining still get flagged."
+        notes: "A few friends who trust each other. Teleports are instant and ore alerts are off, but spam and impossible mining are still flagged."
     },
     smp: {
         id: "smp",
         label: "SMP",
-        description: "Owner, Staff, Member. Teleports free, almost nothing watched.",
+        description: "Owner, Staff and Member. No teleport waits and few alerts.",
         ladder: "smp",
         config: {
             "spawn.protect": "false",
@@ -83,7 +83,7 @@ export const SERVER_PRESETS = {
             "feature.chat": "true"
         },
         channels: ["general", "staff"],
-        notes: "People who already know each other. There is no hierarchy to speak of and nothing to police but spam, so the addon mostly stays out of the way - the panel and moderation are there for the day you need them."
+        notes: "People who already know each other. Only spam is policed, and the panel and moderation are there when you need them."
     },
     // REMOVED 2026-09-20: the "Spear Mace" preset, at the user's word.
     // It was a ladder built for one specific world rather than a shape other
@@ -105,7 +105,7 @@ export const SERVER_PRESETS = {
     quiet: {
         id: "quiet",
         label: "Quiet survival",
-        description: "Nothing announced. No join lines, no automod, one chat.",
+        description: "No announcements, no join messages, no automod, one chat.",
         ladder: "smp",
         config: {
             "presence.announce": "false",
@@ -118,7 +118,7 @@ export const SERVER_PRESETS = {
             "feature.chat": "false"
         },
         channels: ["general"],
-        notes: "A survival world that wants to be left alone. Admin+ still gives you the panel, ranks and moderation — it just stops talking."
+        notes: "A quiet survival world. The panel, ranks and moderation still work, but Admin+ sends no messages of its own."
     }
 }
 

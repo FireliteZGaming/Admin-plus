@@ -21,14 +21,14 @@ import {
 
 export async function chatScreen(player, back) {
     if (!flag("feature.chat")) {
-        info(player, "Chat channels are turned off — everyone shares one chat.")
+        info(player, "Chat rooms are turned off, so everyone shares one chat.")
         return back ? back() : undefined
     }
     const options = availableTo(player)
     const current = activeChannel(player)
 
     if (options.length <= 1) {
-        info(player, `You're in ${current?.display ?? "§7General"}§7 — the only chat you have.`)
+        info(player, `You're in ${current?.display ?? "§7General"}§7. It's the only chat you can use.`)
         return back ? back() : undefined
     }
 
@@ -83,20 +83,20 @@ command({
     }
 })
 
-// ------------------------------------------------- Settings ▸ Chat channels
+// ------------------------------------------------- Settings ▸ Chat rooms
 
 export async function channelsScreen(player, back) {
-    if (!has(player, "chat.manage")) { err(player, "You can't manage chat channels."); return back() }
+    if (!has(player, "chat.manage")) { err(player, "You can't manage chat rooms."); return back() }
     const list = allChannels()
     return menu(player, {
-        title: hubTitle("settings", "Chat channels"),
-        body: subtitle("Order sets how they appear in the picker.\n§8An open channel needs no permission; the rest are gated by their node."),
+        title: hubTitle("settings", "Chat rooms"),
+        body: subtitle("The order here is the order in the chat picker.\n§8An open room needs no permission. The others need their own."),
         buttons: [
             ...list.map(channel => ({
                 text: `${channel.display}§r\n§8${channel.open ? "open to everyone" : channel.node}`,
                 run: () => channelScreen(player, channel.id, () => channelsScreen(player, back))
             })),
-            { text: hubEntry("presets", "+ Create channel"), run: () => createChannelScreen(player, () => channelsScreen(player, back)) }
+            { text: hubEntry("presets", "+ New chat room"), run: () => createChannelScreen(player, () => channelsScreen(player, back)) }
         ],
         back
     })
@@ -104,7 +104,7 @@ export async function channelsScreen(player, back) {
 
 async function channelScreen(player, channelId, back) {
     const channel = getChannel(channelId)
-    if (!channel) { err(player, "That channel is gone."); return back() }
+    if (!channel) { err(player, "That chat room no longer exists."); return back() }
     const list = allChannels()
     const index = list.findIndex(c => c.id === channelId)
     const again = () => channelScreen(player, channelId, back)
@@ -115,13 +115,13 @@ async function channelScreen(player, channelId, back) {
             `${channel.display}§r §8(id: ${channel.id})`,
             subtitle(`Position ${index + 1} of ${list.length}`),
             "",
-            channel.open ? "§aOpen §7— everyone can use it" : `§fGated by: §7${channel.node}`
+            channel.open ? "§aOpen§7: everyone can use it" : `§fNeeds permission: §7${channel.node}`
         ].join("\n"),
         buttons: [
             index > 0 ? { text: "§7▲ Move up", run: () => { moveChannel(channelId, -1); return again() } } : null,
             index < list.length - 1 ? { text: "§7▼ Move down", run: () => { moveChannel(channelId, 1); return again() } } : null,
             { text: "§bEdit", run: () => editChannelScreen(player, channelId, again) },
-            { text: "§cDelete channel", run: () => deleteChannelScreen(player, channelId, back) }
+            { text: "§cDelete chat room", run: () => deleteChannelScreen(player, channelId, back) }
         ].filter(Boolean),
         back
     })
@@ -130,9 +130,9 @@ async function channelScreen(player, channelId, back) {
 async function editChannelScreen(player, channelId, back) {
     const channel = getChannel(channelId)
     const values = await modal(player, hubTitle("settings", `Edit · ${channelId}`), [
-        { id: "display", type: "text", label: "Display §8· §§ colour codes allowed", default: channel.display },
-        { id: "node", type: "text", label: "Permission node §8· who may use it", default: channel.node },
-        { id: "open", type: "toggle", label: "Open to everyone §8· ignores the node", default: !!channel.open }
+        { id: "display", type: "text", label: "Name §8· §§ colour codes allowed", default: channel.display },
+        { id: "node", type: "text", label: "Permission §8· who can use it", default: channel.node },
+        { id: "open", type: "toggle", label: "Open to everyone §8· no permission needed", default: !!channel.open }
     ])
     if (!values) return back()
     saveChannel(channelId, { display: values.display, node: values.node, open: values.open })
@@ -141,34 +141,34 @@ async function editChannelScreen(player, channelId, back) {
 }
 
 async function createChannelScreen(player, back) {
-    const values = await modal(player, hubTitle("settings", "Create channel"), [
-        { id: "id", type: "text", label: "Channel id §8· lowercase, no spaces", placeholder: "builders" },
-        { id: "display", type: "text", label: "Display §8· e.g. §§9Builders", placeholder: "§9Builders" },
-        { id: "node", type: "text", label: "Permission node §8· leave blank for chat.<id>", placeholder: "chat.builders" },
+    const values = await modal(player, hubTitle("settings", "New chat room"), [
+        { id: "id", type: "text", label: "ID §8· lowercase, no spaces", placeholder: "builders" },
+        { id: "display", type: "text", label: "Name §8· for example §§9Builders", placeholder: "§9Builders" },
+        { id: "node", type: "text", label: "Permission §8· leave empty for chat.<id>", placeholder: "chat.builders" },
         { id: "open", type: "toggle", label: "Open to everyone", default: false }
     ])
     if (!values) return back()
 
     const id = String(values.id ?? "").trim().toLowerCase().replace(/\s+/g, "_")
-    if (!id) { err(player, "That channel id isn't usable."); return back() }
-    if (getChannel(id)) { err(player, `A channel called §f${id}§c already exists.`); return back() }
+    if (!id) { err(player, "Use lowercase letters or numbers for the ID."); return back() }
+    if (getChannel(id)) { err(player, `A chat room called §f${id}§c already exists.`); return back() }
 
     const channel = saveChannel(id, {
         display: values.display || `§7${id}`,
         node: String(values.node ?? "").trim() || `chat.${id}`,
         open: values.open
     })
-    ok(player, `Created ${channel.display}§a. Grant §f${channel.node}§a to a rank so people can use it.`)
+    ok(player, `Made ${channel.display}§a. Give a rank the §f${channel.node}§a permission so people can use it.`)
     return back()
 }
 
 async function deleteChannelScreen(player, channelId, back) {
     const channel = getChannel(channelId)
     const list = allChannels()
-    if (list.length <= 1) { err(player, "You can't delete the last channel."); return back() }
+    if (list.length <= 1) { err(player, "You can't delete the last chat room."); return back() }
 
-    const yes = await confirm(player, hubTitle("settings", "Delete channel"),
-        `Delete ${channel.display}§r?\n\n§7Anyone typing in it is moved back to their first available chat.`,
+    const yes = await confirm(player, hubTitle("settings", "Delete chat room"),
+        `Delete ${channel.display}§r?\n\n§7Anyone typing in it moves to the first chat they can use.`,
         "§cDelete")
     if (!yes) return back()
     deleteChannel(channelId)

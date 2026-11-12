@@ -57,7 +57,7 @@ command({
     run: (player, [seconds]) => {
         const groups = activeGroups()
         if (!groups.length) {
-            return err(player, "Every cleanup group is switched off — nothing would be removed.")
+            return err(player, "Every cleanup group is switched off, so nothing would be removed.")
         }
 
         const found = candidates()
@@ -65,19 +65,19 @@ command({
         const removable = found.filter(e => judge(e).remove)
 
         if (!removable.length) {
-            info(player, `Nothing to clear. §8(${found.length} looked at, ${keepers.length} protected)`)
+            info(player, `Nothing to clear. §8(${found.length} checked, ${keepers.length} protected)`)
             return
         }
 
         const delay = Number.isFinite(seconds) && seconds >= 0 ? Math.round(seconds) : warnSeconds()
         info(player, `§7Clearing §f${describeTally(tally(removable))}§7.`)
         if (keepers.length) {
-            info(player, `§8Leaving ${keepers.length} protected — named, tagged or valuable.`)
+            info(player, `§8Leaving ${keepers.length} that are named, tagged or valuable.`)
         }
 
         if (delay <= 0) return finish(player, removable)
 
-        broadcast(`§eClearing dropped items and clutter in §f${delay}s§e — pick up anything you want.`)
+        broadcast(`§eClearing dropped items and clutter in §f${delay}s§e. Pick up anything you want to keep.`)
         system.runTimeout(() => {
             // Re-judge at the moment of removal: something may have been picked
             // up, and a player may have dropped something new in the meantime.
@@ -119,8 +119,8 @@ command({
             `§f${clutter}§7 of them would be cleared by /lagclear.`,
             "",
             `§7Most common: §f${describeTally(rows, 8)}`,
-            "§8Mob farms and villagers are counted but never cleared —",
-            "§8if the top row is chickens, clearing items will not help."
+            "§8Mob farms and villagers are counted but never cleared.",
+            "§8If chickens top the list, clearing items won't help."
         ].join("\n"))
     }
 })

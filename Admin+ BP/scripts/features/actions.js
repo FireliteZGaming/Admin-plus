@@ -75,7 +75,7 @@ export async function actionsScreen(player, back, filter = "") {
             // pattern the Logs screen already uses.
             needle
                 ? { text: `§8Clear search §7"${filter}"`, run: () => actionsScreen(player, back, "") }
-                : { text: "§7Search§r\n§8Find somebody by name or nickname", run: () => searchScreen(player, back) },
+                : { text: "§7Search§r\n§8Find a player by gamertag or display name", run: () => searchScreen(player, back) },
             ...(has(player, "admin.ban")
                 ? [{ text: `§cBanned players\n§8${banned} active`, run: () => bannedScreen(player, again) }]
                 : [])
@@ -98,7 +98,7 @@ export async function actionsScreen(player, back, filter = "") {
  */
 async function searchScreen(player, back) {
     const values = await modal(player, hubTitle("actions", "Search players"), [
-        { id: "text", type: "text", label: "Gamertag or nickname", placeholder: "part of a name" }
+        { id: "text", type: "text", label: "Gamertag or display name", placeholder: "part of a name" }
     ])
     if (!values) return actionsScreen(player, back)
     return actionsScreen(player, back, String(values.text ?? "").trim())
@@ -118,11 +118,11 @@ async function offlineActionsScreen(player, row, back) {
             "",
             `§fRanks: §r${ranks}`,
             `§fStatus: §r${statusLine(row.id)}`,
-            allowed ? "" : "\n§cThey outrank you — actions are disabled."
+            allowed ? "" : "\n§cThey outrank you, so only teleporting and unmuting work."
         ].join("\n"),
         buttons: [
             has(player, "ranks.grant")
-                ? { text: "§bRanks\n§8Works while they are away", run: () => playerRankScreen(player, row.id, row.name, again) }
+                ? { text: "§bRanks\n§8Works even when they're offline", run: () => playerRankScreen(player, row.id, row.name, again) }
                 : null,
             allowed && record && has(player, "admin.ban")
                 ? { text: "§aUnban", run: () => unbanScreen(player, row.id, row.name, again) }
@@ -156,7 +156,7 @@ async function unbanScreen(player, targetId, targetName, back) {
     // NB: the local is `banned`, not `record` — `record` is the log function
     // imported at the top, and shadowing it here would break the audit entry.
     const banned = banRecord(targetId)
-    if (!banned) { info(player, "That ban has already gone."); return back() }
+    if (!banned) { info(player, "That ban no longer exists."); return back() }
     const yes = await confirm(player, hubTitle("actions", "Unban"),
         `Unban §f${targetName}§r?\n\n§7Reason was: ${banned.reason}\n§7Banned by: ${banned.by}`,
         "§aUnban")
@@ -186,13 +186,13 @@ async function playerActionsScreen(player, target, back) {
 
     const body = [
         `${renderTags(target)}§r ${displayName(target)}`,
-        nick ? `§8account name: ${target.name}` : "§8no nickname set",
+        nick ? `§8gamertag: ${target.name}` : "§8no display name set",
         "",
         `§fRanks: §r${ranks}`,
         `§fGamemode: §7${gameModeOf(target)}`,
         `§fWarnings: ${warningLine(target)}`,
         `§fStatus: §r${statusLine(target)}`,
-        allowed ? "" : "\n§cThey outrank you — actions are disabled."
+        allowed ? "" : "\n§cThey outrank you, so only teleporting and unmuting work."
     ].join("\n")
 
     const actions = actionButtons(player, target, () => playerActionsMenu(player, target, again, back), back)
@@ -279,7 +279,7 @@ function actionButtons(player, target, again, listBack) {
                 run: () => {
                     forceVisible(player, target)
                     ok(player, `${displayName(target)} is visible again.`)
-                    info(target, "§7Staff pulled you out of vanish.")
+                    info(target, "§7Staff made you visible again.")
                     return again()
                 }
             }
@@ -287,7 +287,7 @@ function actionButtons(player, target, again, listBack) {
         allowed && has(player, "admin.freeze")
             ? {
                 word: isFrozen(target) ? "unfreeze" : "freeze",
-                text: isFrozen(target) ? "§b❄ Unfreeze" : "§b❄ Freeze §8· lock movement",
+                text: isFrozen(target) ? "§b❄ Unfreeze" : "§b❄ Freeze §8· stop them moving",
                 run: () => {
                     const was = isFrozen(target)
                     const frozen = setFrozen(target, !was)
@@ -329,7 +329,7 @@ function actionButtons(player, target, again, listBack) {
                 word: muted ? "unmute" : "mute",
                 text: muted ? "§eUnmute" : "§eMute",
                 run: () => muted
-                    ? (unmute(target), record(player, "mod.unmute", target, "lifted"), ok(player, `Unmuted §f${displayName(target)}§a.`), info(target, "§aYou can speak again."), again())
+                    ? (unmute(target), record(player, "mod.unmute", target, "lifted"), ok(player, `Unmuted §f${displayName(target)}§a.`), info(target, "§aYou can talk again."), again())
                     : durationScreen(player, target, "mute", again)
             }
             : null,
@@ -381,7 +381,7 @@ async function durationScreen(player, target, action, back) {
  * or divider slipped in between would silently shift every value one place.
  */
 export async function banScreen(player, target, back) {
-    if (!has(player, "admin.ban")) return err(player, "You can't ban.")
+    if (!has(player, "admin.ban")) return err(player, "Your rank can't ban.")
     if (!canActOn(player, target)) {
         return err(player, `${displayName(target)}§c outranks you.`)
     }
@@ -476,12 +476,12 @@ async function reasonScreen(player, target, action, back, durationMs = 0) {
         mute(target, durationMs, reason, player)
         record(player, "mod.mute", target,
             `${reason} · ${durationMs ? formatDuration(durationMs) : "permanent"}`, { kind: "mute" })
-        ok(player, `Muted §f${displayName(target)}§a for §f${durationMs ? formatDuration(durationMs) : "ever"}§a.`)
+        ok(player, `Muted §f${displayName(target)}§a ${durationMs ? `for §f${formatDuration(durationMs)}§a` : "§fpermanently§a"}.`)
         info(target, `§cYou were muted: ${reason}`)
         // Mutes are enforced inside the chat event, which is beta-only. Saying so
         // beats a mute that looks applied but lets them keep talking.
         if (!chatAvailable()) {
-            info(player, "§7Heads up: chat interception needs beta APIs, so this mute is recorded but NOT enforced on this runtime.")
+            info(player, "§7This mute is saved, but it can't block chat until Beta APIs are turned on in this world's settings.")
         }
         return back()
     }
@@ -567,7 +567,7 @@ export async function nicknameScreen(player, target, back) {
 
     const wanted = String(values.nick ?? "").trim()
     if (wanted.length > NICK_MAX) {
-        err(player, `Display names cap at ${NICK_MAX} characters, codes included.`)
+        err(player, `A display name can have at most ${NICK_MAX} characters, codes included.`)
         return done()
     }
     // Their own gamertag with no codes is the same as no display name.
@@ -584,7 +584,7 @@ export async function nicknameScreen(player, target, back) {
     const fontChanged = font !== fontBefore
     if (nameChanged) {
         record(player, applied ? "name.set" : "name.clear", target,
-            applied ? applied : "back to account name", { kind: "nickname", previous })
+            applied ? applied : "back to gamertag", { kind: "nickname", previous })
     }
     if (!nameChanged && !fontChanged) {
         info(player, "Nothing changed.")

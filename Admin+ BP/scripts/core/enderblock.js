@@ -76,7 +76,7 @@ export function placeEnderChest(player) {
     clearFor(player.id)
 
     const dimension = safe(() => player.dimension)
-    if (!dimension) return { ok: false, reason: "Couldn't work out where you are." }
+    if (!dimension) return { ok: false, reason: "Couldn't read your position. Try again." }
 
     for (const at of candidates(player)) {
         const block = safe(() => dimension.getBlock(at))
@@ -91,7 +91,7 @@ export function placeEnderChest(player) {
         })
         return { ok: true }
     }
-    return { ok: false, reason: "No room to put one — stand somewhere with a gap in front of you." }
+    return { ok: false, reason: "No room to put one. Stand where there is space in front of you." }
 }
 
 /**

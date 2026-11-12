@@ -134,7 +134,7 @@ const NAME_HELP = [
 ].join("\n")
 
 /** Fonts are look-alike letters; the list names each font in itself. */
-const FONT_HELP = "Font\n§8Look-alike letters, like Discord's fonts. They draw smoother than normal text."
+const FONT_HELP = "Font\n§8Look-alike letters, like the fancy fonts on Discord."
 
 /** Chat colour is typed too: one code, or nothing for the normal colour. */
 const CHAT_HELP = "Chat colour\n§8A code like §§e for what they type. Leave it empty for normal."
@@ -283,7 +283,7 @@ async function ladderScreen(player, back) {
             { header: "Cosmetic and unlisted" },
             {
                 label: unranked.length
-                    ? "§8No order and no power over anyone. Cosmetic adds a tag; unlisted is hidden."
+                    ? "§8No place in the order and no power over anyone. Cosmetic adds a tag. Unlisted is hidden."
                     : "§8None yet. Make one with + New rank and pick its type."
             },
             ...unranked,
@@ -297,7 +297,7 @@ async function ladderScreen(player, back) {
             // Both replace the whole list, the top rank included, so they need
             // canReplaceRankList (core/ranks.js).
             canReplaceRankList(player)
-                ? { text: hubEntry("presets", "Rank templates", "Replace the order with a ready-made one"), run: () => presetsScreen(player, again) }
+                ? { text: hubEntry("presets", "Rank templates", "Replace every rank with a template"), run: () => presetsScreen(player, again) }
                 : null,
             canReplaceRankList(player) && hasSnapshot()
                 ? { text: "§8↺ Undo last change\n§8Puts back the list from before the last template or delete", run: () => undoScreen(player, again) }
@@ -649,7 +649,7 @@ async function quickFillScreen(player, rankId, back) {
 
     return menu(player, {
         title: hubTitle("ranks", `Ready-made sets · ${nameOf(rank)}`),
-        body: subtitle("Each one switches on a group of permissions in one tap.\n§8Nothing is switched off here. Do that inside each group."),
+        body: subtitle("Each one switches on a group of permissions.\n§8Nothing is switched off here. Do that inside each group."),
         buttons: Object.keys(BUNDLES).map(key => {
             const bundle = BUNDLES[key]
             const done = has(key)
@@ -867,7 +867,7 @@ async function nodePageScreen(player, rankId, group, nodes, back) {
         const { state, via } = rankGrant(rank, node)
         const rankName = r => stripCodes(String(r?.display ?? "")) || r?.id || "a rank above"
         if (state === "wildcard") return `${name}\n§8· has it already, from its own ${via}`
-        if (state === "inherited") return `${name}\n§8· inherited from ${rankName(via)}`
+        if (state === "inherited") return `${name}\n§8· gets it from ${rankName(via)}`
         if (state === "denied" && !rank.perms.includes(`-${node}`)) {
             const from = typeof via === "string" ? `its own ${via}` : rankName(via)
             return `${name}\n§8· denied by ${from}`
@@ -1009,7 +1009,7 @@ async function valuesScreen(player, rankId, kind, back) {
     // goes on the first slider now, where it is read before anything moves.
     const rule = kind === "cooldown"
         ? "§8Seconds to wait between uses. 0 means no wait.\n§8Staff skip cooldowns unless the server turns that off."
-        : "§8How many they may have. 0 turns the feature off for this rank."
+        : "§8How many they can have. 0 turns it off for this rank."
 
     const values = await modal(player, hubTitle("ranks", `${heading} · ${nameOf(rank)}`),
         keys.map((key, i) => ({

@@ -21,12 +21,12 @@ const saved = new Table(SAVED_KEY, {})
 export const BUILT_IN = {
     vanilla: {
         label: "Vanilla",
-        description: "Everything at its shipped default.",
+        description: "Every setting at its default.",
         values: {}          // empty means "no overrides at all"
     },
     realm: {
         label: "Realm",
-        description: "Tuned for a small realm: protected spawn, quick teleports, alerts on.",
+        description: "For a small realm: protected spawn, fast teleports, alerts on.",
         values: {
             "spawn.protect": "true",
             "spawn.radius": "24",
@@ -40,7 +40,7 @@ export const BUILT_IN = {
     },
     strict: {
         label: "Strict",
-        description: "Long warmups, wide spawn protection, everything watched.",
+        description: "Long teleport waits, wide spawn protection, every alert on.",
         values: {
             "spawn.protect": "true",
             "spawn.radius": "48",
@@ -54,7 +54,7 @@ export const BUILT_IN = {
     },
     quiet: {
         label: "Quiet",
-        description: "No join or leave lines, no automod chatter. Survival server, left alone.",
+        description: "No join or leave messages and no automod messages. For a quiet survival server.",
         values: {
             "presence.announce": "false",
             "automod.ores": "false",
@@ -130,7 +130,7 @@ export function savePresetFromCurrent(id, label, description) {
 
     const preset = {
         label: label || presetId,
-        description: description || `Saved on this world · ${Object.keys(values).length} values`,
+        description: description || `Saved in this world · ${Object.keys(values).length} settings`,
         values
     }
     saved.set(presetId, preset)

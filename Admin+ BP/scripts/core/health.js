@@ -20,7 +20,7 @@ import { CONFIG } from "../config.js"
 const PROBES = [
     {
         id: "chat",
-        label: "Chat channels, staff chat and mute enforcement",
+        label: "Chat rooms, staff chat and mutes",
         test: () => !!world.beforeEvents?.chatSend?.subscribe
     },
     {
@@ -93,7 +93,7 @@ export function installHealthCheck() {
             BETA_NOTICE,
             "",
             ...missing.map(m => `§8· ${m.label}`),
-            "§8Run /function check for the short version."
+            "§8Type /function check to see which ones."
         ].join("\n"))
     }
 

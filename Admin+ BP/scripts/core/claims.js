@@ -117,7 +117,7 @@ export function createClaim(player, size) {
     }
 
     const at = player?.location
-    if (!at) return { ok: false, reason: "Could not read where you are standing." }
+    if (!at) return { ok: false, reason: "Couldn't read your position. Try again." }
     const dimension = player?.dimension?.id ?? "minecraft:overworld"
     const box = squareAround(at, width)
 
@@ -129,7 +129,7 @@ export function createClaim(player, size) {
             ok: false,
             reason: clash.owner === player.id
                 ? `That would overlap your own claim §f${clash.id}§c.`
-                : `§f${clash.ownerName}§c has already claimed some of that ground.`
+                : `§f${clash.ownerName}§c has already claimed some of that land.`
         }
     }
 

@@ -139,7 +139,7 @@ export function installChat() {
                     // recoverable, and the queue is what shows a
                     // moderator the setting is too aggressive.
                     actOnFilter(player, flagged)
-                    alertStaff(`Held a message from §f${player.name}§r §8(${flagged.label})§r — §7/admin ▸ Server ▸ Automod ▸ Held messages§r`)
+                    alertStaff(`Held a message from §f${player.name}§r §8(${flagged.label})§r. See §7/admin ▸ Server ▸ Automod ▸ Held messages§r.`)
                 })
                 return
             }
@@ -161,7 +161,7 @@ export function installChat() {
             const who = channelMute(channel.id)
             system.run(() => {
                 player.sendMessage(
-                    `${CONFIG.brand.prefix}§c${stripCodes(channel.display)} chat is muted§7 — by ${who?.by ?? "staff"}.`)
+                    `${CONFIG.brand.prefix}§c${stripCodes(channel.display)} chat is muted§7 by ${who?.by ?? "staff"}.`)
             })
             return
         }

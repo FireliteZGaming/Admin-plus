@@ -192,7 +192,7 @@ command({
         if (!claim) return err(player, "You aren't standing in a claim.")
         if (claim.owner !== player.id) return err(player, "That isn't your claim.")
         if (!untrust(claim.id, target.id)) {
-            return err(player, `§f${target.name}§c wasn't trusted there anyway.`)
+            return err(player, `§f${target.name}§c wasn't trusted there.`)
         }
         return ok(player, `§f${target.name}§a can't build there any more.`)
     }
@@ -219,7 +219,7 @@ export async function claimsScreen(player, back) {
                 run: () => claimScreen(player, c.id, again)
             })),
             limit > mine.length
-                ? { text: hubEntry("warps", "Claim here", "The ground around where you stand"), run: () => claimHereScreen(player, again) }
+                ? { text: hubEntry("warps", "Claim here", "The land around where you stand"), run: () => claimHereScreen(player, again) }
                 : null,
             staff
                 ? { text: hubEntry("settings", "Every claim", `${allClaims().length} on this server`), run: () => allClaimsScreen(player, again) }
@@ -265,7 +265,7 @@ async function claimScreen(player, claimId, back) {
         ].join("\n"),
         buttons: [
             trusted.length
-                ? { text: hubEntry("actions", "Trusted players", "Take somebody off"), run: () => trustedScreen(player, claimId, again) }
+                ? { text: hubEntry("actions", "Trusted players", "Take a player off"), run: () => trustedScreen(player, claimId, again) }
                 : null,
             { text: "§cGive up this claim", run: () => removeScreen(player, claimId, back) }
         ].filter(Boolean),
@@ -278,7 +278,7 @@ async function trustedScreen(player, claimId, back) {
     if (!claim) return back()
     return pagedMenu(player, {
         title: hubTitle("actions", "Trusted"),
-        body: subtitle("Tap somebody to stop them building here."),
+        body: subtitle("Tap a player to stop them building here."),
         items: claim.trusted ?? [],
         render: t => ({ text: `§f${t.name}` }),
         onPick: async t => {
@@ -295,7 +295,7 @@ async function removeScreen(player, claimId, back) {
     const claim = getClaim(claimId)
     if (!claim) return back()
     const yes = await confirm(player, hubTitle("warps", "Give up claim"),
-        `Give up §f${claim.id}§r?\n\n§8Anybody will be able to build there.`, "§cGive it up")
+        `Give up §f${claim.id}§r?\n\n§8Anyone will be able to build there.`, "§cGive it up")
     if (!yes) return back()
     removeClaim(claimId)
     record(player, "claim.removed", undefined, `${claim.id} (owner ${claim.ownerName})`)

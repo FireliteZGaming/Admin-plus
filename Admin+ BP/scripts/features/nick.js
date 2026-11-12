@@ -36,14 +36,14 @@ command({
 
         const text = String(wanted ?? "")
         if (text.trim().length > NICK_MAX) {
-            return err(player, `Display names cap at ${NICK_MAX} characters, codes included.`)
+            return err(player, `A display name can have at most ${NICK_MAX} characters, codes included.`)
         }
 
         const previous = getNickname(target)
         const applied = setNickname(target, text)
         refreshNameTag(target)
         record(player, applied ? "name.set" : "name.clear", target,
-            applied ? applied : "back to account name", { kind: "nickname", previous })
+            applied ? applied : "back to gamertag", { kind: "nickname", previous })
 
         if (!applied) {
             ok(player, `Cleared §f${target.name}§a's display name.`)

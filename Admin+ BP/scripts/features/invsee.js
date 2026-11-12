@@ -54,7 +54,7 @@ export async function invseeScreen(viewer, target, back) {
 async function chestView(viewer, target, allowed, back) {
     const snap = snapshot(target)
     if (!snap.readable) {
-        err(viewer, `Couldn't read ${displayName(target)}'s inventory — they may have just left.`)
+        err(viewer, `Couldn't read ${displayName(target)}'s inventory. They may have just left.`)
         return back ? back() : undefined
     }
 
@@ -83,7 +83,7 @@ async function chestView(viewer, target, allowed, back) {
     if (!picked) return chestView(viewer, target, allowed, back)   // an empty slot
 
     if (!allowed) {
-        err(viewer, `${displayName(target)}§c outranks you — you can look, but not take.`)
+        err(viewer, `${displayName(target)}§c outranks you, so you can look but not take.`)
         return chestView(viewer, target, allowed, back)
     }
 
@@ -111,7 +111,7 @@ function tooltip(item, allowed) {
     for (const line of item.lore) lines.push(`§o§5${line}`)
     lines.push("")
     lines.push(`§8${slotLabel(item.ref)}`)
-    lines.push(allowed ? "§cTap to take it off them" : "§8Read only — they outrank you")
+    lines.push(allowed ? "§cTap to take it off them" : "§8Read only: they outrank you")
     return lines
 }
 
@@ -122,14 +122,14 @@ async function listView(viewer, target, allowed, back) {
     const again = () => listView(viewer, target, allowed, back)
 
     if (!snap.readable) {
-        err(viewer, `Couldn't read ${displayName(target)}'s inventory — they may have just left.`)
+        err(viewer, `Couldn't read ${displayName(target)}'s inventory. They may have just left.`)
         return back ? back() : undefined
     }
 
     const body = [
         `${displayName(target)}§r`,
         `§f${snap.stacks}§7 stack${snap.stacks === 1 ? "" : "s"}§8 · §f${snap.items}§7 item${snap.items === 1 ? "" : "s"}§8 · §f${snap.worn}§7 worn`,
-        allowed ? "" : "\n§cThey outrank you — you can look, but not take."
+        allowed ? "" : "\n§cThey outrank you, so you can look but not take."
     ].filter(Boolean).join("\n")
 
     const worn = snap.equipment
@@ -146,7 +146,7 @@ async function listView(viewer, target, allowed, back) {
 
     const buttons = [...worn, ...carried]
     if (!buttons.length) {
-        buttons.push({ text: "§8Nothing at all — empty inventory, nothing worn", run: again })
+        buttons.push({ text: "§8Empty: no items and nothing worn", run: again })
     }
     buttons.push({ text: "§8Refresh", run: again })
 
@@ -185,7 +185,7 @@ async function itemScreen(viewer, target, item, allowed, back) {
         lines.push("", "§7Lore")
         for (const line of item.lore) lines.push(`§8· §r${line}`)
     }
-    if (!allowed) lines.push("", "§cThey outrank you — read only.")
+    if (!allowed) lines.push("", "§cThey outrank you, so this is read only.")
 
     return menu(viewer, {
         title: hubTitle("actions", item.label),
@@ -205,10 +205,10 @@ async function itemScreen(viewer, target, item, allowed, back) {
                 : null,
             allowed
                 ? {
-                    text: "§cDestroy it§r\n§8Deletes the stack outright",
+                    text: "§cDestroy it§r\n§8Deletes the stack for good",
                     run: async () => {
                         const yes = await confirm(viewer, hubTitle("actions", "Destroy item"),
-                            `Delete §f${itemLine(item)}§r from ${displayName(target)}?\n\n§8It is gone — this does not put it anywhere.`,
+                            `Delete §f${itemLine(item)}§r from ${displayName(target)}?\n\n§8It is deleted, not moved to you.`,
                             "§cDestroy")
                         if (!yes) return back()
                         const result = confiscate(target, item.ref)
@@ -233,9 +233,9 @@ command({
     mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector, self: true }],
     run: (viewer, [selected]) => {
         const targets = selected ?? []
-        if (!targets.length) return err(viewer, "No player matched that selector.")
+        if (!targets.length) return err(viewer, "Nobody matched that name.")
         if (targets.length > 1) {
-            return err(viewer, "That selector matched more than one player — /invsee opens one inventory at a time.")
+            return err(viewer, "That matched more than one player. /invsee opens one inventory at a time.")
         }
         const target = targets[0]
 

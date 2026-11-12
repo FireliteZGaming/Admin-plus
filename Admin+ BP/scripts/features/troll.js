@@ -40,11 +40,11 @@ function safe(fn, fallback) {
  */
 function strike(target) {
     const dimension = target?.dimension
-    if (!dimension) return { ok: false, reason: "They are not anywhere I can reach." }
+    if (!dimension) return { ok: false, reason: "Couldn't reach where they are." }
 
     if (flag("troll.smiteFire")) {
         const bolt = safe(() => dimension.spawnEntity("minecraft:lightning_bolt", target.location))
-        if (!bolt) return { ok: false, reason: "The lightning would not spawn." }
+        if (!bolt) return { ok: false, reason: "The lightning didn't appear." }
         return { ok: true, burned: true }
     }
 
@@ -66,7 +66,7 @@ command({
         if (shut) return err(player, shut)
 
         const targets = selected ?? []
-        if (!targets.length) return err(player, "No player matched that selector.")
+        if (!targets.length) return err(player, "Nobody matched that name.")
 
         const struck = []
         const blocked = []
@@ -82,12 +82,12 @@ command({
         }
 
         if (struck.length) {
-            ok(player, `Smote §f${struck.join(", ")}§a.`)
+            ok(player, `Struck §f${struck.join(", ")}§a with lightning.`)
             if (!flag("troll.smiteFire")) {
                 info(player, "§8Fire is off, so that was the flash and the damage only.")
             }
         }
-        if (blocked.length) err(player, `Outranked you, skipped: §f${blocked.join(", ")}`)
+        if (blocked.length) err(player, `Skipped because they outrank you: §f${blocked.join(", ")}`)
     }
 })
 

@@ -75,13 +75,13 @@ export async function enderScreen(viewer, target, back, held) {
         // The list view is invsee's fallback and it covers the inventory half.
         // The ender half has no words-only screen yet, and inventing a worse
         // one here would be a second thing to keep working.
-        err(viewer, "The ender chest screen needs the resource pack — check it is on, above other packs.")
+        err(viewer, "The ender chest screen needs the Admin+ resource pack. Check that it is on and above other packs.")
         return back ? back() : undefined
     }
 
     const ender = enderSnapshot(target)
     if (!ender.readable) {
-        err(viewer, `Couldn't read ${own ? "your" : `${displayName(target)}'s`} ender chest — they may have just left.`)
+        err(viewer, `Couldn't read ${own ? "your" : `${displayName(target)}'s`} ender chest. They may have just left.`)
         return back ? back() : undefined
     }
     const carried = snapshot(target)
@@ -153,7 +153,7 @@ export async function enderScreen(viewer, target, back, held) {
 /** Somebody else's: the tap takes it, and only if you outrank them. */
 async function takeFrom(viewer, target, item, again) {
     if (!canActOn(viewer, target)) {
-        err(viewer, `${displayName(target)}§c outranks you — you can look, but not take.`)
+        err(viewer, `${displayName(target)}§c outranks you, so you can look but not take.`)
         return again()
     }
     const result = transfer(viewer, target, item.ref)
@@ -195,7 +195,7 @@ function openFor(viewer, selected) {
     const targets = selected ?? []
     if (!targets.length) return open(viewer, viewer)
     if (targets.length > 1) {
-        return err(viewer, "That selector matched more than one player — this opens one chest at a time.")
+        return err(viewer, "That matched more than one player. This opens one chest at a time.")
     }
 
     const target = targets[0]
@@ -247,14 +247,14 @@ const PLAYER = [{ name: "player", type: CustomCommandParamType.PlayerSelector }]
 // arguments has to read commandSpecs(), not the text of the file.
 command({
     name: "ec",
-    description: "Open your ender chest. Staff can open a player's",
+    description: "Open your ender chest, or a player's if you are staff",
     optional: PLAYER,
     run: (viewer, [selected]) => openFor(viewer, selected)
 })
 
 command({
     name: "enderchest",
-    description: "Open your ender chest. Staff can open a player's",
+    description: "Open your ender chest, or a player's if you are staff",
     optional: PLAYER,
     run: (viewer, [selected]) => openFor(viewer, selected)
 })

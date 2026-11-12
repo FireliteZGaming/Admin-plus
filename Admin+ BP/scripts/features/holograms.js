@@ -47,12 +47,12 @@ export async function hologramsScreen(player, back) {
             subtitle("Floating text, and leaderboards that read a scoreboard."),
             "",
             all.length
-                ? `§f${all.length}§7 placed. They rebuild themselves if anything removes them.`
+                ? `§f${all.length}§7 placed. They come back if something removes them.`
                 : "§8Nothing placed yet. They appear where you are standing."
         ].join("\n"),
         buttons: [
-            { text: hubEntry("warps", "+ New text", "A line of writing, hanging where you stand"), run: () => textScreen(player, undefined, again) },
-            { text: hubEntry("warps", "+ New leaderboard", "Top scores from a scoreboard objective"), run: () => boardScreen(player, undefined, again) },
+            { text: hubEntry("warps", "+ New text", "Text that floats where you stand"), run: () => textScreen(player, undefined, again) },
+            { text: hubEntry("warps", "+ New leaderboard", "Top scores from a scoreboard"), run: () => boardScreen(player, undefined, again) },
             ...all.map(holo => ({
                 text: `${holo.kind === "board" ? "§b" : "§a"}${holo.id}§r §8· ${where(holo)}\n§8${preview(holo)}`,
                 run: () => oneScreen(player, holo.id, again)
@@ -67,7 +67,7 @@ export async function hologramsScreen(player, back) {
 
 async function oneScreen(player, id, back) {
     const holo = get(id)
-    if (!holo) { err(player, "That hologram is gone."); return back() }
+    if (!holo) { err(player, "That hologram no longer exists."); return back() }
     const again = () => oneScreen(player, id, back)
 
     return menu(player, {
@@ -75,7 +75,7 @@ async function oneScreen(player, id, back) {
         body: [
             `§fKind: §7${holo.kind === "board" ? "leaderboard" : "text"}`,
             `§fWhere: §7${where(holo)}`,
-            holo.kind === "board" ? `§fObjective: §7${holo.objective || "§cnone set"}` : "",
+            holo.kind === "board" ? `§fScoreboard: §7${holo.objective || "§cnone set"}` : "",
             "",
             "§fShowing now",
             render(holo) || "§8(empty)"
@@ -99,7 +99,7 @@ async function oneScreen(player, id, back) {
                 text: "§cRemove",
                 run: async () => {
                     const yes = await confirm(player, hubTitle("warps", holo.id),
-                        `Remove §f${holo.id}§r?\n\n§8The text is deleted; nothing else is touched.`, "§cRemove")
+                        `Remove §f${holo.id}§r?\n\n§8Only the text is deleted.`, "§cRemove")
                     if (!yes) return again()
                     remove(holo.id)
                     record(player, "hologram.delete", undefined, holo.id)
@@ -117,7 +117,7 @@ async function textScreen(player, id, back) {
     const values = await modal(player, hubTitle("warps", holo ? `Edit ${holo.id}` : "New text"), [
         holo
             ? null
-            : { id: "id", type: "text", label: "Name §8· letters, digits, - and _", placeholder: "rules" },
+            : { id: "id", type: "text", label: "Name §8· letters, numbers, - and _", placeholder: "rules" },
         {
             id: "text",
             type: "text",
@@ -138,7 +138,7 @@ async function textScreen(player, id, back) {
     sync()
     record(player, holo ? "hologram.edit" : "hologram.create", undefined, result.holo.id)
     ok(player, `${holo ? "Updated" : "Placed"} §f${result.holo.id}§a.`)
-    if (!holo) info(player, "§7It is standing where you are. Move it from its own screen.")
+    if (!holo) info(player, "§7It is where you are standing. Move it from its own screen.")
     return back()
 }
 
@@ -149,7 +149,7 @@ async function boardScreen(player, id, back) {
     })()
 
     if (!objectives.length) {
-        err(player, "There are no scoreboard objectives on this world yet.")
+        err(player, "This world has no scoreboards yet.")
         info(player, "§7Make one first: §f/scoreboard objectives add kills dummy \"Kills\"")
         return back()
     }
@@ -158,14 +158,14 @@ async function boardScreen(player, id, back) {
     const values = await modal(player, hubTitle("warps", holo ? `Edit ${holo.id}` : "New leaderboard"), [
         holo
             ? null
-            : { id: "id", type: "text", label: "Name §8· letters, digits, - and _", placeholder: "topkills" },
-        { id: "objective", type: "dropdown", label: "Scoreboard objective", options: objectives, default: current },
-        { id: "title", type: "text", label: "Heading §8· blank for none", default: holo?.title ?? "§6§lTop Players" },
+            : { id: "id", type: "text", label: "Name §8· letters, numbers, - and _", placeholder: "topkills" },
+        { id: "objective", type: "dropdown", label: "Scoreboard", options: objectives, default: current },
+        { id: "title", type: "text", label: "Heading §8· leave empty for none", default: holo?.title ?? "§6§lTop Players" },
         {
             id: "format",
             type: "text",
             label: "One row §8· {INDEX} {NAME} {SCORE}",
-            default: holo?.format ?? "§7{INDEX}. §f{NAME} §8— §a{SCORE}"
+            default: holo?.format ?? "§7{INDEX}. §f{NAME}§7: §a{SCORE}"
         },
         { id: "max", type: "slider", label: "How many rows", min: 1, max: 25, step: 1, default: holo?.max ?? 10 },
         { id: "ascending", type: "toggle", label: "Lowest first §8· off means highest first", default: !!holo?.ascending }
@@ -186,14 +186,14 @@ async function boardScreen(player, id, back) {
     sync()
     record(player, holo ? "hologram.edit" : "hologram.create", undefined, `${result.holo.id} · ${result.holo.objective}`)
     ok(player, `${holo ? "Updated" : "Placed"} §f${result.holo.id}§a.`)
-    if (!holo) info(player, "§7It is standing where you are. Move it from its own screen.")
+    if (!holo) info(player, "§7It is where you are standing. Move it from its own screen.")
     return back()
 }
 
 async function clearScreen(player, back) {
     const n = count()
     const yes = await confirm(player, hubTitle("warps", "Remove every hologram"),
-        `Delete all §f${n}§r hologram${n === 1 ? "" : "s"}?\n\n§8There is no undo for this one.`, "§cRemove all")
+        `Delete all §f${n}§r hologram${n === 1 ? "" : "s"}?\n\n§8This can't be undone.`, "§cRemove all")
     if (!yes) return back()
     removeAll()
     record(player, "hologram.clear", undefined, `${n} removed`)

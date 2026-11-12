@@ -35,18 +35,18 @@ function lines(player, rows) {
 }
 
 const BASICS = [
-    { cmd: "/info", what: "This. You are here." },
+    { cmd: "/info", what: "Shows this help." },
     { cmd: "/online", what: "See who else is playing right now.", need: "online.use" },
     { cmd: "/spawn", what: "Go back to the world's starting point.", need: "spawn.use", on: "feature.spawn" },
     { cmd: "/warp", what: "A list of places the staff set up. Tap one to go there.", need: "warp.use", on: "feature.warps" },
-    { cmd: "/home", what: "Your own saved places. Opens a screen to travel to one, or to make one where you stand. Only you can see them.", on: "feature.homes" },
-    { cmd: "/back", what: "Go back to where you were before a teleport — or to where you died, which is the useful one.", on: "feature.back" },
-    { cmd: "/rtp", what: "Get dropped somewhere random and far away. Set a home before you wander off.", on: "feature.rtp" },
+    { cmd: "/home", what: "Your own saved places. Opens a screen to go to one, or set one where you stand. Only you can see them.", on: "feature.homes" },
+    { cmd: "/back", what: "Go back to where you were before a teleport, or where you died.", on: "feature.back" },
+    { cmd: "/rtp", what: "Go to a random place far away. Set a home first so you can get back.", on: "feature.rtp" },
     { cmd: "/tpa Steve", what: "Ask Steve if you can teleport to them. They say yes or no.", need: "tpa.use", on: "feature.tpa" },
     { cmd: "/tpahere Steve", what: "Ask Steve to come to you instead.", need: "tpa.use", on: "feature.tpa" },
     { cmd: "/pm Steve hello", what: "Send Steve a private message only they can see.", on: "feature.pm" },
     { cmd: "/r hi back", what: "Reply to whoever messaged you last.", on: "feature.pm" },
-    { cmd: "/report Steve griefing", what: "Tell the staff about somebody. They get it straight away.", need: "report.use", on: "feature.reports" },
+    { cmd: "/report Steve griefing", what: "Tell staff about a player. They see it right away.", need: "report.use", on: "feature.reports" },
     { cmd: "/warnings", what: "See if you have any warnings on your record." },
     { cmd: "/emote waves", what: "Say what you are doing: \"§oSteve waves§r\".", on: "feature.emote" }
 ]
@@ -60,19 +60,19 @@ async function infoScreen(player, back = () => {}) {
             `§7You are §r${displayName(player)}§7.`,
             rank ? `§7Your rank is ${rank.display}§r§7.` : "§7You do not have a rank yet.",
             "",
-            "§7This world runs §l§bAdmin§d+§r§7 — a mod that adds ranks,",
-            "§7teleporting, private messages and tools for the staff.",
+            "§7This world runs §l§bAdmin§d+§r§7, which adds ranks,",
+            "§7teleports, private messages and tools for staff.",
             "",
             "§8Tap something to learn about it."
         ].join("\n"),
         buttons: [
             { text: "§bCommands you can use\n§8The ones that work for you right now", run: () => commandsScreen(player, again) },
             { text: "§bWhat a rank is\n§8Why some people have coloured names", run: () => ranksScreen(player, again) },
-            { text: "§bChat\n§8Channels, private messages, and being muted", run: () => chatScreen(player, again) },
+            { text: "§bChat\n§8Chat rooms, private messages and mutes", run: () => chatScreen(player, again) },
             isStaff(player)
-                ? { text: "§6Staff tools\n§8You have these — here is what they do", run: () => staffScreen(player, again) }
+                ? { text: "§6Staff tools\n§8What your staff tools do", run: () => staffScreen(player, again) }
                 : { text: "§8What the staff can do\n§8So you know what to expect", run: () => aboutStaffScreen(player, again) },
-            { text: "§8About this mod\n§8Version, and who made it", run: () => aboutScreen(player, again) }
+            { text: "§8About Admin+\n§8Version and who made it", run: () => aboutScreen(player, again) }
         ],
         back
     })
@@ -94,7 +94,7 @@ async function commandsScreen(player, back) {
             "§8and nobody else sees it."
         ].join("\n"),
         buttons: [
-            { text: "§bWho a command aims at\n§8The bit that goes where it says who",
+            { text: "§bWho a command is for\n§8The part that names a player",
               run: () => targetsScreen(player, () => commandsScreen(player, back)) }
         ],
         back
@@ -126,17 +126,17 @@ async function targetsScreen(player, back) {
             "§fme",
             "§7  You. §8/gmc me",
             "§fa player's name",
-            "§7  That one person. Their nickname works too.",
+            "§7  That player. Their display name works too.",
             "§8  /gmc Steve",
             "§feveryone",
             "§7  Every player here. §8/gms everyone",
             "§fnearest",
             "§7  Whoever is standing closest to you.",
             "§frandom",
-            "§7  One player, picked out of a hat.",
+            "§7  One player, picked at random.",
             "",
             "§8If you already know Minecraft selectors, @s @a @p @r",
-            "§8all still work, filters and all: @a[r=10]."
+            "§8all work too, with filters: @a[r=10]."
         ].join("\n"),
         buttons: [],
         back
@@ -159,11 +159,11 @@ async function ranksScreen(player, back) {
             "§7   Staff have a rank so you can tell who to ask for help.",
             "",
             "§f2. They decide what you can do.",
-            "§7   Higher ranks can use more commands. That is why some",
-            "§7   things say you do not have permission — it is not",
-            "§7   broken, it just is not yours to use.",
+            "§7   Higher ranks can use more commands. When something",
+            "§7   says you don't have permission, it isn't broken.",
+            "§7   It needs a higher rank.",
             "",
-            "§7Only the owner can change ranks. Asking politely works",
+            "§7Staff give out ranks. Asking politely works",
             "§7better than asking a lot."
         ].join("\n"),
         buttons: [],
@@ -193,7 +193,7 @@ async function chatScreen(player, back) {
             "§7  and tell you again when it ends.",
             "",
             "§7Spamming the same thing over and over will mute you",
-            "§7automatically. Typing fast is fine — it only warns you."
+            "§7automatically. Typing fast only gets you a warning."
         ].join("\n"),
         buttons: [],
         back
@@ -210,11 +210,11 @@ async function aboutStaffScreen(player, back) {
             "§8 · see who is online and where",
             "§8 · read chat back, including private messages",
             "§8 · teleport to people",
-            "§8 · warn, mute, kick or ban somebody",
+            "§8 · warn, mute, kick or ban players",
             "§8 · look in your inventory",
             "",
-            "§7They cannot do any of that to somebody ranked above",
-            "§7them. A moderator cannot ban an owner.",
+            "§7They can't do any of that to someone ranked above",
+            "§7them. A moderator can't ban an owner.",
             "",
             "§7If a staff member is misusing this, report it:",
             "§f  /report <their name> §7and pick §fStaff abuse§7.",
@@ -227,17 +227,17 @@ async function aboutStaffScreen(player, back) {
 
 async function staffScreen(player, back) {
     const rows = [
-        { cmd: "/admin", what: "The panel. Almost everything lives in here.", need: "admin.panel" },
-        { cmd: "/mm", what: "Staff mode: your tools, and you go invisible.", need: "admin.staffmode" },
-        { cmd: "/items", what: "The admin item chest. Locked ones tell you why.", },
+        { cmd: "/admin", what: "The panel, with almost every staff tool.", need: "admin.panel" },
+        { cmd: "/mm", what: "Staff mode: you get your tools and go invisible.", need: "admin.staffmode" },
+        { cmd: "/items", what: "The admin item chest. A locked item says what it needs.", },
         { cmd: "/vanish", what: "Disappear. Nobody sees you or your armour.", need: "admin.vanish" },
-        { cmd: "/warn Steve", what: "Put a warning on their record. It fades after 48 hours.", need: "admin.warn" },
+        { cmd: "/warn Steve", what: "Put a warning on their record. By default it expires after 48 hours.", need: "admin.warn" },
         { cmd: "/mute Steve 10m", what: "Stop them talking for ten minutes.", need: "admin.mute" },
         { cmd: "/kick Steve", what: "Remove them from the world. They can come back.", need: "admin.kick" },
-        { cmd: "/ban Steve", what: "Remove them for good, until you unban them.", need: "admin.ban" },
-        { cmd: "/gm creative", what: "Change your game mode, or somebody else's.", need: "admin.gamemode" },
-        { cmd: "/port", what: "Gives you the Ender Eye — tap a name to jump to them.", need: "admin.tp" },
-        { cmd: "/smite Steve", what: "Lightning. Harmless fun, and it is logged.", need: "admin.smite" }
+        { cmd: "/ban Steve", what: "Remove them until someone unbans them.", need: "admin.ban" },
+        { cmd: "/gm creative", what: "Change your game mode, or another player's.", need: "admin.gamemode" },
+        { cmd: "/port", what: "Gives you the Ender Eye. Use it to jump to a player.", need: "admin.tp" },
+        { cmd: "/smite Steve", what: "Strikes them with lightning. It is logged.", need: "admin.smite" }
     ]
     return menu(player, {
         title: hubTitle("about", "Staff tools"),
@@ -247,8 +247,8 @@ async function staffScreen(player, back) {
             ...lines(player, rows),
             "",
             "§fThe rule that matters",
-            "§7  You cannot use any of this on somebody ranked above",
-            "§7  you. It will say so rather than half-working.",
+            "§7  You can't use any of this on someone ranked above",
+            "§7  you. It tells you when that is why.",
             "",
             "§7Everything you do is written to the log with your name",
             `§7on it. §f/admin §7▸ Logs.`
@@ -264,12 +264,12 @@ async function aboutScreen(player, back) {
         body: [
             `§l§bAdmin§d+§r §8v${ADMINPLUS_VERSION}`,
             "",
-            `§7${registeredCommands().length} commands in this pack.`,
+            `§7${registeredCommands().length} commands in Admin+.`,
             "",
             "§7Made by §dFireliteZGaming§7.",
             "§7Free, and it will stay free.",
             "",
-            "§8Type /credits for who else's ideas are in here."
+            "§8Type /credits to see whose ideas are used here."
         ].join("\n"),
         buttons: [],
         back

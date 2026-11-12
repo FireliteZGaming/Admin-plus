@@ -29,7 +29,7 @@ command({
     ],
     run: (player, [selected, duration, reason]) => {
         const targets = selected ?? []
-        if (!targets.length) return err(player, "No player matched that selector.")
+        if (!targets.length) return err(player, "Nobody matched that name.")
 
         // parseDuration returns 0 for "permanent" AND for anything it can't read,
         // so a typo would silently become a permanent mute. Only accept 0 when
@@ -65,15 +65,15 @@ command({
         }
 
         if (muted.length) {
-            ok(player, `Muted §f${muted.join(", ")}§a for §f${ms ? formatDuration(ms) : "ever"}§a.`)
+            ok(player, `Muted §f${muted.join(", ")}§a ${ms ? `for §f${formatDuration(ms)}§a` : "§fpermanently§a"}.`)
             // Enforcement lives in the chat event, which is beta-only. Better to
             // say so than to let a mute look applied while they keep talking.
             if (!chatAvailable()) {
-                info(player, "§7Chat interception needs beta APIs — this mute is recorded but NOT enforced on this runtime.")
+                info(player, "§7This mute is saved, but it can't block chat until Beta APIs are turned on in this world's settings.")
             }
         }
         if (already.length) info(player, `§7Already muted: §f${already.join(", ")}`)
-        if (blocked.length) err(player, `Outranked you, skipped: §f${blocked.join(", ")}`)
+        if (blocked.length) err(player, `Skipped because they outrank you: §f${blocked.join(", ")}`)
     }
 })
 
@@ -93,7 +93,7 @@ command({
     mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     run: (player, [selected]) => {
         const targets = selected ?? []
-        if (!targets.length) return err(player, "No player matched that selector.")
+        if (!targets.length) return err(player, "Nobody matched that name.")
         if (targets.length > 1) return err(player, "Pick one player.")
 
         const target = targets[0]
@@ -119,7 +119,7 @@ command({
     }],
     run: (player, [selected]) => {
         const targets = selected ?? []
-        if (!targets.length) return err(player, "No player matched that selector.")
+        if (!targets.length) return err(player, "Nobody matched that name.")
 
         const cleared = []
         const untouched = []
@@ -154,12 +154,12 @@ command({
             record(player, "mod.unmute", target,
                 hadRecord ? "lifted" : "cleared a leftover mute tag")
             ;(hadRecord ? cleared : unstuck).push(displayName(target))
-            info(target, "§aYou can speak again.")
+            info(target, "§aYou can talk again.")
         }
 
         if (cleared.length) ok(player, `Unmuted §f${cleared.join(", ")}§a.`)
         if (unstuck.length) {
-            ok(player, `Cleared a leftover mute tag on §f${unstuck.join(", ")}§a — they were not actually muted.`)
+            ok(player, `Cleared an old mute tag on §f${unstuck.join(", ")}§a. They were not muted.`)
         }
         // Always said, not only when nothing else happened. "They weren't muted"
         // is the answer to "why can't they talk", and swallowing it whenever
@@ -200,8 +200,8 @@ command({
         if (!match) {
             const open = bans.length
             return err(player, open
-                ? `No ban on "§f${name}§c". ${open} player${open === 1 ? " is" : "s are"} banned. Type /unban on its own to pick from the list.`
-                : `No ban on "§f${name}§c" — nobody is banned.`)
+                ? `No ban on "§f${name}§c". ${open} player${open === 1 ? " is" : "s are"} banned. Type /unban with no name to pick from the list.`
+                : `No ban on "§f${name}§c". Nobody is banned.`)
         }
         unban(match.id)
         record(player, "mod.unban", { id: match.id, name: match.name }, `was: ${match.reason}`)

@@ -92,7 +92,7 @@ function placesButtons(player, back) {
             ? { text: hubEntry("warps", "Warps and spawn", "Places players can travel to"), run: () => warpsScreen(player, back) }
             : null,
         has(player, "admin.holograms")
-            ? { text: hubEntry("warps", "Floating text", "Words and scoreboards that hang in the air"), run: () => hologramsScreen(player, back) }
+            ? { text: hubEntry("warps", "Floating text", "Text and scoreboards that float in the air"), run: () => hologramsScreen(player, back) }
             : null,
         flag("feature.claims") && (claimLimit(player) > 0 || has(player, "admin.claims"))
             ? { text: hubEntry("warps", "Land claims", "Land that players have protected"), run: () => claimsScreen(player, back) }
@@ -156,7 +156,7 @@ async function advancedScreen(player, back) {
         body: subtitle("For fine-tuning. Most servers never need these."),
         buttons: [
             settings
-                ? { text: hubEntry("settings", "Every setting", "Change any value, one at a time"), run: () => allValuesScreen(player, again) }
+                ? { text: hubEntry("settings", "Every setting", "Change any setting, one at a time"), run: () => allValuesScreen(player, again) }
                 : null,
             settings
                 ? { text: hubEntry("presets", "Saved setups", "Save your settings, or load a saved set"), run: () => configPresetsScreen(player, again) }
@@ -165,7 +165,7 @@ async function advancedScreen(player, back) {
                 ? { text: hubEntry("code", "< Code >", "Edit every setting as text"), run: () => codeScreen(player, again) }
                 : null,
             settings && hasOperator(player)
-                ? { text: hubEntry("actions", "Factory reset", "Undo every change and go back to the defaults"), run: () => factoryResetScreen(player, again) }
+                ? { text: hubEntry("actions", "Factory reset", "Put every setting back to its default"), run: () => factoryResetScreen(player, again) }
                 : null
         ].filter(Boolean),
         back
@@ -186,7 +186,7 @@ async function helpScreen(player, back) {
             "§7Type a command on its own and it asks for the rest."
         ].join("\n"),
         buttons: [
-            { text: hubEntry("about", "What can I do?", "Commands and tools, explained"), run: () => infoScreen(player, again) },
+            { text: hubEntry("about", "What can I do?", "What each command and tool does"), run: () => infoScreen(player, again) },
             { text: hubEntry("about", "Credits", "Who made Admin+"), run: () => creditsScreen(player, again) }
         ],
         back

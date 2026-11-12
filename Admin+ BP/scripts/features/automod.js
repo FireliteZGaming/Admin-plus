@@ -66,14 +66,14 @@ export function actOnFilter(player, flagged) {
             addWarning({ name: "Automod" }, player,
                 `${flagged.label} in chat`, `matched "${flagged.term}"`)
         } catch { /* warnings storage unavailable */ }
-        alertStaff(`§f${displayName(player)}§7 warned — §f${flagged.label}§7 in chat`)
+        alertStaff(`§f${displayName(player)}§7 was warned for §f${flagged.label}§7 in chat.`)
         return "warn"
     }
     if (action === "mute") {
         const seconds = Math.max(1, Math.floor(Number(setting("filter.muteSeconds"))) || 300)
         mute(player, seconds * 1000, `${flagged.label} in chat (automod)`, undefined)
         player.sendMessage(`${TAG}§cYou were muted for §f${seconds}s§c: ${flagged.label} in chat.`)
-        alertStaff(`§f${displayName(player)}§7 muted §f${seconds}s§7 — §f${flagged.label}§7 in chat`)
+        alertStaff(`§f${displayName(player)}§7 was muted §f${seconds}s§7 for §f${flagged.label}§7 in chat.`)
         return "mute"
     }
     return "hold"
@@ -135,7 +135,7 @@ function punishSpam(player, count) {
     const seconds = spamPenalty(strike)
 
     if (!seconds) {
-        tell(player, "§eStop spamming.§7 Carry on and you will be muted.")
+        tell(player, "§eStop spamming.§7 If you keep going, you will be muted.")
         alertStaff(`§f${displayName(player)}§7 was told to stop spamming §8(${count} in 10s)`)
         record(undefined, "automod.spam", player, `warned · ${count} in 10s`)
         return
@@ -156,7 +156,7 @@ function punishSpam(player, count) {
         catch (e) { console.warn(`[Admin+] automod could not file a warning: ${e}`) }
     }
 
-    alertStaff(`§f${displayName(player)}§7 muted §f${length}§7 for spam §8(strike ${strike}, ${count} in 10s)`)
+    alertStaff(`§f${displayName(player)}§7 was muted §f${length}§7 for spam §8(strike ${strike}, ${count} in 10s)`)
     record(undefined, "automod.spam", player, `muted ${length} · strike ${strike} · ${count} in 10s`)
 }
 
@@ -237,7 +237,7 @@ const CHECKS = [
     {
         id: "ores",
         key: "automod.ores",
-        label: () => "Ore alerts\n§8One line per vein, however big it gets"
+        label: () => "Ore alerts\n§8One alert per vein, whatever its size"
     },
     {
         id: "breaks",

@@ -36,7 +36,7 @@ const INCLUDED = [
         licence: "CC BY 4.0",
         who: "LeGend077, Herobrine64, Aex66",
         what: "The chest window /invsee opens in",
-        how: "Bedrock gives scripts no container UI. This module worked out that a form's title and its button icons are strings a resource pack can match on, so a sentinel in the title tells the pack to redraw the form as a 9-column grid. Admin+ includes its id table and its JSON-UI, both modified, and speaks the same wire format on purpose — two packs that implement it can then draw each other's windows, whichever one wins the resource-pack order."
+        how: "Bedrock gives scripts no container UI. This module found that a form's title and button icons are text a resource pack can read, so a marker in the title tells the pack to draw the form as a 9-column grid. Admin+ includes its ID table and its JSON-UI, both changed, and uses the same format on purpose, so two packs that use it can draw each other's windows, whichever pack is on top."
     }
 ]
 
@@ -59,18 +59,18 @@ const HOMES = [
 const LEARNED_FROM = [
     {
         pack: "SafeGuard",
-        what: "Warning people when Beta APIs is off",
-        how: "A beta-gated script cannot report its own absence — it never runs. Functions are data and still do, so the watchdog in functions/admin/ is the one channel that reaches a player when nothing else of ours is executing."
+        what: "Warning players when Beta APIs are off",
+        how: "A script that needs Beta APIs can't say it is missing, because it never runs. Function files still run, so a check in functions/admin/ is what reaches players when no Admin+ script is running."
     },
     {
         pack: "ChestFormData",
         what: "Showing an inventory as a real chest grid",
-        how: "Bedrock gives scripts no container UI. The community worked out that a form title and its button icons are strings a resource pack can match on, so a sentinel title plus numeric icon ids can be redrawn as a 9-column grid of real item textures. The protocol is maintained by Herobrine64 and LeGend077 and is what every addon that shows an inventory speaks. Admin+ speaks the same wire format on purpose, so its chest windows still render correctly when another pack that also implements it wins the resource-pack order."
+        how: "Bedrock gives scripts no container UI. The community found that a form's title and button icons are text a resource pack can read, so a marked title and numbered icons can be drawn as a 9-column grid of real item pictures. Herobrine64 and LeGend077 maintain this format, and most addons that show an inventory use it. Admin+ uses the same format, so its chest windows still draw correctly when another pack that uses it is on top."
     },
     {
         pack: "UltraVanish",
-        what: "Actually disappearing",
-        how: "The invisibility effect leaves armour and held items rendering. A resource-pack animation that scales every bone to zero is what hides them, re-stamped every tick because the animation lapses on its own."
+        what: "Hiding armour while vanished",
+        how: "The invisibility effect still shows armour and held items. A resource-pack animation that shrinks the whole model to nothing hides them, and it is applied every tick because it wears off on its own."
     }
 ]
 
@@ -82,9 +82,9 @@ export async function creditsScreen(player, back) {
             "",
             `§fBuilt by §d§l${AUTHOR}§r`,
             "",
-            "§7An admin toolkit for Bedrock: ranks, moderation, warps,",
-            "§7TPA, chat channels and automod. No economy, no shop —",
-            "§7the §f+§7 means essentials, not a server suite.",
+            "§7Admin tools for Bedrock: ranks, moderation, warps,",
+            "§7TPA, chat rooms and automod. No economy and no shop:",
+            "§7the §f+§7 means essentials.",
             "",
             "§fIncludes code from",
             ...INCLUDED.map(entry => `§8· §f${entry.pack} §8— ${entry.licence}`),
@@ -92,8 +92,8 @@ export async function creditsScreen(player, back) {
             "§fTechniques learned from",
             ...LEARNED_FROM.map(entry => `§8· §f${entry.pack} §8— ${entry.what}`),
             "",
-            "§8Nothing from that second list ships here — those are ideas,",
-            "§8rewritten. Tap any of them to read what was taken.",
+            "§8No code from the second list is included. The ideas were",
+            "§8rewritten here. Tap one to read what was learned.",
             "",
             // Its own place, asked for on 2026-11-12: where to get help, hear
             // about updates and suggest presets.
@@ -101,7 +101,7 @@ export async function creditsScreen(player, back) {
             "§7Help, updates, and ideas for new presets:",
             `  ${discordLine()}`,
             "",
-            "§fWhere it lives",
+            "§fLinks",
             ...HOMES.map(home => `§8· ${home.where}\n  §7${home.url}`)
         ].join("\n"),
         buttons: [...INCLUDED, ...LEARNED_FROM].map(entry => ({
@@ -125,11 +125,11 @@ async function techniqueScreen(player, entry, back) {
                     `§fBy §r${entry.who}`,
                     `§fUnder §r${entry.licence}§7, modified.`,
                     "§8creativecommons.org/licenses/by/4.0",
-                    "§8Every file taken is named in THIRD-PARTY-NOTICES.md."
+                    "§8Every file used is listed in THIRD-PARTY-NOTICES.md."
                 ]
                 : [
-                    `§8Written from scratch here. Nothing from ${entry.pack} is`,
-                    "§8shipped in this pack — the idea is theirs, the code is ours."
+                    `§8Written from scratch. No code from ${entry.pack} is`,
+                    "§8included. The idea is theirs, and the code is Admin+'s."
                 ])
         ].join("\n"),
         buttons: [],
@@ -158,10 +158,10 @@ function storageLine() {
     const loaded = report.filter(t => t.fromStorage).length
     const stuck = report.filter(t => t.unreadable).length
 
-    if (stuck) return `§c${stuck} of ${report.length} tables cannot be read — nothing will save`
-    if (loaded === report.length) return `§aall ${report.length} tables read from this world`
-    if (!loaded) return `§e${report.length} tables read fine, but this world has no Admin+ data yet`
-    return `§a${loaded}§7/§a${report.length}§7 tables had saved data`
+    if (stuck) return `§c${stuck} of ${report.length} storage tables can't be read, so nothing will save`
+    if (loaded === report.length) return `§aall ${report.length} storage tables read`
+    if (!loaded) return `§eall ${report.length} storage tables read, but this world has no Admin+ data yet`
+    return `§a${loaded}§7 of §a${report.length}§7 storage tables have saved data`
 }
 
 // /version — what am I running, and is it healthy.
@@ -179,10 +179,10 @@ command({
     description: "See which version of Admin+ is running",
     run: (player) => {
         info(player, `§l§bAdmin§d+§r §fv${ADMINPLUS_VERSION}`)
-        info(player, `§7Shape: §f${detectServerPreset().label}§7, ${ladder().length} ranks`)
+        info(player, `§7Preset: §f${detectServerPreset().label}§7, ${ladder().length} ranks`)
         info(player, `§7Storage: ${storageLine()}`)
-        info(player, `§7Beta APIs: ${betaApis() ? "§aon" : "§coff — chat formatting and mutes need it"}`)
-        info(player, `§8Type §7/${CONFIG.ns}:§8<name> when vanilla owns a command name. §7/credits§8 for who built it.`)
+        info(player, `§7Beta APIs: ${betaApis() ? "§aon" : "§coff (chat formatting and mutes need it)"}`)
+        info(player, `§8When the game already has a command by that name, type §7/${CONFIG.ns}:§8<name>. §7/credits§8 shows who made Admin+.`)
     }
 })
 

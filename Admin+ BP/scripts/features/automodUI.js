@@ -22,10 +22,10 @@ export async function automodHubScreen(player, back) {
     const checksOn = CHECK_KEYS.filter(key => flag(key)).length
     return menu(player, {
         title: hubTitle("settings", "Automod"),
-        body: subtitle("Checks tell staff what they spot. Chat screening holds\nmessages that cross a line until a person looks at them."),
+        body: subtitle("Checks alert staff to what they find. Chat screening holds\nflagged messages until staff look at them."),
         buttons: [
             { text: hubEntry("settings", "Checks", `Ore alerts, fast breaking, chat flooding · ${checksOn} of ${CHECK_KEYS.length} on`), run: () => automodScreen(player, again) },
-            { text: hubEntry("settings", "Chat screening", flag("filter.enabled") ? "§aon§8 · what to hold, and what it costs the sender" : "§coff§8 · holds messages that cross a line"), run: () => screeningScreen(player, again) },
+            { text: hubEntry("settings", "Chat screening", flag("filter.enabled") ? "§aon§8 · what to hold, and what it costs the sender" : "§coff§8 · holds flagged messages for staff"), run: () => screeningScreen(player, again) },
             waiting
                 ? { text: hubEntry("settings", `Held messages (${waiting})`, "Messages the screen stopped: allow or delete them"), run: () => heldScreen(player, again) }
                 : null
@@ -36,7 +36,7 @@ export async function automodHubScreen(player, back) {
 
 /** The four kinds of message the screen looks for, and how hard it looks. */
 const KINDS = [
-    { key: "filter.discrimination", label: "Discrimination", note: "Ships with no words: add your own in Server ▸ Advanced ▸ Every setting" },
+    { key: "filter.discrimination", label: "Discrimination", note: "Starts with no words. Add your own in Server ▸ Advanced ▸ Every setting" },
     { key: "filter.sexual", label: "Sexual content" },
     { key: "filter.aggression", label: "Hostility and threats" },
     { key: "filter.profanity", label: "Ordinary swearing" }

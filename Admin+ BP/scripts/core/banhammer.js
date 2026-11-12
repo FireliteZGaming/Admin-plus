@@ -50,7 +50,7 @@ export function worldToken() {
 export function loreFor() {
     return [
         `§8Issued by Admin+ · #${worldToken()}`,
-        "§8Only this one works. A renamed mace is just a mace."
+        "§8Only this one works. A renamed mace is still a mace."
     ]
 }
 

@@ -37,7 +37,7 @@ command({
 function send(player, selected, kind) {
     if (!flag("feature.tpa")) return err(player, "Teleport requests are turned off on this server.")
     const targets = selected ?? []
-    if (!targets.length) return err(player, "No player matched that selector.")
+    if (!targets.length) return err(player, "Nobody matched that name.")
     if (targets.length > 1) return err(player, "Ask one player at a time.")
 
     const target = targets[0]
@@ -68,9 +68,9 @@ function send(player, selected, kind) {
         kind === "to"
             ? `§f${displayName(player)}§7 wants to teleport §fto you§7.`
             : `§f${displayName(player)}§7 wants §fyou to teleport to them§7.`,
-        `§8/tpaccept ${player.name}§8 to allow · /tpadeny ${player.name}§8 to refuse · lapses in ${secs}s`,
+        `§8/tpaccept ${player.name}§8 to allow · /tpadeny ${player.name}§8 to refuse · expires in ${secs}s`,
         queued > 1
-            ? `§e${queued} requests are waiting§8 — plain /tpaccept will ask which one.`
+            ? `§e${queued} requests are waiting§8. Type /tpaccept to pick one.`
             : ""
     ].filter(Boolean).join("\n"))
 }
@@ -129,7 +129,7 @@ function accept(player, sender, request) {
         })
         ok(player, `Accepted §f${displayName(sender)}§a.`)
     } else {
-        info(sender, `§a${displayName(player)} accepted — bringing them over.`)
+        info(sender, `§a${displayName(player)} accepted. They are coming to you.`)
         queueTeleport(player, displayName(sender), () => {
             player.teleport(sender.location, { dimension: sender.dimension })
             ok(player, `Teleported to §f${displayName(sender)}§a.`)
@@ -195,7 +195,7 @@ command({
  */
 async function pickScreen(player, mode) {
     const waiting = incomingFor(player)
-    if (!waiting.length) return info(player, "§7Those requests have lapsed.")
+    if (!waiting.length) return info(player, "§7Those requests have expired.")
     if (waiting.length === 1) return resolveOne(player, waiting[0].from, mode)
 
     const denying = mode === "deny"
@@ -227,7 +227,7 @@ async function pickScreen(player, mode) {
 /** Act on one specific request, chosen by id rather than by name. */
 function resolveOne(player, fromId, mode) {
     const request = takeIncomingById(player, fromId)
-    if (!request) return info(player, "§7That request has already gone.")
+    if (!request) return info(player, "§7That request has already ended.")
     if (mode === "deny") return refuse(player, request)
 
     const sender = playerById(request.from)

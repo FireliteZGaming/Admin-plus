@@ -42,7 +42,7 @@ function cleanId(raw) {
  */
 export function save(id, data) {
     const key = cleanId(id)
-    if (!key) return { ok: false, reason: "That id has no usable characters in it." }
+    if (!key) return { ok: false, reason: "Use letters or numbers in the name." }
 
     const existing = holos.get(key)
     const holo = {
@@ -50,7 +50,7 @@ export function save(id, data) {
         kind: data.kind ?? existing?.kind ?? "text",
         text: data.text ?? existing?.text ?? "",
         title: data.title ?? existing?.title ?? "",
-        format: data.format ?? existing?.format ?? "§7{INDEX}. §f{NAME} §8— §a{SCORE}",
+        format: data.format ?? existing?.format ?? "§7{INDEX}. §f{NAME}§7: §a{SCORE}",
         objective: data.objective ?? existing?.objective ?? "",
         max: Number.isFinite(Number(data.max)) ? Number(data.max) : (existing?.max ?? 10),
         ascending: data.ascending ?? existing?.ascending ?? false,
@@ -137,7 +137,7 @@ function participantName(participant) {
 
 export function board(holo) {
     const objective = safe(() => world.scoreboard?.getObjective(holo.objective))
-    if (!objective) return [`§cNo objective "${holo.objective}"`]
+    if (!objective) return [`§cNo scoreboard called "${holo.objective}"`]
 
     rememberOnlineNames()
 
@@ -243,14 +243,14 @@ export function sync() {
             report(holo.id, `could not spawn ${TYPE} at ${holo.x} ${holo.y} ${holo.z}: ${e}`)
             continue
         }
-        if (!entity) { report(holo.id, "spawnEntity returned nothing"); continue }
+        if (!entity) { report(holo.id, "the game created nothing"); continue }
 
         try {
             entity.addTag(`${TAG}:${holo.id}`)
             entity.nameTag = render(holo)
             console.log(`[Admin+] hologram "${holo.id}" placed at ${holo.x} ${holo.y} ${holo.z}`)
         } catch (e) {
-            report(holo.id, `spawned but could not be labelled: ${e}`)
+            report(holo.id, `created, but its text could not be set: ${e}`)
         }
     }
 }

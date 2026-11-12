@@ -48,7 +48,7 @@ command({
         if (!result.ok) return err(player, result.reason)
 
         ok(player, result.updated
-            ? "Updated your report — staff have been told again."
+            ? "Updated your report. Staff were told again."
             : "Report sent. Staff have been told.")
         record(player, "report.filed", targets[0], `${category ?? "other"}: ${text}`)
         alertStaff(result.report)
@@ -96,7 +96,7 @@ export async function reportForm(player, preset, error) {
             id: "detail",
             type: "text",
             label: "What happened §8· required",
-            placeholder: "broke into my base — or, for staff abuse, what they did and when"
+            placeholder: "For example: broke into my base. For staff abuse, say what they did and when."
         }
     ])
     if (!values) return
@@ -114,7 +114,7 @@ export async function reportForm(player, preset, error) {
     if (!result.ok) return err(player, result.reason)
 
     ok(player, result.updated
-        ? "Updated your report — staff have been told again."
+        ? "Updated your report. Staff were told again."
         : "Report sent. Staff have been told.")
     record(player, "report.filed", target, `${category}: ${detail}`)
     alertStaff(result.report)
@@ -132,7 +132,7 @@ export async function reportForm(player, preset, error) {
 const CATEGORY_TEXT = {
     griefing: "Griefing §8· broke or took something",
     cheating: "Cheating §8· hacks, exploits, unfair advantage",
-    chat: "Chat §8· what somebody said",
+    chat: "Chat §8· something they said",
     abuse: "Staff abuse §8· a staff member misusing their tools",
     other: "Other §8· none of these"
 }
@@ -198,7 +198,7 @@ export async function reportsScreen(player, back) {
     if (!pending.length) {
         return menu(player, {
             title: hubTitle("actions", "Reports"),
-            body: "§7Nothing waiting.\n\n§8Reports arrive here the moment a player files one.",
+            body: "§7No reports waiting.\n\n§8New reports show up here as soon as a player sends one.",
             buttons: readableReports(player, handledReports()).length
                 ? [{ text: hubEntry("about", "Recently handled", "The last few, and who closed them"), run: () => historyScreen(player, () => reportsScreen(player, back)) }]
                 : [],
@@ -242,7 +242,7 @@ async function reportScreen(player, reportId, back) {
         return menu(player, {
             title: hubTitle("actions", "Report · closed"),
             body: [
-                `§f${report.target.name}§7 — reported by §f${report.reporter.name}`,
+                `§f${report.target.name}§7, reported by §f${report.reporter.name}`,
                 `§8${formatDate(report.at)}`,
                 "",
                 `§f${report.reason}`,
@@ -292,7 +292,7 @@ async function closeScreen(player, reportId, outcome, back) {
     if (!report || report.handled) { info(player, "Already closed."); return back() }
 
     const values = await modal(player, hubTitle("actions", outcome === "action" ? "Close report" : "Dismiss report"), [
-        { id: "note", type: "text", label: "Note §8· optional, kept with the report", placeholder: outcome === "action" ? "banned 3d" : "nothing to it" }
+        { id: "note", type: "text", label: "Note §8· optional, kept with the report", placeholder: outcome === "action" ? "banned 3d" : "no rule broken" }
     ])
     if (!values) return back()
 

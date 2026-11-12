@@ -94,7 +94,7 @@ export function accessLabel(warp) {
         case "staff": return "§6Staff only"
         case "rank": {
             const rank = getRank(warp.rank)
-            return rank ? `${rank.display}§r§7 and above` : "§cmissing rank — staff only"
+            return rank ? `${rank.display}§r§7 and above` : "§crank deleted, so staff only"
         }
         default: return "§aEveryone"
     }

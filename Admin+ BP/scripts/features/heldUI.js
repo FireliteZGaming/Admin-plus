@@ -32,7 +32,7 @@ export async function heldScreen(player, back) {
 
     const waiting = heldMessages()
     if (!waiting.length) {
-        info(player, "§7Nothing is being held. Chat is going straight through.")
+        info(player, "§7No messages are held right now.")
         return back()
     }
 
@@ -42,7 +42,7 @@ export async function heldScreen(player, back) {
         body: [
             subtitle(`${waiting.length} waiting on you.`),
             "§8Approving posts it where it was going. Denying drops it.",
-            "§8The sender was never told either way."
+            "§8The sender isn't told either way."
         ].join("\n"),
         buttons: [
             ...waiting.map(entry => ({
@@ -55,7 +55,7 @@ export async function heldScreen(player, back) {
                 text: hubButton("moderation", "Deny all", `Drop all ${waiting.length} without posting`),
                 run: async () => {
                     const sure = await confirm(player, hubTitle("settings", "Deny all"),
-                        `Drop all ${waiting.length} held messages?\n\n§7They are not posted and nobody is punished. The queue is simply emptied.`)
+                        `Drop all ${waiting.length} held messages?\n\n§7They are not posted, and nobody is punished.`)
                     if (!sure) return again()
                     const n = clearHeld()
                     record(player, "chat.denyAll", undefined, `${n} held message(s)`)
@@ -69,7 +69,7 @@ export async function heldScreen(player, back) {
 
 async function oneScreen(player, id, back) {
     const entry = heldMessages().find(e => e.id === id)
-    if (!entry) { info(player, "§7Somebody already dealt with that one."); return back() }
+    if (!entry) { info(player, "§7Someone already handled that one."); return back() }
 
     const sender = senderOf(entry)
     const channel = getChannel(entry.channel)
@@ -77,7 +77,7 @@ async function oneScreen(player, id, back) {
     // The ladder applies here as everywhere: releasing or dropping somebody
     // senior's message is acting on them.
     if (sender && !canActOn(player, sender)) {
-        err(player, `${entry.player.name} outranks you — leave this one.`)
+        err(player, `${entry.player.name} outranks you, so leave this one for higher staff.`)
         return back()
     }
 
@@ -93,11 +93,11 @@ async function oneScreen(player, id, back) {
         ].join("\n"),
         buttons: [
             {
-                text: hubButton("settings", "Approve", "Post it, where it was going"),
+                text: hubButton("settings", "Approve", "Post it where it was going"),
                 run: () => {
                     removeHeld(id)
                     if (!sender) {
-                        info(player, "§7They have left — nothing to post. Dropped instead.")
+                        info(player, "§7They left, so the message was dropped instead of posted.")
                         record(player, "chat.approve", undefined, `"${entry.message}" (sender gone)`)
                         return back()
                     }

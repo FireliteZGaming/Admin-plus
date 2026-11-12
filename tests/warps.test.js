@@ -60,7 +60,7 @@ console.log("\n— a deleted rank fails closed, not open —")
 saveWarp("vault", { access: "rank", rank: "ghost_rank" })
 check("member still cannot reach it", canUseWarp(nova, getWarp("vault")), false)
 check("it degrades to staff-only", canUseWarp(modder, getWarp("vault")), true)
-check("and the label says something is wrong", accessLabel(getWarp("vault")).includes("missing"), true)
+check("and the label says something is wrong", accessLabel(getWarp("vault")).includes("deleted"), true)
 
 console.log("\n— labels —")
 check("everyone", accessLabel(getWarp("market_square")).includes("Everyone"), true)

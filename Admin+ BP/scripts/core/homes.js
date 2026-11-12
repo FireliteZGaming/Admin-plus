@@ -62,8 +62,8 @@ export function homeLimit(player) {
 export function setHome(player, id, at = player?.location) {
     if (!flag("feature.homes")) return { ok: false, reason: "Homes are turned off on this server." }
     const homeId = normaliseHomeId(id || "home")
-    if (!homeId) return { ok: false, reason: "That name has nothing in it." }
-    if (!at) return { ok: false, reason: "Could not read where you are standing." }
+    if (!homeId) return { ok: false, reason: "Use letters or numbers in the name." }
+    if (!at) return { ok: false, reason: "Couldn't read your position. Try again." }
 
     const mine = homesOf(player.id)
     const existing = mine.find(h => h.id === homeId)

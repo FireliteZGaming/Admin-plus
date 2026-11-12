@@ -156,8 +156,8 @@ function startStaffMode(player) {
     record(player, "admin.staffmode", player, `on · stowed ${result.stowed} stack(s)`)
     ok(player, "§7Staff mode on. Your things are put away.")
     info(player, mayVanish
-        ? "§8/mm again gives everything back."
-        : "§8You are still visible — your rank doesn't hold vanish. §8/mm again gives everything back.")
+        ? "§8Type /mm again to get your things back."
+        : "§8You are still visible, because your rank doesn't have Vanish. §8Type /mm again to get your things back.")
 }
 
 function stopStaffMode(player) {
@@ -182,7 +182,7 @@ function stopStaffMode(player) {
     // they were in staff mode the originals are gone, and the difference shows
     // up in shulker boxes and written books — things the script API cannot read.
     if (!result.lossless || rebuilt) {
-        info(player, "§eThat was rebuilt from the saved copy, because the world reloaded while you were in staff mode.")
+        info(player, "§eYour things came back from the saved copy, because the world reloaded while you were in staff mode.")
         info(player, "§8Names, lore, enchantments and damage came back. Container contents and book pages did not.")
     }
 }
@@ -204,7 +204,7 @@ command({
             // a thing: their items would be stowed under their own name with no
             // way for them to know.
             if (!inStaffMode(target)) {
-                return err(player, `${displayName(target)} isn't in staff mode. You can take somebody out of it, not put them in.`)
+                return err(player, `${displayName(target)} isn't in staff mode. You can take a player out of staff mode, but not put them in.`)
             }
             stopStaffMode(target)
             return ok(player, `Took §f${displayName(target)}§a out of staff mode.`)
@@ -252,7 +252,7 @@ export function installStaffMode() {
             if (!event.initialSpawn || !event.player) return
             if (!inStaffMode(event.player)) return
             system.runTimeout(() => {
-                info(event.player, "§7You left while in staff mode — putting your things back.")
+                info(event.player, "§7You left while in staff mode, so your things were put back.")
                 stopStaffMode(event.player)
             }, 20)
         })

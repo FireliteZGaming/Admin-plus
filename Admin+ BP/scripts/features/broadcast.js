@@ -38,7 +38,7 @@ const WHERE = defineEnum("where", [ALL, ...allChannels().map(channel => channel.
 export function broadcastTo(sender, scope, message) {
     const where = String(scope ?? ALL).trim().toLowerCase()
     const text = String(message ?? "").trim()
-    if (!text) return { ok: false, reason: "Nothing to say." }
+    if (!text) return { ok: false, reason: "Type a message to send." }
 
     let audience
     let channel
@@ -81,7 +81,7 @@ command({
         // The sender is inside their own audience, so they have already read the
         // broadcast itself. This only says where it landed.
         ok(player, result.channel
-            ? `Sent to ${result.channel.display}§a — §f${result.reached}§a reading.`
-            : `Sent to everyone — §f${result.reached}§a online.`)
+            ? `Sent to ${result.channel.display}§a. §f${result.reached}§a can read it.`
+            : `Sent to everyone. §f${result.reached}§a online.`)
     }
 })

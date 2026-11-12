@@ -82,7 +82,7 @@ const rows = tally([
 ])
 check("sorted by how many", rows.map(r => r.type), ["chicken", "item", "xp_orb"])
 check("worded", describeTally(rows), "3 chicken, 2 item, 1 xp orb")
-check("empty reads sensibly", describeTally([]), "nothing worth mentioning")
+check("empty reads sensibly", describeTally([]), "nothing else")
 
 console.log("\n— warning delay —")
 check("defaults to 5s", warnSeconds(), 5)

@@ -21,7 +21,7 @@ command({
         const place = lastPlace(player.id)
         if (!place) {
             return err(player, "Nowhere to go back to yet. "
-                + "A teleport or a death leaves a mark you can return to.")
+                + "You can go back after a teleport or a death.")
         }
 
         const label = place.death ? "where you died" : "where you were"
@@ -31,7 +31,7 @@ command({
             // Taken at the LAST moment, not when the command was typed: a
             // warmup somebody walks out of should leave the mark where it was.
             const going = takeLastPlace(player.id)
-            if (!going) return err(player, "That mark is gone.")
+            if (!going) return err(player, "That spot is no longer saved.")
 
             // Lay a new one before moving, so /back twice returns you here.
             mark(player)

@@ -42,7 +42,7 @@ function applyByEvent(source, wanted) {
 
     if (!id) {
         const names = Object.values(allServerPresets()).map(p => `${p.label} (${p.id})`).join(", ")
-        reply(source, "info", `§7Server shapes: §f${names}§7. Currently §f${detectServerPreset().label}§7.`)
+        reply(source, "info", `§7Server presets: §f${names}§7. Now: §f${detectServerPreset().label}§7.`)
         return
     }
 
@@ -64,12 +64,12 @@ function applyByEvent(source, wanted) {
 
     reply(source, "ok", `This server is now §f${preset.label}§a.`)
     reply(source, "info", [
-        `§7${result.ranks} ranks · ${result.configCount} config values`,
+        `§7${result.ranks} ranks · ${result.configCount} settings`,
         result.channelsAdded.length
             ? `§7Added chats: §f${result.channelsAdded.join(", ")}`
             : "§7No new chats needed.",
-        "§8Warps and who holds which rank are untouched. Ranks the new ladder",
-        "§8does not define have stopped existing — Ranks ▸ Undo last change puts them back."
+        "§8Warps, and who has which rank, are not touched. Ranks the new list",
+        "§8doesn't have are gone for now. Ranks ▸ Undo last change brings them back."
     ].join("\n"))
 
     console.log(`[Admin+] server preset applied via scriptevent: ${preset.label}`)

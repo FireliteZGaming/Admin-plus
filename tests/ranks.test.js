@@ -652,7 +652,7 @@ check("and the rest of that group still comes from the generator",
     ["allowlist", "automod"])
 // It has to survive the OTHER branches too, not just this one.
 check("an override applies when a shared prefix is stripped",
-    nodeLabels(["chat.staff", "chat.manage", "chat.spy"]), ["staff", "make & edit chats", "spy"])
+    nodeLabels(["chat.staff", "chat.manage", "chat.spy"]), ["staff", "make and edit chats", "spy"])
 check("and when a single node is asked for on its own",
     nodeLabels(["ranks.view"]), ["rank list"])
 

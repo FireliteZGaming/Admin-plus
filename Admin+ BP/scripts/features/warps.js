@@ -115,7 +115,7 @@ export async function warpsScreen(player, back) {
     return pagedMenu(player, {
         title: hubTitle("warps", "Warps"),
         body: subtitle(manage
-            ? "Every destination. Tap one to go, move or edit it."
+            ? "Every warp. Tap one to go there, move it or edit it."
             : "Tap a warp to travel."),
         items: rows,
         render: row => row.spawn
@@ -125,7 +125,7 @@ export async function warpsScreen(player, back) {
             ? spawnScreen(player, () => warpsScreen(player, back))
             : warpScreen(player, row.id, () => warpsScreen(player, back)),
         extra: manage
-            ? [{ text: hubEntry("presets", "+ Create warp here", "Uses your current position"), run: () => createScreen(player, () => warpsScreen(player, back)) }]
+            ? [{ text: hubEntry("presets", "+ New warp here", "Where you are standing"), run: () => createScreen(player, () => warpsScreen(player, back)) }]
             : [],
         back
     })
@@ -151,7 +151,7 @@ async function spawnScreen(player, back) {
                 : "§cNo spawn set yet.",
             "",
             `§fProtection: §r${flag("spawn.protect") ? `§aon §8· ${setting("spawn.radius")} blocks` : "§8off"}`,
-            flag("spawn.protect") ? "§8No building and no PvP in range, staff excepted." : ""
+            flag("spawn.protect") ? "§8No building and no PvP nearby, except for staff." : ""
         ].join("\n"),
         buttons: [
             point
@@ -178,13 +178,13 @@ async function spawnEditScreen(player, back) {
         {
             id: "protect",
             type: "toggle",
-            label: "Spawn protection\n§8No terrain damage and no PvP in range, staff excepted",
+            label: "Spawn protection\n§8No building and no PvP nearby, except for staff",
             default: flag("spawn.protect")
         },
         {
             id: "radius",
             type: "text",
-            label: "Protection radius in blocks\n§8Whole number, measured out from the spawn point",
+            label: "Protected area, in blocks from spawn\n§8A whole number",
             default: String(setting("spawn.radius"))
         }
     ])
@@ -202,7 +202,7 @@ async function spawnEditScreen(player, back) {
         `protection ${values.protect ? "on" : "off"} · ${Math.round(radius)} blocks`)
 
     ok(player, values.protect
-        ? `Spawn protected for §f${Math.round(radius)}§a blocks — no building, no PvP.`
+        ? `Spawn is protected for §f${Math.round(radius)}§a blocks: no building and no PvP.`
         : "Spawn protection off.")
     if (values.protect && !getSpawn()) {
         info(player, "§7Protection does nothing until spawn is set.")
@@ -217,31 +217,31 @@ async function setSpawnScreen(player, back) {
         if (!yes) return back()
     }
     setSpawn(player)
-    record(player, "warp.spawnSet", undefined, "moved to the setter's position")
+    record(player, "warp.spawnSet", undefined, "moved to where they stood")
     ok(player, "Spawn set to your position.")
     return back()
 }
 
 async function createScreen(player, back) {
-    const values = await modal(player, hubTitle("warps", "Create warp"), [
-        { id: "id", type: "text", label: "Warp id §8· lowercase, no spaces. This is what people type.", placeholder: "market" },
-        { id: "display", type: "text", label: "Display §8· shown in the list, §§ codes allowed", placeholder: "§aMarket" }
+    const values = await modal(player, hubTitle("warps", "New warp"), [
+        { id: "id", type: "text", label: "ID §8· lowercase, no spaces. Players type this.", placeholder: "market" },
+        { id: "display", type: "text", label: "Name §8· shown in the list, §§ codes allowed", placeholder: "§aMarket" }
     ])
     if (!values) return back()
 
     const id = normaliseWarpId(values.id)
-    if (!id) { err(player, "That warp id isn't usable."); return back() }
+    if (!id) { err(player, "Use lowercase letters or numbers for the ID."); return back() }
     if (getWarp(id)) { err(player, `A warp called §f${id}§c already exists.`); return back() }
 
     const warp = saveWarp(id, { display: values.display || id }, player)
     record(player, "warp.create", undefined, warp.id)
-    ok(player, `Created §f${warp.display}§a where you're standing. Everyone can use it until you gate it.`)
+    ok(player, `Made §f${warp.display}§a where you're standing. Everyone can use it until you limit who can.`)
     return warpScreen(player, id, back)
 }
 
 async function warpScreen(player, warpId, back) {
     const warp = getWarp(warpId)
-    if (!warp) { err(player, "That warp is gone."); return back() }
+    if (!warp) { err(player, "That warp no longer exists."); return back() }
     const again = () => warpScreen(player, warpId, back)
     const manage = has(player, "warp.manage")
 
@@ -264,8 +264,8 @@ async function warpScreen(player, warpId, back) {
                     return again()
                 }
             },
-            manage ? { text: "§bMove warp here §8· re-anchor to where you stand", run: () => moveScreen(player, warpId, again) } : null,
-            manage ? { text: "§bEdit §8· name, access, delete", run: () => editScreen(player, warpId, again, back) } : null
+            manage ? { text: "§bMove warp here §8· to where you stand", run: () => moveScreen(player, warpId, again) } : null,
+            manage ? { text: "§bEdit §8· name, who can use it, delete", run: () => editScreen(player, warpId, again, back) } : null
         ].filter(Boolean),
         back
     })
@@ -274,14 +274,14 @@ async function warpScreen(player, warpId, back) {
 /** Everything about a warp that needs typing or choosing, on one screen. */
 async function editScreen(player, warpId, back, parentBack) {
     const warp = getWarp(warpId)
-    if (!warp) { err(player, "That warp is gone."); return parentBack() }
+    if (!warp) { err(player, "That warp no longer exists."); return parentBack() }
     const again = () => editScreen(player, warpId, back, parentBack)
 
     return menu(player, {
         title: hubTitle("warps", `Edit · ${warp.id}`),
-        body: subtitle("Renaming changes the label, never the id people type."),
+        body: subtitle("Renaming changes the name in the list, not the ID players type."),
         buttons: [
-            { text: `§bDisplay name\n§8${warp.display}`, run: () => renameScreen(player, warpId, again) },
+            { text: `§bName\n§8${warp.display}`, run: () => renameScreen(player, warpId, again) },
             { text: `§bAccess\n§8${accessLabel(warp)}`, run: () => accessScreen(player, warpId, again) },
             { text: "§cDelete warp", run: () => deleteScreen(player, warpId, parentBack) }
         ],
@@ -304,7 +304,7 @@ async function moveScreen(player, warpId, back) {
 async function renameScreen(player, warpId, back) {
     const warp = getWarp(warpId)
     const values = await modal(player, hubTitle("warps", `Rename · ${warpId}`), [
-        { id: "display", type: "text", label: "Display §8· the id people type does not change", default: warp.display }
+        { id: "display", type: "text", label: "Name §8· the ID players type stays the same", default: warp.display }
     ])
     if (!values) return back()
     saveWarp(warpId, { display: values.display || warp.id })
@@ -317,8 +317,8 @@ async function accessScreen(player, warpId, back) {
     return menu(player, {
         title: hubTitle("warps", `Access · ${warpId}`),
         body: [
-            subtitle("A warp someone cannot use is invisible to them —"),
-            "§8it stays out of their list, and naming it says \"no such warp\".",
+            subtitle("A player who can't use a warp doesn't see it."),
+            "§8It isn't in their list, and typing its name says it doesn't exist.",
             "",
             `§fCurrently: §r${accessLabel(warp)}`
         ].join("\n"),
@@ -350,7 +350,7 @@ async function accessScreen(player, warpId, back) {
 async function rankAccessScreen(player, warpId, back) {
     return pagedMenu(player, {
         title: hubTitle("warps", "Rank required"),
-        body: subtitle("Anyone at this ladder row or above can use the warp."),
+        body: subtitle("Players with this rank or a higher one can use the warp."),
         items: rankOptions(),
         render: rank => ({ text: `${rank.display}§r §8and above` }),
         onPick: rank => {

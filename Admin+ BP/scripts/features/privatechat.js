@@ -80,7 +80,7 @@ function sendPrivate(player, selected, message) {
     if (!flag("feature.pm")) return err(player, "Private messages are turned off on this server.")
 
     const targets = selected ?? []
-    if (!targets.length) return err(player, "No player matched that selector.")
+    if (!targets.length) return err(player, "Nobody matched that name.")
     if (targets.length > 1) return err(player, "Pick one player.")
 
     const target = targets[0]
@@ -116,8 +116,8 @@ command({
     run: (player) => {
         const on = toggleSpying(player)
         if (on) {
-            info(player, "§7Social spy §aon§7 — you now see private messages and /prchat sessions.")
-            info(player, "§8It stays on until you turn it off, including after a rejoin.")
+            info(player, "§7Social spy §aon§7. You now see private messages and private chats.")
+            info(player, "§8It stays on until you turn it off, even if you leave and rejoin.")
         } else {
             info(player, "§7Social spy §coff§7.")
         }
@@ -216,14 +216,14 @@ export function askPrivateChat(player, target) {
     }
 
     if (inviteFrom(target, player)) {
-        return info(player, `§7Already asked — waiting on §f${displayName(target)}§7.`)
+        return info(player, `§7Already asked. Waiting for §f${displayName(target)}§7 to answer.`)
     }
 
     invite(player, target)
-    ok(player, `Asked §f${displayName(target)}§a for a private chat. It lapses in §f${INVITE_SECONDS}s§a.`)
+    ok(player, `Asked §f${displayName(target)}§a for a private chat. It expires in §f${INVITE_SECONDS}s§a.`)
     target.sendMessage([
         `${CONFIG.brand.prefix}§d${displayName(player)}§7 wants a private chat.`,
-        `§8§f/praccept ${player.name}§8 to accept · §f/prdeny§8 to turn it down · lapses in ${INVITE_SECONDS}s`
+        `§8§f/praccept ${player.name}§8 to accept · §f/prdeny§8 to turn it down · expires in ${INVITE_SECONDS}s`
     ].join("\n"))
 }
 
@@ -286,7 +286,7 @@ function acceptInvite(player, fromId) {
 
     const asker = world.getAllPlayers().find(p => p.id === held.from)
     if (!asker) return err(player, `§f${held.fromName}§c has gone offline.`)
-    if (inPair(asker)) return err(player, `§f${displayName(asker)}§c has already started one with somebody else.`)
+    if (inPair(asker)) return err(player, `§f${displayName(asker)}§c is already in a private chat with someone else.`)
 
     open(player, asker)
 }
@@ -307,7 +307,7 @@ function denyInvites(player, fromIds) {
 /** Several people are waiting: list them, the way /tpaccept and /tpadeny do. */
 async function whichInvite(player, mode) {
     const waiting = pendingInvites(player)
-    if (!waiting.length) return info(player, "§7Those requests have lapsed.")
+    if (!waiting.length) return info(player, "§7Those requests have expired.")
 
     const denying = mode === "deny"
     return menu(player, {
@@ -344,7 +344,7 @@ function leave(player) {
         // rather than saying nothing useful.
         const waiting = pendingInvites(player)
         return info(player, waiting.length
-            ? `§7${waiting.length} private chat request${waiting.length === 1 ? " is" : "s are"} waiting — §f/praccept§7 or §f/prdeny§7.`
+            ? `§7${waiting.length} private chat request${waiting.length === 1 ? " is" : "s are"} waiting. Use §f/praccept§7 or §f/prdeny§7.`
             : "§7You are not in a private chat.")
     }
 
@@ -366,7 +366,7 @@ export function routePrivate(player, message) {
     const partner = world.getAllPlayers().find(p => p.id === partnerId)
     if (!partner) {
         endPair(player)
-        player.sendMessage(`${CONFIG.brand.prefix}§7They left — private chat closed.`)
+        player.sendMessage(`${CONFIG.brand.prefix}§7They left, so the private chat closed.`)
         return true
     }
 
@@ -390,7 +390,7 @@ export function installPrivateChat() {
         const partnerId = forgetPlayer(playerId)
         if (!partnerId) return
         const partner = world.getAllPlayers().find(p => p.id === partnerId)
-        if (partner) info(partner, "§7They left the world — private chat closed.")
+        if (partner) info(partner, "§7They left, so the private chat closed.")
     })
 
     console.log("[Admin+] private chat ready")

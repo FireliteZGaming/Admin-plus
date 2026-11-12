@@ -145,7 +145,7 @@ export function openEnderView(viewer, target, mode = "marker") {
     // turns overwriting each other, and the loser's edits would vanish.
     const busy = viewOpenOn(target.id)
     if (busy && busy.viewerId !== viewer.id) {
-        return { ok: false, reason: "Somebody else has that ender chest open." }
+        return { ok: false, reason: "Someone else has that ender chest open." }
     }
     closeEnderView(viewer)
 
@@ -159,26 +159,26 @@ export function openEnderView(viewer, target, mode = "marker") {
         spot = safe(() => viewer.location)
     } else {
         const at = safe(() => viewer.getHeadLocation()) ?? safe(() => viewer.location)
-        if (!at) return { ok: false, reason: "Couldn't work out where you are." }
+        if (!at) return { ok: false, reason: "Couldn't read your position. Try again." }
         const facing = safe(() => viewer.getViewDirection()) ?? { x: 0, y: 0, z: 1 }
         spot = { x: at.x + facing.x * 1.4, y: at.y + facing.y * 1.4, z: at.z + facing.z * 1.4 }
     }
-    if (!spot) return { ok: false, reason: "Couldn't work out where you are." }
+    if (!spot) return { ok: false, reason: "Couldn't read your position. Try again." }
 
     let entity
     try {
         entity = viewer.dimension.spawnEntity(riding ? RIDE_TYPE : TYPE, spot)
     } catch (e) {
-        return { ok: false, reason: `Couldn't open the drag view (${e}).` }
+        return { ok: false, reason: `Couldn't open the real chest (${e}).` }
     }
     // NOT wrapped in safe(): a marker that failed to spawn means the whole
     // feature is broken, and the caller has a working screen to fall back on.
-    if (!entity) return { ok: false, reason: "Couldn't open the drag view." }
+    if (!entity) return { ok: false, reason: "Couldn't open the real chest." }
 
     const box = boxOf(entity)
     if (!box) {
         safe(() => entity.remove())
-        return { ok: false, reason: "The drag view has no container — the pack may be out of date." }
+        return { ok: false, reason: "The real chest didn't open. The resource pack may be out of date." }
     }
 
     copyInto(chest, box)
@@ -191,7 +191,7 @@ export function openEnderView(viewer, target, mode = "marker") {
         const seated = seat && safe(() => seat.addRider(viewer), false)
         if (!seated) {
             safe(() => entity.remove())
-            return { ok: false, reason: "Couldn't sit you in the ender chest seat." }
+            return { ok: false, reason: "Couldn't open the real chest." }
         }
     }
     // No nametag. The marker renders as an ender chest, so floating text over

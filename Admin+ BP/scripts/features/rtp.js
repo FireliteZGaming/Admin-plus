@@ -30,8 +30,8 @@ command({
 
         const spot = findSpot(player, player.dimension)
         if (!spot) {
-            return err(player, "Couldn't find anywhere safe to drop you. Try again — "
-                + "it looks in a different direction each time.")
+            return err(player, "Couldn't find a safe place to send you. Try again. "
+                + "It looks in a different direction each time.")
         }
         const from = player.location
 
@@ -49,13 +49,13 @@ command({
             } catch { went = false }
 
             if (!went) {
-                return err(player, "That spot was taken by the time you got there. Try again.")
+                return err(player, "That spot wasn't safe by the time you got there. Try again.")
             }
             // Measured from where they STOOD, captured before the warmup — after
             // the teleport `player.location` is the destination, so a distance
             // read then is always zero. That is the whole reason `from` exists.
             const out = Math.round(Math.hypot(spot.x - from.x, spot.z - from.z))
-            ok(player, `Dropped you at §f${Math.round(spot.x)}, ${Math.round(spot.z)}§a. `
+            ok(player, `Sent you to §f${Math.round(spot.x)}, ${Math.round(spot.z)}§a. `
                 + `§7(${out} blocks out)`)
         }, "rtp.cooldown")
     }

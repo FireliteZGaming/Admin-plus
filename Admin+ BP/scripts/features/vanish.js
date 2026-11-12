@@ -23,7 +23,7 @@ command({
 
         for (const target of targets) {
             if (target.id !== player.id && !canActOn(player, target)) {
-                err(player, `${displayName(target)} outranks you — skipped.`)
+                err(player, `${displayName(target)} outranks you, so they were skipped.`)
                 continue
             }
 
@@ -42,11 +42,11 @@ command({
 
             if (target.id === player.id) {
                 ok(player, nowHidden
-                    ? "§7You're gone — armour and held items included."
+                    ? "§7You're invisible, armour and held items too."
                     : "§7You're visible again.")
             } else {
                 ok(player, `${displayName(target)} is now §f${nowHidden ? "hidden" : "visible"}§a.`)
-                info(target, nowHidden ? "§7You were vanished by staff." : "§7You were made visible again.")
+                info(target, nowHidden ? "§7Staff made you invisible." : "§7You were made visible again.")
             }
 
             record(player, nowHidden ? "admin.vanish" : "admin.unvanish", target,

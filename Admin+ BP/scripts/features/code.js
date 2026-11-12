@@ -20,7 +20,7 @@ import { record } from "../core/logs.js"
 // so the section can finally be the thing it was named after.
 //
 // The other three buttons moved rather than died — the field editor, the config
-// presets and Factory Reset all live under /admin ▸ Settings now, which is where
+// presets and Factory reset all live under /admin ▸ Settings now, which is where
 // somebody looking for a setting would have looked first anyway.
 //
 // Gated by BOTH a "Dev" tag and operator status, deliberately: the tag alone is
@@ -59,7 +59,7 @@ function presetColour() {
 export const GROUPS = {
     bracket: "Brackets",
     format: "Formatting",
-    presence: "Join & leave",
+    presence: "Join and leave",
     vanish: "Vanish",
     invsee: "Inventory viewing",
     logs: "Logs",
@@ -68,7 +68,7 @@ export const GROUPS = {
     automod: "Automod",
     filter: "Chat screening",
     ban: "Bans",
-    troll: "Troll commands",
+    troll: "Pranks",
     warnings: "Warnings",
     items: "Admin items",
     creator: "Creator",
@@ -77,7 +77,7 @@ export const GROUPS = {
     teleport: "Teleporting",
     tpa: "TPA",
     rtp: "Random teleport",
-    namecolour: "Colour-shifting nametags",
+    namecolour: "Name colour effects",
     ranks: "Ranks",
     staff: "Staff"
 }
@@ -162,17 +162,17 @@ export async function allValuesScreen(player, back) {
     return menu(player, {
         title: hubTitle("settings", "Every setting"),
         body: [
-            subtitle("The same settings the screens above edit, seen raw."),
+            subtitle("Every setting the other screens change, as one plain list."),
             "",
             total
-                ? `§f${total}§7 value${total === 1 ? "" : "s"} differ from the shipped default.`
-                : "§8Everything is at its shipped default."
+                ? `§f${total}§7 ${total === 1 ? "setting differs" : "settings differ"} from the default.`
+                : "§8Every setting is at its default."
         ].join("\n"),
         buttons: groups.map(([group, keys]) => {
             const diff = keys.filter(differs).length
             return {
                 text: hubEntry("settings", group,
-                    diff ? `${diff} of ${keys.length} changed` : `${keys.length} value${keys.length === 1 ? "" : "s"}`),
+                    diff ? `${diff} of ${keys.length} changed` : `${keys.length} setting${keys.length === 1 ? "" : "s"}`),
                 run: () => groupScreen(player, group, keys, again)
             }
         }),
@@ -241,21 +241,21 @@ export async function configPresetsScreen(player, back) {
     const again = () => configPresetsScreen(player, back)
 
     return menu(player, {
-        title: hubTitle("presets", "Config presets"),
+        title: hubTitle("presets", "Saved setups"),
         body: [
             `§fCurrently: §r${presetColour()}${current.label}`,
             current.id === "custom"
-                ? "§8Custom means the values match no preset — somebody changed something."
-                : "§8Change any value and this becomes Custom on its own.",
+                ? "§8Custom means the settings match no saved setup."
+                : "§8Changing any setting makes this Custom.",
             "",
-            "§8A preset only sets the keys it names; everything else is left alone."
+            "§8A setup only changes the settings it lists. The rest stay as they are."
         ].join("\n"),
         buttons: [
             ...Object.entries(presets).map(([id, preset]) => ({
                 text: `${id === current.id ? "§a" : "§f"}${preset.label}${preset.custom ? " §8(saved here)" : ""}§r\n§8${preset.description}`,
                 run: () => applyScreen(player, id, again)
             })),
-            { text: "§b+ Save current values as a preset", run: () => saveScreen(player, again) }
+            { text: "§b+ Save the current settings as a setup", run: () => saveScreen(player, again) }
         ],
         back
     })
@@ -263,12 +263,12 @@ export async function configPresetsScreen(player, back) {
 
 async function applyScreen(player, id, back) {
     const preset = getPreset(id)
-    if (!preset) { err(player, "That preset is gone."); return back() }
+    if (!preset) { err(player, "That setup no longer exists."); return back() }
 
     const keys = Object.keys(preset.values ?? {})
     const summary = keys.length
         ? keys.slice(0, 8).map(k => `§8· ${k} = ${preset.values[k]}`).join("\n")
-        : "§8· clears every override, back to shipped defaults"
+        : "§8· puts every setting back to its default"
 
     const yes = await confirm(player, hubTitle("presets", preset.label),
         `${preset.description}\n\n${summary}${keys.length > 8 ? `\n§8· …and ${keys.length - 8} more` : ""}`,
@@ -278,26 +278,26 @@ async function applyScreen(player, id, back) {
     const touched = applyPreset(id)
     restyleEveryone()
     record(player, "config.preset", undefined, `${preset.label} · ${touched} values`)
-    ok(player, `Applied §f${preset.label}§a — ${touched} value${touched === 1 ? "" : "s"} set.`)
+    ok(player, `Loaded §f${preset.label}§a. ${touched} setting${touched === 1 ? "" : "s"} changed.`)
     return back()
 }
 
 async function saveScreen(player, back) {
-    const values = await modal(player, hubTitle("presets", "Save preset"), [
-        { id: "id", type: "text", label: "Preset id §8· lowercase, no spaces", placeholder: "myrealm" },
+    const values = await modal(player, hubTitle("presets", "Save setup"), [
+        { id: "id", type: "text", label: "ID §8· lowercase, no spaces", placeholder: "myrealm" },
         { id: "label", type: "text", label: "Name §8· how it shows in the list", placeholder: "My Realm" },
-        { id: "description", type: "text", label: "One line about it §8· optional", placeholder: "" }
+        { id: "description", type: "text", label: "Description §8· optional", placeholder: "" }
     ])
     if (!values) return back()
 
     const preset = savePresetFromCurrent(values.id, values.label, values.description)
     if (!preset) {
-        err(player, "That id isn't usable, or it collides with a built-in preset.")
+        err(player, "Use lowercase letters or numbers for the ID, and not the ID of a built-in setup.")
         return back()
     }
     record(player, "config.presetSave", undefined, preset.label)
-    ok(player, `Saved §f${preset.label}§a — ${Object.keys(preset.values).length} values captured.`)
-    info(player, "§7It only stores what differs from default, so it stays small.")
+    ok(player, `Saved §f${preset.label}§a with ${Object.keys(preset.values).length} settings.`)
+    info(player, "§7It stores only the settings that differ from the defaults.")
     return back()
 }
 
@@ -346,9 +346,9 @@ export function previewLine() {
 export function toBlock() {
     const current = detectPreset()
     const lines = [
-        "# Admin+ config. key = value, one per line. # lines are ignored.",
-        "# preset: type another preset's name to apply it. Custom means the",
-        "# values match no preset, which is the honest answer.",
+        "# Admin+ settings. One per line: key = value. Lines starting with # are ignored.",
+        "# preset: type a saved setup's name to load it. Custom means the",
+        "# settings match no saved setup.",
         `preset = ${current.id}`
     ]
     for (const [group, keys] of groupedKeys()) {
@@ -387,7 +387,7 @@ export function fromBlock(text) {
  *
  * Submitting the block REPLACES the override table with whatever came back, so
  * an empty field discards every changed value — a factory reset with no
- * confirmation, from a screen that is not Factory Reset. Cheap to do by
+ * confirmation, from a screen that is not Factory reset. Cheap to do by
  * accident now that the box is a real multi-line editor you can select-all and
  * type over, and not yet ruled out as something the new control might do on its
  * own, since nothing has run it in game.
@@ -410,9 +410,9 @@ async function blockScreen(player, back) {
             id: "block",
             type: "text",
             label: [
-                `§8The live config — ${Object.keys(DEFAULTS).length} values, ${detectPreset().label}${changed ? `, ${changed} changed from default` : ""}.`,
-                "§8Edit the lines you want. Submit saves; closing changes nothing.",
-                "§8Server ▸ Advanced ▸ Every setting does the same job one field at a time."
+                `§8All ${Object.keys(DEFAULTS).length} settings. Setup: ${detectPreset().label}${changed ? `, ${changed} changed from default` : ""}.`,
+                "§8Edit the lines you want. Submit to save, or close to change nothing.",
+                "§8Server ▸ Advanced ▸ Every setting changes the same things one at a time."
             ].join("\n"),
             placeholder: "key = value",
             default: toBlock()
@@ -433,12 +433,12 @@ async function blockScreen(player, back) {
         // is by far the likeliest thing to be wrong — this screen is only a
         // multi-line editor because the RESOURCE pack overrides the form, so
         // without it the document arrives as one line and comes back mangled.
-        err(player, "That came back with no config in it — nothing was saved.")
+        err(player, "The box came back empty, so nothing was saved.")
         info(player, [
             "§7Was the box one line instead of a tall editor? Then the Admin+",
-            "§7§oresource§r§7 pack is not on in this world — it is what makes this",
-            "§7screen an editor at all. Turn it on, or use §fServer ▸ Advanced ▸ Every setting§7,",
-            "§7which edits the same keys one field at a time and needs no pack.",
+            "§7§oresource§r§7 pack is not on in this world. It is what turns this",
+            "§7screen into an editor. Turn it on, or use §fServer ▸ Advanced ▸ Every setting§7,",
+            "§7which changes the same settings one at a time and needs no pack.",
             "§8To clear every change on purpose: Server ▸ Advanced ▸ Factory reset."
         ].join("\n"))
         return back()
@@ -451,16 +451,16 @@ async function blockScreen(player, back) {
     delete parsed.values.preset
     if (asked && asked !== "custom" && asked !== detectPreset().id) {
         if (!getPreset(asked)) {
-            err(player, `No preset called "§f${asked}§c". Known: §f${Object.keys(allPresets()).join(", ")}`)
+            err(player, `No saved setup called "§f${asked}§c". Saved: §f${Object.keys(allPresets()).join(", ")}`)
             return back()
         }
         applyPreset(asked)
-        info(player, `Applied the §f${getPreset(asked).label}§7 preset.`)
+        info(player, `Loaded the §f${getPreset(asked).label}§7 setup.`)
     }
 
     if (parsed.unknown.length) {
         const yes = await confirm(player, hubTitle("code", "Unknown keys"),
-            `Admin+ doesn't use:\n§7${parsed.unknown.join(", ")}\n\nSave anyway? They will sit there unused.`,
+            `Admin+ doesn't use these:\n§7${parsed.unknown.join(", ")}\n\nSave anyway? They won't do anything.`,
             "§eSave")
         if (!yes) return back()
     }
@@ -491,13 +491,13 @@ async function blockScreen(player, back) {
 
     const count = Object.keys(store).length
     ok(player, count
-        ? `Saved. §f${count}§a value${count === 1 ? "" : "s"} differ from default.`
-        : "Saved — everything is back at its default.")
+        ? `Saved. §f${count}§a ${count === 1 ? "setting differs" : "settings differ"} from the default.`
+        : "Saved. Every setting is back to its default.")
     return back()
 }
 
 /**
- * /admin ▸ Settings ▸ Factory Reset. OPERATOR ONLY.
+ * /admin ▸ Settings ▸ Factory reset. OPERATOR ONLY.
  *
  * It moved here out of < Code > because it is a setting, and it kept a gate on
  * the way: `admin.settings` opens the Settings screen, but throwing away every
@@ -506,21 +506,21 @@ async function blockScreen(player, back) {
  * trusts its caller is one refactor away from trusting the wrong one.
  */
 export async function factoryResetScreen(player, back) {
-    if (!hasOperator(player)) { err(player, "Factory Reset is operator-only."); return back() }
+    if (!hasOperator(player)) { err(player, "Only an operator can use Factory reset."); return back() }
 
     const count = Object.keys(overrides()).length
-    if (!count) { ok(player, "Already at factory defaults."); return back() }
+    if (!count) { ok(player, "Every setting is already at its default."); return back() }
 
-    const yes = await confirm(player, hubTitle("settings", "Factory Reset"),
-        `Throw away all §f${count}§r changed value${count === 1 ? "" : "s"} and restore the shipped config?\n\n§8Ranks, players and bans are untouched — this is only the config block.`,
-        "§cFactory Reset")
+    const yes = await confirm(player, hubTitle("settings", "Factory reset"),
+        `Put all §f${count}§r changed setting${count === 1 ? "" : "s"} back to the default?\n\n§8Ranks, players and bans are not touched. Only settings change.`,
+        "§cFactory reset")
     if (!yes) return back()
 
     const previous = overrides()
     replaceOverrides({})
     restyleEveryone()
     record(player, "config.reset", undefined, `${count} value(s) discarded`, { kind: "config", overrides: previous })
-    ok(player, "Config restored to factory defaults.")
+    ok(player, "Every setting is back to its default.")
     return back()
 }
 

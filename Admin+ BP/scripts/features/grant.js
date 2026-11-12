@@ -27,7 +27,7 @@ import { DURATIONS, durationAt, setExpiry, sweep, timedGrants, remainingLabel } 
 const SWEEP_TICKS = 20 * 60          // a minute
 
 export async function grantScreen(player, targetId, targetName, back = () => {}) {
-    if (!has(player, "ranks.grant")) { err(player, "You can't hand out ranks."); return back() }
+    if (!has(player, "ranks.grant")) { err(player, "You can't give ranks."); return back() }
     if (!canActOn(player, targetId)) { err(player, `${targetName} outranks you.`); return back() }
 
     // The same list the panel's Give a rank offers: below you, nothing you
@@ -51,7 +51,7 @@ export async function grantScreen(player, targetId, targetName, back = () => {})
         {
             id: "duration",
             type: "dropdown",
-            label: "§fFor how long\n§8Permanent is the first option, and means no timer.",
+            label: "§fFor how long\n§8Permanent means it never runs out.",
             options: DURATIONS.map(d => d.label),
             default: 0
         }
@@ -74,7 +74,7 @@ export async function grantScreen(player, targetId, targetName, back = () => {})
                 `Give §f${targetName}§r ${rank.display}§r for §f${length.label.toLowerCase()}§r?`,
                 "",
                 `§7This replaces: ${list}`,
-                length.ms ? "§8When it ends they will NOT get those back." : ""
+                length.ms ? "§8When it ends, they won't get those back." : ""
             ].join("\n"),
             "§aGrant")
         if (!yes) return back()
@@ -102,7 +102,7 @@ export async function grantScreen(player, targetId, targetName, back = () => {})
 
 command({
     name: "grant",
-    description: "Give a player a rank, for a while or for good",
+    description: "Give a player a rank, for a set time or permanently",
     perm: "ranks.grant",
     optional: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     run: (player, [targets]) => {

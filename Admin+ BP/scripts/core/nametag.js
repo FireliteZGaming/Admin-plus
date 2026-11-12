@@ -54,13 +54,13 @@ const STILL_STYLES = Object.fromEntries([
 export const STYLES = {
     none: {
         label: "None",
-        hint: "the name, plain",
+        hint: "a plain name",
         ramp: ""
     },
     ...STILL_STYLES,
     rainbow: {
         label: "Rainbow",
-        hint: "every colour, in turn",
+        hint: "every colour in turn",
         // A hue wheel needs no mirror — magenta sits next to red already.
         ramp: "c6eab95d"
     },

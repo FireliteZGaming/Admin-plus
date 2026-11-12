@@ -17,78 +17,78 @@ const store = new Table("settings", {})
 export const DEFAULTS = {
     "bracket.open": {
         value: "§8[",
-        label: "Bracket — open",
-        help: "Wraps the rank in {TAG}. Global."
+        label: "Opening bracket",
+        help: "Goes around the rank name in {TAG}, for every rank."
     },
     "bracket.close": {
         value: "§8]",
-        label: "Bracket — close",
-        help: "Wraps the rank in {TAG}. Global."
+        label: "Closing bracket",
+        help: "Goes around the rank name in {TAG}, for every rank."
     },
     "format.tag": {
         value: "{OPEN}{RANK}{CLOSE}",
         label: "Rank tag",
-        help: "Tokens: {OPEN} {CLOSE} {RANK} · the shape of ONE tag; somebody holding several gets several of these"
+        help: "Tokens: {OPEN} {CLOSE} {RANK} · how one tag looks. A player with several ranks gets one tag for each."
     },
     "format.tagJoin": {
         value: " ",
-        label: "Between stacked rank tags",
-        help: "What separates one tag from the next when somebody holds more than one. A space by default; \", \" reads well too, and \"\" runs them together the way they used to."
+        label: "Between rank tags",
+        help: "What goes between two tags when a player has more than one. A space by default. \", \" also works, and \"\" puts them side by side."
     },
     "format.tagCount": {
         value: "3",
         label: "How many rank tags show",
-        help: "Ranks stack, and {TAG} draws all of them — staff first, then the order you put them in. 1 shows only the top one; 0 shows every one they hold."
+        help: "{TAG} shows every rank a player has: staff ranks first, then the order you set. 1 shows only the top one. 0 shows them all."
     },
     "format.nameTag": {
         // Tag BESIDE the name, on one line — the way Essentials shows it.
         // Put \\n back in (via < Code >) to stack it above instead.
         value: "{TAG} §f{NICKNAME}",
         label: "Nametag (above head)",
-        help: "Tokens: {TAG} {RANK} {NAME} {NICKNAME} · {NAME} is the gamertag, {NICKNAME} is what they call themselves · \\n stacks the tag above the name"
+        help: "Tokens: {TAG} {RANK} {NAME} {NICKNAME} · {NAME} is the gamertag, {NICKNAME} is their display name · \\n puts the tag on its own line above the name"
     },
     "format.chat": {
         value: "{TAG} §7{NICKNAME} §8» §r{MSG}",
         label: "Chat line",
-        help: "Tokens: {TAG} {RANK} {NAME} {NICKNAME} {MSG}  · {NAME} is the gamertag, {NICKNAME} is their nickname or gamertag · needs beta APIs to take effect"
+        help: "Tokens: {TAG} {RANK} {NAME} {NICKNAME} {MSG} · {NAME} is the gamertag, {NICKNAME} is their display name · needs Beta APIs on"
     },
     "format.chatChannel": {
         value: "{CHANNEL} §8|§r {TAG} {NICKNAME}§7: §r{MSG}",
-        label: "Chat line (multi-channel readers)",
-        help: "Tokens: {CHANNEL} {TAG} {RANK} {NAME} {NICKNAME} {MSG} · used only for readers who see more than one channel"
+        label: "Chat line (players reading several rooms)",
+        help: "Tokens: {CHANNEL} {TAG} {RANK} {NAME} {NICKNAME} {MSG} · used for players who can read more than one chat room"
     },
     "presence.announce": {
         value: "true",
         label: "Join and leave lines",
-        help: "true / false · Admin+ prints them; the vanilla ones are silenced by the resource pack"
+        help: "true / false · Admin+ shows them, and the resource pack hides the game's own"
     },
     "format.join": {
         value: "§e{NICKNAME} joined the game",
         label: "Join line",
-        help: "Tokens: {NAME} {NICKNAME} · matches vanilla's wording and colour on purpose"
+        help: "Tokens: {NAME} {NICKNAME} · matches the game's own wording and colour"
     },
     "format.leave": {
         value: "§e{NICKNAME} left the game",
         label: "Leave line",
-        help: "Tokens: {NAME} {NICKNAME} · /vanish prints this, which is what makes it convincing"
+        help: "Tokens: {NAME} {NICKNAME} · /vanish shows this too, so vanishing looks like leaving"
     },
     "presence.greet": {
         value: "true",
-        label: "Point newcomers at /info",
-        help: "true / false · one line, a few seconds after they join, that only THEY see"
+        label: "Tell new players about /info",
+        help: "true / false · one line, a few seconds after they join, that only they see"
     },
     "format.greeting": {
-        value: "§7Hi {NICKNAME}§7 — type §f/info§7 to see everything you can do here.",
+        value: "§7Welcome, {NICKNAME}§7. Type §f/info§7 to see what you can do here.",
         label: "Greeting line",
-        help: "Tokens: {NAME} {NICKNAME} · sent to the player alone, never broadcast · blank it to say nothing"
+        help: "Tokens: {NAME} {NICKNAME} · only that player sees it · leave it empty to send nothing"
     },
     "vanish.hideFromLists": {
         value: "true",
         label: "Vanished players hidden from /online",
-        help: "true / false · staff always see them, marked. NOTE: the pause-menu player list is drawn by the client and cannot be filtered per player — this covers Admin+'s own lists only."
+        help: "true / false · staff still see them, marked. The game's own player list in the pause menu can't be changed, so this covers Admin+'s lists only."
     },
     "vanish.nightVision": {
-        value: "true", label: "Vanish gives night vision", help: "true / false · handy when watching a dark cave"
+        value: "true", label: "Vanish gives night vision", help: "true / false · helps when watching someone in a dark cave"
     },
     "cleanup.items": {
         value: "true", label: "Lag clear: dropped items", help: "true / false"
@@ -100,45 +100,45 @@ export const DEFAULTS = {
         value: "true", label: "Lag clear: spent projectiles", help: "true / false · arrows, snowballs, thrown potions"
     },
     "cleanup.fallingBlocks": {
-        value: "false", label: "Lag clear: falling blocks", help: "true / false · off by default, it can break contraptions mid-fall"
+        value: "false", label: "Lag clear: falling blocks", help: "true / false · off by default, because clearing a falling block can break a machine"
     },
     "cleanup.warn": {
         value: "5", label: "Lag clear: warning seconds", help: "Countdown before clearing · 0 clears at once"
     },
     "cleanup.keep": {
-        value: "", label: "Lag clear: protected items", help: "Comma separated, matched loosely · blank uses the built-in valuables list"
+        value: "", label: "Lag clear: protected items", help: "Comma separated, part of a name is enough · empty uses the built-in list of valuables"
     },
     "automod.ores": {
-        value: "true", label: "Automod: ore alerts", help: "true / false · grouped, reported when a mining run stops"
+        value: "true", label: "Automod: ore alerts", help: "true / false · finds are grouped and reported when the player stops mining"
     },
     "automod.veinRadius": {
         value: "5", label: "Automod: vein radius (blocks)", help: "How far apart two ore blocks can be and still count as one find"
     },
     "automod.veinIdle": {
-        value: "8", label: "Automod: vein close delay (seconds)", help: "Quiet for this long and the vein is reported"
+        value: "8", label: "Automod: vein close delay (seconds)", help: "After this many seconds with no new find, the vein is reported"
     },
     "automod.oreThresholds": {
-        value: "", label: "Automod: watched ores", help: "ore:vein size pairs, e.g. diamond_ore:3, ancient_debris:2 · blank uses the defaults"
+        value: "", label: "Automod: watched ores", help: "ore:vein size pairs, for example diamond_ore:3, ancient_debris:2 · empty uses the defaults"
     },
     "automod.breaks": {
         value: "true", label: "Automod: break rate", help: "true / false · flags impossible mining speed"
     },
     "automod.breakRate": {
-        value: "20", label: "Automod: blocks a second", help: "Keep high — TNT and Efficiency V are legitimate"
+        value: "20", label: "Automod: blocks a second", help: "Keep this high: TNT and Efficiency V break blocks fast without cheating"
     },
     "automod.spam": {
         value: "true", label: "Automod: chat flooding", help: "true / false"
     },
     "automod.spamRate": {
-        value: "6", label: "Automod: typing fast", help: "messages in 10s · above this they are TOLD they are typing fast. No strike, nothing recorded."
+        value: "6", label: "Automod: typing fast", help: "messages in 10s · above this, they are told they are typing fast. No strike, and nothing is recorded."
     },
     "automod.spamHard": {
-        value: "10", label: "Automod: spamming", help: "messages in 10s · above this is a strike, and strikes escalate. Always at least one above the line above."
+        value: "10", label: "Automod: spamming", help: "messages in 10s · above this is a strike, and each strike is punished harder. Always at least one more than typing fast."
     },
     "automod.spamLadder": {
         value: "0, 60, 300, 600",
         label: "Automod: spam punishment",
-        help: "seconds of mute per strike, in order · 0 is a talking-to. The LAST value repeats, so it never stops punishing."
+        help: "seconds of mute for each strike, in order · 0 is a warning only. The last value repeats for every strike after it."
     },
     "warnings.expire": {
         value: "48",
@@ -146,7 +146,7 @@ export const DEFAULTS = {
         help: "hours · an ordinary warning stops counting after this. Severe ones never expire. 0 keeps every warning forever."
     },
     "automod.spamForget": {
-        value: "30", label: "Automod: forget strikes after", help: "minutes · behave for this long and you start clean again"
+        value: "30", label: "Automod: forget strikes after", help: "minutes · after this long with no strike, strikes go back to zero"
     },
 
     // Feature switches — what exists on this server at all. A feature turned
@@ -156,7 +156,7 @@ export const DEFAULTS = {
     },
     "feature.back": {
         value: "true", label: "Go back",
-        help: "true / false · /back returns somebody to where they were before a teleport, or to where they died"
+        help: "true / false · /back takes a player to where they were before a teleport, or where they died"
     },
     "feature.rtp": {
         value: "true", label: "Random teleport", help: "true / false · /rtp"
@@ -167,44 +167,44 @@ export const DEFAULTS = {
     },
     "creator.identity": {
         value: "true", label: "Creator's own name",
-        help: "true / false · the pack's creator wears the name they go by, with its colours, unless they set a nickname · affects exactly one gamertag and nobody else"
+        help: "true / false · shows the Admin+ creator's chosen name and colours, unless they set a display name · affects one gamertag only"
     },
     "namecolour.speed": {
         value: "3",
         label: "Name effect speed",
-        help: "Ticks between steps, so a smaller number is faster. 1 is very fast, 3 is smooth, 10 is slow."
+        help: "Game ticks between steps (20 a second). Smaller is faster: 1 is very fast, 3 is smooth, 10 is slow."
     },
     "rtp.range": {
         value: "4000",
         label: "Random teleport: how far",
-        help: "blocks · the furthest it will send somebody from where they stand"
+        help: "blocks · the farthest /rtp sends a player from where they stand"
     },
     "rtp.minimum": {
         value: "256",
         label: "Random teleport: how near",
-        help: "blocks · the closest it will send them. Keeps /rtp from dropping people back at spawn, which is the one place they did not ask for."
+        help: "blocks · the nearest /rtp sends a player, so it never drops them back near spawn"
     },
     "rtp.tries": {
         value: "24",
         label: "Random teleport: attempts",
-        help: "How many spots to test before giving up. Bounded on purpose — an ocean world would otherwise search forever and be killed by the watchdog."
+        help: "How many spots to try before giving up. The limit stops an ocean world from searching forever."
     },
     "feature.claims": {
         value: "false", label: "Land claims",
-        help: "true / false · /claim, /unclaim, /trust. Ships OFF: it changes who may break blocks, which is not something to inherit unasked. How many and how big are set per rank, in Ranks ▸ a rank ▸ Limits and cooldowns."
+        help: "true / false · /claim, /unclaim, /trust. Off by default, because it changes who can break blocks. Set how many and how big for each rank in Ranks ▸ a rank ▸ Permissions ▸ Member ▸ Limits."
     },
     "feature.homes": {
         // OFF, like land claims. Both hand players a new thing to own, and a
         // world should decide to switch that on rather than find it already
         // running after an update.
         value: "false", label: "Homes",
-        help: "true / false · /home, which opens a screen to travel to one or make one. How many each rank may set is in Ranks ▸ a rank ▸ Limits and cooldowns."
+        help: "true / false · /home opens a screen to go to a home or set one. Set how many for each rank in Ranks ▸ a rank ▸ Permissions ▸ Member ▸ Limits."
     },
     "feature.spawn": {
         value: "true", label: "Spawn", help: "true / false · /spawn"
     },
     "feature.tpa": {
-        value: "true", label: "Teleport requests", help: "true / false · /tpa and friends"
+        value: "true", label: "Teleport requests", help: "true / false · /tpa, /tpahere, /tpaccept, /tpadeny and /tpacancel"
     },
     "feature.enderchest": {
         // Ships OFF while the screen is still settling. A world that wants it
@@ -222,28 +222,28 @@ export const DEFAULTS = {
     "filter.enabled": {
         value: "true",
         label: "Screen chat before it posts",
-        help: "true / false · a flagged message is HELD for a moderator, never auto-punished, and the sender is not told"
+        help: "true / false · holds a flagged message for staff to check. The setting below decides whether the sender is also warned or muted."
     },
     "filter.discrimination": {
         value: "2",
         label: "Screen: discrimination",
-        help: "0 off · 1 whole words · 2 catches sh1t / fuuuck · 3 anywhere, more false positives. Ships with NO terms — add your own below."
+        help: "0 off · 1 whole words · 2 also catches sh1t and fuuuck · 3 anywhere, with more mistakes. Starts with no words: add your own below."
     },
     "filter.sexual": {
         value: "2", label: "Screen: sexual content", help: "0-3, as above"
     },
     "filter.aggression": {
-        value: "2", label: "Screen: hostility and threats", help: "0-3, as above · catches kys and go die out of the box"
+        value: "2", label: "Screen: hostility and threats", help: "0-3, as above · already catches kys and go die"
     },
     "filter.profanity": {
         value: "0",
         label: "Screen: ordinary swearing",
-        help: "0-3 · OFF by default, because holding every 'shit' buries the queue and most servers do not want it"
+        help: "0-3 · off by default, because most servers don't want every swear word held"
     },
     "filter.terms.discrimination": {
         value: "",
         label: "Terms: discrimination",
-        help: "Comma separated. **Ships empty on purpose** — a slur list belongs to a community and a language, and this pack will not pick yours for you. Nothing is caught here until you fill it in."
+        help: "Comma separated. Starts empty on purpose: which slurs to block depends on your community and language, so Admin+ leaves it to you. Nothing is caught until you add words."
     },
     "filter.terms.sexual": {
         value: "", label: "Terms: sexual content", help: "Comma separated · added to the built-in list"
@@ -257,17 +257,17 @@ export const DEFAULTS = {
     "filter.allow": {
         value: "class, classic, assassin, bass, pass, grass, assess, scunthorpe, cocktail, shiitake",
         label: "Never flag these words",
-        help: "Comma separated · innocent words that contain a flagged one. Only matters at level 3, where matching looks inside words."
+        help: "Comma separated · harmless words that contain a flagged one. Only used at level 3, which looks inside words."
     },
     "filter.staffBypass": {
         value: "true",
         label: "Staff skip the screen",
-        help: "true / false · Twitch exempts its moderators too. Off means staff are screened like everyone else."
+        help: "true / false · staff messages are not screened. Off screens staff like everyone else."
     },
     "filter.action": {
         value: "hold",
         label: "What a flagged message costs",
-        help: "hold / warn / mute · hold is queue-only. The message is HELD whichever you pick — punishing never replaces the queue, because a false positive has to stay undoable."
+        help: "hold / warn / mute · the message is always held for staff to check, so a mistake can be undone. Warn and mute also punish the sender."
     },
     "filter.muteSeconds": {
         value: "300", label: "Filter mute length", help: "seconds · only used when the setting above is 'mute'"
@@ -275,38 +275,38 @@ export const DEFAULTS = {
     "filter.holdCap": {
         value: "50",
         label: "Held messages kept",
-        help: "How many wait in the queue before the oldest fall off"
+        help: "How many held messages to keep. The oldest go first."
     },
     "logs.commandBlocks": {
         value: "true",
         label: "Log command blocks placed and broken",
-        help: "true / false · who put one down and where. The COMMAND inside cannot be read — Bedrock has no NBT and the script API exposes no command-block component."
+        help: "true / false · logs who placed or broke a command block, and where. The command inside can't be read, because the game doesn't let addons see it."
     },
     "logs.signs": {
         value: "true",
         label: "Log what is written on signs",
-        help: "true / false · sign text is the one thing a player can put in front of everyone that nothing else records"
+        help: "true / false · records what players write on signs, which nothing else logs"
     },
     "logs.chatCap": {
         value: "200",
         label: "Chat lines kept",
-        help: "How many lines to keep before the oldest fall off. Chat is high-volume, so this is separate from the action log's cap."
+        help: "How many chat lines to keep. The oldest go first. Separate from the action log."
     },
     "logs.commands": {
         value: "true",
         label: "Keep a command log",
-        help: "true / false · records every command typed, including ones that were refused. Commands are high-volume, so they are kept apart from the action log rather than flooding it."
+        help: "true / false · records every command typed, even refused ones. Kept apart from the action log."
     },
     "logs.commandCap": {
         value: "300",
         label: "Command lines kept",
-        help: "How many commands to keep before the oldest fall off."
+        help: "How many commands to keep. The oldest go first."
     },
     "feature.reports": {
-        value: "true", label: "Reports", help: "true / false · /report and the panel queue"
+        value: "true", label: "Reports", help: "true / false · /report and the reports list in the panel"
     },
     "feature.chat": {
-        value: "true", label: "Chat channels", help: "true / false · off means one plain chat for everyone"
+        value: "true", label: "Chat rooms", help: "true / false · off means one plain chat for everyone"
     },
     // The four switches for a server that runs another mod alongside this one,
     // asked for on 2026-11-11: "if people don't want ranks or chat at all for
@@ -330,22 +330,22 @@ export const DEFAULTS = {
     "creator.console": {
         value: "true",
         label: "Creator & Dev console",
-        help: "true / false · lets the pack's Creator and anyone with the Dev tag open a command console in /menu. Bounded by the vanilla-command whitelist below, cannot /op, and every use is logged to the owner. On by default; turn it off to close it."
+        help: "true / false · lets the Admin+ creator and anyone with the Dev tag open a console in /menu. It runs Admin+ commands only, with what their rank allows, and every use is logged. On by default."
     },
     "troll.smiteFire": {
         value: "true",
         label: "Smite sets fires",
-        help: "true / false · true spawns a real lightning bolt, which BURNS things. false is the flash and the damage only."
+        help: "true / false · true spawns a real lightning bolt, which can start fires. false gives the flash and the damage only."
     },
     "items.eyeRange": {
         value: "160",
         label: "Ender eye range",
-        help: "How far the Ender Eye looks for somewhere to land, in blocks. Beyond this it reports nothing in range rather than dropping you somewhere arbitrary."
+        help: "How far the Ender Eye looks for a place to land, in blocks. Past this, it says nothing is in range."
     },
     "items.knockback": {
         value: "12",
         label: "Knockback stick force",
-        help: "How hard the stick throws somebody, horizontally. 4 was the old cautious value; 12 is full scale. Very high numbers can launch a player into unloaded chunks."
+        help: "How far the stick knocks a player sideways. 4 is gentle and 12 is strong. Very high values can throw a player into unloaded chunks."
     },
     "items.knockbackLift": {
         value: "1",
@@ -355,7 +355,7 @@ export const DEFAULTS = {
     "ban.allowPermanent": {
         value: "true",
         label: "Permanent bans",
-        help: "true / false · off caps the ban slider at 7 days, so nobody can end somebody for good in a temper"
+        help: "true / false · off limits every ban to 7 days at most"
     },
     "spawn.protect": {
         value: "false",
@@ -370,12 +370,12 @@ export const DEFAULTS = {
     "teleport.warmup": {
         value: "2",
         label: "Teleport warmup (seconds)",
-        help: "Seconds of standing still before a teleport fires · 0 for instant · staff skip it"
+        help: "Seconds to stand still before a teleport · 0 for none · staff skip it"
     },
     "teleport.cancelOnMove": {
         value: "true",
         label: "Moving cancels a teleport",
-        help: "true / false · the reason warmup stops people escaping a fight"
+        help: "true / false · stops players teleporting out of a fight"
     },
     "teleport.cooldown": {
         value: "3",
@@ -385,17 +385,17 @@ export const DEFAULTS = {
     "tpa.expire": {
         value: "60",
         label: "TPA request expiry (seconds)",
-        help: "How long a teleport request waits before it lapses"
+        help: "How long a teleport request lasts before it expires"
     },
     "ranks.permissionEditor": {
         value: "toggle",
         label: "Rank permission editor",
-        help: "toggle / dropdown · dropdown gives Default, Allow and Deny per node"
+        help: "toggle / dropdown · dropdown gives Default, Allow and Deny for each permission"
     },
     "staff.exemptCooldowns": {
         value: "true",
         label: "Staff ignore cooldowns",
-        help: "true / false · staff ranks wait zero on warps, spawn and TPA"
+        help: "true / false · staff don't wait between warps, spawn and TPA"
     },
     "format.noRankTag": {
         value: "",
@@ -405,22 +405,22 @@ export const DEFAULTS = {
     "format.command": {
         value: "§o§7[{NICKNAME}: {ACTION}]",
         label: "Staff action line",
-        help: "Tokens: {NAME} {NICKNAME} {ACTION} {TARGET} {DETAIL} · shown in chat to staff above the target. {ACTION} is the whole sentence, e.g. Banned Steve."
+        help: "Tokens: {NAME} {NICKNAME} {ACTION} {TARGET} {DETAIL} · shown in chat to staff who outrank the target. {ACTION} is the whole sentence, for example Banned Steve."
     },
     "audit.announce": {
         value: "true",
         label: "Announce staff actions in chat",
-        help: "true / false · seen only by staff who outrank the target, never by the target. Sudo goes only to holders of admin.troll."
+        help: "true / false · only staff who outrank the target see it, never the target. Sudo is shown only to staff who can use it."
     },
     "invsee.iconOffset": {
         value: "0",
         label: "/invsee icon nudge",
-        help: "Whole number · only touch this if EVERY icon is the same number of places wrong. Off by N to the right means -N."
+        help: "Whole number · change this only if every icon is off by the same number of places. If they are N places too far right, set -N."
     },
     "invsee.chestUI": {
         value: "true",
         label: "/invsee shows a chest grid",
-        help: "true / false · the grid draws items from texture paths, which do not change between game versions. false gives a plain list that needs no resource pack at all."
+        help: "true / false · shows items in a chest grid, which needs the resource pack. false shows a plain list instead."
     },
     "format.emote": {
         value: "§d* {NICKNAME} §r§d§o{MSG}",
@@ -453,7 +453,7 @@ export const DEFAULTS = {
     "format.spy": {
         value: "§8[spy · {KIND}] §7{FROM} §8» §7{TO}§8: {MSG}",
         label: "Social spy line",
-        help: "Tokens: {FROM} {TO} {MSG} {KIND} · only holders of chat.spy who switched it on see this"
+        help: "Tokens: {FROM} {TO} {MSG} {KIND} · only staff with Social spy turned on see this"
     },
     "feature.pm": {
         value: "true",

@@ -50,7 +50,7 @@ command({
         if (shut) return err(player, shut)
 
         const targets = selected ?? []
-        if (!targets.length) return err(player, "No player matched that selector.")
+        if (!targets.length) return err(player, "Nobody matched that name.")
 
         const text = String(message ?? "").trim().slice(0, MAX_LENGTH)
         if (!text) return err(player, "Type what they should say.")
@@ -94,6 +94,6 @@ command({
             // alike when someone lines them up.
             ok(player, `§7${phraseFor("player.sudo", spoke.join(", "))}§8: ${text}`)
         }
-        if (blocked.length) err(player, `Outranked you, skipped: §f${blocked.join(", ")}`)
+        if (blocked.length) err(player, `Skipped because they outrank you: §f${blocked.join(", ")}`)
     }
 })

@@ -52,7 +52,7 @@ command({
             if (!changed) return info(player, "Nothing to change.")
             announce(player, anyOpen, undefined)
             record(player, anyOpen ? "chat.mute" : "chat.unmute", undefined,
-                `all channels · ${changed}`)
+                `all chats · ${changed}`)
             return
         }
 
@@ -60,7 +60,7 @@ command({
         // they are looking at when they decide it needs to stop.
         const channel = asked ? getChannel(asked) : activeChannel(player)
         if (!channel) {
-            return err(player, `No channel called "§f${wanted}§c". Try §f${allChannels().map(c => c.id).join("§c, §f")}§c, or §fall§c.`)
+            return err(player, `No chat called "§f${wanted}§c". Try §f${allChannels().map(c => c.id).join("§c, §f")}§c, or §fall§c.`)
         }
 
         const muting = !isChannelMuted(channel.id)
@@ -138,10 +138,10 @@ function sendEmote(player, action) {
     if (isMuted(player)) return err(player, "You are muted.")
 
     const channel = activeChannel(player)
-    if (!channel || !canUse(player, channel)) return err(player, "You can't speak in that channel.")
+    if (!channel || !canUse(player, channel)) return err(player, "You can't talk in that chat.")
     if (isChannelMuted(channel.id) && !isStaff(player)) {
         const who = channelMute(channel.id)
-        return err(player, `${stripCodes(channel.display)} chat is muted — by ${who?.by ?? "staff"}.`)
+        return err(player, `${stripCodes(channel.display)} chat is muted by ${who?.by ?? "staff"}.`)
     }
 
     const line = render("format.emote", {

@@ -28,8 +28,8 @@ check("the eye is an ender eye", ITEMS.eye.typeId, "minecraft:ender_eye")
 check("and answers to the teleport node, not staff mode",
     ITEMS.eye.gate({ getTags: () => [], commandPermissionLevel: 0,
                      name: "T", id: "t" }), false)
-check("its blurb says you pick who to jump to",
-    ITEMS.eye.lines.some(l => l.includes("pick who you jump to")), true)
+check("its blurb says you pick a player to jump to",
+    ITEMS.eye.lines.some(l => l.includes("pick a player to jump to")), true)
 check("and that looking somewhere still works",
     ITEMS.eye.lines.some(l => l.includes("looking at")), true)
 

@@ -43,20 +43,20 @@ command({
             if (!held.length) return info(player, "§7Nobody is on the guest list yet.")
             return info(player, [
                 `§7Guest list §8(${held.length}) · ${isEnabled() ? "§aon" : "§coff"}`,
-                ...held.map(entry => `§8· §f${entry.name} §8— added by ${entry.by}`)
+                ...held.map(entry => `§8· §f${entry.name} §8(added by ${entry.by})`)
             ].join("\n"))
         }
 
         if (what === "on" || what === "off") {
             const turningOn = what === "on"
             if (turningOn && !count()) {
-                return err(player, "Add somebody first, or turning it on would empty the world.")
+                return err(player, "Add a player first, or turning it on would keep everyone out.")
             }
             setEnabled(turningOn)
             record(player, turningOn ? "admin.guestOn" : "admin.guestOff", undefined,
                 `${count()} on the list`)
             ok(player, turningOn
-                ? `Guest list §aon§a. §f${count()}§a invited; everyone else is turned away.`
+                ? `Guest list §aon§a. §f${count()}§a invited. Everyone else is turned away.`
                 : "Guest list §coff§a. Anyone can join again.")
             if (turningOn) removeUninvited(player)
             return
@@ -70,7 +70,7 @@ command({
                 ? await askText(player, { title: "/guestlist add", label: "Gamertag to invite", placeholder: "Steve" })
                 : (await pickFrom(player, {
                     title: "/guestlist remove",
-                    body: "Pick somebody to take off the list.",
+                    body: "Pick a player to take off the list.",
                     items: listNames(),
                     render: entry => `§f${entry.name}§r\n§8added by ${entry.by}`,
                     empty: "Nobody is on the guest list yet."
@@ -118,7 +118,7 @@ async function removeUninvited(actor) {
         const door = doorCheck(other, { staff: isStaff(other), owner: isOwner(other) })
         if (door.ok) continue
         await kick(other, door.reason)
-        info(actor, `§7Turned away §f${other.name}§7 — ${door.reason}`)
+        info(actor, `§7Turned away §f${other.name}§7: ${door.reason}`)
     }
 }
 

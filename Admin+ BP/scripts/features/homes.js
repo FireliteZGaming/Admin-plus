@@ -35,7 +35,7 @@ const OFF = "Homes are turned off on this server."
 /** Go to one, through the shared warmup so it cannot be used to flee a fight. */
 function goHome(player, home) {
     return queueTeleport(player, home.display, () => {
-        if (teleportTo(player, home)) ok(player, `Home — §f${home.display}§a.`)
+        if (teleportTo(player, home)) ok(player, `You're at §f${home.display}§a.`)
         else err(player, "That home is in a dimension that isn't loaded.")
     }, "home.cooldown")
 }
@@ -127,7 +127,7 @@ async function manageScreen(player, back) {
         extra: [
             mine.length < limit
                 ? { text: hubEntry("warps", "New home", "Where you are standing now"), run: () => createScreen(player, again) }
-                : { text: `§8Full — ${limit} of ${limit}\n§8Delete one to make room`, run: again }
+                : { text: `§8Full: ${limit} of ${limit}\n§8Delete one to make room`, run: again }
         ],
         back
     })

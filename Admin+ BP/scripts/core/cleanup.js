@@ -134,6 +134,6 @@ export function tally(entities) {
 }
 
 export function describeTally(rows, limit = 6) {
-    if (!rows.length) return "nothing worth mentioning"
+    if (!rows.length) return "nothing else"
     return rows.slice(0, limit).map(r => `${r.count} ${r.type.replace(/_/g, " ")}`).join(", ")
 }

@@ -105,7 +105,7 @@ command({
         const first = resolveSelector(firstText, player, true)
         if (!first.ok) return err(player, first.reason)
         if (first.unsupported?.length) {
-            return err(player, `I can't apply §f${first.unsupported.join(", ")}§c — refusing rather than ignoring it.`)
+            return err(player, `Admin+ can't use §f${first.unsupported.join(", ")}§c, so nothing was done.`)
         }
         if (!first.entities.length) return err(player, `Nothing matched §f${firstText}§c. ${SELECTOR_HINT}`)
 
@@ -120,7 +120,7 @@ command({
         const second = resolveSelector(secondText, player, true)
         if (!second.ok) return err(player, second.reason)
         if (second.unsupported?.length) {
-            return err(player, `I can't apply §f${second.unsupported.join(", ")}§c — refusing rather than ignoring it.`)
+            return err(player, `Admin+ can't use §f${second.unsupported.join(", ")}§c, so nothing was done.`)
         }
         if (!second.entities.length) return err(player, `Nothing matched §f${secondText}§c. ${SELECTOR_HINT}`)
         if (second.entities.length > 1) return err(player, "The destination matched more than one player.")
@@ -134,7 +134,7 @@ command({
             moved.push(displayName(target))
         }
         if (moved.length) ok(player, `Teleported §f${moved.join(", ")}§a to §f${displayName(destination)}§a.`)
-        if (blocked.length) err(player, `Outranked you, skipped: §f${blocked.join(", ")}`)
+        if (blocked.length) err(player, `Skipped because they outrank you: §f${blocked.join(", ")}`)
     }
 })
 
@@ -145,7 +145,7 @@ world.afterEvents.playerSpawn.subscribe(({ player, initialSpawn }) => {
     system.run(() => {
         onPlayerJoin(player)
         if (has(player, "admin.panel")) {
-            msg(player, `§7Admin+ v${ADMINPLUS_VERSION} ready — type §f/admin§7 for the panel.`)
+            msg(player, `§7Admin+ v${ADMINPLUS_VERSION} is ready. Type §f/admin§7 for the panel.`)
         }
     })
 })

@@ -58,15 +58,15 @@ export const GROUPS = [
                 fields: [
                     sw("feature.rtp", "Random teleport", "/rtp: a safe spot far away"),
                     num("rtp.minimum", "Nearest it sends someone, in blocks", "Keeps /rtp from dropping people back at spawn", 0, 2048, 64),
-                    num("rtp.range", "Furthest it sends someone, in blocks", "", 500, 20000, 500),
-                    num("rtp.tries", "Spots to test before giving up", "An ocean world needs more", 4, 64, 4)
+                    num("rtp.range", "Farthest it sends someone, in blocks", "", 500, 20000, 500),
+                    num("rtp.tries", "Spots to try before giving up", "An ocean world needs more", 4, 64, 4)
                 ]
             },
             {
                 label: "Teleport requests", hint: "/tpa and /tpahere, and how long a request lasts",
                 fields: [
                     sw("feature.tpa", "Teleport requests", "/tpa and /tpahere: ask to teleport, and the other player says yes or no"),
-                    num("tpa.expire", "Seconds a request waits before it lapses", "", 15, 300, 5)
+                    num("tpa.expire", "Seconds before a request expires", "", 15, 300, 5)
                 ]
             },
             {
@@ -98,7 +98,7 @@ export const GROUPS = [
             {
                 label: "Join and leave", hint: "Who joined and left, and a hello for newcomers",
                 fields: [
-                    sw("presence.announce", "Show join and leave lines", "Admin+ prints them in place of the game's"),
+                    sw("presence.announce", "Show join and leave lines", "Admin+ shows them instead of the game's"),
                     sw("presence.greet", "Greet newcomers", "One line, a few seconds after they join, that only they see")
                 ]
             }
@@ -176,7 +176,7 @@ export const GROUPS = [
                 label: "Staff items and pranks", hint: "The Ender Eye, the knockback stick, smite",
                 fields: [
                     num("items.eyeRange", "How far the Ender Eye looks, in blocks", "", 16, 512, 16),
-                    num("items.knockback", "How hard the knockback stick throws", "Very high numbers can lose a player in unloaded land", 1, 30),
+                    num("items.knockback", "How hard the knockback stick throws", "Very high values can throw a player into unloaded chunks", 1, 30),
                     num("items.knockbackLift", "How much of the throw goes up", "", 0, 5),
                     sw("troll.smiteFire", "Smite starts fires", "Off: the flash and the damage only")
                 ]
@@ -193,7 +193,7 @@ export const GROUPS = [
                 label: "Land claims", hint: "/claim: players protect their builds", note: PER_RANK,
                 fields: [sw("feature.claims", "Land claims", "/claim: players protect their builds")]
             },
-            { label: "Ender chests", hint: "/ec: open your ender chest anywhere", fields: [sw("feature.enderchest", "Ender chests", "/ec opens your ender chest anywhere. Staff can open somebody else's.")] }
+            { label: "Ender chests", hint: "/ec: open your ender chest anywhere", fields: [sw("feature.enderchest", "Ender chests", "/ec opens your ender chest anywhere. Staff can open another player's.")] }
         ]
     }
 ]

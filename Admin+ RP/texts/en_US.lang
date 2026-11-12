@@ -1,5 +1,5 @@
 pack.name=Admin+
-pack.description=Admin toolkit, ranks, warps & TPA.
+pack.description=Admin tools, ranks, warps and TPA.
 
 ## Admin+ silences the vanilla join and leave lines so the addon can print
 ## its own — which is what lets /vanish emit a convincing one. The value is
