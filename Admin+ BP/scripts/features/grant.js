@@ -6,7 +6,7 @@ import { ok, err, info } from "../core/util.js"
 import { displayName } from "../core/identity.js"
 import { record } from "../core/logs.js"
 import { has, canActOn, heldRankIds, grantRank, displacedBy, getRank } from "../core/ranks.js"
-import { grantableRanks, notify, rankPlayersScreen } from "./ranksUI.js"
+import { ranksToGive, notify, rankPlayersScreen } from "./ranksUI.js"
 import { DURATIONS, durationAt, setExpiry, sweep, timedGrants, remainingLabel } from "../core/grants.js"
 
 // /grant — hand somebody a rank, optionally with an end date.
@@ -30,9 +30,10 @@ export async function grantScreen(player, targetId, targetName, back = () => {})
     if (!has(player, "ranks.grant")) { err(player, "You can't hand out ranks."); return back() }
     if (!canActOn(player, targetId)) { err(player, `${targetName} outranks you.`); return back() }
 
-    const held = heldRankIds(targetId)
-    const options = grantableRanks(player).filter(rank => !held.includes(rank.id))
-    if (!options.length) { err(player, "No ranks left to give that sit below your own."); return back() }
+    // The same list the panel's Give a rank offers: below you, nothing you
+    // lack, and nothing that would raise you if the target is you.
+    const options = ranksToGive(player, targetId)
+    if (!options.length) { err(player, "There are no ranks you can give them. You can give ranks below your own, with no permissions you don't have."); return back() }
 
     const timed = timedGrants(targetId)
     const standing = timed.length

@@ -275,6 +275,16 @@ value in the wrong key.
   four stay in `core/serverPresets.js` (scriptevent still applies them) so
   presets can return. The Discord link is `CONFIG.brand.discord`, printed by
   `core/links.js`; empty means "coming soon".
+- **Nobody gives out a permission they don't have (2.8.7, the user asked for
+  the rank gap to be fixed, 2026-11-12).** Switches, ready-made sets, "Also
+  gets permissions from", a new rank's starting rank, and giving ranks are all
+  limited to what the editor has (`canGiveNode`, `nodesBeyond` in
+  `core/ranks.js`). Any other rank change a limited player makes is checked
+  with `gainedBy`, a "what if" that saves nothing, and refused if it would
+  raise them. Templates and the whole-list undo need `canReplaceRankList`.
+  Logs undo needs the action's own permission (`UNDO_NEEDS` in
+  `features/logsUI.js`). Owners and operators are not limited. Any new way to
+  change ranks goes through these; `tests/rankgap.test.js` tries every door.
 - **No economy or shop**, ever. The `+` means essentials.
 - **Fly, god, heal, feed: dropped.** Removed on purpose, not missing. Do not
   build them unasked. Three things came OFF this list because the user asked

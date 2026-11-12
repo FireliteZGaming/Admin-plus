@@ -14,8 +14,38 @@ import {
     canEditRank, canActOn, has, rankState, rankGrant, displacedBy, defaultRank,
     displayRanks, heldRankIds, primaryRank,
     setRanks, grantRank, revokeRank, knownHolders, nodeLabels, topWeight,
-    RANK_TYPES, rankType, isRanked, unrankedRanks
+    RANK_TYPES, rankType, isRanked, unrankedRanks,
+    canGiveNode, nodesBeyond, gainedBy, canReplaceRankList, idsAfterGrant
 } from "../core/ranks.js"
+
+// ------------------------------------------------- only give what you have
+//
+// Since 2.8.7 nobody below an owner or operator gives out a permission they
+// don't have, and nobody raises their own power by changing ranks. The rules
+// live in core/ranks.js (canGiveNode, nodesBeyond, gainedBy); these two
+// helpers say so to the person using the screen.
+
+/** Up to four permission names for a message, then how many more. */
+function permissionNames(nodes) {
+    const labels = nodeLabels(nodes)
+    const shown = labels.slice(0, 4).join(", ")
+    return labels.length > 4 ? `${shown} and ${labels.length - 4} more` : shown
+}
+
+/**
+ * Refuse a change that would give the person making it a permission they
+ * don't have now. Says which, and returns true when it refused.
+ */
+function raisesSelf(player, change) {
+    const gained = gainedBy(player, { change })
+    if (!gained.length) return false
+    err(player, `That would give you ${permissionNames(gained)}, which you don't have. Nothing was changed.`)
+    return true
+}
+
+/** Would `player` gain anything by holding exactly `held`? For changes to their own ranks. */
+const raisesHolder = (player, targetId, held) =>
+    targetId === player.id && gainedBy(player, { held }).length > 0
 
 // /admin ▸ Ranks
 //
@@ -264,8 +294,12 @@ async function ladderScreen(player, back) {
         extra: [
             { text: hubEntry("presets", "+ New rank", "A name, a font and a type"), run: () => createRankScreen(player, again) },
             { text: hubEntry("ranks", "Give a rank to a player", "Or take one away"), run: () => rankPlayersScreen(player, again) },
-            { text: hubEntry("presets", "Rank templates", "Replace the order with a ready-made one"), run: () => presetsScreen(player, again) },
-            hasSnapshot()
+            // Both replace the whole list, the top rank included, so they need
+            // canReplaceRankList (core/ranks.js).
+            canReplaceRankList(player)
+                ? { text: hubEntry("presets", "Rank templates", "Replace the order with a ready-made one"), run: () => presetsScreen(player, again) }
+                : null,
+            canReplaceRankList(player) && hasSnapshot()
                 ? { text: "§8↺ Undo last change\n§8Puts back the list from before the last template or delete", run: () => undoScreen(player, again) }
                 : null
         ].filter(Boolean),
@@ -273,7 +307,11 @@ async function ladderScreen(player, back) {
     })
 }
 
+/** Said when someone without full control reaches a whole-list action. */
+const WHOLE_LIST = "Only an operator, or someone with the top rank and every permission, can replace the whole rank list."
+
 async function undoScreen(player, back) {
+    if (!canReplaceRankList(player)) { err(player, WHOLE_LIST); return back() }
     const yes = await confirm(player, hubTitle("ranks", "Undo last change"),
         "Put the rank list back the way it was before the last template or delete?\n\n§7Players keep the ranks they have.", "§eUndo")
     if (!yes) return back()
@@ -335,12 +373,21 @@ export async function rankScreen(player, rankId, back) {
             type !== "cosmetic"
                 ? { text: hubEntry("ranks", "Permissions", type === "staff" ? "Member and administrative" : "What players with it can do"), run: () => permissionsScreen(player, rankId, again) }
                 : null,
-            canMoveUp ? { text: `§7▲ Move up §8· above ${nameOf(rows[index - 1])}`, run: () => { moveRank(rankId, -1); return again() } } : null,
-            canMoveDown ? { text: `§7▼ Move down §8· below ${nameOf(rows[index + 1])}`, run: () => { moveRank(rankId, 1); return again() } } : null,
+            canMoveUp ? { text: `§7▲ Move up §8· above ${nameOf(rows[index - 1])}`, run: () => moveAndReturn(player, rankId, -1, again) } : null,
+            canMoveDown ? { text: `§7▼ Move down §8· below ${nameOf(rows[index + 1])}`, run: () => moveAndReturn(player, rankId, 1, again) } : null,
             { text: "§cDelete this rank", run: () => deleteScreen(player, rankId, back) }
         ].filter(Boolean) : [],
         back
     })
+}
+
+/**
+ * Moving a rank changes which of two ranks wins when they disagree, so it is
+ * checked like any other change: it may not give the mover anything.
+ */
+function moveAndReturn(player, rankId, delta, again) {
+    if (!raisesSelf(player, () => moveRank(rankId, delta))) moveRank(rankId, delta)
+    return again()
 }
 
 /**
@@ -351,15 +398,20 @@ export async function rankScreen(player, rankId, back) {
  * nobody types an id. Only Default and Staff ranks take a place in the order,
  * and a cosmetic rank inherits nothing, because it gives no permissions.
  *
- * Only places and parents at or below the maker's own rank are offered, so
- * making a rank can never hand out more than its maker has.
+ * Only places at or below the maker's own rank are offered. A rank to get
+ * permissions from must give nothing the maker lacks: being below the maker
+ * was never enough, because a lower rank can still hold a permission the
+ * maker does not (see "the rank gap" in core/ranks.js).
  */
 export async function createRankScreen(player, back) {
     const mine = topWeight(player)
     const usable = ladder().filter(r => (r.weight ?? 0) <= mine)
     if (!usable.length) { err(player, "You can only make ranks below your own, and there are none to place it under."); return back() }
+    const parents = usable.filter(r => !nodesBeyond(player, r).length)
     const fallback = defaultRank()
     const fallbackAt = usable.findIndex(r => r.id === fallback?.id)
+    const fallbackParent = parents.findIndex(r => r.id === fallback?.id)
+    const hiddenParents = parents.length < usable.length ? "\n§8Ranks with permissions you don't have aren't listed." : ""
 
     const values = await modal(player, hubTitle("ranks", "New rank"), [
         { id: "name", type: "text", label: NAME_HELP, placeholder: "§§eHelper" },
@@ -369,11 +421,11 @@ export async function createRankScreen(player, back) {
         { id: "type", type: "dropdown", label: TYPE_HELP, options: TYPE_OPTIONS, default: 0 },
         {
             id: "from", type: "dropdown",
-            label: "Also gets everything from\n§8It starts with all of that rank's permissions. Not for cosmetic ranks.",
-            options: ["§7No other rank", ...usable.map(r => `${r.display}§r`)],
+            label: `Also gets everything from\n§8It starts with all of that rank's permissions. Not for cosmetic ranks.${hiddenParents}`,
+            options: ["§7No other rank", ...parents.map(r => `${r.display}§r`)],
             // New players' rank by default, so the new rank never loses the
             // basics when it replaces that one.
-            default: fallbackAt >= 0 ? fallbackAt + 1 : 0
+            default: fallbackParent >= 0 ? fallbackParent + 1 : 0
         },
         {
             id: "below", type: "dropdown",
@@ -398,7 +450,7 @@ export async function createRankScreen(player, back) {
     const ranked = type === "default" || type === "staff"
     const font = FONT_IDS[values.font] ?? "normal"
     const name = buildName(typed, { bold: !!values.bold, italic: !!values.italic, font })
-    const parent = type !== "cosmetic" && values.from ? usable[values.from - 1] : undefined
+    const parent = type !== "cosmetic" && values.from ? parents[values.from - 1] : undefined
     saveRank(id, {
         display: name.display, text: name.text, font,
         fontTag: true, fontName: false, fontChat: false,
@@ -503,11 +555,15 @@ export async function basicsScreen(player, rankId, back) {
         else delete meta["chat.colour"]
     }
 
-    saveRank(rankId, {
+    // A new type or a new starting rank changes what people can do, so it may
+    // not give the person saving it anything.
+    const changes = {
         display: name.display, text: name.text, font, fontTag, fontName, fontChat,
         type: newType, meta,
         default: "isDefault" in values ? !!values.isDefault : !!rank.default
-    })
+    }
+    if (raisesSelf(player, () => saveRank(rankId, changes))) return back()
+    saveRank(rankId, changes)
 
     const moved = ranked === nowRanked ? ""
         : nowRanked ? " It joined the order at the bottom. Move it up from its page."
@@ -519,9 +575,15 @@ export async function basicsScreen(player, rankId, back) {
 async function deleteScreen(player, rankId, back) {
     const rank = getRank(rankId)
     const shown = rank?.display ?? rankId
+    const undo = canReplaceRankList(player)
+        ? "You can undo this from the rank list."
+        : "Only an operator, or someone with the top rank, can undo this."
     const yes = await confirm(player, hubTitle("ranks", "Delete rank"),
-        `Delete ${shown}§r?\n\n§7Everyone who has it loses it. You can undo this from the rank list.`, "§cDelete")
+        `Delete ${shown}§r?\n\n§7Everyone who has it loses it. ${undo}`, "§cDelete")
     if (!yes) return back()
+    // Deleting a rank that held something back can free it, so this is
+    // checked like any other change.
+    if (raisesSelf(player, () => deleteRank(rankId))) return back()
     snapshot()
     deleteRank(rankId)
     record(player, "rank.delete", undefined, rankId, { kind: "ladder" })
@@ -532,6 +594,7 @@ async function deleteScreen(player, rankId, back) {
 // ---------------------------------------------------------------- templates
 
 export async function presetsScreen(player, back) {
+    if (!canReplaceRankList(player)) { err(player, WHOLE_LIST); return back() }
     return menu(player, {
         title: hubTitle("presets", "Rank templates"),
         body: subtitle("Each template is a full set of ranks. Using one replaces your rank list.\nPlayers keep any rank that still exists, and you can undo it from the rank list."),
@@ -544,6 +607,7 @@ export async function presetsScreen(player, back) {
 }
 
 async function applyPresetScreen(player, key, back) {
+    if (!canReplaceRankList(player)) { err(player, WHOLE_LIST); return back() }
     const preset = PRESETS[key]
     const rows = Object.values(preset.ranks)
         .sort((a, b) => b.weight - a.weight)
@@ -590,17 +654,29 @@ async function quickFillScreen(player, rankId, back) {
             const bundle = BUNDLES[key]
             const done = has(key)
             const size = bundle.nodes.length
+            // Only what the presser has can be switched on (see the top of
+            // this file), so the button says up front when that is not all.
+            const lacking = bundle.nodes.filter(node => !canGiveNode(player, node)).length
+            const note = done ? " · already on" : lacking ? ` · ${lacking} you don't have` : ""
             return {
-                text: `${done ? "§8" : "§b"}${bundle.label}\n§8${size} permission${size === 1 ? "" : "s"}${done ? " · already on" : ""}`,
+                text: `${done ? "§8" : "§b"}${bundle.label}\n§8${size} permission${size === 1 ? "" : "s"}${note}`,
                 run: () => {
                     const perms = [...rank.perms]
-                    const added = bundle.nodes.filter(node => !perms.includes(node))
-                    if (!added.length) {
+                    const wanted = bundle.nodes.filter(node => !perms.includes(node))
+                    const added = wanted.filter(node => canGiveNode(player, node))
+                    const skipped = wanted.length - added.length
+                    if (!wanted.length) {
                         info(player, "§7They already have every one of those.")
                         return again()
                     }
+                    if (!added.length) {
+                        err(player, "You don't have these yourself, so you can't switch them on.")
+                        return again()
+                    }
+                    if (raisesSelf(player, () => saveRank(rankId, { perms: [...perms, ...added] }))) return again()
                     saveRank(rankId, { perms: [...perms, ...added] })
-                    ok(player, `Switched on §f${added.length}§a permission${added.length === 1 ? "" : "s"} for ${rank.display}§a.`)
+                    ok(player, `Switched on §f${added.length}§a permission${added.length === 1 ? "" : "s"} for ${rank.display}§a.` +
+                        (skipped ? ` §7${skipped} stayed off because you don't have ${skipped === 1 ? "it" : "them"}.` : ""))
                     return again()
                 }
             }
@@ -746,6 +822,15 @@ async function nodeGroupScreen(player, rankId, group, back) {
 async function nodePageScreen(player, rankId, group, nodes, back) {
     const rank = getRank(rankId)
 
+    // Only what the editor has can be changed. A permission they lack is left
+    // off the form, and whatever the rank says about it stays as it was.
+    const open = nodes.filter(node => canGiveNode(player, node))
+    const locked = nodes.length - open.length
+    if (!open.length) {
+        info(player, "§7You don't have any of these yourself, so you can't change them.")
+        return back()
+    }
+
     // Two editor styles, chosen in < Code > ("ranks.permissionEditor"):
     //
     //   toggle    on = granted, off = this rank says nothing and the default
@@ -791,7 +876,7 @@ async function nodePageScreen(player, rankId, group, nodes, back) {
     }
 
     const values = await modal(player, hubTitle("ranks", group),
-        nodes.map(node => dropdown
+        open.map(node => dropdown
             ? {
                 id: node,
                 type: "dropdown",
@@ -817,8 +902,8 @@ async function nodePageScreen(player, rankId, group, nodes, back) {
 
     // Either way, this group's nodes are rewritten from scratch — anything the
     // rank said about them before is replaced, never merged.
-    const perms = rank.perms.filter(p => !nodes.includes(p) && !nodes.includes(p.replace(/^-/, "")))
-    for (const node of nodes) {
+    const perms = rank.perms.filter(p => !open.includes(p) && !open.includes(p.replace(/^-/, "")))
+    for (const node of open) {
         const value = values[node]
         if (dropdown) {
             if (value === 1) perms.push(node)
@@ -845,8 +930,10 @@ async function nodePageScreen(player, rankId, group, nodes, back) {
         }
     }
 
+    if (raisesSelf(player, () => saveRank(rankId, { perms }))) return back()
     saveRank(rankId, { perms })
-    ok(player, `Saved what ${rank.display}§a can do.`)
+    ok(player, `Saved what ${rank.display}§a can do.` +
+        (locked === 1 ? " §7The one you don't have stayed as it was." : locked ? ` §7The ${locked} you don't have stayed as they were.` : ""))
     return back()
 }
 
@@ -855,9 +942,19 @@ async function inheritScreen(player, rankId, back) {
     if (!rank) return back()
     // Ranks in the order, then unlisted ones, which can carry a set of
     // permissions on their own. Cosmetic ranks give none, so they are left out.
-    const others = [...ladder(), ...unrankedRanks().filter(r => rankType(r) === "unlisted")]
+    const all = [...ladder(), ...unrankedRanks().filter(r => rankType(r) === "unlisted")]
         .filter(r => r.id !== rankId)
-    if (!others.length) { info(player, "There are no other ranks to take permissions from."); return back() }
+    // A rank can only be added here if it gives nothing the editor lacks (see
+    // the top of this file). Ranks it already gets from stay listed, so they
+    // can still be taken off.
+    const current = rank.inherits ?? []
+    const others = all.filter(r => current.includes(r.id) || !nodesBeyond(player, r).length)
+    if (!others.length) {
+        info(player, all.length
+            ? "§7Every other rank has permissions you don't have, so you can't pick one."
+            : "There are no other ranks to take permissions from.")
+        return back()
+    }
 
     const values = await modal(player, hubTitle("ranks", `Also gets permissions from · ${nameOf(rank)}`),
         others.map(other => ({
@@ -873,6 +970,7 @@ async function inheritScreen(player, rankId, back) {
         err(player, "That would make a loop: one of those ranks already gets its permissions from this one.")
         return back()
     }
+    if (raisesSelf(player, () => saveRank(rankId, { inherits: picked }))) return back()
     saveRank(rankId, { inherits: picked })
     const names = picked.map(id => nameOf(getRank(id)))
     ok(player, names.length
@@ -1080,19 +1178,42 @@ async function moveHeldScreen(player, targetId, targetName, rankId, back) {
 
 /**
  * Ranks the actor may hand out: ranks in the order strictly below their own
- * row, plus cosmetic and unlisted ranks.
+ * row, plus cosmetic and unlisted ranks, as long as the rank gives nothing
+ * the actor lacks. Below them was never enough on its own: an owner can give
+ * a lower rank something a higher one does not have.
  */
 export function grantableRanks(player) {
-    return [...ladder(), ...unrankedRanks()].filter(rank => canEditRank(player, rank))
+    return [...ladder(), ...unrankedRanks()].filter(rank => canEditRank(player, rank) && !nodesBeyond(player, rank).length)
+}
+
+/** Ranks below the actor that are held back only because they give more than the actor has. */
+function heldBackRanks(player) {
+    return [...ladder(), ...unrankedRanks()].filter(rank => canEditRank(player, rank) && nodesBeyond(player, rank).length)
+}
+
+/** Said under a list of ranks to give when some were left out for that reason. */
+const LEFT_OUT = "§8Ranks with permissions you don't have aren't listed."
+
+/**
+ * The ranks `player` may give `targetId`. Giving one to yourself must not
+ * raise you, which a rank can do without giving anything new, by outranking
+ * one that held something back.
+ */
+export function ranksToGive(player, targetId, { onlyRanked = false } = {}) {
+    const held = heldRankIds(targetId)
+    return grantableRanks(player)
+        .filter(rank => !onlyRanked || isRanked(rank))
+        .filter(rank => onlyRanked || !held.includes(rank.id))
+        .filter(rank => !raisesHolder(player, targetId, onlyRanked ? [rank.id] : idsAfterGrant(targetId, rank.id)))
 }
 
 async function addRankScreen(player, targetId, targetName, back) {
-    const held = heldRankIds(targetId)
-    const options = grantableRanks(player).filter(rank => !held.includes(rank.id))
-    if (!options.length) { err(player, "There are no more ranks below your own to give."); return back() }
+    const options = ranksToGive(player, targetId)
+    if (!options.length) { err(player, "There are no ranks you can give them. You can give ranks below your own, with no permissions you don't have."); return back() }
     return pagedMenu(player, {
         title: hubTitle("ranks", `Give a rank · ${targetName}`),
-        body: subtitle("A rank in the order replaces their starting rank.\nA cosmetic or unlisted rank is added beside what they have."),
+        body: subtitle("A rank in the order replaces their starting rank.\nA cosmetic or unlisted rank is added beside what they have.") +
+            (heldBackRanks(player).length ? `\n${LEFT_OUT}` : ""),
         items: sectioned(options),
         render: item => isDecoration(item) ? item : rankButton(item),
         onPick: async rank => {
@@ -1121,7 +1242,12 @@ async function addRankScreen(player, targetId, targetName, back) {
 }
 
 async function removeRankScreen(player, targetId, targetName, back) {
-    const held = heldRankIds(targetId).map(getRank).filter(Boolean).filter(rank => canEditRank(player, rank))
+    // Taking one of your OWN ranks off can raise you, when that rank was
+    // holding something back, so those are left out for yourself.
+    const ids = heldRankIds(targetId)
+    const held = ids.map(getRank).filter(Boolean)
+        .filter(rank => canEditRank(player, rank))
+        .filter(rank => !raisesHolder(player, targetId, ids.filter(id => id !== rank.id)))
     if (!held.length) { err(player, "They have no ranks you are allowed to take away."); return back() }
     return pagedMenu(player, {
         title: hubTitle("ranks", `Take a rank away · ${targetName}`),
@@ -1144,11 +1270,12 @@ async function setRankScreen(player, targetId, targetName, back) {
     // Only ranks in the order: replacing everything with a cosmetic tag would
     // leave them with just the starting rank beside it, which is not what the
     // button says.
-    const options = grantableRanks(player).filter(isRanked)
-    if (!options.length) { err(player, "There are no ranks below your own to give."); return back() }
+    const options = ranksToGive(player, targetId, { onlyRanked: true })
+    if (!options.length) { err(player, "There are no ranks you can give them. You can give ranks below your own, with no permissions you don't have."); return back() }
     return pagedMenu(player, {
         title: hubTitle("ranks", `Replace all ranks · ${targetName}`),
-        body: subtitle("Removes every rank they have and gives them this one."),
+        body: subtitle("Removes every rank they have and gives them this one.") +
+            (heldBackRanks(player).some(isRanked) ? `\n${LEFT_OUT}` : ""),
         items: options,
         render: rankButton,
         onPick: async rank => {

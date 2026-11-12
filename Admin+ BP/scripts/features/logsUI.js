@@ -2,7 +2,10 @@ import { world } from "@minecraft/server"
 import { menu, pagedMenu, modal, confirm, subtitle } from "../core/ui.js"
 import { hubTitle, hubButton, hubEntry } from "../core/theme.js"
 import { ok, err, info, formatDate, formatDuration } from "../core/util.js"
-import { has, canActOn, canSeeActionsOf, setRanks, restoreSnapshot } from "../core/ranks.js"
+import {
+    has, canActOn, canSeeActionsOf, setRanks, restoreSnapshot,
+    canEditRank, nodesBeyond, gainedBy, canReplaceRankList, heldRankIds, getRank
+} from "../core/ranks.js"
 import { allChannels, canUse } from "../core/channels.js"
 import { unban, unmute, setFrozen, setTpaClosed } from "../core/moderation.js"
 import { setNickname } from "../core/identity.js"
@@ -715,6 +718,7 @@ async function entryScreen(player, entryId, back) {
         return back()
     }
 
+    const blocked = canUndo(entry) ? undoBlocked(player, entry) : ""
     const body = [
         `§f${entry.action}`,
         subtitle(formatDate(entry.at) + ` · ${formatDuration(Date.now() - entry.at)} ago`),
@@ -722,28 +726,68 @@ async function entryScreen(player, entryId, back) {
         `§fBy: §7${entry.actor?.name ?? "console"}`,
         entry.target ? `§fTo: §7${entry.target.name}` : "",
         entry.detail ? `\n§f${entry.detail}` : "",
-        entry.undone ? `\n§8Undone by ${entry.undone.by}` : ""
+        entry.undone ? `\n§8Undone by ${entry.undone.by}` : "",
+        blocked ? `\n§8You can't undo this. ${blocked}` : ""
     ].filter(Boolean).join("\n")
 
     return menu(player, {
         title: hubTitle("settings", "Log entry"),
         body,
-        buttons: canUndo(entry)
+        buttons: canUndo(entry) && !blocked
             ? [{ text: "§eUndo this §8· restores what it changed", run: () => undoScreen(player, entryId, back) }]
             : [],
         back
     })
 }
 
+/**
+ * The permission each kind of undo needs, and how to say it. Undoing is doing
+ * the opposite, so it needs what doing needed. Before 2.8.7 it needed only
+ * the logs: anyone who could read them could lift a ban or put settings back.
+ */
+const UNDO_NEEDS = {
+    ban:      ["admin.ban", "ban players"],
+    mute:     ["admin.mute", "mute players"],
+    freeze:   ["admin.freeze", "freeze players"],
+    tpa:      ["admin.tpatoggle", "turn a player's TPA on and off"],
+    nickname: ["admin.nickname", "change display names"],
+    config:   ["admin.settings", "change settings"],
+    ranks:    ["ranks.grant", "give ranks"]
+}
+
+/**
+ * Why `player` may not undo this entry, or "" when they may. A rank change
+ * also follows the rules for giving ranks: every rank it gives back or takes
+ * away must be one they could give or take themselves, and it may not raise
+ * them. The whole rank list is for owners and operators only.
+ */
+export function undoBlocked(player, entry) {
+    const undo = entry?.undo
+    if (entry?.target?.id && !canActOn(player, entry.target.id)) return `${entry.target.name} outranks you.`
+    if (undo?.kind === "ladder" && !canReplaceRankList(player)) return "Only an operator, or someone with the top rank and every permission, can put the whole rank list back."
+    const [node, words] = UNDO_NEEDS[undo?.kind] ?? []
+    if (node && !has(player, node)) return `You need permission to ${words}.`
+    if (undo?.kind === "ranks") {
+        const targetId = entry.target?.id
+        const now = heldRankIds(targetId)
+        const then = (undo.ranks ?? []).filter(id => getRank(id))
+        const back = then.filter(id => !now.includes(id))
+        const gone = now.filter(id => !then.includes(id))
+        if (back.some(id => !canEditRank(player, getRank(id)) || nodesBeyond(player, id).length)) {
+            return "It gives back a rank you can't give: one at or above yours, or with permissions you don't have."
+        }
+        if (gone.some(id => !canEditRank(player, getRank(id)))) return "It takes away a rank at or above yours."
+        if (targetId === player.id && gainedBy(player, { held: then }).length) return "It would give you permissions you don't have."
+    }
+    return ""
+}
+
 async function undoScreen(player, entryId, back) {
     const entry = getEntry(entryId)
     if (!canUndo(entry)) { info(player, "That can't be undone."); return back() }
 
-    // Undo obeys rank protection: reversing an action on someone who outranks
-    // you would be a way around the ladder.
-    if (entry.target?.id && !canActOn(player, entry.target.id)) {
-        return err(player, `${entry.target.name} outranks you — you can't undo that.`)
-    }
+    const blocked = undoBlocked(player, entry)
+    if (blocked) { err(player, `You can't undo that. ${blocked}`); return back() }
 
     const yes = await confirm(player, hubTitle("settings", "Undo"),
         `${describeUndo(entry)}\n\n§8The original entry stays in the log, marked as undone.`, "§eUndo it")

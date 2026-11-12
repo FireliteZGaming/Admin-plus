@@ -56,6 +56,51 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.8.7 — 2026-11-12
+
+**Nobody can give out a permission they don't have.**
+
+Before this, the rank screens only checked that a rank sat below the person
+editing it. They never checked what that person could do. So anyone who could
+edit ranks could raise their own power:
+
+1. Switch on any permission for a rank below them, Ban or Everything (*)
+   included, even one they did not have.
+2. Press a ready-made set, which did the same for a whole group.
+3. Make a rank below them get its permissions from a rank above them, such as
+   Owner.
+4. Then give that rank to themselves.
+
+The Logs had the same hole from another side: anyone who could read them could
+undo a ban, a mute, a settings change or a rank change, with no check on
+whether they could do that thing themselves.
+
+What happens now, the way Discord roles work:
+
+1. **The switches** show only permissions you have. The rest of the rank's
+   permissions stay as they were.
+2. **Ready-made sets** switch on only what you have, and say how many stayed
+   off. Each set's button says up front if you lack some of it.
+3. **"Also gets permissions from"**, and "Also gets everything from" on a new
+   rank, list only ranks whose permissions you have.
+4. **Giving a rank** lists only ranks below yours whose permissions you have.
+   That covers Give a rank, Replace all their ranks and `/grant`.
+5. **You can't raise yourself** by changing ranks. Taking a rank off yourself,
+   deleting a rank, moving one, or changing its type or the starting rank is
+   checked first, and refused if it would give you a permission you lack.
+6. **Rank templates**, and putting the whole list back, need an operator or
+   someone with the top rank and every permission, because they rewrite every
+   rank, the top one included.
+7. **Undo in the Logs** needs what the action needed: lifting a ban needs Ban,
+   a settings change needs Settings, and a rank change follows the rules for
+   giving ranks.
+
+Owners and operators are not limited by any of this.
+
+Tested under Node: 53 suites, 2,691 checks. The new `tests/rankgap.test.js`
+tries every door above through the real screens, and fails 20 of its checks
+with the rule switched off. **Not yet run in game.**
+
 ## 2.8.6 — 2026-11-12
 
 **Server presets asks for ideas, and Credits has a place for the Discord.**

@@ -309,6 +309,8 @@ export const holdersTable = new Table(HOLDERS_KEY, {})
 // One instance: constructing a Table schedules a deferred seed write, so making
 // a fresh one per snapshot call would queue a write on every check.
 const snapshotTable = new Table(SNAPSHOT_KEY, {})
+// True while gainedBy works out a "what if". See pretend.
+let pretending = false
 
 // ---------------------------------------------------------------- rank table
 
@@ -894,7 +896,18 @@ export function onStaffLost(fn) { demotionListeners.push(fn) }
 
 export function grantRank(playerId, rankId, name) {
     if (!ranksTable.has(rankId)) return false
+    setRanks(playerId, idsAfterGrant(playerId, rankId), name)
+    return true
+}
+
+/**
+ * The ranks a player will hold once given `rankId`, without giving it. The
+ * rank screens ask this before a grant, to check it would not raise the
+ * person giving it to themselves (see gainedBy).
+ */
+export function idsAfterGrant(playerId, rankId) {
     const rank = ranksTable.get(rankId)
+    if (!rank) return heldRankIds(playerId)
     const weight = rank.weight ?? 0
     // RANKS STACK. Granting Admin to somebody who is also a Builder leaves them
     // both, whatever the two weigh. A rank is something a player holds, not a
@@ -924,9 +937,7 @@ export function grantRank(playerId, rankId, name) {
     const at = held.findIndex(id => (ranksTable.get(id)?.weight ?? 0) < weight)
     if (at < 0) held.push(rankId)
     else held.splice(at, 0, rankId)
-
-    setRanks(playerId, held, name)
-    return true
+    return held
 }
 
 /**
@@ -1497,6 +1508,117 @@ export function canEditRank(actor, rank) {
     return topWeight(actor) > (rank.weight ?? 0)
 }
 
+// ------------------------------------------------ handing out permissions
+//
+// THE RANK GAP, closed in 2.8.7. canEditRank above only asks whether a rank
+// sits below the editor. Nothing asked what the editor could do. So anyone
+// who could edit ranks could switch on Ban, or "*", for a rank under them,
+// press "Everything (*)" in the ready-made sets, or make that rank get its
+// permissions from Owner, and then give the rank to themselves. The Logs
+// undo was the same hole from another side: anyone who could read the logs
+// could undo a ban, a settings change or a rank change.
+//
+// The rule now, the way Discord roles work: nobody gives out a permission
+// they don't have. Owners and operators sit outside the order and are not
+// limited. And nobody raises their own power by changing ranks: a change a
+// limited player makes is first worked out as a "what if" (gainedBy), and
+// refused if it would give them anything they don't have now.
+
+/** What a rank's answer about a permission has to be for it to give it. */
+const GIVES = ["own", "wildcard", "inherited"]
+
+/** A config owner or an operator: outside the order, so not limited by it. */
+export function hasFullControl(playerOrId) { return isUnrestricted(playerOrId) }
+
+/** Every permission the pack declares, once each. */
+export function allNodes() {
+    return [...new Set(Object.values(PERMISSION_NODES).flat())]
+}
+
+/**
+ * May this player replace the whole rank list: use a template, or put the
+ * list back from before the last template or delete? That rewrites every
+ * rank, the top one included, so only someone nothing is above who already
+ * has every permission: an owner or operator, or a holder of the top rank
+ * when they have everything.
+ */
+export function canReplaceRankList(player) {
+    if (isUnrestricted(player)) return true
+    const top = ladder()[0]
+    if (!top || topWeight(player) < (top.weight ?? 0)) return false
+    return allNodes().every(node => has(player, node))
+}
+
+/**
+ * May `actor` give out this permission, by switching it on for a rank or
+ * adding it in a ready-made set? Only if they have it. A wildcard ("admin.*",
+ * "*") counts as every declared permission it covers.
+ */
+export function canGiveNode(actor, pattern) {
+    if (isUnrestricted(actor)) return true
+    const body = String(pattern ?? "").replace(/^-/, "")
+    const covered = allNodes().filter(node => matchScore(body, node) > 0)
+    if (!covered.length) return has(actor, body)
+    return covered.every(node => has(actor, node))
+}
+
+/**
+ * The permissions a rank gives that `actor` does not have. Empty means the
+ * actor may hand the rank on: give it to someone, or make another rank get
+ * its permissions from it.
+ */
+export function nodesBeyond(actor, rankOrId) {
+    const rank = typeof rankOrId === "string" ? ranksTable.get(rankOrId) : rankOrId
+    if (!rank || isUnrestricted(actor) || rankType(rank) === "cosmetic") return []
+    return allNodes().filter(node => GIVES.includes(rankGrant(rank, node).state) && !has(actor, node))
+}
+
+/**
+ * Work something out as if a change had been made, without saving it.
+ *
+ * `change` runs against COPIES of the rank list and the holder list with
+ * saving switched off, so it may call saveRank, deleteRank and moveRank. It
+ * must not call setRanks, grantRank or revokeRank: those refresh a live
+ * player's name and run the demotion hooks at once. gainedBy takes `held`
+ * for those instead.
+ */
+function pretend(change, ask) {
+    const tables = [ranksTable, holdersTable]
+    const real = tables.map(table => table.data)
+    for (const table of tables) {
+        table.data = JSON.parse(JSON.stringify(table.data))
+        table.flush = () => {}
+    }
+    pretending = true
+    try {
+        change()
+        return ask()
+    } finally {
+        pretending = false
+        tables.forEach((table, i) => {
+            table.data = real[i]
+            delete table.flush
+        })
+    }
+}
+
+/**
+ * The permissions `player` would GAIN from a change, worked out without
+ * making it. `held` is the list of ranks they would then hold; `change`
+ * edits ranks (see pretend). Owners and operators gain nothing, because
+ * they already have everything.
+ */
+export function gainedBy(player, { held, change } = {}) {
+    if (!player || isUnrestricted(player)) return []
+    const id = typeof player === "string" ? player : player.id
+    const nodes = allNodes()
+    const before = new Set(nodes.filter(node => has(player, node)))
+    return pretend(() => {
+        if (held) holdersTable.data[id] = { ...record(id), ranks: [...held] }
+        change?.()
+    }, () => nodes.filter(node => !before.has(node) && has(player, node)))
+}
+
 // ------------------------------------------------------------------ display
 
 export function rankTag(id) { return `${CONFIG.ranks.tagPrefix}${id}` }
@@ -1514,6 +1636,8 @@ export function syncPlayer(player) {
 }
 
 function resyncAll() {
+    // A "what if" (see pretend) changes nothing real, so there is nothing to show.
+    if (pretending) return
     system.run(() => { for (const p of world.getAllPlayers()) syncPlayer(p) })
 }
 
