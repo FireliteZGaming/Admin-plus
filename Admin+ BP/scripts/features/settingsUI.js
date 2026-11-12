@@ -278,7 +278,9 @@ export async function pageScreen(player, page, back) {
         if (field.kind === "toggle") {
             if (!!raw === flag(field.key)) continue
             setSetting(field.key, raw ? "true" : "false")
-            changed.push(`${field.label} ${raw ? "§aon" : "§8off"}`)
+            // "Teleport requests: off", not "Teleport requests: Teleport requests off".
+            const state = raw ? "§aon" : "§8off"
+            changed.push(field.label === page.label ? state : `${field.label} ${state}`)
         } else {
             // Unmoved means unchanged, even when the stored value sits outside
             // the slider and was shown clamped.
