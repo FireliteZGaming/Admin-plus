@@ -778,7 +778,7 @@ export function primaryRank(playerOrId) { return displayRanks(playerOrId)[0] }
  */
 export function renderTags(playerOrId) {
     // Tags of ranks in the order first, then cosmetic ranks' tags, each half
-    // behind its own switch in Server ▸ Features. Unlisted ranks never show:
+    // behind its own switch in Server ▸ Settings ▸ Names and tags. Unlisted ranks never show:
     // displayRanks has already left them out.
     const shown = displayRanks(playerOrId)
     const ranks = flag("feature.ranktags") ? shown.filter(rank => rankType(rank) !== "cosmetic") : []

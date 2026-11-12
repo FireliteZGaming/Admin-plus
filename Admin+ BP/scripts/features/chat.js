@@ -103,7 +103,7 @@ export function installChat() {
             return
         }
 
-        // **Admin+ chat switched off** (Server ▸ Features), for a server where
+        // **Admin+ chat switched off** (Server ▸ Settings ▸ Chat), for a server where
         // another mod owns chat. The message is left alone, so the game or that
         // mod delivers it. Only the mute above still applies, because a mute
         // that stopped working when chat was handed over would be no mute.
@@ -139,7 +139,7 @@ export function installChat() {
                     // recoverable, and the queue is what shows a
                     // moderator the setting is too aggressive.
                     actOnFilter(player, flagged)
-                    alertStaff(`Held a message from §f${player.name}§r §8(${flagged.label})§r — §7/admin ▸ Server ▸ Chat ▸ Held messages§r`)
+                    alertStaff(`Held a message from §f${player.name}§r §8(${flagged.label})§r — §7/admin ▸ Server ▸ Automod ▸ Held messages§r`)
                 })
                 return
             }

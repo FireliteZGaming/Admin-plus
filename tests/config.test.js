@@ -4,6 +4,7 @@ import { getNickname, setNickname, displayName, hasNickname, nameTokens, styledN
 // canUseCode comes via features/code.js above, which re-exports it.
 import { hasOperator, inDeveloperMode, setDeveloperMode } from "../Admin+ BP/scripts/core/devgate.js"
 import { readFileSync, readdirSync } from "node:fs"
+import { settingKeys } from "../Admin+ BP/scripts/features/settingsUI.js"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -304,15 +305,15 @@ console.log("\n— every feature switch is reachable from the panel —")
 // and was on NO screen — reachable only through All values or < Code >. A
 // switch nobody can find is a section nobody can turn on, which is worse than
 // not having the switch.
+// Since 2.8.3 that place is Server ▸ Settings, grouped.
 {
-    const src = readFileSync(
-        new URL("../Admin+ BP/scripts/features/configUI.js", import.meta.url), "utf8")
-    const listed = [...src.matchAll(/key: "(feature\.[a-z]+)"/g)].map(m => m[1])
+    const listed = settingKeys()
     const shipped = Object.keys(DEFAULTS).filter(k => k.startsWith("feature."))
-    check("every feature. key has a row on the Configuration screen",
+    check("every feature. key has a page in Server ▸ Settings",
         shipped.filter(k => !listed.includes(k)).sort(), [])
-    check("and no row names a key that does not exist",
-        listed.filter(k => !shipped.includes(k)).sort(), [])
+    check("and no page names a key that does not exist",
+        listed.filter(k => !(k in DEFAULTS)).sort(), [])
+    check("no key sits on two pages", listed.filter((k, i) => listed.indexOf(k) !== i), [])
 }
 
 

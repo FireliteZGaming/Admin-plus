@@ -5,19 +5,16 @@ import { displayName } from "../core/identity.js"
 import { hubTitle, hubButton, hubEntry } from "../core/theme.js"
 import { ranksScreen } from "./ranksUI.js"
 import { actionsScreen } from "./actions.js"
-import { codeScreen, canUseCode, allValuesScreen, configPresetsScreen, factoryResetScreen, previewLine } from "./code.js"
+import { codeScreen, canUseCode, allValuesScreen, configPresetsScreen, factoryResetScreen } from "./code.js"
 import { hasOperator } from "../core/devgate.js"
-import { channelsScreen } from "./chatUI.js"
 import { warpsScreen } from "./warps.js"
 import { claimsScreen } from "./claims.js"
 import { claimLimit } from "../core/claims.js"
 import { flag } from "../core/settings.js"
 import { reportsScreen, reportsBadge } from "./reports.js"
-import { teleportTuningScreen } from "./tuning.js"
 import { logsScreen } from "./logsUI.js"
-import { configurationScreen } from "./configUI.js"
-import { automodScreen } from "./automod.js"
-import { heldScreen, heldWaiting } from "./heldUI.js"
+import { settingsScreen } from "./settingsUI.js"
+import { automodHubScreen } from "./automodUI.js"
 import { serverPresetsScreen } from "./serverPresets.js"
 import { hologramsScreen } from "./holograms.js"
 import { creditsScreen } from "./credits.js"
@@ -72,7 +69,7 @@ export async function openPanel(player) {
     }
     if (serverButtons(player, again).length) {
         buttons.push({
-            text: hubButton("settings", "Server", "Features, chat, teleports and presets"),
+            text: hubButton("settings", "Server", "Settings, automod, presets and advanced"),
             run: () => serverScreen(player, again)
         })
     }
@@ -116,18 +113,19 @@ async function placesScreen(player, back) {
 
 // ------------------------------------------------------------------- Server
 
+/**
+ * Server, as the user laid it out on 2026-11-12: Settings (every switch, in
+ * groups that say what they hold), Automod, and Advanced. Server presets is the
+ * one that fits none of those: it sets up the whole server in one step.
+ */
 function serverButtons(player, back) {
     const settings = has(player, "admin.settings")
-    const chat = settings && (has(player, "chat.manage") || has(player, "admin.automod"))
     return [
         settings
-            ? { text: hubButton("settings", "Features", "Turn parts of Admin+ on and off"), run: () => configurationScreen(player, back) }
+            ? { text: hubButton("settings", "Settings", "Switch things on and off: travel, chat, names, moderation, extras"), run: () => settingsScreen(player, back) }
             : null,
-        chat
-            ? { text: hubButton("settings", "Chat", "Chat rooms, auto-moderation and held messages"), run: () => chatSettingsScreen(player, back) }
-            : null,
-        settings
-            ? { text: hubButton("settings", "Teleports", "Wait times, and how long requests last"), run: () => teleportTuningScreen(player, back) }
+        has(player, "admin.automod")
+            ? { text: hubButton("settings", "Automod", "Ore alerts, fast breaking, chat flooding, chat screening"), run: () => automodHubScreen(player, back) }
             : null,
         has(player, "presets.apply")
             ? { text: hubButton("presets", "Server presets", `Set up the whole server in one step · now: ${detectServerPreset().label}`), run: () => serverPresetsScreen(player, back) }
@@ -144,33 +142,6 @@ async function serverScreen(player, back) {
         title: hubTitle("settings", "Server"),
         body: subtitle("How this server works for everyone."),
         buttons: serverButtons(player, again),
-        back
-    })
-}
-
-async function chatSettingsScreen(player, back) {
-    const again = () => chatSettingsScreen(player, back)
-    // Held messages only when something is waiting: an empty queue would be a
-    // button that leads nowhere.
-    const waiting = has(player, "admin.automod") ? heldWaiting() : 0
-    return menu(player, {
-        title: hubTitle("settings", "Chat"),
-        body: [
-            subtitle("How chat looks, and what keeps it clean."),
-            "",
-            `§8A chat line looks like this: §r${previewLine()}`
-        ].join("\n"),
-        buttons: [
-            has(player, "chat.manage")
-                ? { text: hubEntry("settings", "Chat rooms", "Make, lock and order the chats"), run: () => channelsScreen(player, again) }
-                : null,
-            has(player, "admin.automod")
-                ? { text: hubEntry("settings", "Auto-moderation", "Ore alerts, fast breaking and spam"), run: () => automodScreen(player, again) }
-                : null,
-            waiting
-                ? { text: hubEntry("settings", `Held messages (${waiting})`, "Messages the filter stopped: allow or delete them"), run: () => heldScreen(player, again) }
-                : null
-        ].filter(Boolean),
         back
     })
 }

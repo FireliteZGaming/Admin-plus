@@ -222,6 +222,12 @@ value in the wrong key.
   claims, My settings, Help. Personal things (your homes, your claims) live in
   `/menu`; staff tools in `/admin`. Rarely used config sits in Server ▸
   Advanced. Keep new screens inside this shape rather than adding root buttons.
+- **Server is Settings, Automod, Server presets, Advanced (2.8.3, the user's
+  layout, 2026-11-12).** Settings is every switch, in five groups whose buttons
+  list what they hold: Travel, Chat, Names and tags, Moderation, Player extras
+  (`GROUPS` in `features/settingsUI.js`). Each thing has ONE page with its
+  switch and its numbers ("Tpa... covers all Tpa things"). A new feature switch
+  gets a page there; `tests/config.test.js` fails until it does.
 - **A rank is Basics and Permissions (2.8.0, the user's own split, 2026-11-11),
   and it has a TYPE (2.8.1).** Basics: a TYPED name (`&` or `§` codes; Bold and
   Italic switches that read the codes and only rewrite them when flipped), a

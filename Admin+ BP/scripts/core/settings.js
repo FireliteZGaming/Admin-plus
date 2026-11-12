@@ -599,7 +599,7 @@ export function flag(key) {
 
 /**
  * Whether Admin+ may write the name above a player's head at all: the
- * compile-time switch, and the "Names above heads" switch in Server ▸ Features
+ * compile-time switch, and the "Names above heads" switch in Server ▸ Settings
  * for a server where another mod draws nametags.
  */
 export function nameTagsEnabled() { return CONFIG.ranks.showOnNameTag && flag("feature.nametags") }

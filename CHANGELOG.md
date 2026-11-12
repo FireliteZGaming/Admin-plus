@@ -56,6 +56,58 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.8.3 — 2026-11-12
+
+**Server is Settings, Automod, Server presets and Advanced.**
+
+### Settings: every switch, in groups
+
+Server ▸ Settings holds every on/off switch, in five groups. Each group's
+button lists what is inside it:
+
+1. **Travel**: Spawn, Warps, Homes, Go back, Random teleport, Teleport
+   requests, Wait times.
+2. **Chat**: Admin+ chat, Chat rooms, Private messages, Emotes, Join and leave.
+3. **Names and tags**: Rank tags, Cosmetic ranks, Names above heads, Name
+   colours.
+4. **Moderation**: Reports, Warnings, Bans, Vanish, Inventory viewing, Lag
+   clear, Logs, Staff announcements, Staff items and pranks.
+5. **Player extras**: Land claims, Ender chests.
+
+Each thing has one page with everything about it. Teleport requests holds its
+switch and how long a request lasts. Random teleport holds its switch and its
+distances. Spawn holds `/spawn` and spawn protection. Each page's button says
+whether it is on. Saving writes only what you changed, and Logs can undo it
+like any other settings change.
+
+Who may use a staff tool, such as gamemode, is still set per rank. The
+Moderation group says where.
+
+### Automod: its own door
+
+Server ▸ Automod holds:
+
+1. **Checks**: ore alerts, fast breaking and chat flooding.
+2. **Chat screening**, now with its own screen: on or off; how hard to look for
+   each kind (discrimination, sexual content, hostility, ordinary swearing);
+   what a held message costs the sender (hold, warn or mute); how long a mute
+   lasts; and whether staff skip it. The word lists stay in Advanced.
+3. **Held messages**, when any are waiting.
+
+### What moved
+
+1. Server ▸ Features is now Server ▸ Settings.
+2. Server ▸ Teleports is now Settings ▸ Travel ▸ Wait times and Teleport
+   requests. Its reset button is gone; Advanced ▸ Every setting still sets any
+   value back.
+3. Server ▸ Chat is split: chat rooms are in Settings ▸ Chat, and
+   auto-moderation and held messages are in Automod.
+4. The staff alert for a held message points at Server ▸ Automod ▸ Held
+   messages.
+
+Tested under Node: 52 suites, 2,696 checks, including a new test that drives
+the Settings and Automod screens. **Not yet run in game.**
+
 ## 2.8.2 — 2026-11-12
 
 **Only admin tools: the items and commands that were not admin tools are

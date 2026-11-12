@@ -440,7 +440,7 @@ export async function basicsScreen(player, rankId, back) {
     const fontAt = Math.max(0, FONT_IDS.indexOf(rank.font ?? "normal"))
     const styleAt = Math.max(0, STYLE_IDS.indexOf(String(rank.meta?.["nametag.style"] ?? "none")))
     const chatCode = String(rank.meta?.["chat.colour"] ?? "")
-    const coloursOff = flag("feature.namecolour") ? "" : "\n§cName colours are turned off in Server ▸ Features."
+    const coloursOff = flag("feature.namecolour") ? "" : "\n§cName colours are turned off in Server ▸ Settings ▸ Names and tags."
 
     const values = await modal(player, hubTitle("ranks", `Basics · ${nameOf(rank)}`), [
         { id: "name", type: "text", label: NAME_HELP, default: typed },
