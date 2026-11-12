@@ -64,7 +64,7 @@ instructions.
 
 ### The staff panel has six choices
 
-`/admin` used to show up to twelve buttons, mixing staff tools with personal
+`/admin` used to show up to eleven buttons, mixing staff tools with personal
 ones. It now shows six, each named for what you came to do:
 
 1. **Players**: find somebody to help, warn or punish (was Actions).
