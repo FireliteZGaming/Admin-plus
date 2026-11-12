@@ -56,20 +56,6 @@ export function terminate(text) {
     return raw.includes("§") ? `${raw}§r` : raw
 }
 
-/**
- * Colour codes typed by hand, the way Essentials explains it: a code in front
- * of the words colours everything after it. `&` works as well as `§`, because
- * `&` is on every keyboard and `§` is not.
- */
-export function withCodes(text) {
-    return String(text ?? "").replace(/&([0-9a-jk-v])/gi, (_, c) => `§${c.toLowerCase()}`)
-}
-
-/** Written back with `&`, for a text box: easier to read and to edit. */
-export function asTyped(text) {
-    return String(text ?? "").replace(/§([0-9a-jk-v])/gi, "&$1")
-}
-
 export const NICK_MAX = 30
 
 const nicknames = new Table("nicknames", {})

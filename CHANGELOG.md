@@ -56,6 +56,32 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.8.5 — 2026-11-12
+
+**Colour codes use §, and a player's actions have their own button.**
+
+### § codes, not &
+
+Names are coloured with `§` and a code, as in Minecraft and Essentials:
+`§c§lAdmin`. The `&` stand-in from 2.8.1 is gone. This covers rank names, a
+player's display name, `/nick` and the chat colour box. The boxes show the
+name with its `§` codes, and the help writes the sign as `§§`, which is how
+this pack's chat room and warp forms have always shown it.
+
+### Players ▸ a player ▸ Actions
+
+A player's screen is now:
+
+1. **Basics**: display name, font and ranks.
+2. **Actions**: teleport, gamemode, make visible, freeze, their TPA, mute,
+   kick and ban. The button lists the ones you can use on them.
+3. **Inventory** and **Warnings**, at the bottom as before.
+
+Kick and ban still return you to the player list afterwards, since the player
+is gone.
+
+Tested under Node: 52 suites, 2,628 checks. **Not yet run in game.**
+
 ## 2.8.4 — 2026-11-12
 
 **/clock and /sky are Admin+'s own commands.**

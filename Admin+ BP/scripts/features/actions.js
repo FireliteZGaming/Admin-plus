@@ -4,7 +4,7 @@ import { hubTitle } from "../core/theme.js"
 import { ok, err, info, formatDuration } from "../core/util.js"
 import { primaryRank, playerRanks, canActOn, canSeeActionsOf, has, refreshNameTag, knownHolders, getRank, heldRankIds, renderTags, nameFontFor } from "../core/ranks.js"
 import { invseeScreen } from "./invsee.js"
-import { displayName, getNickname, setNickname, NICK_MAX, getNameFont, setNameFont, withCodes, asTyped } from "../core/identity.js"
+import { displayName, getNickname, setNickname, NICK_MAX, getNameFont, setNameFont } from "../core/identity.js"
 import { FONT_IDS, FONTS, fontOptions } from "../core/fonts.js"
 import { flag } from "../core/settings.js"
 import {
@@ -195,6 +195,7 @@ async function playerActionsScreen(player, target, back) {
         allowed ? "" : "\n§cThey outrank you — actions are disabled."
     ].join("\n")
 
+    const actions = actionButtons(player, target, () => playerActionsMenu(player, target, again, back), back)
     return menu(player, {
         title: hubTitle("actions", displayName(target)),
         body,
@@ -205,32 +206,17 @@ async function playerActionsScreen(player, target, back) {
             (allowed && has(player, "admin.nickname")) || has(player, "ranks.grant")
                 ? { text: "§bBasics\n§8Display name, font and ranks", run: () => basicsMenu(player, target, again) }
                 : null,
-            allowed && has(player, "admin.gamemode")
-                ? { text: "§bGamemode", run: () => gamemodeScreen(player, target, again) }
-                : null,
-            has(player, "admin.tp")
-                ? { text: "§bTeleport", run: () => teleportScreen(player, target, again) }
+            // Everything you DO to them, behind one door, asked for on
+            // 2026-11-12: "teleport, gamemode, kick, and ban should be under
+            // Actions". The button lists what this viewer will find inside.
+            actions.length
+                ? { text: `§cActions\n§8${actions.map(a => a.word).join(", ")}`, run: () => playerActionsMenu(player, target, again, back) }
                 : null,
             // Looking is not an action against them, so this one is not gated on
             // the hierarchy — the screen itself refuses to let you TAKE from
             // somebody above you.
             has(player, "admin.invsee")
                 ? { text: "§bInventory §8· see what they are carrying", run: () => invseeScreen(player, target, again) }
-                : null,
-            // forceVisible has always existed and its own comment said the
-            // Actions screen used it. Nothing did — so a vanished player was
-            // only reachable by typing /vanish at them, from a screen that
-            // could not even tell you they were hidden.
-            allowed && has(player, "admin.vanish") && isVanished(target)
-                ? {
-                    text: "§bMake visible §8· they are vanished",
-                    run: () => {
-                        forceVisible(player, target)
-                        ok(player, `${displayName(target)} is visible again.`)
-                        info(target, "§7Staff pulled you out of vanish.")
-                        return again()
-                    }
-                }
                 : null,
             // A disciplinary record is about the person. Reading one belonging
             // to somebody ABOVE you is the same leak the staff notices had, so
@@ -241,63 +227,119 @@ async function playerActionsScreen(player, target, back) {
                     text: `§eWarnings §8· ${warningCount(target)} on record`,
                     run: () => warningsScreen(player, target, again)
                 }
-                : null,
-            allowed && has(player, "admin.freeze")
-                ? {
-                    text: isFrozen(target) ? "§b❄ Unfreeze" : "§b❄ Freeze §8· lock movement",
-                    run: () => {
-                        const was = isFrozen(target)
-                        const frozen = setFrozen(target, !was)
-                        record(player, frozen ? "mod.freeze" : "mod.unfreeze", target,
-                            frozen ? "movement locked" : "released", { kind: "freeze", frozen: was })
-                        ok(player, `${displayName(target)} is now §f${frozen ? "frozen" : "unfrozen"}§a.`)
-                        info(target, frozen ? "§cYou have been frozen by staff." : "§aYou can move again.")
-                        return again()
-                    }
-                }
-                : null,
-            allowed && has(player, "admin.tpatoggle")
-                ? {
-                    text: tpaClosed(target) ? "§bOpen their TPA" : "§bClose their TPA §8· block requests",
-                    run: () => {
-                        const was = tpaClosed(target)
-                        const closed = setTpaClosed(target, !was)
-                        record(player, closed ? "mod.tpaClose" : "mod.tpaOpen", target,
-                            closed ? "requests blocked" : "requests allowed", { kind: "tpa", closed: was })
-                        ok(player, `TPA requests to ${displayName(target)} are now §f${closed ? "blocked" : "allowed"}§a.`)
-                        return again()
-                    }
-                }
-                : null,
-            // Muting needs `allowed` (the rank check); UNMUTING does not, and
-            // that split is the whole point. See the long note in
-            // features/modcommands.js on /unmute: lifting a mute is
-            // restorative, and gating it by rank meant a `/mute @a` left every
-            // peer silenced with nobody able to undo it for them. Muting stays
-            // ranked so a junior still cannot silence a senior.
-            has(player, "admin.mute") && (allowed || isMuted(target) || hasMuteTag(target))
-                ? {
-                    // EITHER half counts, for the label and for what the button
-                    // does. With only `isMuted` here, a player carrying a
-                    // leftover mute tag and no record was offered "Mute" — so
-                    // somebody trying to free themselves muted themselves
-                    // instead, and the button still read Mute afterwards. That
-                    // is the reported symptom, and this is it.
-                    text: (isMuted(target) || hasMuteTag(target)) ? "§eUnmute" : "§eMute",
-                    run: () => (isMuted(target) || hasMuteTag(target))
-                        ? (unmute(target), record(player, "mod.unmute", target, "lifted"), ok(player, `Unmuted §f${displayName(target)}§a.`), info(target, "§aYou can speak again."), again())
-                        : durationScreen(player, target, "mute", again)
-                }
-                : null,
-            allowed && has(player, "admin.kick")
-                ? { text: "§6Kick", run: () => reasonScreen(player, target, "kick", back) }
-                : null,
-            allowed && has(player, "admin.ban")
-                ? { text: "§cBan", run: () => banScreen(player, target, back) }
                 : null
         ].filter(Boolean),
         back
     })
+}
+
+/**
+ * Players ▸ a player ▸ Actions: everything you can do to them, mildest first.
+ * `playerBack` returns to their screen. Kick and Ban return to `listBack`,
+ * the screen before theirs, because after either one they are gone.
+ */
+export async function playerActionsMenu(player, target, playerBack, listBack) {
+    const again = () => playerActionsMenu(player, target, playerBack, listBack)
+    const allowed = canActOn(player, target)
+    return menu(player, {
+        title: hubTitle("actions", `Actions · ${displayName(target)}`),
+        body: [
+            `§fGamemode: §7${gameModeOf(target)}`,
+            `§fStatus: §r${statusLine(target)}`,
+            allowed ? "" : "\n§cThey outrank you, so only teleporting and unmuting work."
+        ].filter(Boolean).join("\n"),
+        buttons: actionButtons(player, target, again, listBack),
+        back: playerBack
+    })
+}
+
+/**
+ * What this viewer may do to this player, as buttons, each with a `word` for
+ * the Actions button's list. `again` reopens the Actions menu; `listBack` is
+ * where Kick and Ban go afterwards.
+ */
+function actionButtons(player, target, again, listBack) {
+    const allowed = canActOn(player, target)
+    const muted = isMuted(target) || hasMuteTag(target)
+    return [
+        has(player, "admin.tp")
+            ? { word: "teleport", text: "§bTeleport", run: () => teleportScreen(player, target, again) }
+            : null,
+        allowed && has(player, "admin.gamemode")
+            ? { word: "gamemode", text: "§bGamemode", run: () => gamemodeScreen(player, target, again) }
+            : null,
+        // forceVisible has always existed and its own comment said the
+        // Actions screen used it. Nothing did — so a vanished player was
+        // only reachable by typing /vanish at them, from a screen that
+        // could not even tell you they were hidden.
+        allowed && has(player, "admin.vanish") && isVanished(target)
+            ? {
+                word: "make visible",
+                text: "§bMake visible §8· they are vanished",
+                run: () => {
+                    forceVisible(player, target)
+                    ok(player, `${displayName(target)} is visible again.`)
+                    info(target, "§7Staff pulled you out of vanish.")
+                    return again()
+                }
+            }
+            : null,
+        allowed && has(player, "admin.freeze")
+            ? {
+                word: isFrozen(target) ? "unfreeze" : "freeze",
+                text: isFrozen(target) ? "§b❄ Unfreeze" : "§b❄ Freeze §8· lock movement",
+                run: () => {
+                    const was = isFrozen(target)
+                    const frozen = setFrozen(target, !was)
+                    record(player, frozen ? "mod.freeze" : "mod.unfreeze", target,
+                        frozen ? "movement locked" : "released", { kind: "freeze", frozen: was })
+                    ok(player, `${displayName(target)} is now §f${frozen ? "frozen" : "unfrozen"}§a.`)
+                    info(target, frozen ? "§cYou have been frozen by staff." : "§aYou can move again.")
+                    return again()
+                }
+            }
+            : null,
+        allowed && has(player, "admin.tpatoggle")
+            ? {
+                word: "TPA",
+                text: tpaClosed(target) ? "§bOpen their TPA" : "§bClose their TPA §8· block requests",
+                run: () => {
+                    const was = tpaClosed(target)
+                    const closed = setTpaClosed(target, !was)
+                    record(player, closed ? "mod.tpaClose" : "mod.tpaOpen", target,
+                        closed ? "requests blocked" : "requests allowed", { kind: "tpa", closed: was })
+                    ok(player, `TPA requests to ${displayName(target)} are now §f${closed ? "blocked" : "allowed"}§a.`)
+                    return again()
+                }
+            }
+            : null,
+        // Muting needs `allowed` (the rank check); UNMUTING does not, and
+        // that split is the whole point. See the long note in
+        // features/modcommands.js on /unmute: lifting a mute is
+        // restorative, and gating it by rank meant a `/mute @a` left every
+        // peer silenced with nobody able to undo it for them. Muting stays
+        // ranked so a junior still cannot silence a senior.
+        //
+        // EITHER half counts as muted, for the label and for what the button
+        // does. With only `isMuted`, a player carrying a leftover mute tag
+        // and no record was offered "Mute", so somebody trying to free
+        // themselves muted themselves instead. That was the reported symptom.
+        has(player, "admin.mute") && (allowed || muted)
+            ? {
+                word: muted ? "unmute" : "mute",
+                text: muted ? "§eUnmute" : "§eMute",
+                run: () => muted
+                    ? (unmute(target), record(player, "mod.unmute", target, "lifted"), ok(player, `Unmuted §f${displayName(target)}§a.`), info(target, "§aYou can speak again."), again())
+                    : durationScreen(player, target, "mute", again)
+            }
+            : null,
+        allowed && has(player, "admin.kick")
+            ? { word: "kick", text: "§6Kick", run: () => reasonScreen(player, target, "kick", listBack) }
+            : null,
+        allowed && has(player, "admin.ban")
+            ? { word: "ban", text: "§cBan", run: () => banScreen(player, target, listBack) }
+            : null
+    ].filter(Boolean)
 }
 
 // ---------------------------------------------------------------- moderation
@@ -489,7 +531,7 @@ export async function basicsMenu(player, target, back) {
 /**
  * Display: their display name and their font, in one form.
  *
- * The name box starts with the name they show now, codes written with &, so
+ * The name box starts with the name they show now, § codes and all, so
  * changing it is editing rather than retyping. Colour is typed into the name,
  * the way players already do it; there is no colour list. Font is a list,
  * because look-alike letters are not something anybody can type.
@@ -507,11 +549,11 @@ export async function nicknameScreen(player, target, back) {
             type: "text",
             label: [
                 `Display name §8(up to ${NICK_MAX} characters, codes count)`,
-                "§8Put & and a code in front for colour: §7&b&lSteve§8 shows as §b§lSteve",
+                "§8Put §§ and a code in front for colour: §7§§b§§lSteve§8 shows as §b§lSteve",
                 "§8Their gamertag or an empty box means no display name."
             ].join("\n"),
             placeholder: target.name,
-            default: asTyped(current)
+            default: current
         },
         {
             id: "font",
@@ -523,7 +565,7 @@ export async function nicknameScreen(player, target, back) {
     ])
     if (!values) return done()
 
-    const wanted = withCodes(String(values.nick ?? "")).trim()
+    const wanted = String(values.nick ?? "").trim()
     if (wanted.length > NICK_MAX) {
         err(player, `Display names cap at ${NICK_MAX} characters, codes included.`)
         return done()

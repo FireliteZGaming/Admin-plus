@@ -229,7 +229,7 @@ value in the wrong key.
   switch and its numbers ("Tpa... covers all Tpa things"). A new feature switch
   gets a page there; `tests/config.test.js` fails until it does.
 - **A rank is Basics and Permissions (2.8.0, the user's own split, 2026-11-11),
-  and it has a TYPE (2.8.1).** Basics: a TYPED name (`&` or `§` codes; Bold and
+  and it has a TYPE (2.8.1).** Basics: a TYPED name (`§` codes, never `&`: the user, 2026-11-12; Bold and
   Italic switches that read the codes and only rewrite them when flipped), a
   font with three switches (rank tag, their name, their messages), the type,
   name colour, typed chat colour, starting rank. Permissions: Member (use,

@@ -4,7 +4,7 @@ import { hubTitle, hubEntry } from "../core/theme.js"
 import { setting, flag, render, renderTag } from "../core/settings.js"
 import { record } from "../core/logs.js"
 import { ok, err, info } from "../core/util.js"
-import { stripCodes, displayName, withCodes, asTyped } from "../core/identity.js"
+import { stripCodes, displayName } from "../core/identity.js"
 import { STYLES, STYLE_IDS, paint } from "../core/nametag.js"
 import { FONTS, FONT_IDS, applyFont, fontOptions } from "../core/fonts.js"
 import {
@@ -46,8 +46,12 @@ import {
 // the name any more. The user's call, 2026-11-11.
 //
 // The Bold and Italic switches are shortcuts for the same codes: they read
-// what was typed (a name with &l in it shows Bold on) and switching one on
+// what was typed (a name with §l in it shows Bold on) and switching one on
 // just puts the code in front of the words.
+//
+// Codes are typed with §, as in Minecraft and Essentials. Not &: the user's
+// correction on 2026-11-12, "its not & but the other symbol". A form label
+// shows a literal § as §§, as this pack's chat room and warp forms always have.
 
 /**
  * Switch one formatting code (l bold, o italic) on or off for the whole name.
@@ -64,14 +68,14 @@ function setFormat(text, code, on) {
 }
 
 /** Does this name use the code (l bold, o italic) anywhere? */
-const uses = (text, code) => new RegExp(`§${code}`, "i").test(withCodes(text))
+const uses = (text, code) => new RegExp(`§${code}`, "i").test(String(text ?? ""))
 
 /**
  * What the name box and its switches add up to.
  *
  * A switch that was flipped wins: on adds the code to the whole name, off
  * takes every copy out. A switch left as it was leaves the box alone, so a
- * name typed with its own &l keeps exactly the bold it was typed with. That is
+ * name typed with its own §l keeps exactly the bold it was typed with. That is
  * the "it auto turns on" the user asked for: the switch starts on when the
  * name already has the code.
  *
@@ -80,35 +84,35 @@ const uses = (text, code) => new RegExp(`§${code}`, "i").test(withCodes(text))
  * around it.
  */
 function buildName(typed, { bold = false, italic = false, wasBold = false, wasItalic = false, font = "normal" } = {}) {
-    let text = withCodes(typed).trim()
+    let text = String(typed ?? "").trim()
     if (bold !== wasBold) text = setFormat(text, "l", bold)
     if (italic !== wasItalic) text = setFormat(text, "o", italic)
     const shown = /^(?:§[klor])*§[0-9a-jmnpqstuv]/i.test(text) ? text : `§f${text}`
-    return { text: asTyped(text), display: applyFont(shown, font) }
+    return { text, display: applyFont(shown, font) }
 }
 
 /** The box shows what was typed. Ranks from before 2.8.1 never stored it. */
-const typedOf = rank => rank?.text ?? asTyped(rank?.display ?? "")
+const typedOf = rank => rank?.text ?? rank?.display ?? ""
 
 /** The name field's help: how to colour it, with an example and the codes. */
 const NAME_HELP = [
     "Name",
-    "§8Colour it by putting & and a code in front of the words.",
-    "§8Example: §7&c&lAdmin§8 shows as §c§lAdmin",
-    "§0&0 §1&1 §2&2 §3&3 §4&4 §5&5 §6&6 §7&7 §8&8 §9&9 §a&a §b&b §c&c §d&d §e&e §f&f",
-    "§8&l bold · &o italic · & and § both work"
+    "§8Colour it by putting §§ and a code in front of the words.",
+    "§8Example: §7§§c§§lAdmin§8 shows as §c§lAdmin",
+    "§0§§0 §1§§1 §2§§2 §3§§3 §4§§4 §5§§5 §6§§6 §7§§7 §8§§8 §9§§9 §a§§a §b§§b §c§§c §d§§d §e§§e §f§§f",
+    "§8§§l bold · §§o italic"
 ].join("\n")
 
 /** Fonts are look-alike letters; the list names each font in itself. */
 const FONT_HELP = "Font\n§8Look-alike letters, like Discord's fonts. They draw smoother than normal text."
 
 /** Chat colour is typed too: one code, or nothing for the normal colour. */
-const CHAT_HELP = "Chat colour\n§8A code like &e for what they type. Leave it empty for normal."
+const CHAT_HELP = "Chat colour\n§8A code like §§e for what they type. Leave it empty for normal."
 function chatCodeFrom(typed) {
     const value = String(typed ?? "").trim()
-    // The letter on its own counts too: "e" is as clear as "&e".
+    // The letter on its own counts too: "e" is as clear as "§e".
     if (/^[0-9a-jmnpqstuv]$/i.test(value)) return value.toLowerCase()
-    const match = withCodes(value).match(/§([0-9a-jmnpqstuv])/i)
+    const match = value.match(/§([0-9a-jmnpqstuv])/i)
     return match ? match[1].toLowerCase() : ""
 }
 
@@ -358,7 +362,7 @@ export async function createRankScreen(player, back) {
     const fallbackAt = usable.findIndex(r => r.id === fallback?.id)
 
     const values = await modal(player, hubTitle("ranks", "New rank"), [
-        { id: "name", type: "text", label: NAME_HELP, placeholder: "&eHelper" },
+        { id: "name", type: "text", label: NAME_HELP, placeholder: "§§eHelper" },
         { id: "bold", type: "toggle", label: "Bold", default: false },
         { id: "italic", type: "toggle", label: "Italic", default: false },
         { id: "font", type: "dropdown", label: `${FONT_HELP}\n§8It goes on the rank tag. Basics can put it on names and messages too.`, options: fontOptions(), default: 0 },
@@ -383,7 +387,7 @@ export async function createRankScreen(player, back) {
     if (!values) return back()
 
     const typed = String(values.name ?? "")
-    const plain = stripCodes(withCodes(typed)).trim()
+    const plain = stripCodes(typed).trim()
     if (!plain) { err(player, "Give the rank a name."); return back() }
     const base = normaliseRankId(plain)
     if (!base) { err(player, "Use letters or numbers in the name."); return back() }
@@ -456,7 +460,7 @@ export async function basicsScreen(player, rankId, back) {
             ? { id: "nameColour", type: "dropdown", label: `Name colour\n§8The player's name, in chat and above their head${coloursOff}`, options: nameColourOptions(), default: styleAt }
             : null,
         type !== "cosmetic"
-            ? { id: "chatColour", type: "text", label: CHAT_HELP, placeholder: "&e", default: chatCode ? `&${chatCode}` : "" }
+            ? { id: "chatColour", type: "text", label: CHAT_HELP, placeholder: "§§e", default: chatCode ? `§${chatCode}` : "" }
             : null,
         ranked
             ? { id: "isDefault", type: "toggle", label: "New players get this rank\n§8The starting rank. Only one rank can be it.", default: !!rank.default }
@@ -479,7 +483,7 @@ export async function basicsScreen(player, rankId, back) {
     const fontChat = "fontChat" in values ? !!values.fontChat : !!rank.fontChat
 
     // An emptied box keeps the old name, as it always has.
-    const wanted = stripCodes(withCodes(values.name ?? "")).trim() ? String(values.name) : typed
+    const wanted = stripCodes(String(values.name ?? "")).trim() ? String(values.name) : typed
     const name = buildName(wanted, {
         bold: !!values.bold, italic: !!values.italic, wasBold, wasItalic,
         font: fontTag ? font : "normal"

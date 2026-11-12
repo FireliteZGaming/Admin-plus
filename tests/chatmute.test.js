@@ -156,13 +156,16 @@ check("but it still needs the mute permission to reach",
 // Unmute button is offered whenever the target is actually muted.
 const actionsSrc = readFileSync(
     new URL("../Admin+ BP/scripts/features/actions.js", import.meta.url), "utf8")
+// Since 2.8.5 the two halves are one `muted` value, read once per screen.
+check("muted means a mute record OR a leftover tag",
+    actionsSrc.includes("const muted = isMuted(target) || hasMuteTag(target)"), true)
 check("the panel offers Unmute even without rank over them",
-    actionsSrc.includes('has(player, "admin.mute") && (allowed || isMuted(target) || hasMuteTag(target))'), true)
+    actionsSrc.includes('has(player, "admin.mute") && (allowed || muted)'), true)
 // A leftover tag with no record has to read as Unmute, not Mute. With only
 // isMuted() driving the label, somebody trying to free themselves was offered
 // "Mute" and muted themselves instead — the reported symptom.
 check("and a leftover tag reads as Unmute, not Mute",
-    actionsSrc.includes('text: (isMuted(target) || hasMuteTag(target)) ? "§eUnmute" : "§eMute"'), true)
+    actionsSrc.includes('text: muted ? "§eUnmute" : "§eMute"'), true)
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)
