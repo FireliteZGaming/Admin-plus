@@ -332,40 +332,6 @@ export const DEFAULTS = {
         label: "Creator & Dev console",
         help: "true / false · lets the pack's Creator and anyone with the Dev tag open a command console in /menu. Bounded by the vanilla-command whitelist below, cannot /op, and every use is logged to the owner. On by default; turn it off to close it."
     },
-    "nuke.radius": {
-        value: "12",
-        label: "Orbital strike size",
-        help: "blocks · the central blast; the ring around it is smaller. 12 flattens a house."
-    },
-    "nuke.breaksBlocks": {
-        value: "true",
-        label: "Orbital strike breaks blocks",
-        help: "true / false · false keeps the sound, the darkness and the damage and leaves the ground alone."
-    },
-    "nuke.tnt": {
-        value: "320",
-        label: "Orbital strike: TNT",
-        help: "how many primed TNT fall. Hundreds is the look; it is also the cost, so lower it if the server stutters."
-    },
-    "nuke.spiralArms": {
-        value: "5", label: "Orbital strike: spiral arms", help: "how many arms wind out from the centre"
-    },
-    "nuke.spiralRadius": {
-        value: "48", label: "Orbital strike: spiral width", help: "blocks · how far the outermost shells sit from the centre"
-    },
-    "nuke.spiralTurns": {
-        value: "3", label: "Orbital strike: spiral turns", help: "how many times each arm winds round"
-    },
-    "nuke.height": {
-        value: "68",
-        label: "Orbital strike: drop height",
-        help: "blocks above the target. This IS the timing — nothing can set a TNT fuse, so the fall is what decides where they go off. Over about 70 they go off on the way down; from 80 they never land in time at all."
-    },
-    "nuke.range": {
-        value: "300",
-        label: "Orbital strike range",
-        help: "blocks · how far the rod can aim. Looking at the sky fires at maximum range."
-    },
     "troll.smiteFire": {
         value: "true",
         label: "Smite sets fires",
@@ -493,43 +459,6 @@ export const DEFAULTS = {
         value: "true",
         label: "Private messages",
         help: "true / false · /pm, /r and /prchat"
-    },
-    "commands.allowed": {
-        // A useful starting set that leaves out anything which would hand the
-        // whole game over. op and deop are absent because they are not on the
-        // list, which is the entire point of it being a whitelist.
-        //
-        // execute and function are absent DELIBERATELY and should stay that
-        // way: only the first word of a command is checked, so allowing either
-        // allows everything after it. "function mypack:whatever" can contain
-        // anything at all.
-        // Every BEDROCK command at Game Directors level, plus `place`, taken
-        // from the official command reference rather than from memory — Java
-        // has commands Bedrock does not (advancement, data, bossbar, worldborder,
-        // team, item) and listing one would just be a name that never matches.
-        //
-        // What is missing, and why, since the gaps are the design:
-        //   kick                        the standing rule; it locks somebody out
-        //                               until the HOST restarts
-        //   op, deop                    the entire point of a whitelist
-        //   execute, function,          WRAPPERS. Only the first word is
-        //   scriptevent, schedule       checked, so each of these allows
-        //                               anything at all behind it
-        //   allowlist, changesetting,   dedicated-server and session admin
-        //   permission, reload*,
-        //   save, stop, transfer,
-        //   setmaxplayers, wsserver,
-        //   sendshowstoreoffer
-        //   script, gametest, project   debug and editor tooling
-        //   help, list, me, tell,       already runnable by anybody, so routing
-        //   packstack                   them through here buys nothing
-        // SHIPS EMPTY. The paragraphs above argue for exactly this and the
-        // value used to contradict them: fifty-six commands arrived ON, which
-        // made a whitelist into a blocklist with extra steps. Turning any of
-        // it on is now a deliberate act, taken in Settings > Op commands.
-        value: "",
-        label: "Vanilla commands turned on",
-        help: "Comma separated · ONLY these run through /cmd. Empty means none. Never add execute, function, scriptevent or schedule: only the first word is checked, so each of them allows everything behind it."
     },
     "format.broadcast": {
         value: "§8[§c§lBroadcast§r§8]§r §e{MSG}",

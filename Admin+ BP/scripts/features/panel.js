@@ -6,7 +6,6 @@ import { hubTitle, hubButton, hubEntry } from "../core/theme.js"
 import { ranksScreen } from "./ranksUI.js"
 import { actionsScreen } from "./actions.js"
 import { codeScreen, canUseCode, allValuesScreen, configPresetsScreen, factoryResetScreen, previewLine } from "./code.js"
-import { opCommandsScreen } from "./opcommands.js"
 import { hasOperator } from "../core/devgate.js"
 import { channelsScreen } from "./chatUI.js"
 import { warpsScreen } from "./warps.js"
@@ -129,9 +128,6 @@ function serverButtons(player, back) {
             : null,
         settings
             ? { text: hubButton("settings", "Teleports", "Wait times, and how long requests last"), run: () => teleportTuningScreen(player, back) }
-            : null,
-        settings
-            ? { text: hubButton("settings", "Vanilla commands", "Let ranks use Minecraft commands without operator"), run: () => opCommandsScreen(player, back) }
             : null,
         has(player, "presets.apply")
             ? { text: hubButton("presets", "Server presets", `Set up the whole server in one step · now: ${detectServerPreset().label}`), run: () => serverPresetsScreen(player, back) }

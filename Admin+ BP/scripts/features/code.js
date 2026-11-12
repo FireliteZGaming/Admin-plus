@@ -69,7 +69,6 @@ export const GROUPS = {
     filter: "Chat screening",
     ban: "Bans",
     troll: "Troll commands",
-    nuke: "Orbital strike",
     warnings: "Warnings",
     items: "Admin items",
     creator: "Creator",
@@ -79,7 +78,6 @@ export const GROUPS = {
     tpa: "TPA",
     rtp: "Random teleport",
     namecolour: "Colour-shifting nametags",
-    commands: "Vanilla commands without op",
     ranks: "Ranks",
     staff: "Staff"
 }
@@ -134,7 +132,7 @@ function isNumeric(text) {
  * back short leaves every key past the cut undefined. Coercing that was
  * silently destructive both ways: a toggle became "false", turning off settings
  * nobody touched, and a text field became "", which DIFFERS from its default
- * and so got STORED — blanking commands.allowed would take /cmd out entirely.
+ * and so got STORED — blanking a chat format would wipe that chat line.
  *
  * The answer has to be the key's CURRENT value rather than a skip, because the
  * caller replaces the whole override table: a key left out of it reverts to the

@@ -104,7 +104,8 @@ async function commandsScreen(player, back) {
 /**
  * The `who` argument, for somebody who has never typed an `@` in their life.
  *
- * This screen exists because of a playtest report about `/eff`: the game shows
+ * This screen exists because of a playtest report about `/eff` (one of the
+ * vanilla wrappers removed in 2.8.2; /gm and its siblings use it now): the game shows
  * `<targets_or_me: string>` and offers no list, so the box may as well be
  * blank. The engine USED to offer `@a @e @p @r @s` as you typed, and cannot any
  * more — it expands selectors at the command's permission level and refuses
@@ -119,25 +120,23 @@ async function targetsScreen(player, back) {
     return menu(player, {
         title: hubTitle("about", "Who"),
         body: [
-            "§7Lots of commands want to know §fwho§7 — that is the first",
-            "§7thing you type after the command. Any of these work:",
+            "§7Some commands want to know §fwho§7, like §f/gmc§7. It is the",
+            "§7first thing you type after the command. Any of these work:",
             "",
             "§fme",
-            "§7  You. §8/eff me speed",
+            "§7  You. §8/gmc me",
             "§fa player's name",
             "§7  That one person. Their nickname works too.",
-            "§8  /eff Steve jump_boost",
+            "§8  /gmc Steve",
             "§feveryone",
-            "§7  Every player here. §8/eff everyone night_vision",
+            "§7  Every player here. §8/gms everyone",
             "§fnearest",
             "§7  Whoever is standing closest to you.",
             "§frandom",
             "§7  One player, picked out of a hat.",
-            "§fmobs",
-            "§7  Every creature, players included. §8/slay mobs",
             "",
-            "§8If you already know Minecraft selectors, @s @a @p @r @e",
-            "§8all still work, filters and all — @e[type=cow,r=10]."
+            "§8If you already know Minecraft selectors, @s @a @p @r",
+            "§8all still work, filters and all: @a[r=10]."
         ].join("\n"),
         buttons: [],
         back

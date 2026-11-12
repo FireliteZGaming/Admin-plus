@@ -1,7 +1,7 @@
 import { __test } from "@minecraft/server"
 import { __ui } from "@minecraft/server-ui"
-import { ladder, getRank, saveRank, setRanks, grantRank, heldRankIds, onPlayerJoin, applyPreset, nameFontFor } from "../Admin+ BP/scripts/core/ranks.js"
-import { createRankScreen, basicsScreen, ranksScreen, playerRankScreen } from "../Admin+ BP/scripts/features/ranksUI.js"
+import { ladder, getRank, saveRank, setRanks, grantRank, heldRankIds, onPlayerJoin, applyPreset, nameFontFor, whereToGrant, nodeLabels, PERMISSION_NODES } from "../Admin+ BP/scripts/core/ranks.js"
+import { createRankScreen, basicsScreen, ranksScreen, rankScreen, playerRankScreen } from "../Admin+ BP/scripts/features/ranksUI.js"
 import { basicsMenu } from "../Admin+ BP/scripts/features/actions.js"
 import { getNickname, getNameFont } from "../Admin+ BP/scripts/core/identity.js"
 import { FONT_IDS, applyFont } from "../Admin+ BP/scripts/core/fonts.js"
@@ -274,6 +274,37 @@ console.log("\n— a player's tag order skips their unlisted ranks —")
     const held = heldRankIds(kit.id)
     check("Artist moved above Builder", held.indexOf("artist") < held.indexOf("builder"), true)
     check("past the hidden Tester, which stays put", held.indexOf("tester"), 2)
+}
+
+console.log("\n— \"switch it on here\" names the real buttons —")
+// "Ranks ▸ the rank ▸ Permissions ▸ Administrative ▸ Pranks ▸ smite", not
+// "admin.smite". Moved here from the orbital test when that went in 2.8.2, and
+// walked through the real screens, so the path and the buttons cannot drift.
+{
+    const at = "Ranks ▸ the rank ▸ Permissions ▸ "
+    check("a prank node", whereToGrant("admin.smite"), `${at}Administrative ▸ Pranks ▸ smite`)
+    check("a punishment node", whereToGrant("admin.banperm"), `${at}Administrative ▸ Punishments ▸ banperm`)
+    check("the switch for vanilla commands", whereToGrant("admin.commands"), `${at}Administrative ▸ Server settings ▸ commands`)
+    check("an everyday node sits under Member", whereToGrant("warp.use"), `${at}Member ▸ What they can use ▸ warp`)
+    check("a node nobody lists still gets an answer", whereToGrant("made.up"), `${at}made.up`)
+    for (const [group, nodes] of Object.entries(PERMISSION_NODES)) {
+        const labels = nodeLabels(nodes)
+        const half = group === "Everyone" ? "Member ▸ What they can use" : `Administrative ▸ ${group}`
+        const wrong = nodes.filter((n, i) => whereToGrant(n) !== `${at}${half} ▸ ${labels[i]}`)
+        check(`${group}: every node points at its button`, wrong, [])
+    }
+
+    // And the buttons really are called that. A rank ▸ Permissions ▸ Member:
+    __ui.answers.push(press(1), press(0))
+    await rankScreen(boss, "member", () => {})
+    check("Permissions ▸ Member opens on What they can use",
+        partsOf(lastForm(), "button")[0].includes("What they can use"), true)
+    // A staff rank ▸ Permissions ▸ Administrative:
+    __ui.answers.push(press(1), press(1))
+    await rankScreen(boss, "mod", () => {})
+    const groups = partsOf(lastForm(), "button")
+    check("Permissions ▸ Administrative lists every staff group",
+        Object.keys(PERMISSION_NODES).filter(g => g !== "Everyone").filter(g => !groups.some(b => b.includes(g))), [])
 }
 
 console.log(`\n${passed} passed, ${failed} failed\n`)

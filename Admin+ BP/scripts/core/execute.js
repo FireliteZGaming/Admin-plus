@@ -1,6 +1,6 @@
 import { world } from "@minecraft/server"
 import { setting } from "./settings.js"
-import { deniedFor, commandNode, has } from "./ranks.js"
+import { deniedFor, commandNode, has, whereToGrant } from "./ranks.js"
 
 // Running vanilla commands without being an operator.
 //
@@ -39,29 +39,6 @@ import { deniedFor, commandNode, has } from "./ranks.js"
 // operator is invisible. Nothing records that an operator ran /give, and
 // nothing can. Every command through here is logged and announced to the ranks
 // above the person who ran it. Same power, written down.
-
-/**
- * ONE list, and it is a whitelist.
- *
- * There is no blocklist any more, and there does not need to be: /op does not
- * work because it is not on the list, not because something specifically
- * forbids it. Two lists to reason about was one too many — an owner had to
- * check both to answer "can this person run that", and a mistake in either
- * direction was silent.
- *
- * Empty means NOTHING runs. That is the safe reading of an empty list for a
- * feature that hands out operator-level power, and it makes turning /cmd on
- * a deliberate act rather than a default.
- */
-function allowed() {
-    return String(setting("commands.allowed") ?? "")
-        .split(",")
-        .map(s => s.trim().toLowerCase())
-        .filter(Boolean)
-}
-
-/** What tab-completion should offer. */
-export function allowedCommands() { return allowed() }
 
 /** The first word, without a leading slash. */
 export function commandName(line) {
@@ -121,11 +98,12 @@ export function checkCommand(line) {
 /**
  * May THIS player run this command, once the world allows it at all?
  *
- * Two layers, and both have to say yes. `commands.allowed` is the world asking
- * whether a command exists here; the `cmd.<name>` node is the ladder asking who
- * may use it — so a Mod can have /a:kill and be refused /a:gmode, which is
- * worth doing wherever a vanilla command duplicates something the pack already
- * does better.
+ * Two questions, and both have to say yes: does the rank hold
+ * `admin.commands` at all, and has it been denied this one with
+ * `-cmd.<name>`? Since 2.8.2 the only vanilla commands Admin+ runs for staff
+ * are time and weather (/clock and /sky). The `commands.allowed` list that
+ * used to sit in front of this was dropped then: nothing had checked it for
+ * a long time.
  *
  * An ordinary node, so `cmd.*` grants the set, it inherits down the ladder, and
  * `-cmd.gamemode` carves a hole in an inherited wildcard. has() also lets a real
@@ -150,7 +128,7 @@ export function mayRun(player, line) {
     if (!has(player, "admin.commands")) {
         return {
             ok: false,
-            reason: "Your rank can't use vanilla commands. An owner turns that on in Ranks ▸ the rank ▸ What it can do ▸ Server settings ▸ commands."
+            reason: `Your rank can't use vanilla commands. An owner turns that on in ${whereToGrant("admin.commands")}.`
         }
     }
 

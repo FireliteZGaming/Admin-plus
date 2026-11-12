@@ -23,8 +23,8 @@ import { has, whereToGrant } from "./ranks.js"
 /**
  * The two halves, split 2026-09-13 because they are not the same trust.
  *
- * `admin.smite` is the visible, harmless, reversible half — lightning, the
- * trident, knockback, the mirror, the nuke. Somebody notices, everybody laughs,
+ * `admin.smite` is the visible, harmless, reversible half: lightning and the
+ * knockback stick. Somebody notices, everybody laughs,
  * and the log says who.
  *
  * `admin.sudo` puts WORDS IN SOMEBODY'S MOUTH and runs commands as them. It is

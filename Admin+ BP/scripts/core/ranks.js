@@ -3,7 +3,6 @@ import { CONFIG } from "../config.js"
 import { Table, cleanId } from "./storage.js"
 import { displayName, nameTokens, stripCodes, hasNickname, getNameFont, setNameDecorator } from "./identity.js"
 import { render, renderTag, nameTagsEnabled, flag, setting } from "./settings.js"
-import { OP_COMMANDS } from "./opcommands.js"
 import { STYLES, STYLE_IDS, paint, currentFrame } from "./nametag.js"
 import { applyFont } from "./fonts.js"
 
@@ -261,20 +260,25 @@ export function nodeLabels(nodes) {
 /**
  * Where to go to switch a node on, in the words the screen actually uses.
  *
- * "Ranks ▸ Staff tools ▸ troll" rather than "admin.troll". The node id is what
- * the code says; the label is what the person hunting for the switch will read
- * on the button, and those stopped being the same thing when the editor started
- * shortening them. Derived from nodeLabels so it cannot drift from the editor —
- * a message naming a switch that does not exist under that name is worse than
- * no message.
+ * "Ranks ▸ the rank ▸ Permissions ▸ Administrative ▸ Pranks ▸ smite" rather
+ * than "admin.smite". The node id is what the code says; the path is the
+ * buttons somebody taps, in the words those buttons use. The labels come from
+ * nodeLabels so they cannot drift from the editor. A message naming a switch
+ * that does not exist under that name is worse than no message.
+ *
+ * Since 2.8.0 a rank opens on Basics and Permissions, and Permissions splits
+ * into Member (the Everyone group, behind "What they can use") and
+ * Administrative (every other group). features/ranksUI.js draws those buttons;
+ * tests/ranksui.test.js walks them to check this path still matches.
  */
 export function whereToGrant(node) {
     for (const [group, nodes] of Object.entries(PERMISSION_NODES)) {
         const at = nodes.indexOf(node)
         if (at === -1) continue
-        return `Ranks ▸ the rank ▸ What it can do ▸ ${group} ▸ ${nodeLabels(nodes)[at]}`
+        const half = group === "Everyone" ? "Member ▸ What they can use" : `Administrative ▸ ${group}`
+        return `Ranks ▸ the rank ▸ Permissions ▸ ${half} ▸ ${nodeLabels(nodes)[at]}`
     }
-    return `Ranks ▸ the rank ▸ What it can do ▸ ${node}`
+    return `Ranks ▸ the rank ▸ Permissions ▸ ${node}`
 }
 
 /** The permission node governing one vanilla command. */
@@ -584,9 +588,9 @@ export function playerRanks(playerOrId) {
  * keeps the console the right side of that line:
  *   - it is an OPT-OUT setting (`creator.console`), visible in the config, so
  *     nothing about it is concealed from an owner who looks;
- *   - it can only run the owner's OWN vanilla whitelist (`commands.allowed`),
- *     so it grants no command the owner has not already exposed, and cannot
- *     `/op` because op is never on that list;
+ *   - it runs Admin+ commands only, each checking the person's own rank, so
+ *     it grants nothing their rank does not already give them, and it runs no
+ *     vanilla command, so it cannot `/op` (since 2.8.2);
  *   - every command through it is logged AND announced to online owners, so it
  *     is a power an owner can watch, not one that acts unseen.
  * A regular member never reaches it — that is the whole point. If any of those

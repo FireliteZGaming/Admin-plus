@@ -6,10 +6,8 @@ import { flag } from "../core/settings.js"
 import { displayName } from "../core/identity.js"
 import { isCreator, isTeamDeveloper, isOwner } from "../core/ranks.js"
 import { canUseCode } from "../core/devgate.js"
-import { runAsServer } from "../core/execute.js"
 import { runPackCommand } from "../core/dispatch.js"
 import { record } from "../core/logs.js"
-import { armNuke } from "../core/orbital.js"
 
 // The Creator & Dev console — a command line in /menu, for the pack's Creator
 // and anyone the owner has tagged Dev.
@@ -22,9 +20,12 @@ import { armNuke } from "../core/orbital.js"
 //
 //   1. OPT-OUT, NOT HIDDEN. `creator.console` is a normal setting, on by
 //      default, sitting in the config where any owner can see and close it.
-//   2. THE OWNER'S OWN WHITELIST. It runs through runAsServer, which only runs
-//      what `commands.allowed` permits — so it can do nothing the owner has not
-//      already exposed to /cmd, and cannot /op, because op is never on the list.
+//   2. ADMIN+ COMMANDS ONLY (since 2.8.2). Each one checks the person's own
+//      rank, so the console reaches nothing they could not have typed
+//      themselves, and it runs no vanilla command at all, so it cannot /op.
+//      Until 2.8.2 it fell through to vanilla here and promised to stay inside
+//      the owner's whitelist, but that whitelist had stopped being checked, so
+//      in practice it ran any vanilla command short of /op.
 //   3. WATCHED. Every command is written to the log and announced to online
 //      owners, so it is a power an owner sees being used, not one that acts
 //      unseen.
@@ -66,35 +67,6 @@ function onlineOwners() {
 }
 
 /**
- * Console-only switches, caught before the line reaches the vanilla runner.
- *
- * `toggle` is not a Minecraft command and never will be, so it could not reach
- * runAsServer even in principle — the whitelist would refuse it. That is the
- * point rather than a workaround: a switch that can only be flipped from here
- * is a switch that cannot be flipped by a command block, a function, or
- * anybody who merely has operator.
- *
- * Returns the line to print, or undefined when this was an ordinary command.
- */
-function consoleSwitch(player, line) {
-    const parts = line.trim().toLowerCase().split(/\s+/)
-    if (parts[0] !== "toggle") return undefined
-
-    if (parts[1] === "nuke") {
-        const on = armNuke(parts[2] === undefined ? undefined : parts[2] === "on")
-        record(player, "creator.console", undefined, `toggle nuke ${on ? "on" : "off"}`)
-        for (const owner of onlineOwners()) {
-            owner.sendMessage(`§8[§bAdmin§d+§8] §7${displayName(player)} turned the orbital strike §f${on ? "ON" : "OFF"}§7.`)
-        }
-        return on
-            ? "§a✓ orbital strike ARMED §8— the rod is in /items, behind its other three locks"
-            : "§e• orbital strike disarmed §8— every rod already handed out is inert"
-    }
-
-    return `§c✗ nothing called §f${parts[1] ?? ""}§c to toggle. Known: §fnuke§c.`
-}
-
-/**
  * The console screen. Runs one command, shows the result, and re-opens itself
  * so it reads like a console rather than a one-shot box. Closing it leaves.
  *
@@ -113,8 +85,7 @@ export async function consoleScreen(player, back = () => {}, last = "") {
             label: [
                 "§8Runs at operator level, from the server's seat.",
                 "§8Admin+ commands by name — §fgm creative Steve§8, §fban Alex§8 — no §fa:§8 needed.",
-                "§8Vanilla too, from the world's allowed list, the same one /cmd uses.",
-                "§8Plus §ftoggle nuke§8, which lives only here.",
+                "§8Time and weather too: §fclock set day§8, §fsky clear§8. No other vanilla commands.",
                 last ? `\n${last}` : ""
             ].join("\n"),
             placeholder: "gm creative @a",
@@ -126,20 +97,14 @@ export async function consoleScreen(player, back = () => {}, last = "") {
     const line = String(values.line ?? "").trim()
     if (!line) return consoleScreen(player, back, last)
 
-    // Switches first: these never reach the vanilla runner, which would refuse
-    // them anyway because no such command exists.
-    const flipped = consoleSwitch(player, line)
-    if (flipped !== undefined) return consoleScreen(player, back, flipped)
-
     // The pack's OWN commands first. /gm, /tp, /ban and the rest are handlers
     // the engine calls with parsed arguments — not strings the dimension knows
     // — so runAsServer could never reach them, and the console could only ever
     // run vanilla. core/dispatch.js parses the line the way the engine would,
     // reusing the registry's typed parameter lists and the selector resolver.
     //
-    // undefined means it was not one of ours, which is the cue to fall through
-    // rather than a failure. Each command still checks its own perm, so this
-    // reaches exactly what the person could have typed themselves.
+    // undefined means it was not one of ours. Each command still checks its
+    // own perm, so this reaches exactly what the person could have typed.
     const pack = runPackCommand(player, line)
     if (pack) {
         if (!pack.ok) return consoleScreen(player, back, `§c✗ ${pack.reason}`)
@@ -151,32 +116,6 @@ export async function consoleScreen(player, back = () => {}, last = "") {
         return consoleScreen(player, back, `§a✓ /${pack.command}`)
     }
 
-    const result = runAsServer(player, line)
-    if (!result.ok) {
-        // Re-open with the refusal shown, so a mistyped command does not eject
-        // you from the console — that is what a real one does.
-        return consoleScreen(player, back, `§c✗ ${result.reason}`)
-    }
-
-    // Logged and announced. record() is the audit trail; the owner message is
-    // the live "someone is using this" the badge rule promises.
-    record(player, "creator.console", undefined, result.command)
-    for (const owner of onlineOwners()) {
-        if (owner.id === player.id) continue
-        owner.sendMessage(`§8[§bAdmin§d+§8] §7${displayName(player)} ran §f/${result.command}§7 from the console.`)
-    }
-
-    // The game answers with how many times the command actually took effect,
-    // and a console that prints ✓ over a zero is lying about the useful half:
-    // `/kill @e[type=cow]` in a world with no cows parses perfectly and does
-    // nothing. Say the number rather than judge it — a few commands report 0 on
-    // a real success, and "0 matched" is still true for those.
-    const matched = Number(result.output ?? 0)
-    if (!matched) {
-        ok(player, `Ran §f/${result.command}§a — §e0 matched§a.`)
-        return consoleScreen(player, back, `§e• /${result.command} §8— ran, 0 matched`)
-    }
-
-    ok(player, `Ran §f/${result.command}§a.`)
-    return consoleScreen(player, back, `§a✓ /${result.command}§8 — ${matched} matched`)
+    // Not one of ours, and the console runs nothing else: see point 2 above.
+    return consoleScreen(player, back, "§c✗ The console runs Admin+ commands only. §8Vanilla commands need operator.")
 }

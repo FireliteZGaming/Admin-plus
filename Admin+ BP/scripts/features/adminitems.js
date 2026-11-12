@@ -1,4 +1,4 @@
-import { world, system, ItemStack, EnchantmentTypes } from "@minecraft/server"
+import { world, system, ItemStack } from "@minecraft/server"
 import { command } from "../core/registry.js"
 import { ok, err, info } from "../core/util.js"
 import { has, isStaff, canActOn, canTrollOn, primaryRank, whereToGrant } from "../core/ranks.js"
@@ -10,16 +10,7 @@ import { hubTitle } from "../core/theme.js"
 import { isVanished } from "../core/vanish.js"
 import { worldToken, makeBanHammer, HAMMER_NAME } from "../core/banhammer.js"
 import { setting } from "../core/settings.js"
-import { canNuke, nukeBlockedBy, nukeMissing, orbitalStrike } from "../core/orbital.js"
 import { trollAllowed, trollBlockedBy } from "../core/trollgate.js"
-import {
-    TRIDENT_TAG, TRIDENT_SPENT, noteThrow, claimThrow, forgetThrows, beginStorm,
-    installTridentEffects
-} from "../core/trident.js"
-import {
-    FULL_CHARGE, chargesOf, chargeLine, spendCharge, mirrorHand,
-    reflect, duringReflection, isReflecting
-} from "../core/mirror.js"
 
 // /items — grab an admin item without vanishing or opening /admin.
 //
@@ -42,28 +33,11 @@ const SIGIL = "§8Admin+ item"
  * Ban Hammer uses, so an item that outlives its holder's permission is inert
  * rather than a backdoor.
  */
+//
+// The Orbital Strike, the Spectral Trident and the Mirror Totem were removed in
+// 2.8.2, the user's call: "these are not actually admin items". Do not bring
+// them back unasked.
 const ITEMS = {
-    // The Orbital Strike rod. Look somewhere, use it once, and it is gone.
-    //
-    // A fishing rod because that is what the build this comes from used, and
-    // the gesture is right: you cast it at something across the map rather than
-    // standing on top of it. It breaks on use — one rod, one strike — which is
-    // the only reason a thing this size can exist in an item slot at all.
-    //
-    // FOUR locks, checked here and again at use: the troll section, the
-    // admin.troll node, operator-and-Dev, and `toggle nuke` at the console. See
-    // core/orbital.js for why each one is a different kind of claim.
-    orbital: {
-        barSlot: 3,
-        slot: 28,
-        gate: p => canNuke(p),
-        make: () => signItem("minecraft:fishing_rod", "§4§lOrbital Strike",
-            "§7Aim at something far away and use it once."),
-        name: "§4§lOrbital Strike",
-        lines: ["§7Aim at something far away and use it once.",
-                "§8It breaks on use. You get one."],
-        typeId: "minecraft:fishing_rod"
-    },
     hammer: {
         barSlot: 4,
         slot: 11,
@@ -109,63 +83,11 @@ const ITEMS = {
         lines: ["§7Use it to pick who you jump to.", "§8Or a location, or whatever you are looking at."],
         typeId: "minecraft:ender_eye"
     },
-    // The Spectral Trident. Throw it; red dust turns around it in the air, and
-    // whatever it strikes wears a storm of it.
-    //
-    // A trident because a trident IS the item. An arrow is ammunition — the bow
-    // picks a stack, consumes it, and spawns a generic arrow carrying none of
-    // the name or lore, so you can neither tell which arrow was fired nor
-    // choose which one goes. You throw the trident in your hand, so there is
-    // nothing to pick and nothing to guess, and Loyalty proves the stack
-    // survives the flight because returning that exact trident is what Loyalty
-    // does.
-    //
-    // Loyalty III so it always comes back, and never Riptide — Riptide throws
-    // YOU instead of the trident, which would leave the whole thing inert.
-    trident: {
-        barSlot: 5,
-        slot: 30,
-        // TWO gates, and they answer different questions. This one is who may
-        // TAKE it — the combat toys, behind the troll section and the ladder's
-        // troll node. Who you may HIT with it is asked again when it lands, and
-        // that one is canActOn: stripping somebody's armour and pinning them at
-        // half a heart is not banter, and a tool leaving a mark somebody has to
-        // appeal belongs on the strict rule.
-        gate: p => trollAllowed(p),
-        make: () => loyalTrident(),
-        name: "§c§lSpectral Trident",
-        lines: ["§7Throw it. It comes back.",
-                "§8Red dust swirls around whatever it hits."],
-        typeId: "minecraft:trident"
-    },
-    // The Mirror Totem. Everything that hits you hits whoever swung it.
-    //
-    // A totem has no durability — it is not a tool, so there is no damage
-    // component and no bar — so the count rides in the LORE and the stack is
-    // re-minted each time. The charge therefore travels with the ITEM: drop it,
-    // trade it, leave it in a chest, and it is the same totem with the same
-    // charges. A count kept against a player id in storage would be none of
-    // those, because an item has no identity to key on.
-    //
-    // At zero it becomes an ordinary totem of undying, which still saves your
-    // life once and is a fine thing to be left holding.
-    mirror: {
-        barSlot: 6,
-        slot: 34,
-        // Same gate as the Spectral Trident, because they are the same
-        // category seen from both ends: one is what you throw, the other is
-        // what you hold when somebody throws theirs. Splitting them would mean
-        // a rank that can hand out the attack but not the answer to it.
-        gate: p => trollAllowed(p),
-        make: () => mirrorTotem(FULL_CHARGE),
-        name: "§b§lMirror Totem",
-        lines: ["§7Everything that hits you hits them instead.",
-                `§8${FULL_CHARGE} charges, then it is just a totem.`],
-        typeId: "minecraft:totem_of_undying"
-    },
     knockback: {
         barSlot: 2,
-        slot: 32,
+        // The middle of the second row, on its own now the combat set beside it
+        // is gone.
+        slot: 31,
         // A troll tool, and gated as one since 2.2.4. It used to answer to
         // admin.staffmode, which meant every staff member got it whatever the
         // ladder said and switching the troll section off did not take it away.
@@ -182,32 +104,20 @@ const ITEM_NODE = {
     hammer: "admin.banperm",
     teleport: "admin.tp",
     eye: "admin.tp",
-    trident: "admin.smite",
-    knockback: "admin.smite",
-    mirror: "admin.smite"
-    // orbital is not here: it has three locks, and nukeMissing lists them.
+    knockback: "admin.smite"
 }
 
 /**
  * Everything standing between this person and that item. Empty means it is
  * theirs.
  *
- * **All of it at once, not the first one.** Reporting one lock per attempt is
- * what made the Orbital Strike maddening: you were told it was not armed, armed
- * it, and were then told about developer mode — a second errand you could have
- * run at the same time if anybody had said so.
- *
- * And each line says WHERE, in the words the rank editor puts on the button —
- * "Ranks ▸ Staff tools ▸ troll", not "admin.troll". The point of showing a
- * locked row is that you can go and unlock it.
+ * Each line says WHERE, in the words the rank editor puts on the buttons
+ * (whereToGrant), not the node id. The point of showing a locked row is that
+ * you can go and unlock it.
  */
 function lockedReasons(player, key) {
     const def = ITEMS[key]
     if (!def || def.gate(player)) return []
-    if (key === "orbital") {
-        const missing = nukeMissing(player)
-        return missing.length ? missing : ["Locked."]
-    }
     const node = ITEM_NODE[key]
     return [node ? `Needs §f${whereToGrant(node)}` : "Your rank doesn't allow it."]
 }
@@ -222,52 +132,6 @@ function signItem(typeId, name, blurb) {
     stack.nameTag = name
     stack.setLore([blurb, `${SIGIL} · #${worldToken()}`])
     return stack
-}
-
-/**
- * A signed trident that always comes home.
- *
- * Loyalty is applied here rather than left to the holder, because the item's
- * whole promise is that you get it back — one without it is a trident you throw
- * off a cliff once. Level 3 is the fastest return vanilla offers.
- *
- * The enchantment is best-effort: if this runtime names loyalty differently the
- * trident is still a signed, working Spectral Trident that simply has to be
- * walked to. Losing the effect over a missing enchantment would be the worse
- * failure.
- */
-function loyalTrident() {
-    const stack = signItem("minecraft:trident", "§c§lSpectral Trident",
-        "§7Throw it. It comes back.")
-    safe(() => {
-        const enchantable = stack.getComponent("minecraft:enchantable")
-        const type = EnchantmentTypes.get("loyalty") ?? EnchantmentTypes.get("minecraft:loyalty")
-        if (enchantable && type) enchantable.addEnchantment({ type, level: 3 })
-    })
-    return stack
-}
-
-/**
- * A mirror totem with `left` charges on it.
- *
- * Signed like everything else, with the count as a THIRD lore line so the
- * serial check and the charge read stay independent — re-minting changes the
- * count without ever touching the thing that proves it is ours.
- */
-function mirrorTotem(left, max = FULL_CHARGE) {
-    const stack = new ItemStack("minecraft:totem_of_undying", 1)
-    stack.nameTag = "§b§lMirror Totem"
-    stack.setLore([
-        "§7Everything that hits you hits them instead.",
-        `${SIGIL} · #${worldToken()}`,
-        chargeLine(left, max)
-    ])
-    return stack
-}
-
-/** Is this a live mirror totem — ours, and with charges left? */
-function isMirrorTotem(stack) {
-    return itemKey(stack) === "mirror" && (chargesOf(stack)?.left ?? 0) > 0
 }
 
 /** Is this the /items version of one of ours, and which key? */
@@ -316,7 +180,7 @@ command({
             key, def, locked: lockedReasons(player, key)
         }))
         if (rows.every(row => row.locked.length)) {
-            return err(player, "You don't have permission to use any admin items. §7Ask an owner to switch one on in Ranks ▸ your rank ▸ What it can do ▸ Staff tools.")
+            return err(player, "You don't have permission to use any admin items. §7Ask an owner to switch one on in Ranks ▸ your rank ▸ Permissions ▸ Administrative ▸ Staff tools.")
         }
 
         const chest = new ChestForm("large").title("Admin items")
@@ -483,15 +347,14 @@ export function installAdminItems() {
             const player = event.source
             if (!player) return
             const key = itemKey(event.itemStack)
-            // Neither of these may do what its vanilla self does: an ender eye
-            // flies off toward a stronghold, a fishing rod throws a bobber.
-            if (key !== "eye" && key !== "orbital") return
+            // The eye must not do what its vanilla self does: fly off toward a
+            // stronghold.
+            if (key !== "eye") return
             event.cancel = true
             // Checked at USE time, not when it was handed over — an item that
             // outlives its holder's permission goes inert rather than becoming
             // a way round the ranks.
             system.run(() => {
-                if (key === "orbital") return fireOrbital(player)
                 if (has(player, "admin.tp")) openEye(player)
             })
         })
@@ -510,202 +373,13 @@ export function installAdminItems() {
             const player = event.source
             if (!player) return
             const key = itemKey(event.itemStack)
-            if (key === "orbital") { if (!eyeHandled) system.run(() => fireOrbital(player)); return }
             if (key !== "teleport" && (key !== "eye" || eyeHandled)) return
             if (!has(player, "admin.tp")) return
             system.run(() => key === "eye" ? openEye(player) : teleportToRandom(player))
         })
     }
 
-    // ---------------------------------------------------------- the trident
-    //
-    // Three events, because a throw and its consequences are three separate
-    // facts the engine never joins up for you:
-    //
-    //   release   the trident is still IN THEIR HAND, so this is the only
-    //             moment its signature can be read at all
-    //   spawn     the thrown entity appears, carrying nothing — tagged here,
-    //             off the back of the release we just saw
-    //   hit       the tag says it was ours, so the storm is ours to start
-    // No release event, no spawn event. Both were subscribed and the trident did
-    // nothing at all in a real world — not a missing trail and a missing storm,
-    // but one failure: an untagged trident is correctly ignored by everything
-    // downstream. Which use-event a trident raises is undocumented, and whether
-    // entitySpawn fires for a projectile was a second guess on top. The tick
-    // loop in core/trident.js polls for all of it instead.
-    // **Three ways in, and the spent tag makes that safe.**
-    //
-    // projectileHitEntity is the direct one and it DOES fire — a playtest
-    // confirmed the damage lands on mobs, which was almost taken as evidence
-    // that it did not. entityHurt is kept beside it because the content log
-    // proves that one fires here (it is what arms the Mirror Totem) and 26 of
-    // the packs installed here read damagingProjectile off it.
-    //
-    // Neither alone is enough. entityHurt needs damage to have been DEALT, so
-    // an invulnerable or creative target would never storm; projectileHitEntity
-    // is the event whose behaviour was uncertain enough to guess wrong about
-    // twice. Whichever arrives first wins and the other finds the strike
-    // already spent, which is exactly what the tag is for.
-    //
-    // projectileHitBlock is the third, for a trident that lands in the dirt
-    // where nothing is hurt at all.
-    const strike = (victim, thrower, at, dimension) => system.run(() => {
-        // The ladder, at the moment it lands. Holding the trident is not
-        // permission to use it on somebody above you, and the throw is the only
-        // other place this could be asked — by which point it is in the air.
-        if (victim?.typeId === "minecraft:player" && thrower) {
-            if (!canActOn(thrower, victim)) {
-                return err(thrower, `${displayName(victim)}§c outranks you — the dust scatters.`)
-            }
-        }
-        if (victim) {
-            const name = displayName(victim) || victim.typeId.replace("minecraft:", "")
-            beginStorm(victim, (broken) => {
-                if (!thrower) return
-                if (broken === undefined) return info(thrower, `§7${name} didn't survive the three seconds.`)
-                info(thrower, broken
-                    ? `§7Shattered §f${broken}§7 piece${broken === 1 ? "" : "s"} of ${name}'s armour.`
-                    : `§7${name} had no armour to break.`)
-            })
-            if (thrower && victim.typeId === "minecraft:player") {
-                record(thrower, "admin.trident", victim, "spectral trident")
-            }
-        } else {
-            beginStorm({ location: at, dimension, isValid: false })
-        }
-    })
-
-    const hurt = world.afterEvents?.entityHurt
-    if (hurt?.subscribe) {
-        hurt.subscribe(event => {
-            const projectile = event.damageSource?.damagingProjectile
-            if (projectile?.typeId !== "minecraft:thrown_trident") return
-            if (!safe(() => projectile.hasTag(TRIDENT_TAG), false)) return
-            // One strike per throw. A Loyalty trident can hurt the same target
-            // again on its way back, and a second storm would restart the grind
-            // on somebody already at half a heart. addTag answers false when the
-            // tag is already there, which is exactly the question being asked.
-            if (!safe(() => projectile.addTag(TRIDENT_SPENT), false)) return
-            strike(event.hurtEntity, event.damageSource?.damagingEntity)
-        })
-    } else {
-        console.warn("[Admin+] entityHurt unavailable — the Spectral Trident will not strike anybody")
-    }
-
-    const intoSomebody = world.afterEvents?.projectileHitEntity
-    if (intoSomebody?.subscribe) {
-        intoSomebody.subscribe(event => {
-            const projectile = event.projectile
-            if (projectile?.typeId !== "minecraft:thrown_trident") return
-            if (!safe(() => projectile.hasTag(TRIDENT_TAG), false)) return
-            if (!safe(() => projectile.addTag(TRIDENT_SPENT), false)) return
-            strike(safe(() => event.getEntityHit?.()?.entity), event.source)
-        })
-    }
-
-    const intoGround = world.afterEvents?.projectileHitBlock
-    if (intoGround?.subscribe) {
-        intoGround.subscribe(event => {
-            const projectile = event.projectile
-            if (projectile?.typeId !== "minecraft:thrown_trident") return
-            if (!safe(() => projectile.hasTag(TRIDENT_TAG), false)) return
-            if (!safe(() => projectile.addTag(TRIDENT_SPENT), false)) return
-            strike(undefined, event.source,
-                event.location ?? projectile.location,
-                event.dimension ?? projectile.dimension)
-        })
-    }
-
-    // The predicate goes in, because the signature lives here with the
-    // catalogue while the watching lives in core/trident.js.
-    installTridentEffects(stack => itemKey(stack) === "trident")
-    installMirror()
-
     return true
-}
-
-/**
- * Spend a charge and write the stack back into the hand it came from.
- *
- * The stack is REPLACED rather than edited, because lore is read back as a
- * whole and an in-place edit of an ItemStack the engine handed us is not
- * guaranteed to stick. Re-minting is also what makes the count visible: the
- * player watches the number on the item go down.
- */
-function burnCharge(player, hand) {
-    const result = spendCharge(hand.stack, (left, max) => mirrorTotem(left, max))
-    if (!result.spent) return
-    const equippable = safe(() => player.getComponent("minecraft:equippable"))
-    if (!equippable) return
-    safe(() => equippable.setEquipment(hand.slot, result.stack))
-    if (result.spent_out) {
-        info(player, "§bYour Mirror Totem is spent.§7 It is an ordinary totem now.")
-    }
-}
-
-/**
- * Reflect a hit, and charge for it.
- *
- * `duringReflection` is the loop guard: applying the damage to the attacker can
- * raise this very event again, and if THEY are holding a mirror the two would
- * volley the hit between them until something gave. One bounce, then it stops.
- */
-function mirrorHit(victim, attacker, amount, hand) {
-    duringReflection(() => reflect(attacker, amount))
-    burnCharge(victim, hand)
-}
-
-function installMirror() {
-    // Preferred: refuse the damage before it lands.
-    //
-    // This is the only path that can mirror a LETHAL hit. Healing the damage
-    // back afterwards is too late — they are already dead, and a corpse cannot
-    // be topped up. Same two-tier shape spawn protection uses in warps.js.
-    const before = world.beforeEvents?.entityHurt
-    if (before?.subscribe) {
-        before.subscribe(event => {
-            if (isReflecting()) return
-            const victim = event.hurtEntity
-            const attacker = event.damageSource?.damagingEntity
-            const amount = event.damage
-            if (!victim || !(amount > 0)) return
-            const hand = mirrorHand(victim, isMirrorTotem)
-            if (!hand) return
-            event.cancel = true
-            system.run(() => mirrorHit(victim, attacker, amount, hand))
-        })
-        console.log("[Admin+] mirror totem armed — damage refused before it lands")
-        return
-    }
-
-    // Fallback: give the health straight back. Everything survivable is
-    // mirrored exactly; a hit that would have killed them still kills them,
-    // because by the time this runs it already has. The totem is a real totem
-    // of undying, so vanilla's own mechanic catches that one — which is the
-    // honest best this runtime allows.
-    const after = world.afterEvents?.entityHurt
-    if (!after?.subscribe) {
-        console.warn("[Admin+] entityHurt unavailable — the Mirror Totem will not reflect")
-        return
-    }
-    after.subscribe(event => {
-        if (isReflecting()) return
-        const victim = event.hurtEntity
-        const attacker = event.damageSource?.damagingEntity
-        const amount = event.damage
-        if (!victim || !(amount > 0)) return
-        const hand = mirrorHand(victim, isMirrorTotem)
-        if (!hand) return
-        system.run(() => {
-            const health = safe(() => victim.getComponent("minecraft:health"))
-            if (health) {
-                safe(() => health.setCurrentValue(
-                    Math.min(health.effectiveMax, health.currentValue + amount)))
-            }
-            mirrorHit(victim, attacker, amount, hand)
-        })
-    })
-    console.log("[Admin+] mirror totem armed — damage healed back (no before-event on this runtime)")
 }
 
 // ------------------------------------------------------------ the eye
@@ -1031,52 +705,6 @@ async function jumpToCoordinates(player, subject = player, back) {
     }
 }
 
-/**
- * Take one of these out of their hand.
- *
- * By slot rather than by `container.removeItem`, because what must be consumed
- * is the ONE they just used — a staff member holding two should be left holding
- * one, and clearing by type would take both.
- */
-function consumeHeld(player) {
-    const container = safe(() => player.getComponent("minecraft:inventory")?.container)
-    if (!container) return false
-    const slot = player.selectedSlotIndex ?? 0
-    const held = safe(() => container.getItem(slot))
-    if (!held) return false
-    if (held.amount > 1) {
-        held.amount -= 1
-        return safe(() => { container.setItem(slot, held); return true }, false)
-    }
-    return safe(() => { container.setItem(slot, undefined); return true }, false)
-}
-
-/**
- * Fire the rod: it breaks, then the sky answers.
- *
- * The gate is re-read here and not trusted from when the rod was handed over.
- * An owner who turns the troll section off, or disarms it at the console, has
- * disarmed every rod already in an inventory — which is what a switch has to
- * mean, or it is decoration.
- */
-function fireOrbital(player) {
-    // Every lock still shut, not just the first — somebody holding a rod that
-    // will not fire wants the whole list, not a trail of one-at-a-time errands.
-    const shut = nukeMissing(player)
-    if (shut.length) {
-        err(player, "That won't fire yet — it needs:")
-        for (const line of shut) err(player, `§8 · §c${line}`)
-        return
-    }
-
-    if (!consumeHeld(player)) return err(player, "Couldn't reach the rod in your hand.")
-    safe(() => player.dimension.playSound("random.break", player.location))
-
-    if (!orbitalStrike(player)) return err(player, "Couldn't call that in.")
-    record(player, "admin.orbital", player, "orbital strike")
-    info(player, "§7It's on its way. §8You may want to not be there.")
-}
-
 function jumpTo(player, target) {
     // Re-read them: the menu was drawn from a snapshot and they may have left
     // while it was open, which would otherwise throw on a stale handle.
@@ -1150,4 +778,4 @@ function teleportToRandom(player) {
     }
 }
 
-export { ITEMS, signItem, itemKey, knockback, coordinate, SIGIL, mirrorTotem, isMirrorTotem }
+export { ITEMS, signItem, itemKey, knockback, coordinate, SIGIL }

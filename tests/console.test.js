@@ -94,29 +94,16 @@ check("and back on again", canUseConsole(creator), true)
 resetSetting("creator.console")
 check("the shipped default is ON", canUseConsole(creator), true)
 
-console.log("\n— it can only run the owner's own whitelist —")
-// The console runs through runAsServer -> checkCommand, the SAME gate /cmd
-// uses, so it grants nothing the owner has not already exposed and cannot /op.
-
-// The shipped list is EMPTY, so nothing runs until an owner turns it on. This
-// test used to lean on a permissive default and would have gone on passing if
-// that default came back.
-check("commands work out of the box", checkCommand("kill @e").ok, true)
-setSetting("commands.allowed", "kill, give")
-
-check("a whitelisted command passes", checkCommand("kill @e[type=cow]").ok, true)
-check("op does NOT — it is never on the list", checkCommand("op Steve").ok, false)
+console.log("\n— it runs Admin+ commands only —")
+// Since 2.8.2 the console runs no vanilla command at all. It used to fall
+// through to runAsServer and promise to stay inside the owner's whitelist, but
+// that whitelist had stopped being checked, so in practice it reached any
+// vanilla command short of /op. Admin+'s own commands each check the person's
+// rank, so the console reaches nothing they could not have typed themselves.
+// The shared gate still refuses the commands that would hand the world over.
+check("op is refused", checkCommand("op Steve").ok, false)
 check("nor deop", checkCommand("deop Steve").ok, false)
 check("nor a command that runs another command", checkCommand("execute as @a run op @s").ok, false)
-
-// If the owner narrows their whitelist, the console narrows with it — proof it
-// is bounded by the owner's choice, not by anything hardcoded here.
-setSetting("commands.allowed", "kill")
-check("console can run what the owner allows", checkCommand("kill @e").ok, true)
-check("and the list no longer blocks anything", checkCommand("give @s stone").ok, true)
-setSetting("commands.allowed", "")
-check("an empty list does not disable the console", checkCommand("kill @e").ok, true)
-resetSetting("commands.allowed")
 
 console.log("\n— the three promises the badge rule makes, in the source —")
 // These are asserted by reading the code because they are the fence, and a
@@ -124,7 +111,9 @@ console.log("\n— the three promises the badge rule makes, in the source —")
 // nothing to catch it.
 const src = readFileSync(new URL("../Admin+ BP/scripts/features/console.js", import.meta.url), "utf8")
 check("it is gated on the opt-out setting", src.includes('flag("creator.console")'), true)
-check("it runs through the whitelist, not raw", src.includes("runAsServer") && !src.includes("dimension.runCommand"), true)
+check("it runs no vanilla command: no runAsServer, no runCommand",
+    !src.includes("runAsServer(") && !src.includes("runCommand("), true)
+check("it runs Admin+ commands through the dispatcher", src.includes("runPackCommand(player, line)"), true)
 check("it writes to the audit log", src.includes('record(player, "creator.console"'), true)
 check("and it announces to online owners", src.includes("onlineOwners") && src.includes("owner.sendMessage"), true)
 

@@ -260,17 +260,17 @@ resetSetting("feature.troll")
 check("a real answer still applies", submittedValue("feature.troll", true).text, "true")
 check("in both directions", submittedValue("feature.troll", false).text, "false")
 
-// The one that would have taken /cmd out entirely: "" differs from the default,
-// so it would have been STORED as an empty whitelist.
-setSetting("commands.allowed", "kill,give")
+// The one that would have wiped a line: "" differs from the default, so it
+// would have been STORED as an empty format.
+setSetting("format.broadcast", "§e[Notice] {MSG}")
 check("an unanswered text field is not blanked",
-    submittedValue("commands.allowed", undefined).text, "kill,give")
+    submittedValue("format.broadcast", undefined).text, "§e[Notice] {MSG}")
 check("and it is never reported as a rejection",
-    submittedValue("commands.allowed", undefined).rejected, false)
-resetSetting("commands.allowed")
+    submittedValue("format.broadcast", undefined).rejected, false)
+resetSetting("format.broadcast")
 
 check("a real text answer is trimmed and kept",
-    submittedValue("commands.allowed", "  kill, give  ").text, "kill, give")
+    submittedValue("format.broadcast", "  §e{MSG}  ").text, "§e{MSG}")
 
 // Numbers still fail one at a time rather than taking the form down.
 setSetting("items.knockback", "9")

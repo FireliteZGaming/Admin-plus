@@ -254,6 +254,14 @@ value in the wrong key.
   **Never hand-roll a prompt, a player list or word slots in a command file.**
   Declare the parameter and let the registry do it; that is what keeps two
   commands from disagreeing. The "vanilla" group is exempt from 1 and 3.
+- **Admin tools only (2.8.2, the user's call, 2026-11-11/12).** /items holds
+  the Ban Hammer, Teleport compass, Ender Eye and Knockback stick. Vanilla
+  command wrappers: only time (`/clock`) and weather (`/sky`). The Orbital
+  Strike, Spectral Trident, Mirror Totem and the other 52 wrappers were removed
+  as "not actually admin items" and "excessive op commands". Do not add them
+  back unasked. A new admin need gets a purpose-built Admin+ command, the way
+  `/gmc` is, not a vanilla wrapper. The Creator & Dev console runs Admin+
+  commands only.
 - **No economy or shop**, ever. The `+` means essentials.
 - **Fly, god, heal, feed: dropped.** Removed on purpose, not missing. Do not
   build them unasked. Three things came OFF this list because the user asked

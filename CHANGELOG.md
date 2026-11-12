@@ -56,6 +56,63 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.8.2 — 2026-11-12
+
+**Only admin tools: the items and commands that were not admin tools are
+gone.**
+
+### Removed from /items
+
+1. **Orbital Strike**, the rod that dropped TNT from the sky, with its eight
+   settings and the console's `toggle nuke`.
+2. **Spectral Trident**.
+3. **Mirror Totem**.
+
+/items now holds the Ban Hammer, the Teleport compass, the Ender Eye and the
+Knockback stick. The three removed items shipped in 2.5.10, so a world that
+handed them out keeps the items, but as ordinary ones: a fishing rod, a
+trident with Loyalty, a totem of undying.
+
+### Removed: 52 vanilla command wrappers
+
+Admin+ registered its own copy of 54 vanilla commands, such as `/slay` for
+kill, `/gift` for give and `/region` for fill, so staff without operator could
+run them. 52 are gone. Two stay:
+
+1. **/clock** runs `/time`.
+2. **/sky** runs `/weather`.
+
+Game modes stay as Admin+'s own `/gm`, `/gmc`, `/gms`, `/gma` and `/gmsp`.
+Operators still have every vanilla command. The command list went from 118
+Admin+ commands to 66.
+
+### Removed: Server ▸ Vanilla commands
+
+That screen had 56 switches, one per vanilla command. Nothing had checked them
+for a long time, so switching one off did nothing. The screen and its setting
+(`commands.allowed`) are gone. Whether a rank may use /clock and /sky is still
+its switch under Permissions ▸ Administrative ▸ Server settings ▸ commands.
+
+### The console runs Admin+ commands only
+
+The Creator & Dev console promised it could only run the owner's own list of
+vanilla commands. That list had stopped being checked, so in practice it ran
+any vanilla command short of /op. It now runs Admin+ commands only, /clock and
+/sky included, and each one checks the person's own rank.
+
+### Fixes
+
+1. Messages that say where to switch a permission on named a "What it can do"
+   button. Since 2.8.0 that button is Permissions, split into Member and
+   Administrative. The messages now name the real path, such as "Ranks ▸ the
+   rank ▸ Permissions ▸ Administrative ▸ Pranks ▸ smite", and a test walks the
+   screens to keep them matching.
+2. The Help screen's "Who" page used `/eff` and `/slay` as examples. It uses
+   `/gmc` and `/gms` now.
+
+Tested under Node: 51 suites, 2,676 checks. Verifier: 0 problems. **Not yet
+run in game.**
+
 ## 2.8.1 — 2026-11-11
 
 **Rank types, typed names and fonts, a Basics button on every player, and the

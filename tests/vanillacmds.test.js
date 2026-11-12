@@ -4,7 +4,6 @@ import { setNickname } from "../Admin+ BP/scripts/core/identity.js"
 import { COMMANDS, ENUMS, SELECTOR_TYPES, CODENAME, codenameFor, GAME_OWNED } from "../Admin+ BP/scripts/core/vanillaparams.js"
 import { buildLine, tempTag } from "../Admin+ BP/scripts/features/vanillacmds.js"
 import { DEFAULTS } from "../Admin+ BP/scripts/core/settings.js"
-import { OP_COMMANDS } from "../Admin+ BP/scripts/core/opcommands.js"
 import { commandSpecs } from "../Admin+ BP/scripts/core/registry.js"
 import { readFileSync, readdirSync } from "node:fs"
 
@@ -17,21 +16,11 @@ function check(name, actual, expected) {
 
 const P = CustomCommandParamType
 
-// Compared against the OFFERED list rather than the shipped whitelist, which is
-// now empty on purpose. Registration happens in beforeEvents.startup, and world
-// storage cannot be read that early — so every command this pack can ever allow
-// must be registered up front, and each one refuses at RUN time until an owner
-// turns it on in Settings ▸ Op commands.
-const offered = [...OP_COMMANDS]
-
-console.log("\n— every offered command has a typed registration —")
-// The two lists are the same thing written twice, and they drift silently: a
-// command the screen offers with no row cannot be typed at all, and a row the
-// screen never offers registers a command nobody can ever switch on. Both look
-// like "it just doesn't work" from inside the game.
+console.log("\n— only time and weather are wrapped —")
+// 2.8.2, the user's call: the other 52 were excessive op commands. Pinned so a
+// wrapper cannot creep back in without somebody deciding it should.
 const names = COMMANDS.map(c => c.name)
-check("a row for every command the screen offers", offered.filter(c => !names.includes(c)), [])
-check("and nothing registered the screen cannot switch on", names.filter(n => !offered.includes(n)), [])
+check("time and weather, nothing else", names, ["time", "weather"])
 check("no command is registered twice", names.length, new Set(names).size)
 
 console.log("\n— shapes Bedrock will actually accept —")
@@ -79,17 +68,17 @@ check("every enum has values", Object.entries(ENUMS).filter(([, v]) => !v.length
 check("every enum value is a bare identifier",
     Object.entries(ENUMS).flatMap(([k, v]) => v.filter(x => !/^[a-z_0-9]+$/.test(x)).map(x => `${k}:${x}`)), [])
 
-console.log("\n— the commands that made this necessary —")
-check("kill takes an entity selector",
-    COMMANDS.find(c => c.name === "kill").params[0][1], P.EntitySelector)
-check("give takes a player, an item and a count",
-    COMMANDS.find(c => c.name === "give").params.map(p => p[1]),
-    [P.PlayerSelector, P.ItemType, P.Integer, P.Integer])
-check("setblock takes a position and a block",
-    COMMANDS.find(c => c.name === "setblock").params.slice(0, 2).map(p => p[1]),
-    [P.Location, P.BlockType])
-check("summon takes an entity type",
-    COMMANDS.find(c => c.name === "summon").params[0][1], P.EntityType)
+console.log("\n— time and weather, rebuilt as the game reads them —")
+{
+    const time = COMMANDS.find(c => c.name === "time")
+    const weather = COMMANDS.find(c => c.name === "weather")
+    check("/clock set day", buildLine(time, ["set", "day"], "T", []), "time set day")
+    check("a number works too, because the value is text",
+        buildLine(time, ["set", "1000"], "T", []), "time set 1000")
+    check("/clock query daytime", buildLine(time, ["query", "daytime"], "T", []), "time query daytime")
+    check("/sky clear", buildLine(weather, ["clear"], "T", []), "weather clear")
+    check("with a duration", buildLine(weather, ["rain", 6000], "T", []), "weather rain 6000")
+}
 
 console.log("\n— rebuilding the command line —")
 const spec = { name: "kill", params: [["targets", P.EntitySelector, true]] }
@@ -108,247 +97,39 @@ const spec = { name: "kill", params: [["targets", P.EntitySelector, true]] }
         buildLine(spec, ['"@e[type=cow, r=5]"'], "T1", []), "kill @e[type=cow, r=5]")
 }
 
-// The registration has to agree, or the engine resolves it before this file
-// gets a say. This is the whole fix, and it is one word.
-const vanillaSrc = readFileSync(
-    new URL("../Admin+ BP/scripts/features/vanillacmds.js", import.meta.url), "utf8")
-check("the table still marks selectors, so render() can find them",
-    COMMANDS.flatMap(c => (c.params ?? []).filter(p => SELECTOR_TYPES.has(p[1]))).length > 0,
-    true)
-// Selectors keep their REAL type, which is what makes the game offer
-// `@a @e @p @r @s` and every filter as you type. 2.1.13 downgraded them to
-// String to dodge a permission error and that traded the picker for a blank
-// text box — useless to anyone who does not already know selector syntax, which
-// is most of the audience for a command set aimed at people without operator.
-// /gm has always used a real PlayerSelector and works, which is why this went
-// back.
-// Comment lines stripped first. The file keeps the old downgrade written out
-// in a comment as the one-line way back if the permission error ever returns,
-// and a raw substring match found its own escape hatch and called it live code.
-const vanillaCode = vanillaSrc.split("\n")
-    .filter(line => !line.trim().startsWith("//") && !line.trim().startsWith("*"))
-    .join("\n")
-// Selectors are registered as String and resolved by US, through the script
-// API. Not a preference — a parameter registered as EntitySelector is expanded
-// by the ENGINE at the command's declared permission level, which is `Any`, and
-// every `@` form is refused there. `/slay @e[family=monster]`,
-// `/gift @p iron_leggings` and `/ench @p` all failed that way, with a BARE
-// error carrying no `[Admin+]` prefix — proof it happened before this file's
-// handler ran, so nothing downstream could have helped.
-// Asked of the REGISTRATIONS rather than of the source text, because the source
-// can be rearranged without changing what gets registered — and it was, when the
-// selector parameters picked up their name hint.
 {
+    // Both rows reach the game as registered commands.
     const rows = new Map(COMMANDS.map(c => [codenameFor(c.name), c]))
     const built = commandSpecs().filter(spec => rows.has(spec.name))
     check("every command in the table is registered", built.length, COMMANDS.length)
-
-    const selectorParams = built.flatMap(spec => {
-        const params = rows.get(spec.name).params ?? []
-        const all = [...(spec.mandatory ?? []), ...(spec.optional ?? [])]
-        return params
-            // p[2] is the table's optional flag — see COMMANDS in
-            // core/vanillaparams.js, where `["seconds", P.Integer, true]` is an
-            // optional integer. Required-ness is what decides the name suffix.
-            .map((p, i) => SELECTOR_TYPES.has(p[1])
-                ? { cmd: spec.name, was: p[0], got: all[i], required: !p[2] }
-                : null)
-            .filter(Boolean)
-    })
-    check("there are selector parameters to check", selectorParams.length > 0, true)
-    check("the registration downgrades every one of them to String",
-        selectorParams.filter(p => p.got?.type !== P.String).map(p => `${p.cmd}:${p.was}`), [])
-    // And carries the hint in the name, which is the only part still on screen
-    // once the description has scrolled away.
-    //
-    // Required and optional say DIFFERENT things, because `_or_me` on a
-    // required slot reads as "leave it out for me" and leaving it out is
-    // exactly what fails. `/eff` is the command that proved it: its target is
-    // mandatory, so the word `me` has to be typed.
-    const suffixFor = p => p.required ? `${p.was}_me_or_all` : `${p.was}_or_me`
-    check("and each one says what it takes",
-        selectorParams.filter(p => p.got?.name !== suffixFor(p)).map(p => `${p.cmd}:${p.was}`), [])
-    check("a required slot never claims it can be left out",
-        selectorParams.filter(p => p.required && p.got?.name.endsWith("_or_me")
-            && !p.got?.name.endsWith("_me_or_all")).map(p => `${p.cmd}:${p.was}`), [])
-}
-check("and the handler resolves the text itself",
-    vanillaCode.includes("resolveSelector(resolved[i], player"), true)
-check("the entity-tagging path survives for what comes back",
-    vanillaCode.includes("[tag=${tag}]"), true)
-check("and the selector head still depends on the parameter type",
-    vanillaCode.includes('type === P.PlayerSelector ? "@a" : "@e"'), true)
-
-console.log("\n— a player parameter gets @a, an entity parameter gets @e —")
-{
-    // Vanilla checks a selector's TYPE syntactically, not what it resolves to.
-    // A player-typed argument handed `@e[tag=…]` is refused with
-    //     Error occurred with parsing command params: Selector must be player-type
-    // even when every tagged entity IS a player. Reported from a live world:
-    // /ench went through and /gift did not, and the only difference was that
-    // one of them checks.
-    const ent = n => ({ name: n, addTag: () => {}, removeTag: () => {} })
-    const line = (name, args) =>
-        buildLine(COMMANDS.find(c => c.name === name), args, "T", [])
-
-    // ONE player is written as a NAME, which is not a selector at all, so the
-    // game never expands it — and expansion is the thing that gets refused.
-    // Confirmed live: `/exp 100` worked and `/exp 100 <name>` did not, and the
-    // only difference was a selector in the rebuilt line.
-    check("one player becomes a quoted name, no selector",
-        line("xp", [100, [ent("FireliteZGaming")]]), 'xp 100 "FireliteZGaming"')
-    check("a gamertag with spaces survives as one argument",
-        line("xp", [5, [ent("Big Red Dog")]]), 'xp 5 "Big Red Dog"')
-    check("give too", line("give", [[ent("p")], { id: "minecraft:chainmail_boots" }]),
-        'give "p" minecraft:chainmail_boots')
-    check("several players fall back to @a, never @e",
-        line("give", [[ent("a"), ent("b")], { id: "minecraft:stone" }]),
-        "give @a[tag=T_0] minecraft:stone")
-    check("kill takes any entity, so @e",
-        line("kill", [[ent("c")]]), "kill @e[tag=T_0]")
-
-    // ...but an entity argument does not actually GO that way any more. The
-    // dimension refuses to expand `@e` at all — `/slay @e[family=monster]` came
-    // back "insufficient permissions for selector expansion" — so the slot
-    // becomes `@s` and the command is run ON each resolved entity instead.
-    // `@s` names the executor and expands nothing.
-    const self = (name, args, at) =>
-        buildLine(COMMANDS.find(c => c.name === name), args, "T", [], at)
-    check("an entity argument becomes @s when run per entity",
-        self("kill", [[ent("m1"), ent("m2")]], 0), "kill @s")
-    check("and the rest of the line is untouched",
-        self("effect", [[ent("m")], "speed", 30], 0), "effect @s speed 30")
-    check("an empty set still stops the line",
-        self("kill", [[]], 0), "kill")
-
-    // The sweep that matters: 21 player parameters were ALL emitting @e.
-    const offenders = []
-    for (const c of COMMANDS) {
-        const params = c.params ?? []
-        const args = params.map(p => SELECTOR_TYPES.has(p[1]) ? [ent("x")]
-            : p[3] ? ENUMS[p[3]][0]
-            : p[1] === P.Location ? { x: 0, y: 0, z: 0 }
-            : (p[1] === P.ItemType || p[1] === P.BlockType || p[1] === P.EntityType)
-                ? { id: "minecraft:stone" }
-            : p[1] === P.Boolean ? true
-            : (p[1] === P.Integer || p[1] === P.Float) ? 1 : "w")
-        const built = buildLine(c, args, "T", [])
-        params.forEach((p, i) => {
-            if (p[1] === P.PlayerSelector && built.includes(`@e[tag=T_${i}`)) {
-                offenders.push(`${c.name}.${p[0]}`)
-            }
-        })
-    }
-    check("no player parameter anywhere emits @e", offenders, [])
 }
 
-console.log("\n— two selectors in one command must not share a tag —")
-{
-    // /mount and /dialog each take TWO selectors. With one tag for the whole
-    // line, `/mount <cow> start_riding <steve>` came out as
-    //     ride @e[tag=T] start_riding @e[tag=T]
-    // which sits both sets on themselves. Caught by a second look before it
-    // shipped; the suffix is what keeps the two sides apart.
-    //
-    // /move was the original example here and no longer qualifies: it took over
-    // the COORDINATE overload when `tp` was dropped in 2.1.23, so its second
-    // argument is a position now. /mount stands in, and the covered list below
-    // is what catches a third command growing a second selector.
-    const marks = []
-    const ent = n => ({ name: n, addTag: t => marks.push(`${n}:${t}`), removeTag: () => {} })
-    const mount = COMMANDS.find(c => c.name === "ride")
-    const cleanup = []
-    check("each selector parameter gets its own tag",
-        buildLine(mount, [[ent("cow")], "start_riding", [ent("steve")]], "T", cleanup),
-        "ride @e[tag=T_0] start_riding @e[tag=T_2]")
-    check("and the two sets really are tagged differently",
-        marks, ["cow:T_0", "steve:T_2"])
-
-    // Cleanup has to know WHICH tag each entity got, or the first set is
-    // stripped and the second wears theirs for good.
-    check("cleanup carries the tag with the entity",
-        cleanup.map(c => `${c.entity.name}:${c.tag}`), ["cow:T_0", "steve:T_2"])
-    check("every command taking two selectors is covered",
-        COMMANDS.filter(c => (c.params ?? []).filter(p => SELECTOR_TYPES.has(p[1])).length > 1)
-            .map(c => c.name).sort(),
-        ["dialogue", "ride"])
-}
-
-check("an empty selector result is treated as absent",
-    buildLine(spec, [[]], "T2", []), "kill")
-check("so is a missing optional", buildLine(spec, [undefined], "T3", []), "kill")
-
-{
-    const s = { name: "setblock", params: [["position", P.Location], ["block", P.BlockType],
-                                           ["mode", P.Enum, true, "setblockmode"]] }
-    check("a location becomes three numbers",
-        buildLine(s, [{ x: 1, y: -60, z: 3 }, { id: "minecraft:stone" }, "keep"], "T", []),
-        "setblock 1 -60 3 minecraft:stone keep")
-    check("a block type is written by id",
-        buildLine(s, [{ x: 0, y: 0, z: 0 }, { id: "minecraft:dirt" }], "T", []),
-        "setblock 0 0 0 minecraft:dirt")
-}
-
-{
-    const s = { name: "give", params: [["players", P.PlayerSelector], ["item", P.ItemType],
-                                       ["amount", P.Integer, true]] }
-    check("an item type is written by id, and a count follows",
-        buildLine(s, ["@s", { id: "minecraft:diamond" }, 5], "T", []),
-        "give @s minecraft:diamond 5")
-}
-
-{
-    const s = { name: "daylock", params: [["locked", P.Boolean, true]] }
-    check("a boolean is written as a word", buildLine(s, [true], "T", []), "daylock true")
-    check("including false, which is not the same as absent",
-        buildLine(s, [false], "T", []), "daylock false")
-}
-
-{
-    // Was written against `say`, which is no longer a passthrough — /broadcast
-    // does the same job with an audience and an audit record. `tellraw` carries
-    // the same String-with-spaces shape, which is all this is testing.
-    const s = { name: "tellraw", params: [["players", P.String], ["json", P.String]] }
-    check("a plain word needs no quoting",
-        buildLine(s, ["@a", "hello"], "T", []), "tellraw @a hello")
-    check("but a value with spaces is quoted, or it becomes two arguments",
-        buildLine(s, ["@a", "hello there"], "T", []), 'tellraw @a "hello there"')
-}
-
-console.log("\n— fixed words the caller should not have to type —")
-{
-    // /replaceitem's grammar is `replaceitem entity <target> …`, where the
-    // second word picks between two overloads rather than carrying anything the
-    // caller supplies. It has to reach the game, and it must NOT be a parameter
-    // — that would offer a choice with one valid answer.
-    const real = COMMANDS.find(c => c.name === "replaceitem")
-    check("replaceitem carries a fixed word", real.fixed, ["entity"])
-    check("which lands straight after the command name",
-        buildLine(real, ["@s", "slot.armor.head", 0, "destroy",
-                         { id: "minecraft:diamond_helmet" }], "T", []),
-        "replaceitem entity @s slot.armor.head 0 destroy minecraft:diamond_helmet")
-    check("and a row without one is untouched",
-        buildLine({ name: "kill", params: [["t", P.String, true]] }, ["@e"], "T", []),
-        "kill @e")
-
-    // The slot names are why slotType is a String. Every one carries dots, and
-    // an enum value that is not a bare identifier makes Bedrock refuse the
-    // whole registration without saying so.
-    const slotType = real.params.find(p => p[0] === "slotType")
-    check("slotType is a String, never an Enum", slotType[1], P.String)
-    check("because a real slot name would be stripped by the enum filter",
-        /^[a-z_0-9]+$/.test("slot.armor.head"), false)
-}
-
-// Optional parameters are positional, so a gap cannot legitimately happen —
-// stopping at the first absent one is what keeps a malformed line from being
-// assembled if that ever changed.
-{
-    const s = { name: "effect", params: [["targets", P.EntitySelector], ["effect", P.Enum, false, "effect"],
-                                         ["seconds", P.Integer, true], ["amplifier", P.Integer, true]] }
-    check("building stops at the first absent argument",
-        buildLine(s, ["@s", "speed", undefined, 3], "T", []), "effect @s speed")
-}
+console.log("\n— the two names, and the ones the game owns —")
+// The game owns /time and /weather, and its versions refuse a ranked player
+// who is not an operator, so ours are /clock and /sky.
+const dir = new URL("../Admin+ BP/scripts/features/", import.meta.url)
+const ours = readdirSync(dir)
+    .filter(f => f.endsWith(".js") && f !== "vanillacmds.js")
+    .flatMap(f => [...readFileSync(new URL(f, dir), "utf8")
+        .matchAll(/command\(\{[^}]*?name:\s*"([a-z0-9_]+)"/gs)].map(m => m[1]))
+    .concat(["admin", "tp"])              // registered in main.js
+// Built with the REAL codenameFor, not by restating the naming rule here. The
+// version of this block that this replaced did `COMMANDS.map(c => \`z${c.name}\`)`
+// — it wrote down its own expectation and then agreed with itself, so when the
+// z prefix was removed in 2.1.15 every assertion below still passed while
+// testing nothing at all. If the naming changes again, this has to notice.
+const vanilla = COMMANDS.map(c => codenameFor(c.name))
+check("our own commands were found", ours.length > 30, true)
+check("time is /clock and weather is /sky", vanilla, ["clock", "sky"])
+check("neither is a name the game owns", vanilla.filter(n => GAME_OWNED.has(n)), [])
+check("nor one of our own", vanilla.filter(n => ours.includes(n)), [])
+check("every CODENAME key is a wrapped command",
+    [...CODENAME.keys()].filter(k => !COMMANDS.some(c => c.name === k)), [])
+// The 52 that went in 2.8.2 are still the game's, so none of their names may
+// be reused for a pack command whose bare form would never reach it.
+check("the game still owns every name it ever did",
+    ["kill", "give", "fill", "summon", "effect", "gamemode", "teleport", "tp"]
+        .filter(n => !GAME_OWNED.has(n)), [])
 
 console.log("\n— a count written in prose goes stale silently —")
 // vanillaparams.js, vanillacmds.js and verify.py all said "56" for the whole
@@ -371,71 +152,6 @@ console.log("\n— a count written in prose goes stale silently —")
     }
     check("no comment states a stale command count", stale, [])
 }
-
-console.log("\n— one namespace, so the grouping is in the name —")
-// A pack gets exactly ONE command namespace. Registering these under `cmd:` was
-// tried and refused twice: registerEnum would not take a second namespace, and
-// commands carrying no enums at all were refused with the same error. So all 54
-// share the list with the pack's own commands, and the only lever on where they
-// appear is the name, because the in-game list is sorted alphabetically.
-// Our own command names, read out of the source the way tools/verify.py does.
-// Importing main.js would run every installer and need a whole game around it;
-// this needs only the names.
-const dir = new URL("../Admin+ BP/scripts/features/", import.meta.url)
-const ours = readdirSync(dir)
-    .filter(f => f.endsWith(".js") && f !== "vanillacmds.js")
-    .flatMap(f => [...readFileSync(new URL(f, dir), "utf8")
-        .matchAll(/command\(\{[^}]*?name:\s*"([a-z0-9_]+)"/gs)].map(m => m[1]))
-    .concat(["admin", "tp"])              // registered in main.js
-// Built with the REAL codenameFor, not by restating the naming rule here. The
-// version of this block that this replaced did `COMMANDS.map(c => \`z${c.name}\`)`
-// — it wrote down its own expectation and then agreed with itself, so when the
-// z prefix was removed in 2.1.15 every assertion below still passed while
-// testing nothing at all. If the naming changes again, this has to notice.
-const vanilla = COMMANDS.map(c => codenameFor(c.name))
-check("our own commands were found", ours.length > 30, true)
-check("every vanilla command has a registered name", vanilla.filter(n => !n), [])
-
-// The two properties that actually matter, now that sort order is not one.
-// A duplicate name means one registration silently loses to the other, and
-// Bedrock will not say which.
-check("no two vanilla commands register the same name",
-    vanilla.filter((n, i) => vanilla.indexOf(n) !== i), [])
-check("nothing collides with a command we already own",
-    vanilla.filter(n => ours.includes(n)), [])
-
-// CODENAME may only rename commands that exist. A typo'd key would sit there
-// doing nothing, and the command would quietly keep its vanilla name.
-const realNames = new Set(COMMANDS.map(c => c.name))
-check("every CODENAME key is a real vanilla command",
-    [...CODENAME.keys()].filter(k => !realNames.has(k)), [])
-
-// THE ONE THAT MATTERS. Bedrock resolves the bare `/slay` to this pack only
-// while nothing else claims that word; if a registration is named `kill`, then
-// `/kill` reaches the GAME's and this pack's is stranded at `/a:kill`. That is
-// not just three extra keystrokes — the audience for these commands holds a
-// rank and NO operator, and vanilla's kill refuses them outright. So a name
-// the game owns makes the command unreachable by the short path for exactly
-// the people it was built for.
-check("no codename is a name the game already owns",
-    vanilla.filter(n => GAME_OWNED.has(n)), [])
-check("so every one of the 54 got renamed, not just the long ones",
-    COMMANDS.filter(c => !CODENAME.has(c.name)).map(c => c.name), [])
-
-// The renames that had to happen, as opposed to the ones that were taste.
-check("gamemode does not shadow our own /gm", codenameFor("gamemode"), "gmode")
-check("testfor reads as what it does", codenameFor("testfor"), "count")
-check("kill could not stay kill", codenameFor("kill"), "slay")
-check("nor fill stay fill", codenameFor("fill"), "region")
-check("music shortens rather than needing a synonym", codenameFor("music"), "mus")
-// /a:tp is ours. Vanilla's `tp` used to be a passthrough here under the
-// codename `port`; 2.1.23 dropped it — `teleport` carries the whole grammar —
-// and `port` is a pack command now, the one that hands over the Ender Eye.
-check("our own tp survives", ours.includes("tp"), true)
-check("vanilla tp is no longer registered", COMMANDS.some(c => c.name === "tp"), false)
-check("but the game still owns the name", GAME_OWNED.has("tp"), true)
-check("and port is ours, not a codename", [...CODENAME.values()].includes("port"), false)
-check("port is a pack command", ours.includes("port"), true)
 
 console.log("\n— the tag has to be unique —")
 // Two commands resolving at once must not pick up each other's entities.
@@ -617,7 +333,7 @@ console.log("\n— how many commands still ask the engine to expand a selector �
 
 
 console.log("\n— the pack's OWN names, checked against the ones the game owns —")
-// The 54 passthroughs were renamed so their bare form reaches ours. The pack's
+// The vanilla passthroughs were renamed so their bare form reaches ours. The pack's
 // own commands were never put through the same check, and the ENGINE has been
 // saying so at every load for months:
 //

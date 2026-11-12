@@ -21,23 +21,17 @@ import { COMMANDS, ENUMS, SELECTOR_TYPES, codenameFor } from "../core/vanillapar
 // this code runs. Selector arguments are the exception and it is a deliberate
 // one — see render() below.
 //
-// Everything still goes through runAsServer, so all three of the properties
-// that made /cmd worth building survive: it runs at operator level for somebody
-// who does not hold operator, the live `commands.allowed` list still decides
-// what may run, and every call is logged and announced. Same power, written
-// down.
+// Everything goes through runAsServer: it runs at operator level for somebody
+// who does not hold operator, the rank's `admin.commands` switch decides who
+// may, and every call is logged and announced.
 
 const P = CustomCommandParamType
 
-// The `z` prefix is GONE as of 2.1.15 — `/a:zkill` is now `/a:kill`. See
-// CODENAME in core/vanillaparams.js for every name and the reasoning.
-//
-// The prefix bought exactly one thing: the in-game command list is sorted
-// alphabetically, and "z" pushed all 54 of these below the pack's own, whose
-// names run from admin to warps. That is a real convenience and it is now
-// gone; the 54 interleave. It was not worth a leading letter of noise on
-// every name, and the only genuine COLLISION with the pack's own commands was
-// `tp`, which CODENAME handles by itself.
+// **Since 2.8.2 this registers two commands: time (/clock) and weather (/sky).**
+// The other 52 vanilla wrappers were removed as excessive op commands, the
+// user's call. Most of the machinery below (selectors, entity tags) was built
+// for those and neither of the two uses it. It can all go once time and
+// weather get purpose-built commands of their own, the way /gmc is.
 
 /**
  * Registered enum names, keyed by the short name used in the table.
@@ -278,10 +272,8 @@ for (const spec of COMMANDS) {
         mandatory,
         optional,
         run: (player, args) => {
-            // The live allowlist is still the authority. The command exists as a
-            // registration either way, so this is what keeps `commands.allowed`
-            // meaningful — an owner who removes `summon` from the list stops it
-            // running even though /a:zsummon is still a word the game knows.
+            // Refuses anything on NEVER in core/execute.js. With only time and
+            // weather registered since 2.8.2 this is a guard, not a filter.
             const gate = checkCommand(spec.name)
             if (!gate.ok) return err(player, gate.reason)
 
@@ -308,7 +300,7 @@ for (const spec of COMMANDS) {
                     return err(player,
                         `I can't apply §f${found.unsupported.join(", ")}§c — refusing rather than ignoring it.`)
                 }
-                // **The ladder, applied to all 54 of them in one place.**
+                // **The ladder, applied to every one of them in one place.**
                 //
                 // Until 2.2.5 these had no rank protection whatsoever. Every
                 // command that acts on a player through the panel or a pack
