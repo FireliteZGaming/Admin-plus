@@ -37,6 +37,8 @@ __test.players.push(staff, member)
 command({
     name: "__logprobe",
     description: "test probe",
+    // Typed text, so the refusal for a name that matches nobody is ours to log.
+    picker: false,
     optional: [{ name: "who", type: P.PlayerSelector }, { name: "note", type: P.String }],
     run: () => {}
 })

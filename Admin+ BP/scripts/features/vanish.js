@@ -15,7 +15,6 @@ import { announceJoin, announceLeave } from "./presence.js"
 
 command({
     name: "vanish",
-    picker: true,
     description: "Disappear — /vanish [player]",
     perm: "admin.vanish",
     optional: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],

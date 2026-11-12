@@ -31,7 +31,7 @@ command({
     // No permission node on purpose: this answers to OPERATOR, not to a rank.
     // A node would imply an owner could hand developer mode to somebody who is
     // not op, and the gate deliberately does not work that way.
-    mandatory: [{ name: modeEnum, type: CustomCommandParamType.Enum }],
+    mandatory: [{ name: modeEnum, type: CustomCommandParamType.Enum, label: "Which mode?" }],
     run: (player, [chosen]) => {
         const wanted = String(chosen ?? "").toLowerCase()
 

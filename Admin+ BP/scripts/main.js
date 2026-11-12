@@ -6,6 +6,7 @@ import { detectServerPreset } from "./core/serverPresets.js"
 import { tableReport } from "./core/storage.js"
 import { ok, err, msg } from "./core/util.js"
 import { resolveSelector, SELECTOR_HELP, SELECTOR_HINT } from "./core/selector.js"
+import { pickPlayer } from "./core/ask.js"
 import { displayName } from "./core/identity.js"
 import { openPanel } from "./features/panel.js"
 import "./features/gamemode.js"
@@ -93,7 +94,12 @@ command({
     // `_or_me` on both, for the same reason the 54 passthroughs carry it: the
     // description is gone by the time you are typing the argument, and
     // `<target: string>` says nothing about what a target looks like.
-    mandatory: [{ name: "target_me_or_all", type: CustomCommandParamType.String }],
+    mandatory: [{
+        name: "target_me_or_all", type: CustomCommandParamType.String,
+        // Bare /tp: pick who to go to. The gamertag goes back in as the text
+        // this handler already resolves.
+        ask: async player => (await pickPlayer(player, { title: "/tp", body: "Who do you want to go to?" }))?.name
+    }],
     optional: [{ name: "destination_or_me", type: CustomCommandParamType.String }],
     run: (player, [firstText, secondText]) => {
         const first = resolveSelector(firstText, player, true)

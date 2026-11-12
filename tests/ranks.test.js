@@ -819,6 +819,8 @@ console.log("\n— the hierarchy audit, command by command —")
         report: "reporting upward is the entire point; a member must be able to report staff",
         tpa: "a request — they accept or decline",
         tpahere: "also a request, in the other direction",
+        tpaccept: "answering a request you were sent",
+        tpadeny: "declining one",
         // Trusting is about YOUR OWN land, not about them. A member letting an
         // owner build in their base is a perfectly ordinary thing to want, and
         // a ladder check would refuse it — the gate that matters is "is this
@@ -918,6 +920,7 @@ console.log("\n— surfaces that SHOW you another player, not just act on one �
         "core/warnings.js": "same",
         "core/privatechat.js": "same — spyIds() is who has the toggle on, not a view of anything",
         // Reading your own.
+        "core/ask.js": "relevance() reads only the VIEWER'S own actions, to order a pick list; nothing of anybody else's is shown",
         "features/warn.js": "checks canSeeActionsOf on the command path; tellOwn reads only your own record"
     }
 

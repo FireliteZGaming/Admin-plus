@@ -10,15 +10,18 @@ import { render, flag } from "../core/settings.js"
 import {
     rememberExchange, replyTarget, isSpying, toggleSpying, spyIds,
     pairedWith, inPair, startPair, endPair,
-    invite, inviteFrom, pendingInvites, takeInvite, clearInvites,
+    invite, inviteFrom, pendingInvites, takeInvite,
     INVITE_SECONDS, forgetPlayer
 } from "../core/privatechat.js"
+import { menu, subtitle } from "../core/ui.js"
+import { hubTitle } from "../core/theme.js"
+import { askText } from "../core/ask.js"
 
 // /pm <player> <message>   one message, to one person
 // /r <message>             answer whoever spoke to you last
 // /prchat <player>         ask to open a standing two-person session
-// /praccept [player]       take somebody up on it
-// /prdeny [player]         turn it down; bare turns down every request
+// /praccept [player]       take somebody up on it; asks which if several wait
+// /prdeny [player]         turn it down; asks which if several wait
 // /prchat                  leave the session you are in
 // /prexit                  leave it, spelled out
 // /socialspy               staff: read other people's private messages
@@ -36,33 +39,34 @@ import {
 
 // ------------------------------------------------------------------ one-shots
 
+const MESSAGE = { name: "message", type: CustomCommandParamType.String, rest: true, label: "Your message" }
+
 command({
     name: "pm",
-    picker: true,
     description: "Send a private message — /pm <player> <message>",
-    mandatory: [
-        { name: "player", type: CustomCommandParamType.PlayerSelector },
-        { name: "message", type: CustomCommandParamType.String }
-    ],
+    mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector }, MESSAGE],
     run: (player, [selected, message]) => sendPrivate(player, selected, message)
 })
 
 // Bare /msg belongs to vanilla; this exists so /a:msg works.
 command({
     name: "msg",
-    picker: true,
     description: "Send a private message — same as /pm (bare /msg is vanilla's)",
-    mandatory: [
-        { name: "player", type: CustomCommandParamType.PlayerSelector },
-        { name: "message", type: CustomCommandParamType.String }
-    ],
+    mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector }, MESSAGE],
     run: (player, [selected, message]) => sendPrivate(player, selected, message)
 })
 
 command({
     name: "r",
     description: "Reply to the last person who messaged you — /r <message>",
-    mandatory: [{ name: "message", type: CustomCommandParamType.String }],
+    mandatory: [{
+        ...MESSAGE,
+        // Say there is nobody to answer BEFORE asking for the words.
+        ask: player => {
+            if (!replyTarget(player)) { err(player, "Nobody has messaged you yet."); return undefined }
+            return askText(player, { title: "/r", label: MESSAGE.label })
+        }
+    }],
     run: (player, [message]) => {
         const targetId = replyTarget(player)
         if (!targetId) return err(player, "Nobody has messaged you yet.")
@@ -160,7 +164,6 @@ function spy(from, to, text, kind) {
 
 command({
     name: "prchat",
-    picker: true,
     description: "Open a private two-person chat — /prchat <player>, or /prchat alone to leave",
     optional: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     run: (player, [selected]) => {
@@ -242,7 +245,6 @@ function pairLabel(a, b) {
 
 command({
     name: "praccept",
-    picker: true,
     description: "Accept a private chat request — /praccept [player]",
     optional: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     run: (player, [selected]) => {
@@ -252,31 +254,16 @@ command({
         if (!waiting.length) return err(player, "Nobody has asked you for a private chat.")
         if (inPair(player)) return err(player, "You're already in a private chat. Use /prexit to leave it first.")
 
+        // With one request waiting a bare /praccept is unambiguous. With two,
+        // ask which — the same answer the teleport requests give.
         const named = (selected ?? [])[0]
-        // With one request waiting a bare /praccept is unambiguous. With two it
-        // is a coin toss, and the person who loses never finds out — the same
-        // fault the teleport requests had.
-        if (!named && waiting.length > 1) {
-            return err(player, `${waiting.length} people are waiting. Say which: §f${waiting.map(i => i.fromName).join("§c, §f")}`)
-        }
-
-        const wanted = named ? named.id : waiting[0].from
-        const held = takeInvite(player, wanted)
-        if (!held) {
-            return err(player, `No request from that player. Waiting: §f${waiting.map(i => i.fromName).join("§c, §f")}`)
-        }
-
-        const asker = world.getAllPlayers().find(p => p.id === held.from)
-        if (!asker) return err(player, `§f${held.fromName}§c has gone offline.`)
-        if (inPair(asker)) return err(player, `§f${displayName(asker)}§c has already started one with somebody else.`)
-
-        open(player, asker)
+        if (!named && waiting.length > 1) return whichInvite(player, "accept")
+        return acceptInvite(player, named ? named.id : waiting[0].from)
     }
 })
 
 command({
     name: "prdeny",
-    picker: true,
     description: "Turn down a private chat request — /prdeny [player]",
     optional: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     run: (player, [selected]) => {
@@ -284,22 +271,59 @@ command({
         if (!waiting.length) return err(player, "Nobody has asked you for a private chat.")
 
         const named = (selected ?? [])[0]
-        // No argument turns down EVERYTHING, which is what someone spamming
-        // "no" at their screen actually wants. Naming one refuses only that.
-        const gone = named ? [takeInvite(player, named.id)].filter(Boolean) : clearInvites(player)
-        if (!gone.length) {
-            return err(player, `No request from that player. Waiting: §f${waiting.map(i => i.fromName).join("§c, §f")}`)
-        }
-
-        for (const held of gone) {
-            const asker = world.getAllPlayers().find(p => p.id === held.from)
-            if (asker) info(asker, `§7${displayName(player)} turned down your private chat request.`)
-        }
-        ok(player, gone.length === 1
-            ? `Turned down §f${gone[0].fromName}§a.`
-            : `Turned down §f${gone.length}§a requests.`)
+        if (!named && waiting.length > 1) return whichInvite(player, "deny")
+        return denyInvites(player, named ? [named.id] : [waiting[0].from])
     }
 })
+
+function waitingNames(player) {
+    return pendingInvites(player).map(i => i.fromName).join("§c, §f")
+}
+
+function acceptInvite(player, fromId) {
+    const held = takeInvite(player, fromId)
+    if (!held) return err(player, `No request from that player. Waiting: §f${waitingNames(player)}`)
+
+    const asker = world.getAllPlayers().find(p => p.id === held.from)
+    if (!asker) return err(player, `§f${held.fromName}§c has gone offline.`)
+    if (inPair(asker)) return err(player, `§f${displayName(asker)}§c has already started one with somebody else.`)
+
+    open(player, asker)
+}
+
+function denyInvites(player, fromIds) {
+    const gone = fromIds.map(id => takeInvite(player, id)).filter(Boolean)
+    if (!gone.length) return err(player, `No request from that player. Waiting: §f${waitingNames(player)}`)
+
+    for (const held of gone) {
+        const asker = world.getAllPlayers().find(p => p.id === held.from)
+        if (asker) info(asker, `§7${displayName(player)} turned down your private chat request.`)
+    }
+    ok(player, gone.length === 1
+        ? `Turned down §f${gone[0].fromName}§a.`
+        : `Turned down §f${gone.length}§a requests.`)
+}
+
+/** Several people are waiting: list them, the way /tpaccept and /tpadeny do. */
+async function whichInvite(player, mode) {
+    const waiting = pendingInvites(player)
+    if (!waiting.length) return info(player, "§7Those requests have lapsed.")
+
+    const denying = mode === "deny"
+    return menu(player, {
+        title: hubTitle("chat", denying ? "Turn down which?" : "Accept which?"),
+        body: subtitle(`${waiting.length} people are waiting. Pick one.`),
+        buttons: [
+            ...waiting.map(held => ({
+                text: `§f${held.fromName}\n§8wants a private chat`,
+                run: () => denying ? denyInvites(player, [held.from]) : acceptInvite(player, held.from)
+            })),
+            denying
+                ? { text: "§cTurn them all down", run: () => denyInvites(player, waiting.map(held => held.from)) }
+                : null
+        ].filter(Boolean)
+    })
+}
 
 function open(a, b) {
     startPair(a, b)

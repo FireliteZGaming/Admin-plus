@@ -228,10 +228,9 @@ async function itemScreen(viewer, target, item, allowed, back) {
 
 command({
     name: "invsee",
-    picker: true,
     description: "Look inside a player's inventory — /invsee <player>",
     perm: "admin.invsee",
-    mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
+    mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector, self: true }],
     run: (viewer, [selected]) => {
         const targets = selected ?? []
         if (!targets.length) return err(viewer, "No player matched that selector.")

@@ -12,6 +12,7 @@ import {
 } from "../core/warps.js"
 import { queueTeleport } from "../core/teleport.js"
 import { record } from "../core/logs.js"
+import { pickFrom } from "../core/ask.js"
 
 // Warps — /warp, /warps, /spawn for everyone; everything else on one screen per
 // destination.
@@ -28,9 +29,22 @@ import { record } from "../core/logs.js"
 
 command({
     name: "warp",
-    description: "Teleport to a warp — /warp <name>",
+    description: "Teleport to a warp — /warp <name>, or /warp alone to pick one",
     perm: "warp.use",
-    mandatory: [{ name: "name", type: CustomCommandParamType.String }],
+    mandatory: [{
+        name: "name", type: CustomCommandParamType.String,
+        // Left off, the warps this player may use are the pick list.
+        ask: async player => {
+            if (!flag("feature.warps")) { err(player, "Warps are turned off on this server."); return undefined }
+            return (await pickFrom(player, {
+                title: "/warp",
+                body: "Tap a warp to travel.",
+                items: warpsFor(player),
+                render: warp => warp.display,
+                empty: "There are no warps you can use yet."
+            }))?.id
+        }
+    }],
     run: (player, [name]) => {
         if (!flag("feature.warps")) return err(player, "Warps are turned off on this server.")
         const warp = getWarp(normaliseWarpId(name))

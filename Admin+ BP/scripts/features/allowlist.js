@@ -8,6 +8,7 @@ import {
     doorCheck, inMaintenance, setMaintenance, maintenanceReason
 } from "../core/allowlist.js"
 import { kick } from "../core/moderation.js"
+import { askText, pickFrom } from "../core/ask.js"
 
 // /guestlist on|off|add|remove|list [player]
 //
@@ -30,11 +31,12 @@ command({
     name: "guestlist",
     description: "Only invited players may join — /guestlist <on|off|add|remove|list> [player]",
     perm: "admin.allowlist",
-    mandatory: [{ name: actionEnum, type: CustomCommandParamType.Enum }],
-    optional: [{ name: "player", type: CustomCommandParamType.String }],
-    run: (player, [action, name]) => {
+    mandatory: [{ name: actionEnum, type: CustomCommandParamType.Enum, label: "The guest list:" }],
+    // `rest`, because a gamertag can have spaces in it.
+    optional: [{ name: "player", type: CustomCommandParamType.String, rest: true }],
+    run: async (player, [action, name]) => {
         const what = String(action).toLowerCase()
-        const who = String(name ?? "").trim()
+        let who = String(name ?? "").trim()
 
         if (what === "list") {
             const held = listNames()
@@ -60,7 +62,21 @@ command({
             return
         }
 
-        if (!who) return err(player, `Type a player name. For example: /guestlist ${what} Steve`)
+        // No name given: ask. Adding takes a typed gamertag, since the whole
+        // point is inviting somebody who has never been here; removing picks
+        // from the list itself.
+        if (!who) {
+            who = what === "add"
+                ? await askText(player, { title: "/guestlist add", label: "Gamertag to invite", placeholder: "Steve" })
+                : (await pickFrom(player, {
+                    title: "/guestlist remove",
+                    body: "Pick somebody to take off the list.",
+                    items: listNames(),
+                    render: entry => `§f${entry.name}§r\n§8added by ${entry.by}`,
+                    empty: "Nobody is on the guest list yet."
+                }))?.name
+            if (!who) return
+        }
 
         if (what === "add") {
             if (!addName(who, player)) return info(player, `§f${who}§7 is already on the list.`)
@@ -79,8 +95,8 @@ command({
     name: "maintenance",
     description: "Close the world to everyone but staff — /maintenance <on|off> [reason]",
     perm: "admin.allowlist",
-    mandatory: [{ name: modeEnum, type: CustomCommandParamType.Enum }],
-    optional: [{ name: "reason", type: CustomCommandParamType.String }],
+    mandatory: [{ name: modeEnum, type: CustomCommandParamType.Enum, label: "Maintenance:" }],
+    optional: [{ name: "reason", type: CustomCommandParamType.String, rest: true }],
     run: (player, [mode, reason]) => {
         const on = String(mode).toLowerCase() === "on"
         setMaintenance(on, reason)

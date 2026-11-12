@@ -7,6 +7,7 @@ import { mute, unmute, isMuted, hasMuteTag, banList, unban } from "../core/moder
 import { chatAvailable } from "./chat.js"
 import { banScreen } from "./actions.js"
 import { record } from "../core/logs.js"
+import { pickFrom } from "../core/ask.js"
 
 // /mute and /unmute — the command form of the panel's mute button.
 //
@@ -19,15 +20,12 @@ import { record } from "../core/logs.js"
 
 command({
     name: "mute",
-    // Asked for by name: the game's own player list when you type this.
-    // Costs the `@` forms here — see `picker` in core/registry.js.
-    picker: true,
     description: "Mute a player — /mute <player> [duration] [reason]",
     perm: "admin.mute",
     mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     optional: [
         { name: "duration", type: CustomCommandParamType.String },
-        { name: "reason", type: CustomCommandParamType.String }
+        { name: "reason", type: CustomCommandParamType.String, rest: true }
     ],
     run: (player, [selected, duration, reason]) => {
         const targets = selected ?? []
@@ -90,9 +88,6 @@ command({
 // panel's player list does not.
 command({
     name: "ban",
-    // Asked for by name: the game's own player list when you type this.
-    // Costs the `@` forms here — see `picker` in core/registry.js.
-    picker: true,
     description: "Ban a player — /ban <player> opens the ban screen",
     perm: "admin.ban",
     mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
@@ -113,12 +108,15 @@ command({
 
 command({
     name: "unmute",
-    // Asked for by name: the game's own player list when you type this.
-    // Costs the `@` forms here — see `picker` in core/registry.js.
-    picker: true,
     description: "Unmute a player — /unmute <player>",
     perm: "admin.mute",
-    mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
+    mandatory: [{
+        name: "player", type: CustomCommandParamType.PlayerSelector,
+        // Left off, the list is the people who are actually muted.
+        self: true,
+        only: target => isMuted(target) || hasMuteTag(target),
+        empty: "Nobody online is muted."
+    }],
     run: (player, [selected]) => {
         const targets = selected ?? []
         if (!targets.length) return err(player, "No player matched that selector.")
@@ -173,18 +171,30 @@ command({
 
 
 // /unban takes a NAME, not a selector: a banned player is by definition not here
-// for a selector to match. Names come from the ban list itself.
+// for a selector to match. Left off, the ban list itself is the pick list.
 command({
     name: "unban",
-    description: "Lift a ban — /unban <name>",
+    description: "Lift a ban — /unban <name>, or /unban alone to pick from the list",
     perm: "admin.ban",
-    mandatory: [{ name: "name", type: CustomCommandParamType.String }],
+    mandatory: [{
+        name: "name", type: CustomCommandParamType.String,
+        // Resolves to the ban's id, which the handler matches before any name,
+        // so two banned players with similar names cannot be confused.
+        ask: async player => (await pickFrom(player, {
+            title: "/unban",
+            body: "Pick a ban to lift.",
+            items: banList(),
+            render: ban => `§c${ban.name || "unknown"}§r\n§8${ban.reason} · by ${ban.by}`,
+            empty: "Nobody is banned."
+        }))?.id
+    }],
     run: (player, [name]) => {
         const wanted = String(name ?? "").trim().toLowerCase()
         if (!wanted) return err(player, "Type the name of the player to unban.")
 
         const bans = banList()
-        const match = bans.find(b => (b.name ?? "").toLowerCase() === wanted)
+        const match = bans.find(b => String(b.id) === String(name))
+            ?? bans.find(b => (b.name ?? "").toLowerCase() === wanted)
             ?? bans.find(b => (b.name ?? "").toLowerCase().includes(wanted))
 
         if (!match) {

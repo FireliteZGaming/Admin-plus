@@ -16,12 +16,11 @@ import { nicknameScreen } from "./actions.js"
 
 command({
     name: "nick",
-    picker: true,
     description: "Set a display name — /nick <player> [name], or omit the name to clear it",
     perm: "admin.nickname",
     optional: [
         { name: "player", type: CustomCommandParamType.PlayerSelector },
-        { name: "name", type: CustomCommandParamType.String }
+        { name: "name", type: CustomCommandParamType.String, rest: true }
     ],
     run: (player, [selected, wanted]) => {
         const targets = selected ?? []

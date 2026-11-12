@@ -103,10 +103,15 @@ export function chatMuteLine() {
  * feature is named /emote, which nothing else claims. Vanilla /me still works;
  * it just prints an unstyled line to everybody and ignores channels.
  */
+const ACTION = {
+    name: "action", type: CustomCommandParamType.String, rest: true,
+    label: "What are you doing?", placeholder: "waves"
+}
+
 command({
     name: "emote",
     description: "Say what you are doing — /emote <action>",
-    mandatory: [{ name: "action", type: CustomCommandParamType.String }],
+    mandatory: [ACTION],
     run: (player, [action]) => sendEmote(player, action)
 })
 
@@ -115,7 +120,7 @@ command({
 command({
     name: "me",
     description: "Say what you are doing — same as /emote (bare /me is vanilla's)",
-    mandatory: [{ name: "action", type: CustomCommandParamType.String }],
+    mandatory: [ACTION],
     run: (player, [action]) => sendEmote(player, action)
 })
 

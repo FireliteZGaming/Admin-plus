@@ -31,19 +31,9 @@ const ALL = "all"
  */
 const WHERE = defineEnum("where", [ALL, ...allChannels().map(channel => channel.id)])
 
-// Bedrock's String parameter takes ONE word unless it is quoted, and a broadcast
-// is a sentence. So the first word is mandatory and the rest are optional slots
-// that get joined back together — which makes the natural thing to type work:
-//
-//   /broadcast all Server restarting in five minutes
-//
-// Quoting still works, and is the way past seven words.
-//
-// SEVEN, not more: Bedrock allows a custom command eight parameters in total,
-// and this one already spends two on the channel and the first word. Asking for
-// more than that does not truncate — the whole command fails to register and
-// /broadcast quietly does not exist, which is exactly what happened in 0.32.0.
-const EXTRA_WORDS = 6
+// The message is a `rest` parameter (core/registry.js), so a plain sentence of
+// up to seven words works unquoted. Quoting is the way past seven, and leaving
+// the message off opens a box to type it in.
 
 export function broadcastTo(sender, scope, message) {
     const where = String(scope ?? ALL).trim().toLowerCase()
@@ -78,18 +68,10 @@ command({
     description: "Announce something — /broadcast <all|chat> <message>",
     perm: "admin.broadcast",
     mandatory: [
-        { name: WHERE, type: CustomCommandParamType.Enum },
-        { name: "message", type: CustomCommandParamType.String }
+        { name: WHERE, type: CustomCommandParamType.Enum, label: "Who should see it?" },
+        { name: "message", type: CustomCommandParamType.String, rest: true, label: "The announcement" }
     ],
-    optional: Array.from({ length: EXTRA_WORDS }, (_, i) => ({
-        name: `word${i + 2}`,
-        type: CustomCommandParamType.String
-    })),
-    run: (player, [where, ...words]) => {
-        const message = words
-            .filter(word => typeof word === "string" && word.length)
-            .join(" ")
-
+    run: (player, [where, message]) => {
         const result = broadcastTo(player, where, message)
         if (!result.ok) return err(player, result.reason)
 

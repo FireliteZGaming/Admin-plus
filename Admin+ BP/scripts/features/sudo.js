@@ -36,12 +36,14 @@ const MAX_LENGTH = 256
 
 command({
     name: "sudo",
-    picker: true,
-    description: 'Make a player say something — /sudo <player> "message"',
+    description: "Make a player say something — /sudo <player> <message>",
     perm: "admin.sudo",
     mandatory: [
         { name: "player", type: CustomCommandParamType.PlayerSelector },
-        { name: "message", type: CustomCommandParamType.String }
+        {
+            name: "message", type: CustomCommandParamType.String, rest: true,
+            label: "What should they say? Start with / to make it a command."
+        }
     ],
     run: (player, [selected, message]) => {
         const shut = trollBlockedBy(player, SUDO)

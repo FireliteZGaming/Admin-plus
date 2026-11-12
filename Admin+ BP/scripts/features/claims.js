@@ -165,7 +165,6 @@ command({
 command({
     name: "trust",
     description: "Let somebody build on the claim you are standing in — /trust <player>",
-    picker: true,
     mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     run: (player, [selected]) => {
         const target = selected?.[0]
@@ -184,7 +183,6 @@ command({
 command({
     name: "untrust",
     description: "Stop somebody building on the claim you are standing in — /untrust <player>",
-    picker: true,
     mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     run: (player, [selected]) => {
         const target = selected?.[0]

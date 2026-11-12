@@ -216,11 +216,26 @@ value in the wrong key.
 
 - **Panel-first.** Everything in `/admin`; no `/setrank`-style command sprawl.
   Bare command names, vanilla argument grammar, real selectors and enums.
+- **Three command rules, and `core/registry.js` applies them to every command**
+  (2.7.8, asked for 2026-11-11: "one command might have a list you can choose
+  from but the other might not, which is wrong"):
+  1. **Leave an argument off and it is asked for.** A spec's `mandatory` list
+     means "needed", not "must be typed". `core/ask.js` turns a player into the
+     one shared pick list, an Enum into buttons, text into a box. A parameter
+     with its own list (warps, bans) supplies `ask`.
+  2. **A player argument offers the game's player list.** That is the default.
+     `picker: false` opts out to typed text (`me`, `all`, `@a`), and
+     `tests/registry.test.js` demands a written reason for each one.
+  3. **A `rest: true` text argument takes a sentence**, no quotes.
+
+  **Never hand-roll a prompt, a player list or word slots in a command file.**
+  Declare the parameter and let the registry do it; that is what keeps two
+  commands from disagreeing. The "vanilla" group is exempt from 1 and 3.
 - **No economy or shop**, ever. The `+` means essentials.
-- **Homes, `/back`, fly, god, heal, feed: dropped.** Removed on purpose,
-  not missing. Do not build them unasked. **`bring` came OFF this list on
-  2026-09-11** — the user asked for it back, as an entry in the Ender Eye's
-  player menu rather than as a command. It is not a lapse; do not re-remove it.
+- **Fly, god, heal, feed: dropped.** Removed on purpose, not missing. Do not
+  build them unasked. Three things came OFF this list because the user asked
+  for them back, and are not lapses: `bring` (2026-09-11, an entry in the Ender
+  Eye's player menu), homes (2.7.0) and `/back` (2.7.4). Do not re-remove them.
 - **A node exists only if the code checks it.** A switch that does nothing is
   worse than no switch; a test enforces this.
 - **Automod PUNISHES SPAM, and only spam** (changed 2026-09-11, the user asked

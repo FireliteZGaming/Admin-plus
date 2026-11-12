@@ -56,6 +56,57 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.7.8 — 2026-11-11
+
+**Every command now works the same three ways.** One command offered a list to
+pick from and the next did not, which was wrong. The rules live in the command
+registry now, so each command gets them without being written to and none can
+drift.
+
+**Leave an argument off and Admin+ asks for it.** A player becomes a pick list,
+a fixed set of words becomes buttons, and text becomes a box to type in. Type
+as much or as little as you like:
+
+- `/ban` alone lists the players, then opens the ban screen.
+- `/pm` alone lists the players, then opens a box for the message. `/pm Steve`
+  skips straight to the box.
+- `/warp` alone lists the warps you can use, which is what `/warps` did.
+- `/unban` alone lists who is banned. `/unmute` alone lists who is muted.
+- `/gm` alone asks which gamemode. `/broadcast` alone asks who should see it,
+  then what to say.
+
+Closing any of those is "never mind", and nothing happens. 24 commands had a
+required argument and were refused by the game without it; none are now.
+
+**One player pick list**, used by every command that asks who. Nearest first,
+with whoever you last acted on above them, a search once the server is busy,
+and vanished staff hidden from anybody who may not see them.
+
+**Every player argument offers the game's player list as you type.** That was
+already true of 24 commands. `/tpaccept` and `/tpadeny` took a typed name while
+`/praccept` and `/prdeny` offered the list; all four offer it now. `/gm` and its
+four shortcuts still take typed text on purpose, so `/gm creative @a` keeps
+working.
+
+**Sentences no longer need quotes.** `/pm Steve meet me at spawn` works as
+typed. So do `/r`, `/emote`, `/sudo`, `/nick`, and the reason on `/mute` and
+`/maintenance`. Up to seven words, as `/broadcast` already allowed; quotes are
+still the way past that, and so is leaving the text off and using the box.
+
+**Several requests waiting are handled one way.** `/praccept` with two people
+waiting printed an error asking you to type a name, and bare `/prdeny` turned
+everybody down without asking. Both now list who is waiting, exactly as
+`/tpaccept` and `/tpadeny` do, and the deny list keeps its "turn them all down"
+button.
+
+Nothing was removed: every command that worked as typed before still does.
+
+Tested under Node, 2,758 assertions. **Not yet run in game**, and three things
+here only the game can confirm: that a form opens cleanly straight after a
+typed command for the new cases, that the engine accepts these commands with
+every parameter optional, and that unquoted sentences arrive as separate words
+the way `/broadcast`'s always have.
+
 ## 2.7.7 — 2026-09-20
 
 **Sign logging held a Block handle for twenty seconds, which is not a thing you

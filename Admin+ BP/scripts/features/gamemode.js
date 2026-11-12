@@ -59,11 +59,18 @@ function applyMode(player, mode, selected) {
     }
 }
 
+// `picker: false` on all five: `/gm creative @a` for a build event is real use,
+// so these take typed text (`me`, `all`, `@a`, a name) instead of the list.
 command({
     name: "gm",
+    picker: false,
     description: "Set a gamemode — /gm <mode> [player]",
     perm: "admin.gamemode",
-    mandatory: [{ name: modeEnum, type: CustomCommandParamType.Enum }],
+    mandatory: [{
+        name: modeEnum, type: CustomCommandParamType.Enum,
+        label: "Which gamemode?",
+        choices: ["creative", "survival", "adventure", "spectator"]
+    }],
     optional: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     run: (player, [mode, selected]) => {
         const resolved = MODES[String(mode).toLowerCase()]
@@ -75,6 +82,7 @@ command({
 for (const [name, mode] of [["gmc", GameMode.Creative], ["gms", GameMode.Survival], ["gma", GameMode.Adventure], ["gmsp", GameMode.Spectator]]) {
     command({
         name,
+        picker: false,
         description: `Set ${MODE_LABEL[mode]} mode — /${name} [player]`,
         perm: "admin.gamemode",
         optional: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],

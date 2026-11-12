@@ -38,7 +38,7 @@ const BASICS = [
     { cmd: "/info", what: "This. You are here." },
     { cmd: "/online", what: "See who else is playing right now.", need: "online.use" },
     { cmd: "/spawn", what: "Go back to the world's starting point.", need: "spawn.use", on: "feature.spawn" },
-    { cmd: "/warps", what: "A list of places the staff set up. Tap one to go there.", need: "warp.use", on: "feature.warps" },
+    { cmd: "/warp", what: "A list of places the staff set up. Tap one to go there.", need: "warp.use", on: "feature.warps" },
     { cmd: "/home", what: "Your own saved places. Opens a screen to travel to one, or to make one where you stand. Only you can see them.", on: "feature.homes" },
     { cmd: "/back", what: "Go back to where you were before a teleport — or to where you died, which is the useful one.", on: "feature.back" },
     { cmd: "/rtp", what: "Get dropped somewhere random and far away. Set a home before you wander off.", on: "feature.rtp" },
@@ -85,6 +85,8 @@ async function commandsScreen(player, back) {
         body: [
             "§7Type these in the chat box, exactly as written.",
             "§7Swap the name for whoever you mean.",
+            "§7Or leave the rest off: §f/tpa§7 on its own shows a",
+            "§7list to pick from, and §f/pm§7 opens a box to type in.",
             "",
             ...usable,
             "",

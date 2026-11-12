@@ -101,7 +101,6 @@ export async function grantScreen(player, targetId, targetName, back = () => {})
 
 command({
     name: "grant",
-    picker: true,
     description: "Give somebody a rank, for a while or for good — /grant <player>",
     perm: "ranks.grant",
     optional: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],

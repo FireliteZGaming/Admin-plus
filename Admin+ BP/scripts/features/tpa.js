@@ -14,14 +14,12 @@ import {
 
 // /tpa · /tpahere · /tpaccept · /tpadeny · /tpacancel
 //
-// Essentials' shape, with Admin+'s argument style: a real PlayerSelector so tab
-// fills the name, and the accept/deny commands take an OPTIONAL name so a
-// player with several pending requests can pick, while the common case stays a
-// bare /tpaccept.
+// Essentials' shape, with Admin+'s argument style: every one of them offers the
+// player list, and accept/deny take an OPTIONAL player so somebody with several
+// requests waiting can pick, while the common case stays a bare /tpaccept.
 
 command({
     name: "tpa",
-    picker: true,
     description: "Ask to teleport to someone — /tpa <player>",
     perm: "tpa.use",
     mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
@@ -30,7 +28,6 @@ command({
 
 command({
     name: "tpahere",
-    picker: true,
     description: "Ask someone to teleport to you — /tpahere <player>",
     perm: "tpa.use",
     mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
@@ -92,21 +89,20 @@ command({
     name: "tpaccept",
     description: "Accept a teleport request — /tpaccept [player]",
     perm: "tpa.use",
-    optional: [{ name: "player", type: CustomCommandParamType.String }],
-    run: (player, [name]) => {
+    optional: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
+    run: (player, [selected]) => {
         if (!flag("feature.tpa")) return err(player, "Teleport requests are turned off on this server.")
         const waiting = incomingFor(player)
         if (!waiting.length) return err(player, "Nobody has asked to teleport.")
 
-        // Two requests at once used to resolve to whichever was newest, silently
-        // — you accepted somebody without being told which, and the other person
-        // was left hanging with no way to tell them apart. When it is ambiguous
-        // and nobody was named, ask.
-        if (!name && waiting.length > 1) return pickScreen(player, "accept")
+        // With two waiting and nobody named, ask which. Taking the newest
+        // silently accepted somebody without saying who.
+        const named = (selected ?? [])[0]
+        if (!named && waiting.length > 1) return pickScreen(player, "accept")
 
-        const request = takeIncoming(player, name)
+        const request = named ? takeIncomingById(player, named.id) : takeIncoming(player)
         if (!request) {
-            return err(player, `No request from "§f${name}§c". Waiting: §f${waiting.map(r => r.fromName).join(", ")}`)
+            return err(player, `No request from §f${displayName(named)}§c. Waiting: §f${waiting.map(r => r.fromName).join(", ")}`)
         }
 
         const sender = playerById(request.from)
@@ -146,17 +142,18 @@ command({
     name: "tpadeny",
     description: "Refuse a teleport request — /tpadeny [player]",
     perm: "tpa.use",
-    optional: [{ name: "player", type: CustomCommandParamType.String }],
-    run: (player, [name]) => {
+    optional: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
+    run: (player, [selected]) => {
         if (!flag("feature.tpa")) return err(player, "Teleport requests are turned off on this server.")
         const waiting = incomingFor(player)
         if (!waiting.length) return err(player, "Nobody has asked to teleport.")
 
-        if (!name && waiting.length > 1) return pickScreen(player, "deny")
+        const named = (selected ?? [])[0]
+        if (!named && waiting.length > 1) return pickScreen(player, "deny")
 
-        const request = takeIncoming(player, name)
+        const request = named ? takeIncomingById(player, named.id) : takeIncoming(player)
         if (!request) {
-            return err(player, `No request from "§f${name}§c". Waiting: §f${waiting.map(r => r.fromName).join(", ")}`)
+            return err(player, `No request from §f${displayName(named)}§c. Waiting: §f${waiting.map(r => r.fromName).join(", ")}`)
         }
         refuse(player, request)
     }
