@@ -30,7 +30,7 @@ import {
 // Somebody's base coordinates are the one thing on a survival server genuinely
 // worth hiding.
 
-const OFF = "Homes are turned off here."
+const OFF = "Homes are turned off on this server."
 
 /** Go to one, through the shared warmup so it cannot be used to flee a fight. */
 function goHome(player, home) {
@@ -42,7 +42,7 @@ function goHome(player, home) {
 
 command({
     name: "home",
-    description: "Your homes — /home, or /home <name> to go straight there",
+    description: "Go to one of your homes, or set one",
     optional: [{ name: "name", type: CustomCommandParamType.String }],
     run: (player, [name]) => {
         if (!flag("feature.homes")) return info(player, OFF)

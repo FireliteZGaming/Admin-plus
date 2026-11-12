@@ -56,6 +56,77 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.7.9 — 2026-11-11
+
+**A cleanup sweep: fewer buttons, plainer words, and ranks anyone can make.**
+The goal is a pack people can find their way around without reading
+instructions.
+
+### The staff panel has six choices
+
+`/admin` used to show up to twelve buttons, mixing staff tools with personal
+ones. It now shows six, each named for what you came to do:
+
+1. **Players**: find somebody to help, warn or punish (was Actions).
+2. **Ranks**: make ranks and give them to players.
+3. **Places**: warps and spawn, floating text, and land claims.
+4. **Logs**: what happened, who did it, and undo.
+5. **Server**: features, chat, teleports, vanilla commands, server presets,
+   and an Advanced page for everything else.
+6. **Help**: what everything does, the version, and credits.
+
+Waiting reports still appear at the top when there are any. Settings went from
+nine buttons to six. The four ways of editing the config by hand (every value,
+saved setups, `< Code >` and factory reset) moved into Server ▸ Advanced.
+
+### The player menu leads with travel
+
+`/menu` now has Travel, People, Land claims, My settings and Help. Travel puts
+spawn, warps, your homes, `/back` and `/rtp` on one screen, so a player never
+has to know those commands exist. Each button runs the real command, so
+warmups, cooldowns and permissions work exactly as if it had been typed.
+
+### Ranks
+
+- Opening Ranks shows the ranks straight away, strongest first. New rank, Give
+  a rank to a player, Rank templates and Undo sit under the list.
+- **A new rank needs a name and a colour.** The colour comes from a list drawn
+  in its own colours. The id is made from the name. You also choose which rank
+  it gets permissions from and where it sits. No `§` codes, no ids.
+- Name and colour can be changed later the same way. A rank with two colours,
+  such as VIP+, keeps them unless you pick a new one.
+- A rank's screen now says in words what it can do ("Punishments: 5 of 8"),
+  instead of listing raw permission names.
+- Plainer names throughout: "What it can do" (was Permissions), "Also gets
+  permissions from" (was Inheritance), "Limits and cooldowns", "Name effect".
+
+### Two things that were wrong
+
+- The new-rank form had a "Replaces lower ranks when granted" switch that was
+  never saved, so it did nothing. The prompt for giving a rank also told people
+  to turn it off. Both are gone.
+- The Limits and Cooldowns screens passed their explanation to a function that
+  ignored it, so nobody ever saw it. It now shows above the first slider.
+
+### Name effects
+
+Colour-shifting nametags are called **name effects** everywhere now. Each
+effect is described by its colours ("dark red up to yellow"), not by jargon.
+The rank screen says where the effect shows, and when it is switched off it
+points at Server ▸ Features instead of a setting name in `< Code >`.
+
+### Words
+
+- Every command's description is a plain sentence. The game shows the argument
+  names beside it, so the description only says what the command does.
+- Messages that name a menu path use the new names, so none point at a screen
+  that no longer exists.
+- A switched-off feature always says "turned off on this server".
+- Rank templates are described by what is in them.
+
+Tested under Node: 51 suites, 2,774 checks, including a new test that fills in
+the new-rank form the way a person would. **Not yet run in game.**
+
 ## 2.7.8 — 2026-11-11
 
 **Every command now works the same three ways.** One command offered a list to

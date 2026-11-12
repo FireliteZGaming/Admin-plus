@@ -93,7 +93,7 @@ export function squareAround(at, size) {
  * claims sharing ground makes "whose rules apply here" unanswerable.
  */
 export function createClaim(player, size) {
-    if (!flag("feature.claims")) return { ok: false, reason: "Land claims are turned off here." }
+    if (!flag("feature.claims")) return { ok: false, reason: "Land claims are turned off on this server." }
 
     const limit = claimLimit(player)
     if (limit <= 0) return { ok: false, reason: "Your rank can't claim land." }

@@ -14,9 +14,9 @@ import { lastPlace, takeLastPlace, mark } from "../core/back.js"
 
 command({
     name: "back",
-    description: "Go back to where you were — /back",
+    description: "Go back to where you were, or where you died",
     run: (player) => {
-        if (!flag("feature.back")) return info(player, "/back is turned off here.")
+        if (!flag("feature.back")) return info(player, "/back is turned off on this server.")
 
         const place = lastPlace(player.id)
         if (!place) {

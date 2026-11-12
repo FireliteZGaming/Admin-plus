@@ -126,7 +126,7 @@ export function installClaims() {
 
 command({
     name: "claim",
-    description: "Claim the ground around you — /claim [size in blocks]",
+    description: "Claim the land around you",
     optional: [{ name: "size", type: CustomCommandParamType.Integer }],
     run: (player, [size]) => {
         const result = createClaim(player, size)
@@ -141,9 +141,9 @@ command({
 
 command({
     name: "unclaim",
-    description: "Give up the claim you are standing in — /unclaim",
+    description: "Give up the claim you are standing in",
     run: (player) => {
-        if (!flag("feature.claims")) return info(player, "Land claims are turned off here.")
+        if (!flag("feature.claims")) return info(player, "Land claims are turned off on this server.")
         const at = player.location
         const claim = claimAt(player.dimension?.id, at.x, at.z)
         if (!claim) return err(player, "You aren't standing in a claim.")
@@ -158,13 +158,13 @@ command({
 
 command({
     name: "claims",
-    description: "Your claims, and who you trust on them — /claims",
+    description: "See and manage your land claims",
     run: (player) => claimsScreen(player, () => {})
 })
 
 command({
     name: "trust",
-    description: "Let somebody build on the claim you are standing in — /trust <player>",
+    description: "Let a player build on your claim",
     mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     run: (player, [selected]) => {
         const target = selected?.[0]
@@ -182,7 +182,7 @@ command({
 
 command({
     name: "untrust",
-    description: "Stop somebody building on the claim you are standing in — /untrust <player>",
+    description: "Stop a player building on your claim",
     mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     run: (player, [selected]) => {
         const target = selected?.[0]
@@ -206,7 +206,7 @@ export async function claimsScreen(player, back) {
     const mine = claimsOf(player.id)
     const limit = claimLimit(player)
 
-    if (!flag("feature.claims")) { info(player, "Land claims are turned off here."); return back() }
+    if (!flag("feature.claims")) { info(player, "Land claims are turned off on this server."); return back() }
 
     return menu(player, {
         title: hubTitle("warps", "Land claims"),

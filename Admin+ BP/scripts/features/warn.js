@@ -25,7 +25,7 @@ const actionEnum = defineEnum("warnaction", ["add", "remove"])
 
 command({
     name: "warn",
-    description: "Warn a player, or take a warning back — /warn <add|remove> <player>",
+    description: "Give a warning, or take one back",
     perm: "admin.warn",
     mandatory: [
         { name: actionEnum, type: CustomCommandParamType.Enum, label: "Add a warning, or take one back?" },
@@ -50,7 +50,7 @@ command({
 
 command({
     name: "warnings",
-    description: "See your warnings — /warnings [player]",
+    description: "See the warnings on your record",
     // No node. Reading your OWN record is not a privilege, and gating it
     // would have meant a member on an existing world being refused until
     // somebody re-applied the ladder — a rank table is stored per world, so

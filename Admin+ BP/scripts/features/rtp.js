@@ -24,9 +24,9 @@ import { findSpot } from "../core/rtp.js"
 
 command({
     name: "rtp",
-    description: "Teleport somewhere random — /rtp",
+    description: "Teleport to a random safe place",
     run: (player) => {
-        if (!flag("feature.rtp")) return info(player, "Random teleport is turned off here.")
+        if (!flag("feature.rtp")) return info(player, "Random teleport is turned off on this server.")
 
         const spot = findSpot(player, player.dimension)
         if (!spot) {

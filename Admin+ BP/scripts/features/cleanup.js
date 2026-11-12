@@ -18,7 +18,7 @@ const DIMENSIONS = ["minecraft:overworld", "minecraft:nether", "minecraft:the_en
 
 command({
     name: "clearchat",
-    description: "Push chat history off everyone's screen",
+    description: "Clear the chat for everyone",
     perm: "admin.clearchat",
     run: (player) => {
         // Bedrock has no "clear chat" — the only way is to scroll it off with
@@ -51,7 +51,7 @@ function candidates() {
 
 command({
     name: "lagclear",
-    description: "Count clutter, warn, then clear it — /lagclear [seconds]",
+    description: "Remove dropped items and clutter after a warning",
     perm: "admin.lagclear",
     optional: [{ name: "seconds", type: CustomCommandParamType.Integer }],
     run: (player, [seconds]) => {

@@ -150,7 +150,7 @@ export function mayRun(player, line) {
     if (!has(player, "admin.commands")) {
         return {
             ok: false,
-            reason: "Your rank can't use vanilla commands. An owner turns that on in Ranks ▸ the rank ▸ Permissions ▸ Server settings ▸ vanilla commands."
+            reason: "Your rank can't use vanilla commands. An owner turns that on in Ranks ▸ the rank ▸ What it can do ▸ Server settings ▸ commands."
         }
     }
 

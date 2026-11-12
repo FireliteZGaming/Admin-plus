@@ -203,7 +203,7 @@ async function clearScreen(player, back) {
 
 command({
     name: "hologram",
-    description: "Place and edit floating text — /hologram",
+    description: "Place and edit floating text",
     perm: NODE,
     run: (player) => hologramsScreen(player, undefined)
 })

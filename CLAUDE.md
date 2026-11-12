@@ -216,6 +216,15 @@ value in the wrong key.
 
 - **Panel-first.** Everything in `/admin`; no `/setrank`-style command sprawl.
   Bare command names, vanilla argument grammar, real selectors and enums.
+- **The layout (2.7.9, the user delegated it on 2026-11-11: "organize it in a
+  way you think is honestly best for a human user").** `/admin` is six choices:
+  Players, Ranks, Places, Logs, Server, Help. `/menu` is Travel, People, Land
+  claims, My settings, Help. Personal things (your homes, your claims) live in
+  `/menu`; staff tools in `/admin`. Rarely used config sits in Server ▸
+  Advanced. Keep new screens inside this shape rather than adding root buttons.
+- **Player-facing text follows the 7 C's** (clear, concise, concrete, correct,
+  coherent, complete, courteous). Name things by what a player recognises, not
+  by how the code is built: "What it can do", not "Permissions" or "nodes".
 - **Three command rules, and `core/registry.js` applies them to every command**
   (2.7.8, asked for 2026-11-11: "one command might have a list you can choose
   from but the other might not, which is wrong"):

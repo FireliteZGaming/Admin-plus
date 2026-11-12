@@ -25,7 +25,7 @@ const categoryEnum = defineEnum("reportcategory", CATEGORIES)
 
 command({
     name: "report",
-    description: "Report a player to staff — /report, or /report <player> <reason>",
+    description: "Report a player to staff",
     perm: "report.use",
     // Everything optional, so bare /report opens the form. Someone who has just
     // been griefed should not have to get a selector and a quoted string right

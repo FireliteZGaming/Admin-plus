@@ -58,7 +58,7 @@ function strike(target) {
 
 command({
     name: "smite",
-    description: "Call down lightning on somebody — /smite <player>",
+    description: "Strike a player with lightning",
     perm: "admin.smite",
     mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     run: (player, [selected]) => {

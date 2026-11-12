@@ -29,7 +29,7 @@ const modeEnum = defineEnum("maintenancemode", ["on", "off"])
 
 command({
     name: "guestlist",
-    description: "Only invited players may join — /guestlist <on|off|add|remove|list> [player]",
+    description: "Only let invited players join",
     perm: "admin.allowlist",
     mandatory: [{ name: actionEnum, type: CustomCommandParamType.Enum, label: "The guest list:" }],
     // `rest`, because a gamertag can have spaces in it.
@@ -93,7 +93,7 @@ command({
 
 command({
     name: "maintenance",
-    description: "Close the world to everyone but staff — /maintenance <on|off> [reason]",
+    description: "Close the server to everyone except staff",
     perm: "admin.allowlist",
     mandatory: [{ name: modeEnum, type: CustomCommandParamType.Enum, label: "Maintenance:" }],
     optional: [{ name: "reason", type: CustomCommandParamType.String, rest: true }],

@@ -64,7 +64,7 @@ function applyMode(player, mode, selected) {
 command({
     name: "gm",
     picker: false,
-    description: "Set a gamemode — /gm <mode> [player]",
+    description: "Change a player's gamemode",
     perm: "admin.gamemode",
     mandatory: [{
         name: modeEnum, type: CustomCommandParamType.Enum,
@@ -83,7 +83,7 @@ for (const [name, mode] of [["gmc", GameMode.Creative], ["gms", GameMode.Surviva
     command({
         name,
         picker: false,
-        description: `Set ${MODE_LABEL[mode]} mode — /${name} [player]`,
+        description: `Switch to ${MODE_LABEL[mode]} mode`,
         perm: "admin.gamemode",
         optional: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
         run: (player, [selected]) => applyMode(player, mode, selected)

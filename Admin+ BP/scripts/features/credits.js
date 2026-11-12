@@ -169,7 +169,7 @@ function storageLine() {
 // content log on the host's machine.
 command({
     name: "version",
-    description: "What version of Admin+ this world is running",
+    description: "See which version of Admin+ is running",
     run: (player) => {
         info(player, `§l§bAdmin§d+§r §fv${ADMINPLUS_VERSION}`)
         info(player, `§7Shape: §f${detectServerPreset().label}§7, ${ladder().length} ranks`)
@@ -186,7 +186,7 @@ command({
 // attribution nobody can reach is not an attribution.
 command({
     name: "credits",
-    description: "Who built Admin+, and what was learned from whom",
+    description: "See who made Admin+",
     run: (player) => creditsScreen(player, () => { })
 })
 

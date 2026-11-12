@@ -40,24 +40,24 @@
 export const STYLES = {
     none: {
         label: "None",
-        hint: "the name as it is written",
+        hint: "the name, plain",
         ramp: ""
     },
     rainbow: {
         label: "Rainbow",
-        hint: "round the wheel",
+        hint: "every colour, in turn",
         // A hue wheel needs no mirror — magenta sits next to red already.
         ramp: "c6eab95d"
     },
     fire: {
         label: "Fire",
-        hint: "embers up to white-hot",
+        hint: "dark red up to yellow",
         // 4 m c 6 p g e, then back down. Ends meet on two dark reds.
         ramp: "4mc6pgegp6cm"
     },
     ice: {
         label: "Ice",
-        hint: "deep water to frost",
+        hint: "dark blue up to white",
         // §s is diamond, the closest the palette gets to pale cyan — and it
         // sits BELOW §b in brightness, so it belongs before it. The other
         // order dipped from 219 to 155 and back to 255, which is a stutter
@@ -66,12 +66,12 @@ export const STYLES = {
     },
     toxic: {
         label: "Toxic",
-        hint: "acid green",
+        hint: "bright and dark greens",
         ramp: "2qaeaq"
     },
     void: {
         label: "Void",
-        hint: "amethyst out of the dark",
+        hint: "black into purple",
         // Was "85udu5", which opened on grey and then went DARKER before
         // climbing — a 37-unit brightness dip, visible as a stutter. Black is
         // the honest floor for something called Void, and it keeps every stop
@@ -80,20 +80,20 @@ export const STYLES = {
     },
     gold: {
         label: "Gold",
-        hint: "a shine passing through, not a cycle",
+        hint: "gold with a moving shine",
         // Mostly one colour with a highlight travelling across it, which is
         // what makes it read as a sheen rather than as changing colour.
         ramp: "6666pgegp666"
     },
     sakura: {
         label: "Sakura",
-        hint: "pink and white",
+        hint: "pinks and white",
         // §u amethyst is darker than §d, so it goes first. Same dip as Ice.
         ramp: "5udfdu"
     },
     molten: {
         label: "Molten",
-        hint: "ember to white-hot, using the 1.21.20 material colours",
+        hint: "deep red to yellow, with copper tones",
         // **Frame 0 of this ramp on an eight-letter name is exactly the string
         // the creator chose**: §mF§4i§nr§ce§6l§pi§gt§ee — m 4 n c 6 p g e.
         // Their eight stops are the first eight here, in order, so the still

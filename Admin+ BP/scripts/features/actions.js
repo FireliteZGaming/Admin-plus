@@ -1,5 +1,5 @@
 import { world, GameMode } from "@minecraft/server"
-import { menu, pagedMenu, modal, confirm, title, subtitle } from "../core/ui.js"
+import { menu, pagedMenu, modal, confirm, subtitle } from "../core/ui.js"
 import { hubTitle } from "../core/theme.js"
 import { ok, err, info, formatDuration } from "../core/util.js"
 import { primaryRank, playerRanks, canActOn, canSeeActionsOf, has, refreshNameTag, knownHolders, getRank, heldRankIds, renderTags } from "../core/ranks.js"
@@ -48,7 +48,7 @@ export async function actionsScreen(player, back, filter = "") {
     const again = () => actionsScreen(player, back, filter)
     const banned = banList().length
     return pagedMenu(player, {
-        title: hubTitle("actions", "Actions"),
+        title: hubTitle("actions", "Players"),
         body: needle
             ? subtitle(`${rows.length} match${rows.length === 1 ? "" : "es"} for "§f${filter}§7".`)
             : subtitle(`${online.length} online · ${offline.length} seen before.`),
@@ -195,7 +195,7 @@ async function playerActionsScreen(player, target, back) {
     ].join("\n")
 
     return menu(player, {
-        title: title(displayName(target)),
+        title: hubTitle("actions", displayName(target)),
         body,
         buttons: [
             // Display name first: it is the thing you are most often here to change.
@@ -316,7 +316,7 @@ const DURATIONS = [
 // mute lengths (30 minutes, an hour) are shorter than a day-slider can express.
 async function durationScreen(player, target, action, back) {
     return menu(player, {
-        title: title(`Mute · ${displayName(target)}`),
+        title: hubTitle("actions", `Mute · ${displayName(target)}`),
         body: subtitle("How long?"),
         buttons: DURATIONS.map(([label, ms]) => ({
             text: ms === 0 ? `§c${label}` : label,
@@ -357,7 +357,7 @@ export async function banScreen(player, target, back) {
     const permanent = worldAllows && mayBanForever
     const max = banSliderMax(permanent)
 
-    const values = await modal(player, title(`Ban · ${displayName(target)}`), [
+    const values = await modal(player, hubTitle("actions", `Ban · ${displayName(target)}`), [
         {
             id: "reason",
             type: "dropdown",
@@ -402,7 +402,7 @@ export async function banScreen(player, target, back) {
     const durationMs = banLengthMs(notch, permanent)
     const length = banLengthLabel(notch, permanent)
 
-    const confirmed = await confirm(player, title("Ban"),
+    const confirmed = await confirm(player, hubTitle("actions", "Ban"),
         `Ban §f${displayName(target)}§r?\n\n§7Reason: ${reason}\n§7Length: ${length}`,
         "§cBan")
     if (!confirmed) return back()
@@ -415,14 +415,14 @@ export async function banScreen(player, target, back) {
 
 async function reasonScreen(player, target, action, back, durationMs = 0) {
     const label = action === "ban" ? "Ban" : action === "mute" ? "Mute" : "Kick"
-    const values = await modal(player, title(`${label} · ${displayName(target)}`), [
+    const values = await modal(player, hubTitle("actions", `${label} · ${displayName(target)}`), [
         { id: "reason", type: "text", label: "Reason §7(shown to them)", placeholder: "Griefing", default: "" }
     ])
     if (!values) return back()
     const reason = String(values.reason ?? "").trim() || "No reason given"
 
     if (action === "kick") {
-        const confirmed = await confirm(player, title("Kick"), `Kick §f${displayName(target)}§r?\n\n§7Reason: ${reason}`, "§6Kick")
+        const confirmed = await confirm(player, hubTitle("actions", "Kick"), `Kick §f${displayName(target)}§r?\n\n§7Reason: ${reason}`, "§6Kick")
         if (!confirmed) return back()
         await kick(target, reason)
         record(player, "mod.kick", target, reason)
@@ -457,7 +457,7 @@ function gameModeOf(target) {
 
 export async function nicknameScreen(player, target, back) {
     const current = getNickname(target) ?? ""
-    const values = await modal(player, title(`Display name · ${target.name}`), [
+    const values = await modal(player, hubTitle("actions", `Display name · ${target.name}`), [
         {
             id: "nick",
             type: "text",
@@ -501,7 +501,7 @@ const MODES = [
 
 async function gamemodeScreen(player, target, back) {
     return menu(player, {
-        title: title(`Gamemode · ${displayName(target)}`),
+        title: hubTitle("actions", `Gamemode · ${displayName(target)}`),
         body: subtitle(`Currently ${gameModeOf(target)}.`),
         buttons: MODES.map(([label, mode]) => ({
             text: label,
@@ -525,7 +525,7 @@ async function gamemodeScreen(player, target, back) {
 
 async function teleportScreen(player, target, back) {
     return menu(player, {
-        title: title(`Teleport · ${displayName(target)}`),
+        title: hubTitle("actions", `Teleport · ${displayName(target)}`),
         body: subtitle("Where should the teleport go?"),
         buttons: [
             {

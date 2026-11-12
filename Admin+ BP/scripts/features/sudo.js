@@ -36,7 +36,7 @@ const MAX_LENGTH = 256
 
 command({
     name: "sudo",
-    description: "Make a player say something — /sudo <player> <message>",
+    description: "Make a player say or run something",
     perm: "admin.sudo",
     mandatory: [
         { name: "player", type: CustomCommandParamType.PlayerSelector },

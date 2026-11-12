@@ -1,8 +1,8 @@
 import { menu, subtitle } from "../core/ui.js"
 import { ADMINPLUS_VERSION } from "../config.js"
-import { playerRanks, primaryRank, topWeight, isStaff, has } from "../core/ranks.js"
+import { primaryRank, has } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
-import { hubTitle, hubButton, HUB } from "../core/theme.js"
+import { hubTitle, hubButton, hubEntry } from "../core/theme.js"
 import { ranksScreen } from "./ranksUI.js"
 import { actionsScreen } from "./actions.js"
 import { codeScreen, canUseCode, allValuesScreen, configPresetsScreen, factoryResetScreen, previewLine } from "./code.js"
@@ -10,8 +10,6 @@ import { opCommandsScreen } from "./opcommands.js"
 import { hasOperator } from "../core/devgate.js"
 import { channelsScreen } from "./chatUI.js"
 import { warpsScreen } from "./warps.js"
-import { homesScreen } from "./homes.js"
-import { homeLimit } from "../core/homes.js"
 import { claimsScreen } from "./claims.js"
 import { claimLimit } from "../core/claims.js"
 import { flag } from "../core/settings.js"
@@ -25,195 +23,205 @@ import { serverPresetsScreen } from "./serverPresets.js"
 import { hologramsScreen } from "./holograms.js"
 import { creditsScreen } from "./credits.js"
 import { detectServerPreset } from "../core/serverPresets.js"
-import { registeredCommands } from "../core/registry.js"
+import { infoScreen } from "./info.js"
 
-// /admin — the panel root.
+// /admin — the staff panel.
 //
-// Each hub carries its own colour (core/theme.js) so you can tell at a glance
-// which branch you are in. Sections the viewer has no permission for are left
-// out entirely rather than shown and refused — a Helper's panel should look
-// small, not locked.
+// Six choices, each named for what a staff member came to do, and each in its
+// own colour so you can tell which part of the panel you are in:
+//
+//   Players   find somebody and deal with them
+//   Ranks     make ranks and hand them out
+//   Places    warps, spawn, floating text, land claims
+//   Logs      what happened and who did it
+//   Server    how the server works for everybody
+//   Help      what everything does
+//
+// Things the viewer cannot use are left out rather than shown and refused, so
+// a junior moderator's panel looks small, not locked. Personal things (your own
+// homes and claims) live in /menu, which every player has.
 
 export async function openPanel(player) {
+    const again = () => openPanel(player)
     const buttons = []
 
-    // Reports sit ABOVE everything, with a divider under them, and only when
-    // something is waiting — an empty Reports button would be noise on a quiet
-    // server. Bedrock forms have no separator element, so the divider is a
-    // label-only button that simply re-renders the panel.
+    // Waiting reports go first, and only when there are any.
     const badge = reportsBadge(player)
-    if (badge) {
-        buttons.push({ text: badge, run: () => reportsScreen(player, () => openPanel(player)) })
-        buttons.push({ text: "§8────────────", run: () => openPanel(player) })
-    }
+    if (badge) buttons.push({ text: badge, run: () => reportsScreen(player, again) })
 
     buttons.push({
-        text: hubButton("actions", "Actions", "Pick a player: names, ranks, moderation"),
-        run: () => actionsScreen(player, () => openPanel(player))
+        text: hubButton("actions", "Players", "Find a player to help, warn or punish"),
+        run: () => actionsScreen(player, again)
     })
-
     if (has(player, "ranks.view")) {
         buttons.push({
-            text: hubButton("ranks", "Ranks", "The ladder, and who holds what"),
-            run: () => ranksScreen(player, () => openPanel(player))
+            text: hubButton("ranks", "Ranks", "Make ranks and give them to players"),
+            run: () => ranksScreen(player, again)
         })
     }
-
+    if (placesButtons(player, again).length) {
+        buttons.push({
+            text: hubButton("warps", "Places", "Warps, spawn, floating text and land claims"),
+            run: () => placesScreen(player, again)
+        })
+    }
     if (has(player, "admin.logs")) {
         buttons.push({
-            text: hubButton("settings", "Logs", "Who did what, and undo"),
-            run: () => logsScreen(player, () => openPanel(player))
+            text: hubButton("chat", "Logs", "What happened, who did it, and undo"),
+            run: () => logsScreen(player, again)
         })
     }
-
+    if (serverButtons(player, again).length) {
+        buttons.push({
+            text: hubButton("settings", "Server", "Features, chat, teleports and presets"),
+            run: () => serverScreen(player, again)
+        })
+    }
     buttons.push({
-        text: hubButton("warps", "Warps", "Named destinations and spawn"),
-        run: () => warpsScreen(player, () => openPanel(player))
-    })
-
-    // Homes sit beside warps because they are the same idea from the other end
-    // — somewhere to go — and because a player looking for one will look for
-    // the other. No permission check: how many a rank may set is the gate, and
-    // a rank allowed none is told so rather than shown a door that refuses.
-    if (flag("feature.homes") && homeLimit(player) > 0) {
-        buttons.push({
-            text: hubButton("warps", "Homes", "Your own places, private to you"),
-            run: () => homesScreen(player, () => openPanel(player))
-        })
-    }
-
-    // Claims sit with homes for the same reason: both answer "this bit is
-    // mine". Shown to anybody whose rank allows one, and to staff regardless,
-    // because staff need the every-claim list even on a rank that claims none.
-    if (flag("feature.claims") && (claimLimit(player) > 0 || has(player, "admin.claims"))) {
-        buttons.push({
-            text: hubButton("warps", "Land claims", "Ground nobody else can build on"),
-            run: () => claimsScreen(player, () => openPanel(player))
-        })
-    }
-
-    if (has(player, "admin.holograms")) {
-        buttons.push({
-            text: hubButton("warps", "Holograms", "Floating text and score leaderboards"),
-            run: () => hologramsScreen(player, () => openPanel(player))
-        })
-    }
-
-
-    if (has(player, "admin.settings")) {
-        buttons.push({
-            text: hubButton("settings", "Settings", "Chat channels, features, teleport tuning"),
-            run: () => settingsScreen(player, () => openPanel(player))
-        })
-    }
-
-    // Presets sits at the root because it is not a setting — it changes the
-    // whole shape of the server at once, and that deserves to be as visible as
-    // the things it changes.
-    if (has(player, "presets.apply")) {
-        buttons.push({
-            text: hubButton("presets", "Presets", `Whole-server shapes · currently ${detectServerPreset().label}`),
-            run: () => serverPresetsScreen(player, () => openPanel(player))
-        })
-    }
-
-    // Dev tag + operator only. Absent for everyone else, not disabled.
-    if (canUseCode(player)) {
-        buttons.push({
-            text: hubButton("code", "< Code >", "The whole config as one editable text file"),
-            run: () => codeScreen(player, () => openPanel(player))
-        })
-    }
-
-    buttons.push({
-        text: hubButton("about", "About Admin+"),
-        run: () => aboutScreen(player, () => openPanel(player))
+        text: hubButton("about", "Help", "What everything does, and the version"),
+        run: () => helpScreen(player, again)
     })
 
     return menu(player, {
-        title: hubTitle("ranks", "Admin panel"),
-        body: subtitle(`Signed in as ${primaryRank(player)?.display ?? "§7no rank"}§r§7 (${displayName(player)}).`),
+        title: hubTitle("ranks", "Staff panel"),
+        body: subtitle(`You are ${displayName(player)}, ${primaryRank(player)?.display ?? "§7no rank"}§r§7.`),
         buttons
     })
 }
 
-// Settings is where the config lives now.
-//
-// The bottom three moved out of < Code > when that section became the text
-// editor it was named after. They were never dev-only in spirit — a preset and
-// a reset are settings, and this is where somebody would look for them.
-//
-// Factory Reset additionally wants OPERATOR, because discarding every changed
-// value at once is a different size of act from editing one. The screen checks
-// again on entry; this only keeps the button from appearing.
-async function settingsScreen(player, back) {
-    const again = () => settingsScreen(player, back)
+// ------------------------------------------------------------------- Places
+
+function placesButtons(player, back) {
+    return [
+        flag("feature.warps") || flag("feature.spawn")
+            ? { text: hubEntry("warps", "Warps and spawn", "Places players can travel to"), run: () => warpsScreen(player, back) }
+            : null,
+        has(player, "admin.holograms")
+            ? { text: hubEntry("warps", "Floating text", "Words and scoreboards that hang in the air"), run: () => hologramsScreen(player, back) }
+            : null,
+        flag("feature.claims") && (claimLimit(player) > 0 || has(player, "admin.claims"))
+            ? { text: hubEntry("warps", "Land claims", "Land that players have protected"), run: () => claimsScreen(player, back) }
+            : null
+    ].filter(Boolean)
+}
+
+async function placesScreen(player, back) {
+    const again = () => placesScreen(player, back)
     return menu(player, {
-        title: hubTitle("settings", "Settings"),
+        title: hubTitle("warps", "Places"),
+        body: subtitle("Where players can go, and what they have claimed."),
+        buttons: placesButtons(player, again),
+        back
+    })
+}
+
+// ------------------------------------------------------------------- Server
+
+function serverButtons(player, back) {
+    const settings = has(player, "admin.settings")
+    const chat = settings && (has(player, "chat.manage") || has(player, "admin.automod"))
+    return [
+        settings
+            ? { text: hubButton("settings", "Features", "Turn parts of Admin+ on and off"), run: () => configurationScreen(player, back) }
+            : null,
+        chat
+            ? { text: hubButton("settings", "Chat", "Chat rooms, auto-moderation and held messages"), run: () => chatSettingsScreen(player, back) }
+            : null,
+        settings
+            ? { text: hubButton("settings", "Teleports", "Wait times, and how long requests last"), run: () => teleportTuningScreen(player, back) }
+            : null,
+        settings
+            ? { text: hubButton("settings", "Vanilla commands", "Let ranks use Minecraft commands without operator"), run: () => opCommandsScreen(player, back) }
+            : null,
+        has(player, "presets.apply")
+            ? { text: hubButton("presets", "Server presets", `Set up the whole server in one step · now: ${detectServerPreset().label}`), run: () => serverPresetsScreen(player, back) }
+            : null,
+        settings || canUseCode(player)
+            ? { text: hubButton("settings", "Advanced", "Every setting, saved setups and reset"), run: () => advancedScreen(player, back) }
+            : null
+    ].filter(Boolean)
+}
+
+async function serverScreen(player, back) {
+    const again = () => serverScreen(player, back)
+    return menu(player, {
+        title: hubTitle("settings", "Server"),
+        body: subtitle("How this server works for everyone."),
+        buttons: serverButtons(player, again),
+        back
+    })
+}
+
+async function chatSettingsScreen(player, back) {
+    const again = () => chatSettingsScreen(player, back)
+    // Held messages only when something is waiting: an empty queue would be a
+    // button that leads nowhere.
+    const waiting = has(player, "admin.automod") ? heldWaiting() : 0
+    return menu(player, {
+        title: hubTitle("settings", "Chat"),
         body: [
-            subtitle("Pack-wide configuration."),
+            subtitle("How chat looks, and what keeps it clean."),
             "",
-            `§8Chat now reads: §r${previewLine()}`
+            `§8A chat line looks like this: §r${previewLine()}`
         ].join("\n"),
         buttons: [
-            has(player, "admin.automod")
-                ? { text: hubButton("settings", "Automod", "Ore alerts, break rate, chat flooding"), run: () => automodScreen(player, again) }
-                : null,
-            // Only when something is actually waiting: a queue nobody is filling
-            // is a button that teaches people the panel is full of dead ends.
-            has(player, "admin.automod") && heldWaiting()
-                ? { text: hubButton("moderation", `Held messages (${heldWaiting()})`, "Chat the screen stopped — approve or drop"), run: () => heldScreen(player, again) }
-                : null,
-            { text: hubButton("settings", "Configuration", "Turn features on and off"), run: () => configurationScreen(player, again) },
             has(player, "chat.manage")
-                ? { text: hubButton("settings", "Chat channels", "Create, gate and order the chats"), run: () => channelsScreen(player, again) }
+                ? { text: hubEntry("settings", "Chat rooms", "Make, lock and order the chats"), run: () => channelsScreen(player, again) }
                 : null,
-            { text: hubButton("settings", "Op commands", "Vanilla commands without op — all off until you say so"), run: () => opCommandsScreen(player, again) },
-            { text: hubButton("settings", "Teleport tuning", "Warmup, cooldown, TPA expiry"), run: () => teleportTuningScreen(player, again) },
-            { text: hubButton("settings", "All values", "Every config value, one field at a time"), run: () => allValuesScreen(player, again) },
-            { text: hubButton("presets", "Config presets", "Named baselines for the values above"), run: () => configPresetsScreen(player, again) },
-            hasOperator(player)
-                ? { text: hubButton("actions", "Factory Reset", "Throw away every change, back to defaults"), run: () => factoryResetScreen(player, again) }
+            has(player, "admin.automod")
+                ? { text: hubEntry("settings", "Auto-moderation", "Ore alerts, fast breaking and spam"), run: () => automodScreen(player, again) }
+                : null,
+            waiting
+                ? { text: hubEntry("settings", `Held messages (${waiting})`, "Messages the filter stopped: allow or delete them"), run: () => heldScreen(player, again) }
                 : null
         ].filter(Boolean),
         back
     })
 }
 
-async function aboutScreen(player, back) {
-    const ours = registeredCommands()
-    const vanilla = registeredCommands("vanilla")
-    const ranks = playerRanks(player).map(r => r.display).join("§7, ") || "§7none"
-    const authority = topWeight(player) === Infinity
-        ? "§dunrestricted §8(owner or operator)"
-        : `§f${topWeight(player)}`
-
+// Fine-tuning that most servers never need, kept out of the way. Factory reset
+// also needs OPERATOR, because throwing away every change at once is a bigger
+// act than changing one value; its own screen checks again.
+async function advancedScreen(player, back) {
+    const again = () => advancedScreen(player, back)
+    const settings = has(player, "admin.settings")
     return menu(player, {
-        title: hubTitle("about", "About"),
+        title: hubTitle("settings", "Advanced"),
+        body: subtitle("For fine-tuning. Most servers never need these."),
+        buttons: [
+            settings
+                ? { text: hubEntry("settings", "Every setting", "Change any value, one at a time"), run: () => allValuesScreen(player, again) }
+                : null,
+            settings
+                ? { text: hubEntry("presets", "Saved setups", "Save your settings, or load a saved set"), run: () => configPresetsScreen(player, again) }
+                : null,
+            canUseCode(player)
+                ? { text: hubEntry("code", "< Code >", "Edit every setting as text"), run: () => codeScreen(player, again) }
+                : null,
+            settings && hasOperator(player)
+                ? { text: hubEntry("actions", "Factory reset", "Undo every change and go back to the defaults"), run: () => factoryResetScreen(player, again) }
+                : null
+        ].filter(Boolean),
+        back
+    })
+}
+
+// --------------------------------------------------------------------- Help
+
+async function helpScreen(player, back) {
+    const again = () => helpScreen(player, back)
+    return menu(player, {
+        title: hubTitle("about", "Help"),
         body: [
-            `§l§bAdmin§d+§r §8v${ADMINPLUS_VERSION}`,
+            `§l§bAdmin§d+§r §7version ${ADMINPLUS_VERSION}`,
             "",
-            `§fYour ranks: §r${ranks}`,
-            `§fAuthority: §r${authority}`,
-            `§fStaff: §7${isStaff(player) ? "yes" : "no"}`,
-            `§fServer shape: §7${detectServerPreset().label}`,
-            "",
-            "§7Management lives in this panel — there are no",
-            "§7/setrank-style commands to remember.",
-            "",
-            `§7Hubs: ${HUB.actions}Actions ${HUB.ranks}Ranks ${HUB.warps}Warps ${HUB.presets}Presets ${HUB.settings}Settings`,
-            "",
-            "§8Not working? §f/function check",
-            "",
-            // Generated, because the hand-written version went stale: it named
-            // 19 of 51 and still advertised commands that had been renamed.
-            `§7Commands §8(${ours.length}): §f/${ours.join(" §f/")}`,
-            "",
-            `§7Vanilla, without op §8(${vanilla.length}): §f/${vanilla[0] ?? "z…"}§7 … §f/${vanilla[vanilla.length - 1] ?? "z…"}`,
-            "§8All z-prefixed, so they sort below these. The game completes the arguments."
+            `§7Your rank: §r${primaryRank(player)?.display ?? "§7none"}`,
+            "§7This panel is for staff. Every player has §f/menu§7.",
+            "§7Type a command on its own and it asks for the rest."
         ].join("\n"),
         buttons: [
-            { text: "§7Credits§r\n§8Who built it, and what was learned from whom", run: () => creditsScreen(player, () => aboutScreen(player, back)) }
+            { text: hubEntry("about", "What can I do?", "Commands and tools, explained"), run: () => infoScreen(player, again) },
+            { text: hubEntry("about", "Credits", "Who made Admin+"), run: () => creditsScreen(player, again) }
         ],
         back
     })

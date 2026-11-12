@@ -20,7 +20,7 @@ import {
 
 command({
     name: "tpa",
-    description: "Ask to teleport to someone — /tpa <player>",
+    description: "Ask to teleport to a player",
     perm: "tpa.use",
     mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     run: (player, [selected]) => send(player, selected, "to")
@@ -28,7 +28,7 @@ command({
 
 command({
     name: "tpahere",
-    description: "Ask someone to teleport to you — /tpahere <player>",
+    description: "Ask a player to teleport to you",
     perm: "tpa.use",
     mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     run: (player, [selected]) => send(player, selected, "here")
@@ -87,7 +87,7 @@ export function requestHere(player, target) { return send(player, [target], "her
 
 command({
     name: "tpaccept",
-    description: "Accept a teleport request — /tpaccept [player]",
+    description: "Accept a teleport request",
     perm: "tpa.use",
     optional: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     run: (player, [selected]) => {
@@ -140,7 +140,7 @@ function accept(player, sender, request) {
 
 command({
     name: "tpadeny",
-    description: "Refuse a teleport request — /tpadeny [player]",
+    description: "Turn down a teleport request",
     perm: "tpa.use",
     optional: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     run: (player, [selected]) => {
@@ -161,7 +161,7 @@ command({
 
 command({
     name: "tpacancel",
-    description: "Take back your teleport request",
+    description: "Cancel your teleport request",
     perm: "tpa.use",
     run: (player) => {
         if (!flag("feature.tpa")) return err(player, "Teleport requests are turned off on this server.")

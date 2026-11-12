@@ -29,7 +29,7 @@ import { pickFrom } from "../core/ask.js"
 
 command({
     name: "warp",
-    description: "Teleport to a warp — /warp <name>, or /warp alone to pick one",
+    description: "Go to a warp",
     perm: "warp.use",
     mandatory: [{
         name: "name", type: CustomCommandParamType.String,
@@ -70,12 +70,12 @@ command({
 
 command({
     name: "spawn",
-    description: "Teleport to spawn",
+    description: "Go to spawn",
     perm: "spawn.use",
     run: (player) => {
         if (!flag("feature.spawn")) return err(player, "Spawn is turned off on this server.")
         const point = getSpawn()
-        if (!point) return err(player, "Spawn hasn't been set. Staff can set it in /admin ▸ Warps.")
+        if (!point) return err(player, "Spawn hasn't been set. Staff can set it in /admin ▸ Places ▸ Warps and spawn.")
         queueTeleport(player, "spawn", () => {
             if (teleportTo(player, point)) ok(player, "Welcome to spawn.")
             else err(player, "Spawn points at a dimension that isn't loaded.")

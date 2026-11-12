@@ -64,7 +64,7 @@ export async function chatScreen(player, back) {
 
 command({
     name: "chat",
-    description: "Choose the chat you type in — /chat [channel]",
+    description: "Choose which chat you type in",
     optional: [{ name: "channel", type: CustomCommandParamType.String }],
     run: (player, [name]) => {
         if (!name) return chatScreen(player)

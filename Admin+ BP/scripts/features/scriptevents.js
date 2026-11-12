@@ -69,7 +69,7 @@ function applyByEvent(source, wanted) {
             ? `§7Added chats: §f${result.channelsAdded.join(", ")}`
             : "§7No new chats needed.",
         "§8Warps and who holds which rank are untouched. Ranks the new ladder",
-        "§8does not define have stopped existing — Ranks ▸ Ladder ▸ Undo reverts it."
+        "§8does not define have stopped existing — Ranks ▸ Undo last change puts them back."
     ].join("\n"))
 
     console.log(`[Admin+] server preset applied via scriptevent: ${preset.label}`)

@@ -24,7 +24,7 @@ import { record } from "../core/logs.js"
 
 command({
     name: "mutechat",
-    description: "Mute or unmute chat — /mutechat [channel|all]",
+    description: "Mute or unmute a chat",
     // **Muting the room answers to `admin.mute`, not to `chat.manage`.**
     //
     // It used to be chat.manage, which meant a Mod could not quiet a raid
@@ -110,7 +110,7 @@ const ACTION = {
 
 command({
     name: "emote",
-    description: "Say what you are doing — /emote <action>",
+    description: "Describe what you are doing in chat",
     mandatory: [ACTION],
     run: (player, [action]) => sendEmote(player, action)
 })
@@ -119,7 +119,7 @@ command({
 // habit. It cannot take the bare /me from vanilla, and does not try.
 command({
     name: "me",
-    description: "Say what you are doing — same as /emote (bare /me is vanilla's)",
+    description: "Describe what you are doing in chat (same as /emote)",
     mandatory: [ACTION],
     run: (player, [action]) => sendEmote(player, action)
 })

@@ -189,7 +189,7 @@ function tooltip(item, own, inChest) {
  */
 function openFor(viewer, selected) {
     if (!flag("feature.enderchest")) {
-        return err(viewer, "Ender chests are turned off here.")
+        return err(viewer, "Ender chests are turned off on this server.")
     }
 
     const targets = selected ?? []
@@ -247,14 +247,14 @@ const PLAYER = [{ name: "player", type: CustomCommandParamType.PlayerSelector }]
 // arguments has to read commandSpecs(), not the text of the file.
 command({
     name: "ec",
-    description: "Open your ender chest — /ec, or /ec <player> for staff",
+    description: "Open your ender chest. Staff can open a player's",
     optional: PLAYER,
     run: (viewer, [selected]) => openFor(viewer, selected)
 })
 
 command({
     name: "enderchest",
-    description: "Open your ender chest — /enderchest, or /enderchest <player> for staff",
+    description: "Open your ender chest. Staff can open a player's",
     optional: PLAYER,
     run: (viewer, [selected]) => openFor(viewer, selected)
 })

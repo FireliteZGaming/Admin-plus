@@ -15,7 +15,7 @@ import { announceJoin, announceLeave } from "./presence.js"
 
 command({
     name: "vanish",
-    description: "Disappear — /vanish [player]",
+    description: "Hide yourself or another player",
     perm: "admin.vanish",
     optional: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     run: (player, [selected]) => {
@@ -79,7 +79,7 @@ function tellStaff(actor, target, hidden) {
 
 command({
     name: "vanished",
-    description: "Who is currently vanished",
+    description: "See who is hidden",
     perm: "admin.vanish",
     run: (player) => {
         // Rank-filtered, and built from LIVE players rather than the stored

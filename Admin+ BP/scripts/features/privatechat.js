@@ -43,7 +43,7 @@ const MESSAGE = { name: "message", type: CustomCommandParamType.String, rest: tr
 
 command({
     name: "pm",
-    description: "Send a private message — /pm <player> <message>",
+    description: "Send a private message",
     mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector }, MESSAGE],
     run: (player, [selected, message]) => sendPrivate(player, selected, message)
 })
@@ -51,14 +51,14 @@ command({
 // Bare /msg belongs to vanilla; this exists so /a:msg works.
 command({
     name: "msg",
-    description: "Send a private message — same as /pm (bare /msg is vanilla's)",
+    description: "Send a private message (same as /pm)",
     mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector }, MESSAGE],
     run: (player, [selected, message]) => sendPrivate(player, selected, message)
 })
 
 command({
     name: "r",
-    description: "Reply to the last person who messaged you — /r <message>",
+    description: "Reply to your last private message",
     mandatory: [{
         ...MESSAGE,
         // Say there is nobody to answer BEFORE asking for the words.
@@ -111,7 +111,7 @@ function sendPrivate(player, selected, message) {
 
 command({
     name: "socialspy",
-    description: "Read other people's private messages — /socialspy",
+    description: "Read other players' private messages",
     perm: "chat.spy",
     run: (player) => {
         const on = toggleSpying(player)
@@ -164,7 +164,7 @@ function spy(from, to, text, kind) {
 
 command({
     name: "prchat",
-    description: "Open a private two-person chat — /prchat <player>, or /prchat alone to leave",
+    description: "Start a private chat, or leave one",
     optional: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     run: (player, [selected]) => {
         if (!flag("feature.pm")) return err(player, "Private chat is turned off on this server.")
@@ -229,7 +229,7 @@ export function askPrivateChat(player, target) {
 
 command({
     name: "prexit",
-    description: "Leave a private chat — /prexit",
+    description: "Leave a private chat",
     run: (player) => leave(player)
 })
 
@@ -245,7 +245,7 @@ function pairLabel(a, b) {
 
 command({
     name: "praccept",
-    description: "Accept a private chat request — /praccept [player]",
+    description: "Accept a private chat request",
     optional: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     run: (player, [selected]) => {
         if (!flag("feature.pm")) return err(player, "Private chat is turned off on this server.")
@@ -264,7 +264,7 @@ command({
 
 command({
     name: "prdeny",
-    description: "Turn down a private chat request — /prdeny [player]",
+    description: "Turn down a private chat request",
     optional: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     run: (player, [selected]) => {
         const waiting = pendingInvites(player)

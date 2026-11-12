@@ -291,7 +291,7 @@ function mainhandOf(player) {
 
 command({
     name: "items",
-    description: "Open the admin item chest — /items",
+    description: "Get staff tools from a chest menu",
     // Deliberately NO perm of its own. It used to demand admin.staffmode, which
     // locked out a rank that holds only teleport — somebody entitled to the
     // compass and the eye could not reach the chest they were in. The ITEMS
@@ -316,7 +316,7 @@ command({
             key, def, locked: lockedReasons(player, key)
         }))
         if (rows.every(row => row.locked.length)) {
-            return err(player, "You don't have permission to use any admin items. §7Ask an owner for a tool node under Settings ▸ Ranks ▸ Staff tools.")
+            return err(player, "You don't have permission to use any admin items. §7Ask an owner to switch one on in Ranks ▸ your rank ▸ What it can do ▸ Staff tools.")
         }
 
         const chest = new ChestForm("large").title("Admin items")
@@ -360,7 +360,7 @@ command({
 // collecting a second.
 command({
     name: "port",
-    description: "Get the Ender Eye — /port, then use it and pick where to go",
+    description: "Get the Ender Eye, a tool for teleporting",
     perm: "admin.tp",
     run: (player) => {
         const container = safe(() => player.getComponent("minecraft:inventory")?.container)

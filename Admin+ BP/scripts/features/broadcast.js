@@ -65,7 +65,7 @@ export function broadcastTo(sender, scope, message) {
 
 command({
     name: "broadcast",
-    description: "Announce something — /broadcast <all|chat> <message>",
+    description: "Send an announcement to everyone, or to one chat",
     perm: "admin.broadcast",
     mandatory: [
         { name: WHERE, type: CustomCommandParamType.Enum, label: "Who should see it?" },

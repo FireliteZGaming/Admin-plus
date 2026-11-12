@@ -58,7 +58,7 @@ import { installHealthCheck } from "./core/health.js"
 
 command({
     name: "admin",
-    description: "Open the Admin+ panel",
+    description: "Open the staff panel",
     perm: "admin.panel",
     run: (player) => openPanel(player)
 })
@@ -89,7 +89,7 @@ command({
 // or nickname — still works, which is what most people type anyway.
 command({
     name: "tp",
-    description: `Teleport players — /a:tp <who> [destination] · ${SELECTOR_HELP}`,
+    description: `Teleport players · ${SELECTOR_HELP}`,
     perm: "admin.tp",
     // `_or_me` on both, for the same reason the 54 passthroughs carry it: the
     // description is gone by the time you are typing the argument, and

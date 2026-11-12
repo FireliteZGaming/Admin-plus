@@ -122,7 +122,7 @@ export function installChat() {
                     // recoverable, and the queue is what shows a
                     // moderator the setting is too aggressive.
                     actOnFilter(player, flagged)
-                    alertStaff(`Held a message from §f${player.name}§r §8(${flagged.label})§r — §7/admin ▸ Automod ▸ Held§r`)
+                    alertStaff(`Held a message from §f${player.name}§r §8(${flagged.label})§r — §7/admin ▸ Server ▸ Chat ▸ Held messages§r`)
                 })
                 return
             }

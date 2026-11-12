@@ -228,7 +228,7 @@ async function itemScreen(viewer, target, item, allowed, back) {
 
 command({
     name: "invsee",
-    description: "Look inside a player's inventory — /invsee <player>",
+    description: "Look inside a player's inventory",
     perm: "admin.invsee",
     mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector, self: true }],
     run: (viewer, [selected]) => {

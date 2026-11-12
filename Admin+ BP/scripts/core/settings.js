@@ -162,8 +162,8 @@ export const DEFAULTS = {
         value: "true", label: "Random teleport", help: "true / false · /rtp"
     },
     "feature.namecolour": {
-        value: "true", label: "Colour-shifting nametags",
-        help: "true / false · lets a rank give its holders a colour that travels along their nametag · set the colour per rank in Ranks ▸ a rank ▸ Nametag colour"
+        value: "true", label: "Name effects",
+        help: "true / false · lets a rank give its players colours that move along their name · pick the effect in Ranks ▸ a rank ▸ Name effect"
     },
     "creator.identity": {
         value: "true", label: "Creator's own name",
@@ -171,8 +171,8 @@ export const DEFAULTS = {
     },
     "namecolour.speed": {
         value: "3",
-        label: "Nametag colour speed",
-        help: "Ticks between steps, so SMALLER is faster. 1 is frantic, 3 reads as a smooth flow, 10 is a slow drift. Each step is one character, so a long name takes longer to cycle than a short one."
+        label: "Name effect speed",
+        help: "Ticks between steps, so a smaller number is faster. 1 is very fast, 3 is smooth, 10 is slow."
     },
     "rtp.range": {
         value: "4000",
@@ -191,14 +191,14 @@ export const DEFAULTS = {
     },
     "feature.claims": {
         value: "false", label: "Land claims",
-        help: "true / false · /claim, /unclaim, /trust. Ships OFF: it changes who may break blocks, which is not something to inherit unasked. How many and how big are on the rank, under Permissions ▸ Cooldowns & limits."
+        help: "true / false · /claim, /unclaim, /trust. Ships OFF: it changes who may break blocks, which is not something to inherit unasked. How many and how big are set per rank, in Ranks ▸ a rank ▸ Limits and cooldowns."
     },
     "feature.homes": {
         // OFF, like land claims. Both hand players a new thing to own, and a
         // world should decide to switch that on rather than find it already
         // running after an update.
         value: "false", label: "Homes",
-        help: "true / false · /home, which opens a screen to travel to one or make one. How MANY each rank may set is on the rank, under Permissions ▸ Cooldowns & limits."
+        help: "true / false · /home, which opens a screen to travel to one or make one. How many each rank may set is in Ranks ▸ a rank ▸ Limits and cooldowns."
     },
     "feature.spawn": {
         value: "true", label: "Spawn", help: "true / false · /spawn"

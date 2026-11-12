@@ -5,7 +5,7 @@ import { hubTitle, hubButton, hubEntry } from "../core/theme.js"
 import { ok, err, info } from "../core/util.js"
 import { flag } from "../core/settings.js"
 import { displayName } from "../core/identity.js"
-import { primaryRank, memberSince, isStaff } from "../core/ranks.js"
+import { primaryRank, memberSince, isStaff, has } from "../core/ranks.js"
 import { warningCount } from "../core/warnings.js"
 import { muteRecord } from "../core/moderation.js"
 import { remainingLabel } from "../core/grants.js"
@@ -16,6 +16,12 @@ import { askPrivateChat } from "./privatechat.js"
 import { reportForm } from "./reports.js"
 import { warpListScreen } from "./warps.js"
 import { canUseConsole, consoleScreen } from "./console.js"
+import { homesScreen } from "./homes.js"
+import { homeLimit } from "../core/homes.js"
+import { claimsScreen } from "./claims.js"
+import { claimLimit } from "../core/claims.js"
+import { infoScreen } from "./info.js"
+import { runPackCommand } from "../core/dispatch.js"
 
 // /menu — the other half of panel-first.
 //
@@ -88,23 +94,35 @@ export async function openMenu(player) {
     const again = () => openMenu(player)
     const buttons = []
 
+    if (travelButtons(player, again).length) {
+        buttons.push({
+            text: hubButton("warps", "Travel", "Spawn, warps, homes and more"),
+            run: () => travelScreen(player, again)
+        })
+    }
+
     buttons.push({
-        text: hubButton("ranks", "People", "Teleport, private chat, or report someone"),
+        text: hubButton("ranks", "People", "Teleport to someone, private chat, or report"),
         run: () => peopleScreen(player, again)
     })
 
-    if (flag("feature.warps") || flag("feature.spawn")) {
+    if (flag("feature.claims") && claimLimit(player) > 0) {
         buttons.push({
-            text: hubButton("warps", "Travel", "Warps and spawn"),
-            run: () => warpListScreen(player, again)
+            text: hubButton("warps", "Land claims", "Protect what you build"),
+            run: () => claimsScreen(player, again)
         })
     }
 
     const changed = changedCount(player)
     buttons.push({
-        text: hubButton("settings", "Settings",
-            changed ? `Yours alone · ${changed} changed` : "Yours alone · teleports, messages"),
+        text: hubButton("settings", "My settings",
+            changed ? `${changed} changed · only affects you` : "Teleport requests and messages · only affects you"),
         run: () => settingsScreen(player, again)
+    })
+
+    buttons.push({
+        text: hubButton("about", "Help", "What you can do on this server"),
+        run: () => infoScreen(player, again)
     })
 
     // The Creator/Dev console, when the world allows it. Last, and coloured as
@@ -121,6 +139,47 @@ export async function openMenu(player) {
         title: hubTitle("ranks", "Menu"),
         body: statsLines(player).join("\n"),
         buttons
+    })
+}
+
+/**
+ * Every way to go somewhere, in one place, so nobody has to know the commands.
+ *
+ * Each button runs the real command through core/dispatch.js, so the warmup,
+ * the cooldown, the feature switch and the permission all apply exactly as if
+ * it had been typed. Only what is switched on and allowed is shown.
+ */
+function travelButtons(player, back) {
+    const run = name => {
+        const result = runPackCommand(player, name)
+        if (result && !result.ok) err(player, result.reason)
+    }
+    return [
+        flag("feature.spawn") && has(player, "spawn.use")
+            ? { text: hubEntry("warps", "Spawn", "Back to where everyone starts"), run: () => run("spawn") }
+            : null,
+        flag("feature.warps") && has(player, "warp.use")
+            ? { text: hubEntry("warps", "Warps", "Places the staff have set up"), run: () => warpListScreen(player, back) }
+            : null,
+        flag("feature.homes") && homeLimit(player) > 0
+            ? { text: hubEntry("warps", "My homes", "Go home, or set a new one"), run: () => homesScreen(player, back) }
+            : null,
+        flag("feature.back")
+            ? { text: hubEntry("warps", "Go back", "To where you were, or where you died"), run: () => run("back") }
+            : null,
+        flag("feature.rtp")
+            ? { text: hubEntry("warps", "Random place", "Somewhere safe and far away"), run: () => run("rtp") }
+            : null
+    ].filter(Boolean)
+}
+
+async function travelScreen(player, back) {
+    const again = () => travelScreen(player, back)
+    return menu(player, {
+        title: hubTitle("warps", "Travel"),
+        body: subtitle("Where do you want to go?"),
+        buttons: travelButtons(player, again),
+        back
     })
 }
 
@@ -230,7 +289,7 @@ async function settingsScreen(player, back) {
 
 command({
     name: "menu",
-    description: "Your menu — teleports, private chat and your own settings",
+    description: "Open your menu: travel, people and settings",
     run: (player) => openMenu(player)
 })
 

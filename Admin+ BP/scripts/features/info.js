@@ -55,7 +55,7 @@ async function infoScreen(player, back = () => {}) {
     const rank = primaryRank(player)
     const again = () => infoScreen(player, back)
     return menu(player, {
-        title: hubTitle("about", "Info"),
+        title: hubTitle("about", "Help"),
         body: [
             `§7You are §r${displayName(player)}§7.`,
             rank ? `§7Your rank is ${rank.display}§r§7.` : "§7You do not have a rank yet.",
@@ -279,7 +279,7 @@ async function aboutScreen(player, back) {
 
 command({
     name: "info",
-    description: "What this mod is and what you can do — start here",
+    description: "Learn what you can do on this server",
     run: (player) => infoScreen(player)
 })
 

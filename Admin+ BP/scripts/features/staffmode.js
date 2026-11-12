@@ -189,7 +189,7 @@ function stopStaffMode(player) {
 
 command({
     name: "mm",
-    description: "Staff mode — /mm toggles your tools and your inventory",
+    description: "Turn staff mode on or off",
     perm: "admin.staffmode",
     optional: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     run: (player, [selected]) => {

@@ -414,7 +414,7 @@ async function blockScreen(player, back) {
             label: [
                 `§8The live config — ${Object.keys(DEFAULTS).length} values, ${detectPreset().label}${changed ? `, ${changed} changed from default` : ""}.`,
                 "§8Edit the lines you want. Submit saves; closing changes nothing.",
-                "§8Settings ▸ All values does the same job one field at a time."
+                "§8Server ▸ Advanced ▸ Every setting does the same job one field at a time."
             ].join("\n"),
             placeholder: "key = value",
             default: toBlock()
@@ -439,9 +439,9 @@ async function blockScreen(player, back) {
         info(player, [
             "§7Was the box one line instead of a tall editor? Then the Admin+",
             "§7§oresource§r§7 pack is not on in this world — it is what makes this",
-            "§7screen an editor at all. Turn it on, or use §fSettings ▸ All values§7,",
+            "§7screen an editor at all. Turn it on, or use §fServer ▸ Advanced ▸ Every setting§7,",
             "§7which edits the same keys one field at a time and needs no pack.",
-            "§8To clear every change on purpose: Settings ▸ Factory Reset."
+            "§8To clear every change on purpose: Server ▸ Advanced ▸ Factory reset."
         ].join("\n"))
         return back()
     }

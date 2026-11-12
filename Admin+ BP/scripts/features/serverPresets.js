@@ -125,7 +125,7 @@ async function applyScreen(player, id, back) {
             "",
             "§8Warps are untouched. Chats you made are kept.",
             "§cRanks not in the new ladder stop existing, and holders lose them.",
-            "§8Ranks ▸ Ladder ▸ Undo puts the old ladder back."
+            "§8Ranks ▸ Undo last change puts the old ranks back."
         ].join("\n"),
         "§eApply")
     if (!yes) return back()
@@ -142,7 +142,7 @@ async function applyScreen(player, id, back) {
         result.channelsAdded.length
             ? `§7Added chats: §f${result.channelsAdded.join(", ")}`
             : "§7No new chats needed.",
-        "§8Undo the ladder in Ranks ▸ Ladder if that was not what you wanted."
+        "§8Undo it in Ranks ▸ Undo last change if that was not what you wanted."
     ].join("\n"))
     return back()
 }

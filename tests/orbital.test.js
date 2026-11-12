@@ -284,28 +284,30 @@ console.log("\n— a locked item says everything it needs, and where —")
 }
 
 console.log("\n— and it names the switch the way the editor does —")
-// "Ranks ▸ Staff tools ▸ troll", not "admin.troll". The node id is what the
-// code says; the label is what somebody hunting for the switch reads on the
-// button, and those stopped being the same thing when the editor started
-// shortening them. Derived from nodeLabels so it cannot drift.
+// "Ranks ▸ the rank ▸ What it can do ▸ Pranks ▸ smite", not "admin.smite".
+// The node id is what the code says; the path is the buttons somebody taps to
+// reach the switch, in the words those buttons use. Since 2.7.9 the switches
+// sit behind a rank's "What it can do" button. Derived from nodeLabels so it
+// cannot drift.
 {
-    check("a prank node", whereToGrant("admin.smite"), "Ranks ▸ Pranks ▸ smite")
-    check("and its dangerous twin", whereToGrant("admin.sudo"), "Ranks ▸ Pranks ▸ sudo")
-    check("a punishment node", whereToGrant("admin.banperm"), "Ranks ▸ Punishments ▸ banperm")
+    const at = "Ranks ▸ the rank ▸ What it can do ▸ "
+    check("a prank node", whereToGrant("admin.smite"), `${at}Pranks ▸ smite`)
+    check("and its dangerous twin", whereToGrant("admin.sudo"), `${at}Pranks ▸ sudo`)
+    check("a punishment node", whereToGrant("admin.banperm"), `${at}Punishments ▸ banperm`)
     // The 55-switch Operator group is gone, so a cmd.* node has no button to
     // point at any more — and nothing asks it to. The single switch that
     // replaced them does have one.
-    check("a vanilla command node has no button now", whereToGrant("cmd.kill"), "Ranks ▸ cmd.kill")
+    check("a vanilla command node has no button now", whereToGrant("cmd.kill"), `${at}cmd.kill`)
     check("but the one switch that gates them all does",
-        whereToGrant("admin.commands"), "Ranks ▸ Server settings ▸ commands")
+        whereToGrant("admin.commands"), `${at}Server settings ▸ commands`)
     // Every label it can produce must be one the editor would actually show.
     for (const [group, nodes] of Object.entries(PERMISSION_NODES)) {
         const labels = nodeLabels(nodes)
-        const wrong = nodes.filter((n, i) => whereToGrant(n) !== `Ranks ▸ ${group} ▸ ${labels[i]}`)
+        const wrong = nodes.filter((n, i) => whereToGrant(n) !== `${at}${group} ▸ ${labels[i]}`)
         check(`${group}: every node points at its real button`, wrong, [])
     }
     // A node nobody lists still gets a usable answer rather than a crash.
-    check("an unknown node does not throw", whereToGrant("made.up"), "Ranks ▸ made.up")
+    check("an unknown node does not throw", whereToGrant("made.up"), `${at}made.up`)
 }
 
 console.log(`\n${passed} passed, ${failed} failed\n`)

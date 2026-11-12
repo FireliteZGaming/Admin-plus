@@ -20,7 +20,7 @@ import { pickFrom } from "../core/ask.js"
 
 command({
     name: "mute",
-    description: "Mute a player — /mute <player> [duration] [reason]",
+    description: "Mute a player",
     perm: "admin.mute",
     mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     optional: [
@@ -88,7 +88,7 @@ command({
 // panel's player list does not.
 command({
     name: "ban",
-    description: "Ban a player — /ban <player> opens the ban screen",
+    description: "Ban a player",
     perm: "admin.ban",
     mandatory: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     run: (player, [selected]) => {
@@ -108,7 +108,7 @@ command({
 
 command({
     name: "unmute",
-    description: "Unmute a player — /unmute <player>",
+    description: "Unmute a player",
     perm: "admin.mute",
     mandatory: [{
         name: "player", type: CustomCommandParamType.PlayerSelector,
@@ -174,7 +174,7 @@ command({
 // for a selector to match. Left off, the ban list itself is the pick list.
 command({
     name: "unban",
-    description: "Lift a ban — /unban <name>, or /unban alone to pick from the list",
+    description: "Lift a ban",
     perm: "admin.ban",
     mandatory: [{
         name: "name", type: CustomCommandParamType.String,
@@ -200,7 +200,7 @@ command({
         if (!match) {
             const open = bans.length
             return err(player, open
-                ? `No ban on "§f${name}§c". ${open} player${open === 1 ? " is" : "s are"} banned — see /admin ▸ Actions ▸ Banned players.`
+                ? `No ban on "§f${name}§c". ${open} player${open === 1 ? " is" : "s are"} banned. Type /unban on its own to pick from the list.`
                 : `No ban on "§f${name}§c" — nobody is banned.`)
         }
         unban(match.id)

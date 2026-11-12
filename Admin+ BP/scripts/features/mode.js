@@ -27,7 +27,7 @@ const modeEnum = defineEnum("mode", ["default", "developer"])
 
 command({
     name: "mode",
-    description: "Switch yourself in or out of developer mode — /mode <default|developer>",
+    description: "Turn developer mode on or off",
     // No permission node on purpose: this answers to OPERATOR, not to a rank.
     // A node would imply an owner could hand developer mode to somebody who is
     // not op, and the gate deliberately does not work that way.

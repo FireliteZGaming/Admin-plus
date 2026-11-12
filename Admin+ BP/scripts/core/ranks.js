@@ -57,7 +57,7 @@ const STAFF_CORE = ["admin.panel", "ranks.view", "chat.staff"]
 export const PRESETS = {
     server: {
         name: "Server",
-        description: "Owner ▸ Co-Owner ▸ Manager ▸ Admin ▸ Mod ▸ Member. Every tag, split by job.",
+        description: "Owner, Co-Owner, Manager, Admin, Mod and Member.",
         ranks: {
             owner:     { id: "owner",     display: "§4§lOwner",     weight: 100, inherits: [],         perms: ["*"], meta: {}, staff: true },
             coowner:   { id: "coowner",   display: "§c§lCo-Owner",  weight: 90,  inherits: [],         perms: ["*"], meta: {}, staff: true },
@@ -69,7 +69,7 @@ export const PRESETS = {
     },
     realm: {
         name: "Realm",
-        description: "Owner ▸ Manager ▸ Admin ▸ Mod ▸ Member. The shape a realm actually has.",
+        description: "Owner, Manager, Admin, Mod and Member. Good for a realm.",
         ranks: {
             owner:   { id: "owner",   display: "§4§lOwner",   weight: 100, inherits: [],         perms: ["*"], meta: {}, staff: true },
             manager: { id: "manager", display: "§5§lManager", weight: 85,  inherits: ["admin"],  perms: ["admin.*", "ranks.*", "warp.manage", "spawn.set", "presets.apply", "chat.*"], meta: {}, staff: true },
@@ -80,7 +80,7 @@ export const PRESETS = {
     },
     smp: {
         name: "SMP",
-        description: "Owner ▸ Staff ▸ Member. Nobody expects a hierarchy from an SMP.",
+        description: "Owner, Staff and Member. Good for a small survival server.",
         ranks: {
             owner:  { id: "owner",  display: "§4§lOwner", weight: 100, inherits: [],         perms: ["*"], meta: {}, staff: true },
             staff:  { id: "staff",  display: "§6§lStaff", weight: 60,  inherits: ["member"], perms: ["admin.*", "ranks.view", "ranks.grant", "warp.manage", "spawn.set", "chat.staff", "chat.spy"], meta: {}, staff: true },
@@ -89,7 +89,7 @@ export const PRESETS = {
     },
     donor: {
         name: "Donor Tiers",
-        description: "Staff ladder plus VIP ▸ VIP+ ▸ MVP cosmetic tiers.",
+        description: "Owner, Admin and Mod, plus VIP, VIP+ and MVP above Member.",
         ranks: {
             owner:   { id: "owner",   display: "§4§lOwner",  weight: 100, inherits: [],          perms: ["*"], meta: {}, staff: true },
             admin:   { id: "admin",   display: "§c§lAdmin",  weight: 80,  inherits: ["mod"],     perms: ["admin.*", "ranks.*", "warp.manage", "spawn.set", "presets.apply"], meta: {}, staff: true },
@@ -102,7 +102,7 @@ export const PRESETS = {
     },
     roleplay: {
         name: "Roleplay / Factions",
-        description: "Staff ladder plus flavour ranks (Citizen ▸ Merchant ▸ Noble) sharing member perms.",
+        description: "Overseer and Warden as staff, plus Noble, Merchant and Citizen.",
         ranks: {
             owner:    { id: "owner",    display: "§4§lOverseer", weight: 100, inherits: [],           perms: ["*"], meta: {}, staff: true },
             admin:    { id: "admin",    display: "§c§lWarden",   weight: 80,  inherits: ["citizen"],  perms: ["admin.*", "ranks.*", "warp.manage", "spawn.set", "presets.apply"], meta: {}, staff: true },
@@ -271,9 +271,9 @@ export function whereToGrant(node) {
     for (const [group, nodes] of Object.entries(PERMISSION_NODES)) {
         const at = nodes.indexOf(node)
         if (at === -1) continue
-        return `Ranks ▸ ${group} ▸ ${nodeLabels(nodes)[at]}`
+        return `Ranks ▸ the rank ▸ What it can do ▸ ${group} ▸ ${nodeLabels(nodes)[at]}`
     }
-    return `Ranks ▸ ${node}`
+    return `Ranks ▸ the rank ▸ What it can do ▸ ${node}`
 }
 
 /** The permission node governing one vanilla command. */
@@ -1161,8 +1161,8 @@ export const RANK_VALUES = {
     // anyway for the reason the table exists: a value the code reads and nobody
     // can set is the failure mode being designed out.
     "nametag.style": {
-        kind: "style", label: "Nametag colour",
-        hint: "a colour that travels along the name",
+        kind: "style", label: "Name effect",
+        hint: "colours that move along the name",
         options: STYLE_IDS, fallback: "none"
     }
 }
