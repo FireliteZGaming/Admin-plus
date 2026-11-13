@@ -1,4 +1,5 @@
 import { CustomCommandParamType } from "@minecraft/server"
+import { nameTakenBy } from "../core/names.js"
 import { command } from "../core/registry.js"
 import { ok, err } from "../core/util.js"
 import { displayName, getNickname, setNickname, NICK_MAX } from "../core/identity.js"
@@ -38,6 +39,10 @@ command({
         if (text.trim().length > NICK_MAX) {
             return err(player, `A display name can have at most ${NICK_MAX} characters, codes included.`)
         }
+
+        // Nobody gets a display name another player already goes by.
+        const taken = text.trim() && text.trim() !== target.name ? nameTakenBy(target.id, text) : undefined
+        if (taken) return err(player, `§f${taken}§c already goes by that name. Pick a different one.`)
 
         const previous = getNickname(target)
         const applied = setNickname(target, text)

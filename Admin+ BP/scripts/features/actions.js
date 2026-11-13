@@ -1,6 +1,7 @@
 import { world, GameMode } from "@minecraft/server"
 import { menu, pagedMenu, modal, confirm, subtitle } from "../core/ui.js"
 import { hubTitle, COLOUR_CODE_TIP } from "../core/theme.js"
+import { nameTakenBy } from "../core/names.js"
 import { ok, err, info, formatDuration } from "../core/util.js"
 import { primaryRank, playerRanks, canActOn, canSeeActionsOf, has, refreshNameTag, knownHolders, getRank, heldRankIds, renderTags, nameFontFor } from "../core/ranks.js"
 import { invseeScreen } from "./invsee.js"
@@ -573,6 +574,12 @@ export async function nicknameScreen(player, target, back) {
     }
     // Their own gamertag with no codes is the same as no display name.
     const plainGamertag = wanted === target.name
+    // Nobody gets a display name another player already goes by.
+    const taken = wanted && !plainGamertag ? nameTakenBy(target.id, wanted) : undefined
+    if (taken) {
+        err(player, `§f${taken}§c already goes by that name. Pick a different one.`)
+        return done()
+    }
 
     const previous = getNickname(target)
     const applied = setNickname(target, plainGamertag ? "" : wanted)

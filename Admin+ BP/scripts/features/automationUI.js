@@ -6,7 +6,7 @@ import { has } from "../core/ranks.js"
 import { parse, LIMITS } from "../core/automation.js"
 import {
     automationList, getAutomation, saveAutomation, setAutomationOn, renameAutomation,
-    deleteAutomation, previewAutomation, triggersOf, lastRunOf
+    deleteAutomation, previewAutomation, triggersOf, lastRunOf, canChange
 } from "./automation.js"
 
 // Server ▸ Automation. A list of automations, each with its own on/off, like
@@ -126,6 +126,7 @@ async function detailScreen(player, id, back) {
     if (!rec) { err(player, "That automation no longer exists."); return back() }
     const again = () => detailScreen(player, id, back)
     const ran = lastRunOf(id)
+    const mine = canChange(player, rec)
     return menu(player, {
         title: hubTitle("settings", rec.name),
         body: [
@@ -133,9 +134,10 @@ async function detailScreen(player, id, back) {
             `§7It's ${rec.on ? "§2on" : "§4off"}§7.`,
             `§7Saved by ${rec.author?.name ?? "?"} ${rec.saved ? ago(rec.saved) : ""}.`,
             ran ? `§7Last ran ${ago(ran)}.` : "§7It hasn't run since the world loaded.",
-            rec.lastError ? `§4Last problem: ${rec.lastError}` : ""
+            rec.lastError ? `§4Last problem: ${rec.lastError}` : "",
+            mine ? "" : "§8Someone who outranks you saved this, so you can only try it."
         ].filter(Boolean).join("\n"),
-        buttons: [
+        buttons: mine ? [
             { text: hubEntry("settings", "Edit", "Open it in the text editor"), run: () => editorScreen(player, { id, name: rec.name, source: rec.source }, again) },
             {
                 text: rec.on ? hubEntry("settings", "Turn off", "It stays here, and does nothing") : hubEntry("settings", "Turn on", "Start running it again"),
@@ -148,6 +150,8 @@ async function detailScreen(player, id, back) {
             { text: hubEntry("settings", "Try it on me", "Shows what it would do, and does nothing"), run: () => tryScreen(player, id, again) },
             { text: hubEntry("settings", "Rename"), run: () => renameScreen(player, id, again) },
             { text: hubEntry("actions", "Delete"), run: () => deleteScreen(player, id, back, again) }
+        ] : [
+            { text: hubEntry("settings", "Try it on me", "Shows what it would do, and does nothing"), run: () => tryScreen(player, id, again) }
         ],
         back
     })

@@ -8,6 +8,7 @@ import { render, flag } from "../core/settings.js"
 import { screen } from "../core/chatfilter.js"
 import { CHAT_AUTOMOD_ON_HOLD } from "../core/hold.js"
 import { chatAutomations } from "./automation.js"
+import { chatText } from "../core/chattext.js"
 import { hold } from "../core/heldchat.js"
 // One voice for anything automatic — see alertStaff.
 import { alertStaff, actOnFilter } from "./automod.js"
@@ -124,7 +125,9 @@ export function installChat() {
         // which broadcasts it to everyone — turning a Staff-channel line into a
         // public one. Channel routing is not cosmetic and never opts out.
         eventData.cancel = true
-        const message = eventData.message
+        // Colour codes need "Colour codes in chat" (core/chattext.js).
+        const message = chatText(player, eventData.message)
+        if (!message.trim()) return
         const channel = activeChannel(player)
 
         // **Screened, and held rather than punished.** See core/chatfilter.js.

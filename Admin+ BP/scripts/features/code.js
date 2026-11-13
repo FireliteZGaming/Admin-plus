@@ -4,7 +4,7 @@ import { canUseCode, hasOperator, DEV_TAG } from "../core/devgate.js"
 import { hubTitle, hubEntry, multilineTitle } from "../core/theme.js"
 import { ok, err, info } from "../core/util.js"
 import { refreshNameTag } from "../core/ranks.js"
-import { DEFAULTS, setting, overrides, replaceOverrides } from "../core/settings.js"
+import { DEFAULTS, setting, overrides, replaceOverrides, settingProblem } from "../core/settings.js"
 import { allPresets, getPreset, detectPreset, applyPreset, savePresetFromCurrent } from "../core/configPresets.js"
 import { record } from "../core/logs.js"
 import { factoryReset } from "./reset.js"
@@ -222,8 +222,9 @@ async function groupScreen(player, group, keys, back) {
         else store[key] = answer.text
     }
 
-    replaceOverrides(store)
+    const dropped = replaceOverrides(store)
     restyleEveryone()
+    if (dropped.length) info(player, keptDefaultNote(dropped))
 
     if (rejected.length) {
         err(player, `Not a number, left as it was:\n§7${rejected.join("\n")}`)
@@ -487,8 +488,9 @@ async function blockScreen(player, back) {
         err(player, `Not a number, left as it was:\n§7${rejected.join("\n")}`)
     }
     const previous = overrides()
-    replaceOverrides(store)
+    const dropped = replaceOverrides(store)
     restyleEveryone()
+    if (dropped.length) info(player, keptDefaultNote(dropped))
     record(player, "config.edit", undefined,
         `${Object.keys(store).length} value(s) differ from default`, { kind: "config", overrides: previous })
 
@@ -533,6 +535,14 @@ export async function factoryResetScreen(player, back) {
     const result = factoryReset(player)
     ok(player, `Admin+ was wiped and starts over like new.${result.returned ? ` ${result.returned} staff got their things back.` : ""}`)
     return back()
+}
+
+/** Said when a format lost who is talking or what they said, so it was not saved. */
+function keptDefaultNote(keys) {
+    return [
+        "§7Kept the default for these, because a line must show who is talking and what they said:",
+        ...keys.map(key => `§8· §f${key}§8 ${settingProblem(key, "")}`)
+    ].join("\n")
 }
 
 /** Re-stamp nametags so a format change shows immediately. */

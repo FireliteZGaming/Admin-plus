@@ -36,7 +36,7 @@ const SNAPSHOT_KEY = "rankSnapshot"
 const BASIC_PERMS = ["warp.use", "spawn.use", "tpa.use", "report.use", "online.use"]
 
 /** What any staff rank needs before it can do anything at all. */
-const STAFF_CORE = ["admin.panel", "ranks.view", "chat.staff"]
+const STAFF_CORE = ["admin.panel", "ranks.view", "chat.staff", "chat.codes"]
 
 /**
  * Ready-made ladders. Applying one REPLACES the rank table; holders keep their
@@ -164,7 +164,7 @@ export const DEFAULT_RANKS = JSON.parse(JSON.stringify(PRESETS.server.ranks))
 export const PERMISSION_NODES = {
     "Everyone": ["warp.use", "spawn.use", "tpa.use", "report.use", "online.use"],
     "The panel": ["admin.panel", "admin.settings", "admin.logs", "ranks.view"],
-    "Chat": ["chat.staff", "chat.viewall", "chat.manage", "chat.spy", "admin.broadcast", "admin.clearchat"],
+    "Chat": ["chat.staff", "chat.viewall", "chat.manage", "chat.spy", "chat.codes", "admin.broadcast", "admin.clearchat"],
     "Staff tools": ["admin.staffmode", "admin.vanish", "admin.tp", "admin.gamemode", "admin.nickname", "admin.holograms", "admin.invsee", "admin.lagclear", "admin.claims", "admin.alerts", "admin.omnitool"],
     "Punishments": ["admin.warn", "admin.mute", "admin.kick", "admin.ban", "admin.banperm", "admin.freeze", "admin.tpatoggle", "admin.reports"],
     "Pranks": ["admin.smite", "admin.sudo"],
@@ -221,6 +221,7 @@ const LABEL_OVERRIDES = {
     "presets.apply": "server presets",
     "admin.omnitool": "Omnitool",
     "admin.automation": "Automation",
+    "chat.codes": "Colour codes in chat",
     "ranks.view": "rank list",
     // **Named by the JOB, not by the noun.** These two sat next to each other
     // reading "every channel" and "channels", which share a word and differ by

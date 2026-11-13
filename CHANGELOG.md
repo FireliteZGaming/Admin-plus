@@ -56,6 +56,48 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.10.1 — 2026-11-12
+
+**The exploit check, and the Default ↔ Beta slider.**
+
+### Exploits closed
+The user asked for anything that works but wasn't added on purpose to be
+closed, with this example: "changing a display name through other means than
+/nick or display in admin".
+1. **Chat and name lines always show who is talking and what they said.** A
+   chat line, emote, private message or nametag format that left out {MSG},
+   or {NAME} and {NICKNAME}, could make every player "say" one fixed line or
+   wear one name. A tester did this with a Saved setup. Such a format is now
+   refused when saved, dropped from a Saved setup or the text editor with a
+   note saying so, and ignored if a world already has one.
+2. **Nobody gets a display name another player already goes by.** /nick and
+   Display refuse another player's gamertag or display name, whatever the
+   colour codes or capital letters.
+3. **Frozen players stay put.** /spawn, /home, /back, /rtp, /warp and /tpa
+   checked nothing, so a frozen player could teleport away. Every teleport now
+   refuses while frozen, including one already counting down.
+4. **Colour codes in chat need a permission.** Anyone could type § codes to
+   make a fake rank tag or system line. Typed codes now need "Colour codes in
+   chat" (Chat permissions). Without it the codes are taken out and the words
+   stay. Owners, operators and the staff ranks of the built-in rank lists have
+   it. It covers chat, private messages and emotes.
+5. **Automations follow the rank order.** Anyone with the Automation
+   permission could turn off, rewrite or delete an automation saved by someone
+   above them. Now only its saver, or someone who outranks or equals them, can
+   change it. Others can only try it.
+
+Checked and already safe: mutes hold in /pm, /r, /me, /emote and private
+chats.
+
+### The Default ↔ Beta slider
+1. Admin+ BP now has a slider in its pack settings, the gear beside it in a
+   world's Behavior Packs, reading Default then Beta. The user asked for it,
+   like the slider RTX packs have.
+2. It is the pack's subpacks, the same thing the Lifesteal pack on this PC
+   uses. New worlds start on Default.
+3. Help ▸ About and the game log say which one is on. Nothing is in Beta
+   yet; Admin+'s own look will be the first.
+
 ## 2.10.0 — 2026-11-12
 
 **Automation: automations that run by themselves, written in a text editor.

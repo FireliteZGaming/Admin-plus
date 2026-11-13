@@ -493,14 +493,45 @@ export const DEFAULTS = {
 }
 
 /** Current value of a setting: live override, else the shipped default. */
+/**
+ * Formats that must keep WHO is talking and WHAT they said. Without these, one
+ * setting could make every player "say" a fixed line or wear somebody else's
+ * name: a tester did exactly that with a Saved setup (2026-11-12), and the user
+ * asked for "changing a display name through other means" to be closed. Each
+ * inner list is "one of these must be in it".
+ */
+const MUST_KEEP = {
+    "format.chat": [["{MSG}"], ["{NAME}", "{NICKNAME}"]],
+    "format.chatChannel": [["{MSG}"], ["{NAME}", "{NICKNAME}"]],
+    "format.emote": [["{MSG}"], ["{NAME}", "{NICKNAME}"]],
+    "format.pmOut": [["{MSG}"], ["{NAME}", "{NICKNAME}"]],
+    "format.pmIn": [["{MSG}"], ["{NAME}", "{NICKNAME}"]],
+    "format.nameTag": [["{NAME}", "{NICKNAME}"]],
+    "format.join": [["{NAME}", "{NICKNAME}"]],
+    "format.leave": [["{NAME}", "{NICKNAME}"]],
+    "format.command": [["{NAME}", "{NICKNAME}"]]
+}
+
+/** Why a value can't be used for this setting, or nothing. */
+export function settingProblem(key, value) {
+    const groups = MUST_KEEP[key]
+    if (!groups) return undefined
+    const text = String(value ?? "")
+    const missing = groups.find(group => !group.some(token => text.includes(token)))
+    return missing ? `needs ${missing.join(" or ")}` : undefined
+}
+
 export function setting(key) {
     const stored = store.get(key)
-    if (stored !== undefined && stored !== null) return stored
+    // A stored value that breaks the rule above is ignored, so a world that
+    // saved one before 2.10.1 is safe too.
+    if (stored !== undefined && stored !== null && !settingProblem(key, stored)) return stored
     return DEFAULTS[key]?.value ?? ""
 }
 
-/** Write a setting. Passing undefined/empty-on-purpose still stores it. */
+/** Write a setting. A value settingProblem refuses is not stored. */
 export function setSetting(key, value) {
+    if (settingProblem(key, value)) return setting(key)
     store.set(key, String(value ?? ""))
     return setting(key)
 }
@@ -511,8 +542,19 @@ export function resetSetting(key) { store.delete(key) }
 /** Every override currently in force, for the raw editor. */
 export function overrides() { return { ...store.data } }
 
-/** Replace the whole override table at once (the raw JSON editor). */
-export function replaceOverrides(obj) { store.replace(obj) }
+/**
+ * Replace the whole override table at once (the raw editor, Saved setups).
+ * Values settingProblem refuses are dropped, and their keys returned.
+ */
+export function replaceOverrides(obj) {
+    const kept = {}, dropped = []
+    for (const [key, value] of Object.entries(obj ?? {})) {
+        if (settingProblem(key, value)) dropped.push(key)
+        else kept[key] = value
+    }
+    store.replace(kept)
+    return dropped
+}
 
 
 /**

@@ -2,7 +2,7 @@ import { world, system } from "@minecraft/server"
 import { Table } from "../core/storage.js"
 import { flag } from "../core/settings.js"
 import { parse, runBlock, statementsOf, triggerLabel, describe, LIMITS, PERMISSION_FOR } from "../core/automation.js"
-import { has, isStaff, isOwner, heldRankIds, playerRanks, allRanks, holdersTable, grantRank, revokeRank, canEditRank, nodesBeyond } from "../core/ranks.js"
+import { has, isStaff, isOwner, heldRankIds, playerRanks, allRanks, holdersTable, grantRank, revokeRank, canEditRank, nodesBeyond, canActOn } from "../core/ranks.js"
 import { setExpiry } from "../core/grants.js"
 import { allWarps, teleportTo } from "../core/warps.js"
 import { getNickname } from "../core/identity.js"
@@ -86,6 +86,20 @@ const VERB = {
 }
 
 // ------------------------------------------------------------------ checks
+
+/**
+ * May `player` change this automation? Only if they saved it, or outrank (or
+ * equal) whoever did. Without this, a lower rank with the Automation
+ * permission could turn off or rewrite an owner's automations (2.10.1).
+ */
+export function canChange(player, rec) {
+    if (!rec) return false
+    if (unlimited(player) || !rec.author?.id || rec.author.id === player.id) return true
+    if (rec.author.op) return false
+    return canActOn(player, rec.author.id)
+}
+
+const OUTRANKED = "Someone who outranks you saved this automation, so you can't change it."
 
 /**
  * Read an automation as `player` would save it. Adds the permission rule to
@@ -366,6 +380,7 @@ export function saveAutomation(player, { id, name, source }) {
     if (!checked.ok) return checked
     if (checked.empty) return { ok: false, empty: true }
     const before = id ? store.get(id) : undefined
+    if (before && !canChange(player, before)) return { ok: false, error: OUTRANKED }
     if (!before && store.ids().length >= LIMITS.maxAutomations) {
         return { ok: false, error: `You can have ${LIMITS.maxAutomations} automations at the most.` }
     }
@@ -387,7 +402,7 @@ export function saveAutomation(player, { id, name, source }) {
 
 export function setAutomationOn(player, id, on) {
     const rec = store.get(id)
-    if (!rec) return false
+    if (!rec || !canChange(player, rec)) return false
     store.set(id, { ...rec, on: !!on, errors: 0, lastError: on ? undefined : rec.lastError })
     record(player, on ? "automation.on" : "automation.off", undefined, `turned the automation "${rec.name}" ${on ? "on" : "off"}`)
     return true
@@ -395,7 +410,7 @@ export function setAutomationOn(player, id, on) {
 
 export function renameAutomation(player, id, name) {
     const rec = store.get(id)
-    if (!rec) return false
+    if (!rec || !canChange(player, rec)) return false
     const next = cleanName(name, rec.name)
     store.set(id, { ...rec, name: next })
     record(player, "automation.rename", undefined, `renamed the automation "${rec.name}" to "${next}"`)
@@ -404,7 +419,7 @@ export function renameAutomation(player, id, name) {
 
 export function deleteAutomation(player, id) {
     const rec = store.get(id)
-    if (!rec) return false
+    if (!rec || !canChange(player, rec)) return false
     store.delete(id)
     runtime.delete(id)
     record(player, "automation.delete", undefined, `deleted the automation "${rec.name}"`)

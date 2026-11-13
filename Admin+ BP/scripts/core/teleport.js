@@ -4,6 +4,7 @@ import { cooldownFor, isStaff, valueFor } from "./ranks.js"
 import { setting, flag } from "./settings.js"
 import { err, info } from "./util.js"
 import { mark } from "./back.js"
+import { isFrozen } from "./moderation.js"
 
 // One teleport pipeline, shared by warps, spawn, TPA and /back.
 //
@@ -76,6 +77,12 @@ export function isTeleporting(player) { return pending.has(player.id) }
  * @param {string} label what they are warping to, for the messages
  */
 export function queueTeleport(player, label, action, key = "tpCooldown") {
+    // Freeze holds against every way out: /spawn, /home, /back, /rtp, /warp and
+    // /tpa all come through here. Before 2.10.1 none of them checked it.
+    if (isFrozen(player)) {
+        err(player, "You're frozen, so you can't teleport.")
+        return false
+    }
     const waiting = cooldownLeft(player, key)
     if (waiting > 0) {
         err(player, `Wait §f${waiting}s§c before teleporting again.`)
@@ -108,6 +115,10 @@ export function queueTeleport(player, label, action, key = "tpCooldown") {
             return
         }
         if (Date.now() < job.until) return
+        if (isFrozen(player)) {
+            cancelTeleport(player, "§cTeleport cancelled because you were frozen.")
+            return
+        }
 
         cancelTeleport(player)
         mark(player)

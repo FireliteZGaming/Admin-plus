@@ -369,6 +369,18 @@ value in the wrong key.
   grey all but vanished ("the help text completely matches the button
   color", 2026-11-12). The one exception is a greyed-out, inactive button.
   `tests/readable.test.js`. Admin+'s own look will redo button colours.
+- **The exploit rules (2.10.1, the user's exploit check).** Chat, emote,
+  private message, join, leave, command and nametag formats must keep {MSG}
+  and/or a name token (`settingProblem` in `core/settings.js`, enforced on
+  write AND read). No display name may copy another player's
+  (`core/names.js`). Every teleport refuses while frozen (`queueTeleport`).
+  Typed colour codes need `chat.codes` (`core/chattext.js`). An automation
+  can only be changed by its saver or someone who outranks them.
+  `tests/exploits.test.js`.
+- **Beta features check `isBeta()` (`core/channel.js`).** The slider is the
+  BP's subpacks (Default first, higher memory tier, so new worlds start on
+  Default); the Beta subpack adds the hidden item `adminplus:channel_beta`,
+  which is how scripts know. Proven on this PC by the Lifesteal pack.
 - **Chat automod is ON HOLD (2.9.2, the user, 2026-11-12: "a complete hold, so
   disabling it and graying out the button to inactive").** Chat screening and
   chat flooding both stop, whatever the settings say; ore alerts and fast

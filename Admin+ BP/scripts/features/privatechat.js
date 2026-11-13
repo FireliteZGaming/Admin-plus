@@ -7,6 +7,7 @@ import { displayName, nameTokens } from "../core/identity.js"
 import { isMuted } from "../core/moderation.js"
 import { pref, PREFS } from "../core/prefs.js"
 import { render, flag } from "../core/settings.js"
+import { chatText } from "../core/chattext.js"
 import {
     rememberExchange, replyTarget, isSpying, toggleSpying, spyIds,
     pairedWith, inPair, startPair, endPair,
@@ -94,7 +95,7 @@ function sendPrivate(player, selected, message) {
         return err(player, `${displayName(target)} ${PREFS["pm.accept"].off}`)
     }
 
-    const text = String(message ?? "").trim().slice(0, 240)
+    const text = chatText(player, message).trim().slice(0, 240)
     if (!text) return err(player, "Type a message to send.")
 
     // A muted player is muted everywhere. A mute that left private messages

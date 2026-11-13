@@ -7,6 +7,7 @@ import { flag } from "../core/settings.js"
 import { CHAT_AUTOMOD_ON_HOLD } from "../core/hold.js"
 import { displayName } from "../core/identity.js"
 import { ADMINPLUS_VERSION } from "../config.js"
+import { channelName } from "../core/channel.js"
 
 // /info — what this thing is, for somebody who has never used a mod.
 //
@@ -267,6 +268,11 @@ async function aboutScreen(player, back) {
         title: hubTitle("about", "About"),
         body: [
             `§l§bAdmin§d+§r §8v${ADMINPLUS_VERSION}`,
+            "",
+            `§7Features: §f${channelName()}`,
+            "§8Switch between Default and Beta in the world's settings:",
+            "§8Behavior Packs ▸ Admin+ BP ▸ the gear. Beta has features still",
+            "§8being finished.",
             "",
             `§7${registeredCommands().length} commands in Admin+.`,
             "",
