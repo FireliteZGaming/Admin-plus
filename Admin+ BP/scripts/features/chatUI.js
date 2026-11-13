@@ -1,7 +1,7 @@
 import { CustomCommandParamType } from "@minecraft/server"
 import { command } from "../core/registry.js"
 import { menu, modal, confirm, subtitle } from "../core/ui.js"
-import { hubTitle, hubEntry } from "../core/theme.js"
+import { hubTitle, hubEntry, COLOUR_CODE_TIP } from "../core/theme.js"
 import { ok, err, info } from "../core/util.js"
 import { has } from "../core/ranks.js"
 import { flag } from "../core/settings.js"
@@ -130,7 +130,7 @@ async function channelScreen(player, channelId, back) {
 async function editChannelScreen(player, channelId, back) {
     const channel = getChannel(channelId)
     const values = await modal(player, hubTitle("settings", `Edit · ${channelId}`), [
-        { id: "display", type: "text", label: "Name §8· colour codes allowed", default: channel.display },
+        { id: "display", type: "text", label: "Name §8· colour codes allowed", tooltip: COLOUR_CODE_TIP, default: channel.display },
         { id: "node", type: "text", label: "Permission §8· who can use it", default: channel.node },
         { id: "open", type: "toggle", label: "Open to everyone §8· no permission needed", default: !!channel.open }
     ])
@@ -143,7 +143,7 @@ async function editChannelScreen(player, channelId, back) {
 async function createChannelScreen(player, back) {
     const values = await modal(player, hubTitle("settings", "New chat room"), [
         { id: "id", type: "text", label: "ID §8· lowercase, no spaces", placeholder: "builders" },
-        { id: "display", type: "text", label: "Name §8· for example §9Builders", placeholder: "§9Builders" },
+        { id: "display", type: "text", label: "Name §8· colour codes allowed", placeholder: "Example: §9Builders", tooltip: COLOUR_CODE_TIP },
         { id: "node", type: "text", label: "Permission §8· leave empty for chat.<id>", placeholder: "chat.builders" },
         { id: "open", type: "toggle", label: "Open to everyone", default: false }
     ])

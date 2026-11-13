@@ -1,6 +1,7 @@
 import { world, system } from "@minecraft/server"
 import { modal } from "../core/ui.js"
 import { hubTitle } from "../core/theme.js"
+import { CHAT_AUTOMOD_ON_HOLD } from "../core/hold.js"
 import { ok, err } from "../core/util.js"
 import { has, isStaff } from "../core/ranks.js"
 import { setSetting, flag, setting } from "../core/settings.js"
@@ -199,7 +200,8 @@ export function installAutomod() {
     if (chatEvent?.subscribe) {
         chatEvent.subscribe(eventData => {
             const player = eventData.sender
-            if (!player || isStaff(player)) return
+            // On hold since 2.9.2 (core/hold.js): nobody is warned or muted.
+            if (CHAT_AUTOMOD_ON_HOLD || !player || isStaff(player)) return
             const verdict = noteChat(player)
             if (!verdict) return
             system.run(() => {
@@ -251,12 +253,18 @@ const CHECKS = [
     }
 ]
 
+/** The checks the screen shows. Chat flooding is left off while chat automod is on hold. */
+export function shownChecks() {
+    return CHECKS.filter(check => !(CHAT_AUTOMOD_ON_HOLD && check.id === "spam"))
+}
+
 export async function automodScreen(player, back) {
     if (!has(player, "admin.automod")) { err(player, "You can't change automod."); return back() }
 
-    const before = Object.fromEntries(CHECKS.map(check => [check.id, flag(check.key)]))
+    const checks = shownChecks()
+    const before = Object.fromEntries(checks.map(check => [check.id, flag(check.key)]))
     const values = await modal(player, hubTitle("settings", "Automod"),
-        CHECKS.map(check => ({
+        checks.map(check => ({
             id: check.id,
             type: "toggle",
             label: check.label(),
@@ -268,7 +276,7 @@ export async function automodScreen(player, back) {
     // the commonest thing that happens on it, and "Automod updated" after a
     // no-op is the kind of line that trains people to stop reading.
     const changed = []
-    for (const check of CHECKS) {
+    for (const check of checks) {
         const now = !!values[check.id]
         if (now === before[check.id]) continue
         setSetting(check.key, now ? "true" : "false")

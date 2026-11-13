@@ -50,6 +50,17 @@ export function hubButton(hub, label, description) {
 }
 
 /** A hub-coloured entry inside a hub (sub-screens, list rows). */
+/**
+ * The "!" tooltip on every box that takes colour codes, the way Minecraft
+ * Essentials explains them (the user, 2026-11-12: "just look at how essentials
+ * explained it with there rank thing"). Essentials puts an example in the box
+ * and a tooltip that ends in §. The game hides a § together with the character
+ * after it, which is why "§§" shows nothing (seen in game, 2026-11-12). A § at
+ * the very END has nothing after it to hide, and Essentials' own tooltip relies
+ * on that. Not yet seen in game here.
+ */
+export const COLOUR_CODE_TIP = "Colour codes start with this sign: §"
+
 export function hubEntry(hub, label, description) {
     const colour = HUB[hub] ?? "§r"
     return description ? `${colour}${label}§r\n§8${description}` : `${colour}${label}`

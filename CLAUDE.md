@@ -79,7 +79,16 @@ These were each paid for with a playtest. Do not rediscover them.
 
 **A form cannot show a literal `§`.** The game hides `§` and the character
 after it, so `§§` shows nothing at all (seen in game, 2026-11-12; 2.8.5 had
-assumed it printed one `§`). Help names it in words: "the section sign".
+assumed it printed one `§`). Since 2.9.2 help explains codes the way
+Minecraft Essentials does, at the user's request: an example in the box
+("Example: §eHelper") and the "!" tooltip `COLOUR_CODE_TIP` in
+`core/theme.js`, which ENDS in `§`. A `§` with nothing after it has nothing
+to hide, and Essentials' own "Use §" tooltip relies on that. Unverified here.
+Every box that takes codes gets the tooltip; `tests/hold.test.js` checks.
+
+**Never put `{ header }` in a menu.** It draws far too big between dividers
+(the user, 2026-11-12). Section titles are bold labels: `{ label: "§lTitle" }`.
+A test fails on any header.
 
 **`#` is rejected in a command target.** Java-style `#fakeplayer` scoreboard
 holders do not exist. Worse, a `.mcfunction` with one unparseable line is
@@ -321,6 +330,13 @@ value in the wrong key.
   stay their call. Flooding chat is counted rather than inferred, and the ladder
   is a talking-to, then 1m, 5m, 10m. It speaks as **[Automod]**, never as
   [Admin+], so nobody blames the staff who are online.
+- **Chat automod is ON HOLD (2.9.2, the user, 2026-11-12: "a complete hold, so
+  disabling it and graying out the button to inactive").** Chat screening and
+  chat flooding both stop, whatever the settings say; ore alerts and fast
+  breaking carry on. One line brings it back: `CHAT_AUTOMOD_ON_HOLD` in
+  `core/hold.js`. The engines stay and stay tested. A player had said
+  "people hate auto mod" in the same playtest. Anything else put on hold goes
+  in `core/hold.js` the same way.
 - **Anti-grief is UNSETTLED, and was never the user's rule.** This line used to
   read as a standing decision. It was carried over from the sibling Soulbound
   project by me, not stated by them - and it had already been used twice to talk

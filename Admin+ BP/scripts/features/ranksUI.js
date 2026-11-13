@@ -1,6 +1,6 @@
 import { world } from "@minecraft/server"
 import { menu, pagedMenu, modal, confirm, subtitle, isDecoration } from "../core/ui.js"
-import { hubTitle, hubEntry } from "../core/theme.js"
+import { hubTitle, hubEntry, COLOUR_CODE_TIP } from "../core/theme.js"
 import { setting, flag, render, renderTag } from "../core/settings.js"
 import { record } from "../core/logs.js"
 import { ok, err, info } from "../core/util.js"
@@ -124,11 +124,14 @@ function buildName(typed, { bold = false, italic = false, wasBold = false, wasIt
 /** The box shows what was typed. Ranks from before 2.8.1 never stored it. */
 const typedOf = rank => rank?.text ?? rank?.display ?? ""
 
-/** The name field's help: how to colour it, with an example and the codes. */
+/**
+ * The name field's help, the Essentials way: an example in the box and the
+ * "!" tooltip (COLOUR_CODE_TIP) say how to type a code. The row of codes stays,
+ * because each one draws in its own colour, which the game CAN show.
+ */
 const NAME_HELP = [
     "Name",
-    "§8Colour it with codes: type the section sign, then a code, before the words.",
-    "§8Example: §c§lAdmin§8 is typed as the section sign, c, the section sign, l, then Admin.",
+    "§8Colour codes work. The ! shows how to type one.",
     "§8The codes, each in its colour:",
     "§0§§0 §1§§1 §2§§2 §3§§3 §4§§4 §5§§5 §6§§6 §7§§7 §8§§8 §9§§9 §a§§a §b§§b §c§§c §d§§d §e§§e §f§§f",
     "§8And: l bold · o italic · r back to normal"
@@ -138,7 +141,7 @@ const NAME_HELP = [
 const FONT_HELP = "Font\n§8Look-alike letters, like the fancy fonts on Discord."
 
 /** Chat colour is typed too: one code, or nothing for the normal colour. */
-const CHAT_HELP = "Chat colour\n§8The section sign and a code, for what they type. Leave it empty for normal."
+const CHAT_HELP = "Chat colour\n§8One colour code for what they type. Leave it empty for normal."
 function chatCodeFrom(typed) {
     const value = String(typed ?? "").trim()
     // The letter on its own counts too: "e" is as clear as "§e".
@@ -180,17 +183,18 @@ export function rankNames(ranks) {
 }
 
 /**
- * Ranks under two headers: those in the order, then cosmetic and unlisted.
+ * Ranks under two section titles: those in the order, then cosmetic and
+ * unlisted. The titles are bold labels, not headers: a header draws too big.
  * An empty section is left out.
  */
 function sectioned(ranks) {
     const ranked = ranks.filter(isRanked)
     const unranked = ranks.filter(rank => !isRanked(rank))
     const items = []
-    if (ranked.length) items.push({ header: "In the order" }, ...ranked)
+    if (ranked.length) items.push({ label: "§lIn the order" }, ...ranked)
     if (unranked.length) {
         if (items.length) items.push({ divider: true })
-        items.push({ header: "Cosmetic and unlisted" }, ...unranked)
+        items.push({ label: "§lCosmetic and unlisted" }, ...unranked)
     }
     return items
 }
@@ -277,11 +281,11 @@ async function ladderScreen(player, back) {
         title: hubTitle("ranks", "Ranks"),
         body: subtitle("Tap a rank to change it."),
         items: [
-            { header: "In the order" },
+            { label: "§lIn the order" },
             { label: "§8Strongest first. Each rank outranks the ranks below it." },
             ...ranks,
             { divider: true },
-            { header: "Cosmetic and unlisted" },
+            { label: "§lCosmetic and unlisted" },
             {
                 label: unranked.length
                     ? "§8No place in the order and no power over anyone. Cosmetic adds a tag. Unlisted is hidden."
@@ -415,7 +419,7 @@ export async function createRankScreen(player, back) {
     const hiddenParents = parents.length < usable.length ? "\n§8Ranks with permissions you don't have aren't listed." : ""
 
     const values = await modal(player, hubTitle("ranks", "New rank"), [
-        { id: "name", type: "text", label: NAME_HELP, placeholder: "§eHelper" },
+        { id: "name", type: "text", label: NAME_HELP, placeholder: "Example: §eHelper", tooltip: COLOUR_CODE_TIP },
         { id: "bold", type: "toggle", label: "Bold", default: false },
         { id: "italic", type: "toggle", label: "Italic", default: false },
         { id: "font", type: "dropdown", label: `${FONT_HELP}\n§8It goes on the rank tag. Basics can put it on names and messages too.`, options: fontOptions(), default: 0 },
@@ -500,7 +504,7 @@ export async function basicsScreen(player, rankId, back) {
     const coloursOff = flag("feature.namecolour") ? "" : "\n§cName colours are turned off in Server ▸ Settings ▸ Names and tags."
 
     const values = await modal(player, hubTitle("ranks", `Basics · ${nameOf(rank)}`), [
-        { id: "name", type: "text", label: NAME_HELP, default: typed },
+        { id: "name", type: "text", label: NAME_HELP, placeholder: "Example: §eHelper", tooltip: COLOUR_CODE_TIP, default: typed },
         { id: "bold", type: "toggle", label: "Bold", default: wasBold },
         { id: "italic", type: "toggle", label: "Italic", default: wasItalic },
         { id: "font", type: "dropdown", label: FONT_HELP, options: fontOptions(), default: fontAt },
@@ -513,7 +517,7 @@ export async function basicsScreen(player, rankId, back) {
             ? { id: "nameColour", type: "dropdown", label: `Name colour\n§8The player's name, in chat and above their head${coloursOff}`, options: nameColourOptions(), default: styleAt }
             : null,
         type !== "cosmetic"
-            ? { id: "chatColour", type: "text", label: CHAT_HELP, placeholder: "§eLike this", default: chatCode ? `§${chatCode}` : "" }
+            ? { id: "chatColour", type: "text", label: CHAT_HELP, placeholder: "Example: §e", tooltip: COLOUR_CODE_TIP, default: chatCode ? `§${chatCode}` : "" }
             : null,
         ranked
             ? { id: "isDefault", type: "toggle", label: "New players get this rank\n§8The starting rank. Only one rank can be it.", default: !!rank.default }

@@ -218,8 +218,11 @@ console.log("\n— the rank list is split in two —")
     __ui.answers.push(press(0))
     await ranksScreen(boss, () => {})
     const list = __ui.shown[__ui.shown.length - 2]
-    const headers = partsOf(list, "header")
-    check("two sections, ranks in the order first", headers, ["In the order", "Cosmetic and unlisted"])
+    // Bold labels, not headers: a header drew far too big between the
+    // dividers (the user, 2026-11-12).
+    check("no headers, they draw too big", partsOf(list, "header"), [])
+    const titles = partsOf(list, "label").filter(text => text.startsWith("§l"))
+    check("two sections, ranks in the order first", titles, ["§lIn the order", "§lCosmetic and unlisted"])
     check("with a divider between them", list.parts.some(p => p[0] === "divider"), true)
     const buttons = partsOf(list, "button")
     const firstCosmetic = buttons.findIndex(text => text.includes("cosmetic ·"))

@@ -56,6 +56,45 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.9.2 — 2026-11-12
+
+**Chat automod on hold, smaller section titles, and colour-code help the
+Essentials way.**
+
+### Chat automod is on hold
+1. Chat screening holds nothing, and chat flooding warns and mutes nobody,
+   whatever the settings say. The user asked for a complete hold.
+2. Server ▸ Automod shows Chat screening greyed out and marked "On hold".
+   Pressing it opens nothing and says it is on hold.
+3. Checks leaves out the Chat flooding switch. Ore alerts and fast breaking
+   carry on.
+4. Messages held before this stay in Held messages until staff allow or
+   delete them.
+5. Nothing was deleted, and it is all still tested. `CHAT_AUTOMOD_ON_HOLD` in
+   `core/hold.js` brings it back.
+
+### Section titles
+1. In the Ranks list, "In the order" and "Cosmetic and unlisted" drew too big
+   between the dividers. They are now bold text at the normal size.
+
+### Colour-code help, the Essentials way
+1. Minecraft Essentials explains colour codes with an example in the box and a
+   "!" tooltip that ends in §. Admin+ now does the same in its own words:
+   "Colour codes start with this sign: §". A § at the very end has no letter
+   after it to hide.
+2. The tooltip is on every box that takes colour codes: a rank's Name and Chat
+   colour, a player's display name, chat room names and warp names. Empty
+   boxes show an example, such as "Example: §eHelper".
+3. The help no longer says "the section sign". `&` stays out, because it
+   isn't a Bedrock code.
+
+### Help fixes
+1. Help ▸ Staff tools said to type `/kick Steve`, but Admin+ has no `/kick`.
+   Typing it runs the game's own command, which needs operator. It now points
+   to /admin ▸ Players ▸ a player ▸ Actions ▸ Kick.
+2. Help ▸ Chat says "Chat rooms", not "Channels". It no longer promises an
+   automatic mute for spam while that is on hold.
+
 ## 2.9.1 — 2026-11-12
 
 **Colour-code help that shows in game, a Tester badge, and thanks in Credits.**

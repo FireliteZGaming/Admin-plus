@@ -6,6 +6,7 @@ import { applyFont } from "../core/fonts.js"
 import { displayName, nameTokens, stripCodes } from "../core/identity.js"
 import { render, flag } from "../core/settings.js"
 import { screen } from "../core/chatfilter.js"
+import { CHAT_AUTOMOD_ON_HOLD } from "../core/hold.js"
 import { hold } from "../core/heldchat.js"
 // One voice for anything automatic — see alertStaff.
 import { alertStaff, actOnFilter } from "./automod.js"
@@ -129,7 +130,8 @@ export function installChat() {
         // The sender is shown their own line as if it posted. That is Twitch's
         // trick and it is the reason this is worth doing: a troll who cannot
         // see which words were stopped has nothing to iterate against.
-        if (!(flag("filter.staffBypass") && isStaff(player))) {
+        // On hold since 2.9.2 (core/hold.js): nothing is screened.
+        if (!CHAT_AUTOMOD_ON_HOLD && !(flag("filter.staffBypass") && isStaff(player))) {
             const flagged = screen(message)
             if (flagged) {
                 system.run(() => {

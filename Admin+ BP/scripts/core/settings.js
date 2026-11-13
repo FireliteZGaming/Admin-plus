@@ -127,7 +127,7 @@ export const DEFAULTS = {
         value: "20", label: "Automod: blocks a second", help: "Keep this high: TNT and Efficiency V break blocks fast without cheating"
     },
     "automod.spam": {
-        value: "true", label: "Automod: chat flooding", help: "true / false"
+        value: "true", label: "Automod: chat flooding", help: "true / false · on hold for now, so this does nothing"
     },
     "automod.spamRate": {
         value: "6", label: "Automod: typing fast", help: "messages in 10s · above this, they are told they are typing fast. No strike, and nothing is recorded."
@@ -239,7 +239,7 @@ export const DEFAULTS = {
     "filter.enabled": {
         value: "true",
         label: "Screen chat before it posts",
-        help: "true / false · holds a flagged message for staff to check. The setting below decides whether the sender is also warned or muted."
+        help: "true / false · holds a flagged message for staff to check. The setting below decides whether the sender is also warned or muted. On hold for now, so this does nothing."
     },
     "filter.discrimination": {
         value: "2",

@@ -110,14 +110,16 @@ export async function confirm(player, titleText, body, confirmText = "§cConfirm
  * id, or undefined if the player cancelled.
  * @param {import("@minecraft/server").Player} player
  * @param {string} title
- * @param {{id: string, type: "text"|"toggle"|"slider"|"dropdown", label: string, placeholder?: string, default?: any, min?: number, max?: number, step?: number, options?: string[]}[]} fields
+ * @param {{id: string, type: "text"|"toggle"|"slider"|"dropdown", label: string, placeholder?: string, tooltip?: string, default?: any, min?: number, max?: number, step?: number, options?: string[]}[]} fields
  */
 export async function modal(player, title, fields) {
     const form = new ModalFormData().title(title)
+    // A tooltip is the "!" beside a box (server-ui 2.0.0 ModalFormData*Options).
+    const tip = field => field.tooltip ? { tooltip: field.tooltip } : {}
     for (const field of fields) {
         switch (field.type) {
             case "toggle":
-                form.toggle(field.label, { defaultValue: !!field.default })
+                form.toggle(field.label, { defaultValue: !!field.default, ...tip(field) })
                 break
             case "slider":
                 form.slider(field.label, field.min ?? 0, field.max ?? 100, {
@@ -129,7 +131,7 @@ export async function modal(player, title, fields) {
                 form.dropdown(field.label, field.options ?? [], { defaultValueIndex: field.default ?? 0 })
                 break
             default:
-                form.textField(field.label, field.placeholder ?? "", { defaultValue: String(field.default ?? "") })
+                form.textField(field.label, field.placeholder ?? "", { defaultValue: String(field.default ?? ""), ...tip(field) })
         }
     }
     const response = await form.show(player)

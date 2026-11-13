@@ -4,6 +4,7 @@ import { command } from "../core/registry.js"
 import { has, primaryRank, isStaff, whereToGrant } from "../core/ranks.js"
 import { registeredCommands } from "../core/registry.js"
 import { flag } from "../core/settings.js"
+import { CHAT_AUTOMOD_ON_HOLD } from "../core/hold.js"
 import { displayName } from "../core/identity.js"
 import { ADMINPLUS_VERSION } from "../config.js"
 
@@ -183,17 +184,20 @@ async function chatScreen(player, back) {
             "§7  Staff can read private messages. Do not use them",
             "§7  for anything you would not say out loud.",
             "",
-            "§fChannels",
-            "§7  Some worlds have more than one chat. The name at",
-            "§7  the start of a line tells you which one it went to.",
+            "§fChat rooms",
+            "§7  Some worlds have more than one chat room. The name",
+            "§7  at the start of a line tells you which one it went to.",
             "",
             "§fBeing muted",
             "§7  If you are muted you can still see chat, but nothing",
             "§7  you type is sent. It will tell you how long is left,",
             "§7  and tell you again when it ends.",
-            "",
-            "§7Spamming the same thing over and over will mute you",
-            "§7automatically. Typing fast only gets you a warning."
+            // Chat automod is on hold (core/hold.js), so nothing mutes for spam.
+            ...(CHAT_AUTOMOD_ON_HOLD ? [] : [
+                "",
+                "§7Spamming the same thing over and over will mute you",
+                "§7automatically. Typing fast only gets you a warning."
+            ])
         ].join("\n"),
         buttons: [],
         back
@@ -233,7 +237,7 @@ async function staffScreen(player, back) {
         { cmd: "/vanish", what: "Disappear. Nobody sees you or your armour.", need: "admin.vanish" },
         { cmd: "/warn Steve", what: "Put a warning on their record. By default it expires after 48 hours.", need: "admin.warn" },
         { cmd: "/mute Steve 10m", what: "Stop them talking for ten minutes.", need: "admin.mute" },
-        { cmd: "/kick Steve", what: "Remove them from the world. They can come back.", need: "admin.kick" },
+        { cmd: "/admin ▸ Players ▸ a player ▸ Actions ▸ Kick", what: "Remove them from the world. They can come back.", need: "admin.kick" },
         { cmd: "/ban Steve", what: "Remove them until someone unbans them.", need: "admin.ban" },
         { cmd: "/gm creative", what: "Change your game mode, or another player's.", need: "admin.gamemode" },
         { cmd: "/port", what: "Gives you the Ender Eye. Use it to jump to a player.", need: "admin.tp" },

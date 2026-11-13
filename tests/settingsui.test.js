@@ -3,7 +3,7 @@ import { __ui } from "@minecraft/server-ui"
 import { setting, setSetting, resetSetting, flag, DEFAULTS } from "../Admin+ BP/scripts/core/settings.js"
 import { setRanks, onPlayerJoin, applyPreset } from "../Admin+ BP/scripts/core/ranks.js"
 import { GROUPS, settingKeys, settingsScreen, pageScreen } from "../Admin+ BP/scripts/features/settingsUI.js"
-import { automodHubScreen } from "../Admin+ BP/scripts/features/automodUI.js"
+import { automodHubScreen, screeningScreen } from "../Admin+ BP/scripts/features/automodUI.js"
 import { openPanel } from "../Admin+ BP/scripts/features/panel.js"
 import { creditsScreen } from "../Admin+ BP/scripts/features/credits.js"
 import { CONFIG } from "../Admin+ BP/scripts/config.js"
@@ -120,11 +120,15 @@ console.log("\n— names above heads, handed back —")
 
 console.log("\n— Automod is its own door —")
 {
-    // Checks, then Chat screening. Held messages shows only when one waits.
-    __ui.answers.push(press(1), submit(true, 0, 2, 2, 1, 2, 10, true))
+    // Checks, then Chat screening, which is greyed out while chat automod is
+    // on hold (tests/hold.test.js). Held messages shows only when one waits.
+    __ui.answers.length = 0
     await automodHubScreen(boss, () => {})
-    const hub = buttonsOf(__ui.shown[__ui.shown.length - 3]).map(t => t.split("\n")[0].replace(/§./g, ""))
+    const hub = buttonsOf(lastForm()).map(t => t.split("\n")[0].replace(/§./g, ""))
     check("Checks and Chat screening, and no empty held queue", hub, ["Checks", "Chat screening", "< Back"])
+    // The screening settings still work, for the day the hold lifts.
+    __ui.answers.push(submit(true, 0, 2, 2, 1, 2, 10, true))
+    await screeningScreen(boss, () => {})
     check("ordinary swearing set to whole words", setting("filter.profanity"), "1")
     check("a held message now also mutes", setting("filter.action"), "mute")
     check("for ten minutes", setting("filter.muteSeconds"), "600")

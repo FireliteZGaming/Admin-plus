@@ -5,6 +5,7 @@ import { setting, setSetting, flag, overrides } from "../core/settings.js"
 import { has } from "../core/ranks.js"
 import { record } from "../core/logs.js"
 import { automodScreen } from "./automod.js"
+import { CHAT_AUTOMOD_ON_HOLD } from "../core/hold.js"
 import { heldScreen, heldWaiting } from "./heldUI.js"
 
 // /admin ▸ Server ▸ Automod
@@ -13,7 +14,11 @@ import { heldScreen, heldWaiting } from "./heldUI.js"
 // Settings, Automod, Advanced. It gathers what was spread over Server ▸ Chat
 // and Advanced: the three checks, chat screening, and held messages.
 
-const CHECK_KEYS = ["automod.ores", "automod.breaks", "automod.spam"]
+// Chat flooding is left out while chat automod is on hold (core/hold.js).
+const CHECK_KEYS = CHAT_AUTOMOD_ON_HOLD
+    ? ["automod.ores", "automod.breaks"]
+    : ["automod.ores", "automod.breaks", "automod.spam"]
+const CHECK_NAMES = CHAT_AUTOMOD_ON_HOLD ? "Ore alerts, fast breaking" : "Ore alerts, fast breaking, chat flooding"
 
 export async function automodHubScreen(player, back) {
     if (!has(player, "admin.automod")) { err(player, "You can't change automod."); return back() }
@@ -22,10 +27,16 @@ export async function automodHubScreen(player, back) {
     const checksOn = CHECK_KEYS.filter(key => flag(key)).length
     return menu(player, {
         title: hubTitle("settings", "Automod"),
-        body: subtitle("Checks alert staff to what they find. Chat screening holds\nflagged messages until staff look at them."),
+        body: CHAT_AUTOMOD_ON_HOLD
+            ? subtitle("Checks alert staff to ore veins and fast breaking.\nChat automod is on hold: chat isn't screened, and nobody\nis muted for spam.")
+            : subtitle("Checks alert staff to what they find. Chat screening holds\nflagged messages until staff look at them."),
         buttons: [
-            { text: hubEntry("settings", "Checks", `Ore alerts, fast breaking, chat flooding · ${checksOn} of ${CHECK_KEYS.length} on`), run: () => automodScreen(player, again) },
-            { text: hubEntry("settings", "Chat screening", flag("filter.enabled") ? "§aon§8 · what to hold, and what it costs the sender" : "§coff§8 · holds flagged messages for staff"), run: () => screeningScreen(player, again) },
+            { text: hubEntry("settings", "Checks", `${CHECK_NAMES} · ${checksOn} of ${CHECK_KEYS.length} on`), run: () => automodScreen(player, again) },
+            // Greyed out and inactive while on hold, as the user asked: pressing
+            // it opens nothing and only says why.
+            CHAT_AUTOMOD_ON_HOLD
+                ? { text: "§7Chat screening\n§7On hold", run: () => { info(player, "Chat screening is on hold for now."); return again() } }
+                : { text: hubEntry("settings", "Chat screening", flag("filter.enabled") ? "§aon§8 · what to hold, and what it costs the sender" : "§coff§8 · holds flagged messages for staff"), run: () => screeningScreen(player, again) },
             waiting
                 ? { text: hubEntry("settings", `Held messages (${waiting})`, "Messages the screen stopped: allow or delete them"), run: () => heldScreen(player, again) }
                 : null
@@ -47,7 +58,9 @@ const ACTIONS = [["hold", "Hold it for staff"], ["warn", "Hold it and warn them"
 const levelOf = key => Math.min(3, Math.max(0, Math.floor(Number(setting(key))) || 0))
 const muteMinutes = () => Math.min(60, Math.max(1, Math.round(Number(setting("filter.muteSeconds")) / 60) || 5))
 
-async function screeningScreen(player, back) {
+// The hub can't open this while chat automod is on hold (core/hold.js). It is
+// exported so it stays tested and works the day the hold lifts.
+export async function screeningScreen(player, back) {
     const actionAt = Math.max(0, ACTIONS.findIndex(([id]) => id === String(setting("filter.action")).trim().toLowerCase()))
     const values = await modal(player, hubTitle("settings", "Chat screening"), [
         {

@@ -1,7 +1,7 @@
 import { world, system, CustomCommandParamType } from "@minecraft/server"
 import { command } from "../core/registry.js"
 import { menu, pagedMenu, modal, confirm, subtitle } from "../core/ui.js"
-import { hubTitle, hubEntry } from "../core/theme.js"
+import { hubTitle, hubEntry, COLOUR_CODE_TIP } from "../core/theme.js"
 import { ok, err, info } from "../core/util.js"
 import { has, isStaff } from "../core/ranks.js"
 import { flag, setting, setSetting } from "../core/settings.js"
@@ -281,7 +281,7 @@ async function setSpawnScreen(player, back) {
 async function createScreen(player, back) {
     const values = await modal(player, hubTitle("warps", "New warp"), [
         { id: "id", type: "text", label: "ID §8· lowercase, no spaces. Players type this.", placeholder: "market" },
-        { id: "display", type: "text", label: "Name §8· shown in the list, colour codes allowed", placeholder: "§aMarket" }
+        { id: "display", type: "text", label: "Name §8· shown in the list, colour codes allowed", placeholder: "Example: §aMarket", tooltip: COLOUR_CODE_TIP }
     ])
     if (!values) return back()
 

@@ -1,6 +1,6 @@
 import { world, GameMode } from "@minecraft/server"
 import { menu, pagedMenu, modal, confirm, subtitle } from "../core/ui.js"
-import { hubTitle } from "../core/theme.js"
+import { hubTitle, COLOUR_CODE_TIP } from "../core/theme.js"
 import { ok, err, info, formatDuration } from "../core/util.js"
 import { primaryRank, playerRanks, canActOn, canSeeActionsOf, has, refreshNameTag, knownHolders, getRank, heldRankIds, renderTags, nameFontFor } from "../core/ranks.js"
 import { invseeScreen } from "./invsee.js"
@@ -549,10 +549,11 @@ export async function nicknameScreen(player, target, back) {
             type: "text",
             label: [
                 `Display name §8(up to ${NICK_MAX} characters, codes count)`,
-                "§8Colour it with the section sign and a code in front, the same codes as rank names: §b§lSteve",
+                "§8Colour codes work, the same as in rank names. The ! shows how to type one.",
                 "§8Their gamertag or an empty box means no display name."
             ].join("\n"),
             placeholder: target.name,
+            tooltip: COLOUR_CODE_TIP,
             default: current
         },
         {
