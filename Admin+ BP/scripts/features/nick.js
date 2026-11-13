@@ -1,5 +1,6 @@
 import { CustomCommandParamType } from "@minecraft/server"
 import { nameTakenBy } from "../core/names.js"
+import { sameLetters } from "../core/audit.js"
 import { command } from "../core/registry.js"
 import { ok, err } from "../core/util.js"
 import { displayName, getNickname, setNickname, NICK_MAX } from "../core/identity.js"
@@ -55,7 +56,9 @@ command({
             if (target.id !== player.id) target.sendMessage("§7Your display name was cleared.")
             return
         }
-        ok(player, `§f${target.name}§a is now §r${applied}§a.`)
-        if (target.id !== player.id) target.sendMessage(`§7You are now shown as §r${applied}§7.`)
+        // Same letters with a new colour reads as a new look, not a new name.
+        const look = sameLetters(target.name, applied)
+        ok(player, look ? `§f${target.name}§a's name now looks like §r${applied}§a.` : `§f${target.name}§a is now §r${applied}§a.`)
+        if (target.id !== player.id) target.sendMessage(look ? `§7Your name now looks like §r${applied}§7.` : `§7You are now shown as §r${applied}§7.`)
     }
 })

@@ -3,7 +3,7 @@ import { inflateSync } from "node:zlib"
 import { __test } from "@minecraft/server"
 import { __ui } from "@minecraft/server-ui"
 import { setRanks, onPlayerJoin, applyPreset, getRank, saveRank, renderTags, rankType } from "../Admin+ BP/scripts/core/ranks.js"
-import { setSetting } from "../Admin+ BP/scripts/core/settings.js"
+import { setSetting, renderTag } from "../Admin+ BP/scripts/core/settings.js"
 import { BADGES, BADGE_PAGE, badgeChar, badgeOf, badgesOn, badgeLabel } from "../Admin+ BP/scripts/core/badges.js"
 import { ranksScreen, rankScreen } from "../Admin+ BP/scripts/features/ranksUI.js"
 import { GROUPS, groupScreen, settingKeys } from "../Admin+ BP/scripts/features/settingsUI.js"
@@ -73,15 +73,16 @@ function readAlpha(url) {
 
 console.log("\n— the pictures and the list agree —")
 {
-    const drawn = [...TOOL.matchAll(/\("(\w+)", "([^"]+)", (?:"[0-9a-f]{6}"|None)\)/g)].map(m => [m[1], m[2]])
+    const drawn = [...TOOL.matchAll(/\("(\w+)", "([^"]+)", (?:"[0-9a-f]{6}"|None), (?:"[0-9a-f]{6}"|None)\)/g)].map(m => [m[1], m[2]])
     check("the tool draws the badges in the list's order, under the same names",
         drawn, BADGES.map(b => [b.key, b.label]))
     check("the glyph page is in the resource pack's font folder", existsSync(PAGE_FILE), true)
     const page = readAlpha(PAGE_FILE)
-    check("it is a 16 by 16 grid of 16-pixel pictures", [page.width, page.height], [256, 256])
+    // 32-pixel pictures (2.11.3), the size the game's own smooth icons use.
+    check("it is a 16 by 16 grid of 32-pixel pictures", [page.width, page.height], [512, 512])
     const filled = (col, row) => {
-        for (let y = row * 16; y < row * 16 + 16; y++)
-            for (let x = col * 16; x < col * 16 + 16; x++) if (page.alpha(x, y) > 0) return true
+        for (let y = row * 32; y < row * 32 + 32; y++)
+            for (let x = col * 32; x < col * 32 + 32; x++) if (page.alpha(x, y) > 0) return true
         return false
     }
     check("every badge has its Admin+ picture in row 0", BADGES.map((b, i) => filled(i, 0)).every(Boolean), true)
@@ -96,7 +97,8 @@ console.log("\n— the pictures and the list agree —")
     check("the page is EA", BADGE_PAGE, 0xEA00)
     check("the crown is the first picture", badgeChar("crown"), "")
     check("its classic picture is one row down", badgeChar("crown", "classic"), "")
-    check("Admin+'s own mark is the eleventh", badgeChar("plus"), String.fromCharCode(0xEA0A))
+    check("the sword sits after the ban hammer", badgeChar("sword"), "")
+    check("Admin+'s own mark is the twelfth", badgeChar("plus"), String.fromCharCode(0xEA0B))
     check("an unknown badge draws nothing", badgeChar("dragon"), "")
 }
 
@@ -161,8 +163,9 @@ console.log("\n— on Beta, tags and buttons wear badges —")
     setBeta(true)
     check("badges are on", badgesOn(), true)
     const ownerTag = renderTags(boss)
-    check("the owner's tag has the crown just inside the bracket, then the name",
-        ownerTag.includes(`${badgeChar("crown")} ${getRank("owner").display}`), true)
+    // Outside the bracket, as the user asked: "|badge|{Owner}".
+    check("the owner's badge comes first, then the tag as it always was",
+        ownerTag, `${badgeChar("crown")} ${renderTag(getRank("owner"))}`)
     check("a mod's has the ban hammer", renderTags(moddy).includes(badgeChar("hammer")), true)
     check("a new player's has none", PRIVATE_USE.test(renderTags(newbie)), false)
     check("the stored rank keeps its own name", PRIVATE_USE.test(getRank("owner").display), false)

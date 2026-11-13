@@ -1,13 +1,13 @@
 {
     "format_version": 2,
     "header": {
-        "name": "§bAdmin§d+§r §7v2.11.2 §8[BP]",
+        "name": "§bAdmin§d+§r §7v2.11.3 §8[BP]",
         "description": "§bAdmin§d+§r: admin tools, ranks, warps and TPA. Behavior pack. §eNeeds §9Beta APIs§e turned on in the world settings.",
         "uuid": "e5f86caf-097d-4d8d-86ac-efa4a6103dc2",
         "version": [
             2,
             11,
-            2
+            3
         ],
         "min_engine_version": [
             1,
@@ -22,7 +22,7 @@
             "version": [
                 2,
                 11,
-                2
+                3
             ]
         },
         {
@@ -33,7 +33,7 @@
             "version": [
                 2,
                 11,
-                2
+                3
             ]
         }
     ],
@@ -43,7 +43,7 @@
             "version": [
                 2,
                 11,
-                2
+                3
             ]
         },
         {

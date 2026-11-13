@@ -56,6 +56,39 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.11.3 — 2026-11-13
+
+**Badges redrawn, the badge moves in front of the tag, and renames say what
+changed.**
+
+### Badges
+1. **Redrawn as flat, bold shapes.** The user found the first symbols'
+   pixel art "sloppy", the ban hammer most of all, and sent Twitch's and
+   Discord's badges as the style to aim for. Every symbol is now built from
+   shapes (bars, rectangles, circles, arcs) at eight times the size and then
+   shrunk, so edges are clean and angles true: the ban hammer is a gavel
+   whose head sits square across its handle. Nothing is copied from the
+   references.
+2. **A sword joins**, so there are 12.
+3. **32-pixel pictures**, the size the game's own smooth icons use. They
+   still draw one letter tall.
+4. **The badge goes in front of the tag**, outside the bracket:
+   `<badge> [Owner]`. The user: "I feel like thats how it should be".
+
+### Renames
+The staff announcement for a display-name change read "Renamed Midnight to
+Midnight" in a playtest. It was built after the rename, so it named the
+player by their new display name. It now names them by gamertag, and:
+1. A new name: "Renamed Midnight to Bob".
+2. The same letters in a new colour: "Changed the look of Midnight's name".
+3. Your own: "Changed own display name to Bob" and "Changed the look of own
+   name", the way the game says "Set own game mode".
+The messages to the player and the person who did it say "now looks like"
+when only the look changed.
+
+### Checked
+`tests/badges.test.js` (52) and `tests/audit.test.js` (72, six new).
+
 ## 2.11.2 — 2026-11-13
 
 **Rank badges, in Beta.**

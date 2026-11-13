@@ -136,7 +136,9 @@ const PHRASES = {
     "mod.enderchest": t => `Opened ${t}'s ender chest`,
     "mod.gamemode": (t, d) => `Set ${t}'s game mode to ${d}`,
     "mod.bring": t => `Brought ${t}`,
-    "name.set": (t, d) => `Renamed ${t} to ${d}`,
+    // Same letters, new colour or style: "Renamed Midnight to Midnight" read
+    // as nonsense in a playtest (2026-11-12), so say what changed.
+    "name.set": (t, d) => sameLetters(t, d) ? `Changed the look of ${t}'s name` : `Renamed ${t} to ${d}`,
     "name.clear": t => `Cleared ${t}'s display name`,
     "rank.grant": (t, d) => `Gave ${t} ${d}`,
     "rank.revoke": (t, d) => `Took ${d} from ${t}`,
@@ -163,7 +165,18 @@ const PHRASES = {
  * ever print — worth the four lines it costs to have it read right.
  */
 const SELF_PHRASES = {
-    "mod.gamemode": (_t, d) => `Set own game mode to ${d}`
+    "mod.gamemode": (_t, d) => `Set own game mode to ${d}`,
+    "name.set": (t, d) => sameLetters(t, d) ? "Changed the look of own name" : `Changed own display name to ${d}`
+}
+
+/**
+ * True when a new display name has the same letters as the name it replaces,
+ * so only its colour, bold or italic changed. Fonts are stored apart from the
+ * display name, so they never reach here.
+ */
+export function sameLetters(before, after) {
+    const plain = s => String(s ?? "").replace(/§./g, "").trim()
+    return plain(before) !== "" && plain(before) === plain(after)
 }
 
 /** The sentence, without the surrounding format. */
@@ -206,7 +219,11 @@ export function audienceFor(actor, target, action) {
  * string stored, and dropping the token would leave it printing "{COMMAND}".
  */
 export function lineFor(actor, target, action, detail) {
-    const name = displayName(target)
+    // A display-name change is recorded AFTER it is made, so the target's
+    // display name is already the new one, and every rename read "Renamed
+    // Midnight to Midnight" (seen in a playtest, 2026-11-12). Name them by
+    // their gamertag instead, which a rename never changes.
+    const name = String(action).startsWith("name.") && target?.name ? target.name : displayName(target)
     const self = !!(actor && target && actor.id && actor.id === target.id)
     return render("format.command", {
         ...nameTokens(actor),

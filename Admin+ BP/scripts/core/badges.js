@@ -1,17 +1,20 @@
 import { isBeta } from "./channel.js"
 import { flag } from "./settings.js"
 
-// Rank badges (2.11.2, Beta). The user, 2026-11-13: like the little badges on
-// Twitch and Discord, "not their way, but our way. In our theme and style ...
-// Especially to the buttons instead of putting staff". Of the first previews
-// they liked two styles, the dark tile with the Admin+ bar and the classic
-// coloured square, so a server picks one in Names and tags ▸ Badges.
+// Rank badges (2.11.2, redrawn in 2.11.3, Beta). The user, 2026-11-13: like
+// the little badges on Twitch and Discord, "not their way, but our way. In our
+// theme and style ... Especially to the buttons instead of putting staff". Of
+// the first previews they liked two styles, the dark tile with the Admin+ bar
+// and the classic coloured square, so a server picks one in Names and tags ▸
+// Badges.
 //
 // A badge is a picture inside text: one character on the glyph page
 // `Admin+ RP/font/glyph_EA.png` (characters U+EA00 to U+EAFF), drawn by
-// tools/genbadges.py. Row 0 holds the Admin+ style, row 1 the classic style,
-// one column per badge. BADGES below must stay in the tool's order;
-// tests/badges.test.js checks that, and that every picture is there.
+// tools/genbadges.py from shapes, flat and bold like the user's references
+// (2.11.3: the first, pixel-by-pixel set looked "sloppy"). Row 0 holds the
+// Admin+ style, row 1 the classic style, one column per badge. BADGES below
+// must stay in the tool's order; tests/badges.test.js checks that, and that
+// every picture is there.
 //
 // Badges show only in Beta (core/channel.js) with the Badges switch on. On
 // Default every tag and button is exactly what it was.
@@ -19,6 +22,7 @@ import { flag } from "./settings.js"
 export const BADGES = Object.freeze([
     { key: "crown", label: "Crown" },
     { key: "hammer", label: "Ban hammer" },
+    { key: "sword", label: "Sword" },
     { key: "shield", label: "Shield" },
     { key: "star", label: "Star" },
     { key: "gem", label: "Gem" },

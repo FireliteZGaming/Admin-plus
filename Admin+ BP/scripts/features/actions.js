@@ -2,6 +2,7 @@ import { world, GameMode } from "@minecraft/server"
 import { menu, pagedMenu, modal, confirm, subtitle } from "../core/ui.js"
 import { hubTitle, COLOUR_CODE_TIP } from "../core/theme.js"
 import { nameTakenBy } from "../core/names.js"
+import { sameLetters } from "../core/audit.js"
 import { ok, err, info, formatDuration } from "../core/util.js"
 import { primaryRank, playerRanks, canActOn, canSeeActionsOf, has, refreshNameTag, knownHolders, getRank, heldRankIds, renderTags, nameFontFor } from "../core/ranks.js"
 import { invseeScreen } from "./invsee.js"
@@ -600,7 +601,7 @@ export async function nicknameScreen(player, target, back) {
     }
 
     const what = [
-        nameChanged ? (applied ? `shows as ${applied}§r§a` : "is their gamertag again") : null,
+        nameChanged ? (applied ? `${sameLetters(target.name, applied) ? "now looks like" : "shows as"} ${applied}§r§a` : "is their gamertag again") : null,
         fontChanged ? `uses the §f${FONTS[font].label}§a font` : null
     ].filter(Boolean).join(" and ")
     ok(player, `§f${target.name}§a's name ${what}.`)

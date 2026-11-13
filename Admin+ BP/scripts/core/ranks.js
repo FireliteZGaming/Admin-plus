@@ -846,14 +846,15 @@ export function renderTags(playerOrId) {
 }
 
 /**
- * A rank's tag with its badge before the name (2.11.2, Beta only; see
- * core/badges.js), like `[<badge> Mod]`. A rank whose name was blanked still
- * shows no tag at all: the badge decorates a tag, it never makes one.
+ * A rank's tag with its badge in front (Beta only; see core/badges.js), like
+ * `<badge> [Mod]`: outside the bracket, as the user asked on 2026-11-13
+ * ("|badge|{Owner} I feel like thats how it should be"). A rank whose name was
+ * blanked still shows no tag at all: the badge goes with a tag, never alone.
  */
 function badgedTag(rank) {
     const tag = renderTag(rank)
     const badge = tag ? badgeFor(rank, rankType(rank)) : ""
-    return badge ? renderTag({ ...rank, display: `${badge} ${rank.display}` }) : tag
+    return badge ? `${badge} ${tag}` : tag
 }
 
 /** Their authority: the strongest rank they hold, whatever the display order. */

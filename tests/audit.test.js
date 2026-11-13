@@ -2,7 +2,8 @@ import { readdirSync, readFileSync } from "node:fs"
 import { __test } from "@minecraft/server"
 import { onPlayerJoin, setRanks, has } from "../Admin+ BP/scripts/core/ranks.js"
 import { setting, setSetting, resetSetting } from "../Admin+ BP/scripts/core/settings.js"
-import { audienceFor, lineFor, phraseFor, verbOf, announce, SILENT, PHRASES } from "../Admin+ BP/scripts/core/audit.js"
+import { audienceFor, lineFor, phraseFor, verbOf, announce, SILENT, PHRASES, sameLetters } from "../Admin+ BP/scripts/core/audit.js"
+import { setNickname } from "../Admin+ BP/scripts/core/identity.js"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -303,6 +304,27 @@ check("walking to someone is logged but not spoken",
     audienceFor(admin, member, "mod.tpTo"), [])
 check("dragging them to you is spoken",
     names(audienceFor(admin, member, "mod.bring")).length > 0, true)
+
+console.log("\n— renaming says who, and what changed —")
+// A rename is recorded after it is made, so the display name is already the
+// new one. Naming the target by it printed "Renamed Midnight to Midnight" in a
+// playtest (2026-11-12). The gamertag never changes, so the line uses that.
+{
+    setNickname(member, "§9Bobby")
+    check("a rename names them by gamertag, then the new name",
+        plain(admin, member, "name.set", "§9Bobby"), "[Admin: Renamed Member to Bobby]")
+    setNickname(member, "§5Member")
+    check("same letters in a new colour is a new look, not a new name",
+        plain(admin, member, "name.set", "§5Member"), "[Admin: Changed the look of Member's name]")
+    check("renaming yourself reads like the game's own lines",
+        plain(member, member, "name.set", "§9Bobby"), "[Member: Changed own display name to Bobby]")
+    check("and restyling yourself too",
+        plain(member, member, "name.set", "§dMember"), "[Member: Changed the look of own name]")
+    setNickname(member, "")
+    check("clearing a display name still names them",
+        plain(admin, member, "name.clear", "back to gamertag"), "[Admin: Cleared Member's display name]")
+    check("sameLetters ignores colour codes", [sameLetters("Steve", "§c§lSteve"), sameLetters("Steve", "Stevie"), sameLetters("", "")], [true, false, false])
+}
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)
