@@ -103,6 +103,15 @@ look taught (2.11.0, 2026-11-13, the user's screenshot).**
 4. **The content log shows no menu errors at all.** A broken menu is silent;
    only a screenshot tells.
 
+**Font-page pictures draw at one game pixel per picture pixel, centred on
+the line, and are never shrunk (2.11.4, the user's screenshots).** A badge
+that filled its 32-pixel cell drew four chat lines tall. The game's own icons
+(`glyph_E0`, a 512 sheet) are 9 to 23 pixels centred in 32-pixel cells, and
+its letters are 8 by 12 cells with 7-pixel capitals (`default8.json`). Badges
+are `BADGE_PX` (10) in `tools/genbadges.py`; `tests/badges.test.js` holds it.
+`--preview` draws them at real size. **And a colour code does NOT end bold in
+Bedrock:** `§l` runs on, across lines, until `§r`.
+
 **Subpacks: the game starts on the LAST subpack when they tie.** 2.10.1 put
 Default first on a higher `memory_tier` and the user's world started on Beta
 (2026-11-13). The game now ranks subpacks by `memory_performance_tier`, which
@@ -435,8 +444,10 @@ field, or (on a game that drew no labels) one per input.
 - **Rank badges are Beta (2.11.2, the user's idea, 2026-11-13: "not their
   way, but our way. In our theme and style ... Especially to the buttons
   instead of putting staff").** A badge is a character on our glyph page
-  `Admin+ RP/font/glyph_EA.png` (U+EA00 on; 32-pixel pictures; row 0 the
-  Admin+ style, row 1 the classic), drawn by `tools/genbadges.py` from SHAPES,
+  `Admin+ RP/font/glyph_EA.png` (U+EA00 on; 32-pixel cells holding a
+  10-pixel badge in the middle, see the font-page rule above; row 0 the
+  Admin+ style, row 1 the classic, row 2 the tick), drawn by
+  `tools/genbadges.py` from SHAPES,
   flat and bold like Twitch's and Discord's (2.11.3: pixel-by-pixel art was
   "sloppy"; draw at 8x and shrink). `core/badges.js` lists them
   in the SAME order; never reorder one without the other. The user liked

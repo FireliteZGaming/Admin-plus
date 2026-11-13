@@ -168,6 +168,21 @@ console.log("\n— a staff rank from a template —")
     __ui.answers.push(name("§4Second", TYPE.staff), press(3), submit(above("coowner")), CREATE)
     await createRankScreen(boss, () => {})
     check("the Owner template gives everything", getRank("second")?.perms, ["*"])
+
+    // 2.11.5, from the user's screenshot of the cards in game: bold carried
+    // from each card's name into every line under it, and Owner's words ran
+    // out of the bottom of its card.
+    const BETA_ITEM = { id: "adminplus:channel_beta" }
+    __test.itemTypes.push(BETA_ITEM)
+    __ui.answers.length = 0
+    const at = __ui.shown.length
+    __ui.answers.push(name("§9Look", TYPE.staff))
+    await createRankScreen(boss, () => {})
+    const cards = partsOf(__ui.shown[at + 1], "button").slice(0, 4)
+    check("in Beta each card's name closes its bold, so the lines under it stay plain",
+        cards.map(c => c.split("\n")[0].endsWith("§r")), [true, true, true, true])
+    check("and Owner's warning is the short one", cards[3]?.includes("Only for someone you fully trust."), true)
+    __test.itemTypes.splice(__test.itemTypes.indexOf(BETA_ITEM), 1)
     check("and the crown", getRank("second")?.meta?.badge, "crown")
     check("and it can go just under the maker's own rank", order().indexOf("second"), order().indexOf("owner") + 1)
 }

@@ -19,9 +19,16 @@ with the symbol in white).
 Minecraft draws pictures inside text from "glyph pages": a 16 by 16 grid, one
 picture per character, in a resource pack's font folder. Admin+ uses page EA
 (characters U+EA00 to U+EAFF), which neither the game (D0-D7, E0, E1, F9-FF)
-nor any pack installed on this PC (E0-E4, E7-E9, F1, F9) uses. Each picture is
-32 pixels, the size the game's own smooth icons use (its page E0), and still
-draws one letter tall. Row 0 is the Admin+ style, row 1 the classic, one
+nor any pack installed on this PC (E0-E4, E7-E9, F1, F9) uses. The page is a
+16 by 16 grid of 32-pixel cells, like the game's own icon page E0.
+
+SIZE (2.11.5, from the user's in-game screenshots): the game draws a glyph at
+one of its pixels per picture pixel, centred on the line, and never shrinks
+it. The 2.11.3 badges filled their whole 32-pixel cell, so they drew four
+lines tall and covered the chat above and below. The game's own icons on E0
+are 9 to 23 pixels, centred in their cells, and its letters are 7 pixels to
+the top of a capital. So a badge is now BADGE_PX (10) square, about one and a
+half capitals, centred in its cell, and the tick is drawn in MARK_PX (9). Row 0 is the Admin+ style, row 1 the classic, one
 column per badge in the order of BADGES. core/badges.js lists them in the same
 order, and tests/badges.test.js checks. Row 2 holds plain marks for text with
 no tile behind them: the green tick on the template cards (2.11.4) at U+EA20.
@@ -34,7 +41,9 @@ from PIL import Image, ImageDraw
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 OUT = ROOT / "Admin+ RP" / "font" / "glyph_EA.png"
-CELL = 32      # pixels per picture on the page
+CELL = 32      # pixels per cell on the page
+BADGE_PX = 10  # a badge's drawn size: the game shows one picture pixel per font pixel
+MARK_PX = 9    # the tick: its drawn part is about as tall as a capital letter
 SS = 8         # drawn this many times larger, then shrunk
 BOX = 22       # a symbol is designed in a 22 by 22 box
 
@@ -239,8 +248,12 @@ def gradient(size, a, b):
     return img
 
 
-def shrink(img):
-    return img.resize((CELL, CELL), Image.BOX)
+def shrink(img, size=BADGE_PX):
+    """The big drawing at its final size, centred in a cell like the game's icons."""
+    small = img.resize((size, size), Image.BOX)
+    out = Image.new("RGBA", (CELL, CELL), (0, 0, 0, 0))
+    out.alpha_composite(small, ((CELL - size) // 2, (CELL - size) // 2))
+    return out
 
 
 def admin_style(name, colour):
@@ -287,10 +300,7 @@ def mark_style(name, colour):
     big = (CELL * SS, CELL * SS)
     base = Image.new("RGBA", big, (0, 0, 0, 0))
     base.paste(Image.new("RGBA", big, rgb(colour)), (0, 0), symbol_mask(name, (CELL - BOX) / 2))
-    small = base.resize((CELL - 6, CELL - 6), Image.BOX)
-    out = Image.new("RGBA", (CELL, CELL), (0, 0, 0, 0))
-    out.alpha_composite(small, (3, 3))
-    return out
+    return shrink(base, MARK_PX)
 
 
 def build():
@@ -305,17 +315,33 @@ def build():
     return sheet
 
 
-def preview(sheet, font_path, path):
-    """The badges beside chat text drawn with the game's own font (never shipped).
+def game_font():
+    """The game's own pixel font, read out of its install (tools/vanillaui.py)."""
+    import io
+    sys.path.insert(0, str(ROOT / "tools"))
+    import vanillaui
+    archive = vanillaui.GAME.parent / "font.brarchive"
+    for name, body in vanillaui.entries(archive.read_bytes()):
+        if name == "default8.png":
+            data = body if isinstance(body, bytes) else body.encode("latin1")
+            return Image.open(io.BytesIO(data)).convert("RGBA")
+    raise SystemExit(f"default8.png not found in {archive}")
 
-    Text is drawn at 3 screen pixels per font pixel, as at GUI scale 3, where a
-    badge is 24 pixels: the game shrinks the 32-pixel picture to fit a letter.
+
+def preview(sheet, path, scale=3):
+    """Badges beside chat text at the game's real size (never shipped).
+
+    One font pixel and one picture pixel are both `scale` screen pixels, as at
+    GUI scale 3, and a badge is centred on its line, as the game draws it.
     """
-    font = Image.open(font_path).convert("RGBA")
+    font = game_font()
     mc = {"0": "000000", "4": "AA0000", "5": "AA00AA", "6": "FFAA00", "7": "AAAAAA", "8": "555555", "a": "55FF55",
           "b": "55FFFF", "c": "FF5555", "d": "FF55FF", "e": "FFFF55", "f": "FFFFFF", "9": "5555FF", "2": "00AA00"}
-    scale = 3
     keys = [b[0] for b in BADGES]
+    # default8.png holds 8 by 12 cells (the game's default8.json: height 12).
+    hx, hy = 8 * (ord("H") % 16), 12 * (ord("H") // 16)
+    cap = font.crop((hx, hy, hx + 8, hy + 12)).getbbox()
+    middle = (cap[1] + cap[3]) / 2   # the middle of a capital, in font pixels from the cell top
 
     def glyph(ch):
         code = ord(ch)
@@ -339,10 +365,15 @@ def preview(sheet, font_path, path):
                 continue
             if ch == "{":
                 end = s.index("}", i)
-                idx = keys.index(s[i + 1:end])
-                cell = sheet.crop((idx * CELL, row * CELL, idx * CELL + CELL, row * CELL + CELL))
-                img.alpha_composite(cell.resize((8 * scale, 8 * scale), Image.LANCZOS), (x, y + 2 * scale))
-                x += 9 * scale
+                name = s[i + 1:end]
+                col, line = (0, 2) if name == "tick" else (keys.index(name), row)
+                cell = sheet.crop((col * CELL, line * CELL, col * CELL + CELL, line * CELL + CELL))
+                box = cell.getbbox()
+                part = cell.crop((box[0], 0, box[2], CELL))
+                big = part.resize((part.width * scale, CELL * scale), Image.NEAREST)
+                # Centred on the line, as the game draws it: on the capitals' middle.
+                img.alpha_composite(big, (x, y + round(middle * scale) - CELL * scale // 2))
+                x += (part.width + 1) * scale
                 i = end + 1
                 continue
             cell, width = glyph(ch)
@@ -356,22 +387,18 @@ def preview(sheet, font_path, path):
             x += width * scale
             i += 1
 
-    width = 1500
-    img = Image.new("RGBA", (width, 700), rgb("2f4a22"))
+    line = 12 * scale
+    img = Image.new("RGBA", (1100, 520), rgb("2f4a22"))
     for row, title in ((0, "Admin+ style"), (1, "Classic style")):
-        top = 14 + row * 340
-        img.alpha_composite(Image.new("RGBA", (920, 170), (0, 0, 0, 105)), (14, top + 36))
-        text(img, 14, top, f"§f{title}", row)
-        text(img, 24, top + 44, "§7General §8| {crown} §8[§4Owner§8] §dMidnight§f: ay ts name", row)
-        text(img, 24, top + 84, "§7General §8| {hammer} §8[§aMod§8] §fWafflehouse9549§f: dihi", row)
-        text(img, 24, top + 124, "§7General §8| {shield} §8[§6Admin§8] §fSteve§f: hi", row)
-        img.alpha_composite(Image.new("RGBA", (530, 170), rgb("12141b")), (950, top + 36))
-        for n, (badge, name) in enumerate([("crown", "§71. §4Owner"), ("shield", "§72. §6Admin"), ("hammer", "§73. §aMod")]):
-            img.alpha_composite(Image.new("RGBA", (510, 44), rgb("1d212c")), (960, top + 44 + n * 52))
-            text(img, 972, top + 48 + n * 52, f"{{{badge}}} {name}", row)
-        for i in range(len(BADGES)):
-            cell = sheet.crop((i * CELL, row * CELL, i * CELL + CELL, row * CELL + CELL))
-            img.alpha_composite(cell.resize((96, 96), Image.NEAREST), (24 + i * 120, top + 222))
+        top = 16 + row * 250
+        text(img, 16, top, f"§f{title}, at the game's real size", row)
+        img.alpha_composite(Image.new("RGBA", (1060, 5 * line + 12), (0, 0, 0, 105)), (16, top + 36))
+        y = top + 44
+        text(img, 26, y, "§7General §8| {crown} §8| §8[§4§lOwner§r§8] §dMidnight§f: ay ts name thingy", row); y += line
+        text(img, 26, y, "§8| {hammer} §8| §8[§aMod§8] §fWafflehouse9549 §8» §fdihi", row); y += line
+        text(img, 26, y, "§7General §8| {shield} §8| §8[§6Admin§8] §fSteve§f: hi", row); y += line
+        text(img, 26, y, "§7General §8| §8[§bMember§8] §fAlex§f: no badge, no bars", row); y += line
+        text(img, 26, y, "{tick} §fWarn, mute, kick   {tick} §fFreeze and vanish", row)
     img.save(path)
     print("preview:", path)
 
@@ -380,9 +407,5 @@ if __name__ == "__main__":
     sheet = build()
     print(f"{len(BADGES)} badges in two styles -> {OUT}")
     if "--preview" in sys.argv:
-        rest = sys.argv[sys.argv.index("--preview") + 1:]
-        fonts = [a for a in rest if a.endswith("default8.png")]
-        outs = [a for a in rest if a.endswith(".png") and not a.endswith("default8.png")]
-        if not fonts:
-            raise SystemExit("--preview needs the path to the game's default8.png (see tools/vanillaui.py)")
-        preview(sheet, fonts[0], outs[0] if outs else str(ROOT / "notes" / "badges-preview.png"))
+        rest = [a for a in sys.argv[sys.argv.index("--preview") + 1:] if a.endswith(".png") and not a.endswith("default8.png")]
+        preview(sheet, rest[0] if rest else str(ROOT / "notes" / "badges-preview.png"))

@@ -670,7 +670,7 @@
 
 	"card_button@adminplus_beta.dark_content_button": {
 		"$pressed_button_name": "button.form_button_click",
-		"size": [ "100% - 4px", 160 ],
+		"size": [ "100% - 4px", 176 ],
 		"anchor_from": "top_middle",
 		"anchor_to": "top_middle",
 		"$button_content": "adminplus_beta.card_content",
@@ -681,7 +681,7 @@
 
 	"card_slot": {
 		"type": "panel",
-		"size": [ "25%", 164 ],
+		"size": [ "25%", 180 ],
 		"bindings": [
 			{ "binding_name": "#form_button_text", "binding_type": "collection", "binding_collection_name": "form_buttons" },
 			{ "binding_type": "view", "source_property_name": "(not ((#form_button_text - '§j§c§a§s') = #form_button_text))", "target_property_name": "#visible" }

@@ -56,6 +56,44 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.11.5 — 2026-11-13
+
+**Badges and ticks drawn at text size, and the template cards fixed, after the
+user's first look at 2.11.4 in game.**
+
+### Badges
+1. **They drew four lines tall.** The user's screenshots showed every badge
+   covering the chat lines above and below it, and the template cards' titles.
+   The game draws a picture from a font page at one of its pixels per picture
+   pixel, centred on the line, and never shrinks it. The badges filled their
+   whole 32-pixel cell, so they came out 32 pixels tall beside 7-pixel
+   capitals. 2.11.3 had assumed the game shrinks them to one letter; it
+   doesn't.
+2. **Now 10 pixels, centred in the cell**, like the game's own icons (page E0
+   keeps 9 to 23 pixel icons centred in 32-pixel cells). One chat line tall.
+3. **The tick on the template cards is about as tall as a capital** (7 by 5
+   pixels) instead of twice the text.
+4. `tools/genbadges.py --preview` now draws badges beside the game's own
+   letters at their real size, reading the font out of the game's install. The
+   old preview shrank the badges, which is how the size went unnoticed.
+
+### Template cards
+1. **Bold no longer runs down the whole card.** In game a colour code doesn't
+   end bold, so each card's name made every line under it bold. The name now
+   ends in `§r`.
+2. **Owner's warning stays inside its card**: "Only for someone you fully
+   trust." Cards are 176 tall instead of 160.
+
+### Seen in game (2.11.4, 2026-11-13)
+1. The bars work: "| (badge) | [Admin+ Creator]" in Players and "General |
+   (badge) |" in chat.
+2. The four template cards stand side by side.
+
+### Checked
+`tests/badges.test.js` (every badge at most 10 pixels and centred, the tick
+no taller than a capital), `tests/look.test.js` (card height),
+`tests/ranksui.test.js` (card names close their bold, Owner's short warning).
+
 ## 2.11.4 — 2026-11-13
 
 **+ New rank in short steps, template cards for staff ranks, and one badge

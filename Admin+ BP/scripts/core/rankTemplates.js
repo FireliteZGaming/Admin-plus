@@ -59,7 +59,8 @@ export const STAFF_TEMPLATES = Object.freeze([
         key: "owner", name: "Owner", colour: "§4", badge: "crown",
         line: "On par with the owner.",
         points: ["Every permission", "Any rank, to anyone", "Every setting"],
-        warn: "As strong as the owner. Only for someone you trust completely.",
+        // Short enough to stay inside its card (2.11.4 ran out of it in game).
+        warn: "Only for someone you fully trust.",
         perms: ["*"]
     }
 ].map(template => Object.freeze({ ...template, points: Object.freeze([...template.points]), perms: Object.freeze([...new Set(template.perms)]) })))

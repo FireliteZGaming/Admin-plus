@@ -265,6 +265,31 @@ console.log("\n— the tick for template cards —")
     check("and is drawn", ink, true)
 }
 
+console.log("\n— drawn at text size —")
+{
+    // 2.11.5, from the user's screenshots: the game draws a glyph at one of its
+    // pixels per picture pixel, centred on the line, and never shrinks it. The
+    // 2.11.3 badges filled their 32-pixel cells and drew four lines tall. The
+    // game's own icons (page E0) are 9 to 23 pixels, centred in their cells.
+    const page = readAlpha(PAGE_FILE)
+    const drawn = (col, row) => {
+        let x0 = 99, y0 = 99, x1 = -1, y1 = -1
+        for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
+            if (page.alpha(col * 32 + x, row * 32 + y) > 0) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y) }
+        }
+        return { w: x1 - x0 + 1, h: y1 - y0 + 1, cx: (x0 + x1 + 1) / 2, cy: (y0 + y1 + 1) / 2 }
+    }
+    const badges = BADGES.flatMap((b, i) => [drawn(i, 0), drawn(i, 1)])
+    check("every badge is at most 10 pixels each way, one chat line tall",
+        badges.filter(d => d.w > 10 || d.h > 10).length, 0)
+    check("and at least 8, so it can still be read", badges.filter(d => d.w < 8 || d.h < 8).length, 0)
+    check("each sits in the middle of its cell, as the game centres it on the line",
+        badges.filter(d => Math.abs(d.cx - 16) > 1 || Math.abs(d.cy - 16) > 1).length, 0)
+    const tick = drawn(0, 2)
+    check("the tick is no taller than a capital letter (7 pixels)", tick.h <= 7, true)
+    check("and in the middle too", Math.abs(tick.cy - 16) <= 1, true)
+}
+
 console.log("\n— the Badges page —")
 {
     const names = GROUPS.find(g => g.id === "names")

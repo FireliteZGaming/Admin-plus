@@ -555,8 +555,10 @@ async function nameStep(player, draft, back) {
 /** A template's card: badge and name, its line, a tick per point, and Owner's warning. */
 function templateCard(template) {
     const badge = badgesOn() ? `${badgeChar(template.badge, badgeStyle())} ` : ""
+    // §r after the name: in game, bold carried past a colour code into every
+    // line under it (2.11.4 screenshot, 2026-11-13).
     const lines = [
-        `${badge}§f§l${template.name}`,
+        `${badge}§f§l${template.name}§r`,
         `§7${template.line}`,
         ...template.points.map(point => `${TICK} §f${point}`),
         template.warn ? `§6${template.warn}` : ""

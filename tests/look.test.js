@@ -229,6 +229,8 @@ console.log("\n— each card shows once, above the rows —")
     check("Select sits at the bottom on Admin+'s gradient", [parts.select.anchor_to, chip[0].texture, chip[0].keep_ratio, chip[1].text],
         ["bottom_middle", "textures/ui/adminplus/gradient", false, "Select"])
     check("every template's strip is in the pack", ["mod", "admin", "manager", "owner"].map(cardStripe).filter(t => !textureExists(t)), [])
+    // 2.11.5: the Owner card's words ran out of the bottom of a 160-tall card.
+    check("a card is tall enough for the longest template, Owner", cardButton.size[1] >= 176, true)
     check("CARD prints nothing and restyles nothing", /^(?:§[0-9a-jmnpqstuv])+$/.test(CARD), true)
     check("lifting leaves it alone", lift(CARD), CARD)
     check("it spells no other marker",
