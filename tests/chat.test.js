@@ -174,7 +174,9 @@ console.log("\n— every rank they wear shows, not just the first —")
 // a grant looked like it had silently failed.
 {
     saveRank("boss", { display: "§4Boss", weight: 100, staff: true })
-    saveRank("elytra", { display: "§bElytra Mace", weight: 5 })
+    // Cosmetic since 2.10.0: only cosmetic ranks add tags beside the main
+    // one ("Cosmetic is what you would make if you want extra tags").
+    saveRank("elytra", { display: "§bElytra Mace", type: "cosmetic" })
     const stacked = fakePlayer("Stacked")
     onPlayerJoin(stacked)
     // Granted cosmetic-first on purpose: held order is manual, and the staff
@@ -225,12 +227,23 @@ console.log("\n— every rank they wear shows, not just the first —")
 
     // A blanked name removes its tag and leaves the others alone — the 2.5.2
     // fix, which only had one tag to be right about before.
-    saveRank("elytra", { display: "", weight: 5 })
+    saveRank("elytra", { display: "", type: "cosmetic" })
     setRanks(stacked.id, ["boss", "elytra"], stacked.name)
     check("a blanked rank drops out without taking the others with it",
         clean(renderTags(stacked)), "[Boss]")
 }
 // Nova above still reads "[Member] Nova » hi" — one rank, one tag, unchanged.
+
+// ONE MAIN TAG (2.10.0): two ranks in the order show only the higher one.
+{
+    saveRank("boss", { display: "§4Boss", weight: 100, staff: true })
+    saveRank("helper", { display: "§aHelper", weight: 40, staff: true })
+    const twoStaff = fakePlayer("TwoStaff")
+    onPlayerJoin(twoStaff)
+    setRanks(twoStaff.id, ["helper", "boss"], twoStaff.name)
+    check("two staff ranks put one tag on the line, the higher one",
+        clean(formatChatLine(twoStaff, "hi", getChannel("general"), false)), "[Boss] TwoStaff » hi")
+}
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

@@ -43,12 +43,13 @@ console.log("\n— Server holds Settings, Automod, Server presets and Advanced �
     __ui.answers.push(press(serverAt))
     await openPanel(boss)
     const server = buttonsOf(lastForm()).map(text => text.split("\n")[0].replace(/§./g, ""))
-    check("those four, in that order", server, ["Settings", "Automod", "Server presets", "Advanced", "< Back"])
+    // Automation joined Server in 2.10.0 (the user: "our own automation setting under server").
+    check("those five, in that order", server, ["Settings", "Automod", "Automation", "Server presets", "Advanced", "< Back"])
 }
 
 console.log("\n— the groups say what they hold —")
 {
-    check("six groups", GROUPS.map(g => g.label), ["Travel", "Chat", "Names and tags", "Moderation", "Player extras", "Omnitool"])
+    check("seven groups", GROUPS.map(g => g.label), ["Travel", "Chat", "Names and tags", "Moderation", "Player extras", "Omnitool", "Automation"])
     // A group's button text is its hint. Every page inside should be named in
     // it, or near enough, so nobody has to open a group to find out.
     check("every group and page has a hint", GROUPS.flatMap(g => [g, ...g.pages]).filter(x => !x.hint).map(x => x.label), [])
@@ -142,7 +143,10 @@ console.log("\n— Server presets asks for ideas on the Discord —")
     __ui.answers.length = 0
     await openPanel(boss)
     const serverAt = buttonsOf(lastForm()).findIndex(text => text.includes("Server"))
-    __ui.answers.push(press(serverAt), press(2))
+    __ui.answers.push(press(serverAt))
+    await openPanel(boss)
+    const presetsAt = buttonsOf(lastForm()).findIndex(text => text.includes("Server presets"))
+    __ui.answers.push(press(serverAt), press(presetsAt))
     await openPanel(boss)
     const screen = lastForm()
     const body = String(screen.parts.find(p => p[0] === "body")?.[1] ?? "")
@@ -152,7 +156,7 @@ console.log("\n— Server presets asks for ideas on the Discord —")
     check("with no link set, it says one is coming", body.includes("link is coming soon"), true)
 
     CONFIG.brand.discord = "discord.gg/example"
-    __ui.answers.push(press(serverAt), press(2))
+    __ui.answers.push(press(serverAt), press(presetsAt))
     await openPanel(boss)
     check("with a link set, it prints the link",
         String(lastForm().parts.find(p => p[0] === "body")?.[1] ?? "").includes("discord.gg/example"), true)

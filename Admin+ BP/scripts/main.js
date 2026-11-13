@@ -28,6 +28,7 @@ import "./features/rtp.js"
 import { installBack } from "./features/back.js"
 import { installClaims } from "./features/claims.js"
 import { installWorldTools } from "./features/worldtools.js"
+import { installAutomation } from "./features/automation.js"
 import { installAutomod } from "./features/automod.js"
 import "./features/cleanup.js"
 import "./features/vanish.js"
@@ -167,6 +168,7 @@ installSignLog()
 installNameAnimation()
 installClaims()
 installWorldTools()
+installAutomation()
 installBack()
 installBanHammer()
 installStaffMode()

@@ -12,7 +12,7 @@ import {
     PRESETS, BUNDLES, PERMISSION_NODES, RANK_VALUES,
     applyPreset, restoreSnapshot, hasSnapshot, snapshot,
     canEditRank, canActOn, has, rankState, rankGrant, displacedBy, defaultRank,
-    displayRanks, heldRankIds, primaryRank,
+    displayRanks, hiddenRanks, heldRankIds, primaryRank,
     setRanks, grantRank, revokeRank, knownHolders, nodeLabels, topWeight,
     RANK_TYPES, rankType, isRanked, unrankedRanks,
     canGiveNode, nodesBeyond, gainedBy, canReplaceRankList, idsAfterGrant
@@ -1083,12 +1083,13 @@ async function offlinePlayersScreen(player, back) {
 }
 
 /**
- * One player's ranks: the tags they show, in order, and any unlisted ranks
- * they hold, which show nothing but still count. Give, take away, tag order.
+ * One player's ranks: the tags they show, in order, and the ranks they hold
+ * that show nothing but still count (lower ranks in the order, since 2.10.0
+ * only the highest one shows, and unlisted ranks). Give, take away, tag order.
  */
 export async function playerRankScreen(player, targetId, targetName, back) {
     const shown = displayRanks(targetId)
-    const hidden = heldRankIds(targetId).map(getRank).filter(rank => rank && rankType(rank) === "unlisted")
+    const hidden = hiddenRanks(targetId).filter(rank => !shown.some(s => s.id === rank.id))
     const list = shown.length
         ? shown.map((r, i) => `  §8${i + 1}. §r${r.display}§r §8· ${typeWord(r)}`).join("\n")
         : "  §7none"
@@ -1103,7 +1104,7 @@ export async function playerRankScreen(player, targetId, targetName, back) {
             "",
             "§fTheir tags, in order:",
             list,
-            hidden.length ? `\n§fUnlisted, so not shown: §r${hidden.map(r => `${r.display}§r`).join("§7, ")}` : "",
+            hidden.length ? `\n§fHeld, not shown as a tag: §r${hidden.map(r => `${r.display}§r`).join("§7, ")}\n§8Only the highest staff or default rank shows. Unlisted ranks never show.` : "",
             "",
             "§7What they can do comes from all their ranks together.",
             allowed ? "" : "\n§cThey outrank you, so you can't change their ranks."
@@ -1121,9 +1122,9 @@ export async function playerRankScreen(player, targetId, targetName, back) {
 }
 
 /**
- * Two of a player's shown ranks trade places. A rank only moves among ranks
- * of its own type, because staff tags always come first, then other ranks in
- * the order, then cosmetic ones (see heldRankObjects in core/ranks.js).
+ * Two of a player's shown ranks trade places. Only cosmetic tags can move:
+ * the main tag, their highest staff or default rank, always comes first
+ * (displayRanks in core/ranks.js, 2.10.0).
  * Swapping in the stored list, rather than stepping one place, is what skips
  * the unlisted ranks hidden between them.
  */
@@ -1149,7 +1150,7 @@ async function displayOrderScreen(player, targetId, targetName, back) {
     const cap = Number(setting("format.tagCount"))
     return menu(player, {
         title: hubTitle("ranks", `Tag order · ${targetName}`),
-        body: subtitle(`${cap > 0 ? `The first ${cap} tags show, in this order.` : "Their tags show in this order."}\n§8Staff tags come first, then other ranks, then cosmetic ones.\n§8This does not change what they can do.`),
+        body: subtitle(`${cap > 0 ? `The first ${cap} tags show, in this order.` : "Their tags show in this order."}\n§8Their main tag, the highest staff or default rank, comes first. Cosmetic tags follow.\n§8This does not change what they can do.`),
         buttons: shown.map((rank, index) => ({
             text: `§8${index + 1}. §r${rank.display}§r\n§8${typeWord(rank)}`,
             run: () => moveHeldScreen(player, targetId, targetName, rank.id, () => displayOrderScreen(player, targetId, targetName, back))
@@ -1171,7 +1172,7 @@ async function moveHeldScreen(player, targetId, targetName, rankId, back) {
         body: [
             `${rank.display}§r`,
             subtitle(`Number ${index + 1} of ${shown.length}`),
-            up || down ? "" : "§8It is the only one of its type, so it stays where it is."
+            up || down ? "" : rankType(rank) === "cosmetic" ? "§8It is the only cosmetic tag, so it stays where it is." : "§8The main tag always comes first."
         ].filter(Boolean).join("\n"),
         buttons: [
             up ? { text: "§8▲ Move up", run: () => { swapShown(targetId, shown, index, -1); return again() } } : null,

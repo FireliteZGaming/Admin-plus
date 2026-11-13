@@ -210,6 +210,14 @@ export const DEFAULTS = {
         value: "10", label: "Minutes before an idle selection clears",
         help: "minutes · an Omnitool selection clears when its owner leaves, or doesn't move or use the stick for this long"
     },
+    "feature.automation": {
+        value: "true", label: "Automation",
+        help: "true / false · Server ▸ Automation: automations that run by themselves. Off stops all of them, and they are kept."
+    },
+    "automation.chatEdit": {
+        value: "true", label: "Automations can change chat",
+        help: "true / false · lets cancel and replace work. replace needs Admin+ chat on. Logs always keep the real words."
+    },
     "feature.homes": {
         // OFF, like land claims. Both hand players a new thing to own, and a
         // world should decide to switch that on rather than find it already

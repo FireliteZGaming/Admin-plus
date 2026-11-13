@@ -242,8 +242,9 @@ value in the wrong key.
   claims, My settings, Help. Personal things (your homes, your claims) live in
   `/menu`; staff tools in `/admin`. Rarely used config sits in Server ▸
   Advanced. Keep new screens inside this shape rather than adding root buttons.
-- **Server is Settings, Automod, Server presets, Advanced (2.8.3, the user's
-  layout, 2026-11-12).** Settings is every switch, in five groups whose buttons
+- **Server is Settings, Automod, Automation, Server presets, Advanced** (2.8.3,
+  the user's layout, 2026-11-12; Automation added in 2.10.0 because the user
+  asked for "our own automation setting under server"). Settings is every switch, in five groups whose buttons
   list what they hold: Travel, Chat, Names and tags, Moderation, Player extras
   (`GROUPS` in `features/settingsUI.js`). Each thing has ONE page with its
   switch and its numbers ("Tpa... covers all Tpa things"). A new feature switch
@@ -260,6 +261,18 @@ value in the wrong key.
   no tag) weigh 0 and are never in `ladder()`; weight 0 is what keeps them out
   of authority, so never give one a weight. The Ranks list shows the two
   groups as separate sections, and every rank button names its type.
+- **One main tag (2.10.0, the user, 2026-11-12: "if you have multiple staff
+  ranks ... it'll only show 1, and it'll show the highest one ... Cosmetic is
+  what you would make if you want extra tags").** `displayRanks` shows the
+  heaviest Default or Staff rank, then Cosmetic ranks in the holder's order.
+  Never two tags from the order. Authority still comes from every rank.
+- **Automation (2.10.0, the user's idea, design in Obsidian ▸ Automation).**
+  `core/automation.js` is the language and touches no game object;
+  `features/automation.js` stores, starts and acts. An automation can only do
+  what its saver can do (`PERMISSION_FOR`), checked on save AND on every run;
+  it never changes the saver's own ranks. In a chat before-event nothing is
+  written: actions queue for the next tick. `first join` reads the holder
+  record BEFORE the join handler writes it. `tests/automation.test.js`.
 - **Players ▸ a player ▸ Basics is Display (display name and font) and Ranks**
   (2.8.1, asked for 2026-11-11). A player's own font beats a rank's.
 - **Player-facing text follows the 7 C's** (clear, concise, concrete, correct,

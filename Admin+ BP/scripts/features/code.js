@@ -80,6 +80,7 @@ export const GROUPS = {
     rtp: "Random teleport",
     namecolour: "Name colour effects",
     omni: "Omnitool",
+    automation: "Automation",
     ranks: "Ranks",
     staff: "Staff"
 }

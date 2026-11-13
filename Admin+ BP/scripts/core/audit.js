@@ -144,7 +144,15 @@ const PHRASES = {
     // The one line that names the tool rather than the effect. Sudo's whole
     // point is that the room cannot tell it happened, so the sentence the few
     // people cleared to read it get has to say outright what it was.
-    "player.sudo": t => `Used sudo on ${t}`
+    "player.sudo": t => `Used sudo on ${t}`,
+    // An automation (2.10.0) acting on a player. The actor reads
+    // 'Automation "Name"', so staff see which one did it.
+    "automation.rank": (t, d) => {
+        const rank = String(d ?? "").replace(/^(gave|took) /, "").replace(/ for a while$/, "")
+        return String(d ?? "").startsWith("took") ? `Took ${rank} from ${t}` : `Gave ${t} ${rank}`
+    },
+    "automation.cancel": t => `Stopped a message from ${t}`,
+    "automation.replace": t => `Changed a message from ${t}`
 }
 
 /**

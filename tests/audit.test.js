@@ -256,6 +256,10 @@ const NO_AUDIENCE = new Set([
     "warp.create", "warp.move", "warp.delete", "warp.access", "warp.spawnSet", "warp.spawnEdit",
     // The Omnitool's spawn (2.9.0) is done to the world, not to a person.
     "omni.spawnOn", "omni.spawnArea", "omni.spawnPoint", "omni.spawnDelete",
+    // Making, changing and switching automations (2.10.0) is done to the
+    // world too. What an automation does TO a player is announced.
+    "automation.save", "automation.on", "automation.off", "automation.rename",
+    "automation.delete", "automation.error",
     // A sign is not a person, so there is no target to notify — same shape as a
     // warp. And it stays unannounced on purpose even though there IS an actor:
     // a survival world writes signs constantly, for shops and labels and

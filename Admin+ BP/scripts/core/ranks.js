@@ -169,7 +169,7 @@ export const PERMISSION_NODES = {
     "Punishments": ["admin.warn", "admin.mute", "admin.kick", "admin.ban", "admin.banperm", "admin.freeze", "admin.tpatoggle", "admin.reports"],
     "Pranks": ["admin.smite", "admin.sudo"],
     "Ranks and places": ["ranks.grant", "ranks.manage", "warp.manage", "spawn.set"],
-    "Server settings": ["presets.apply", "admin.commands", "admin.automod", "admin.allowlist"]
+    "Server settings": ["presets.apply", "admin.commands", "admin.automod", "admin.allowlist", "admin.automation"]
 }
 
 /**
@@ -220,6 +220,7 @@ export const PERMISSION_NODES = {
 const LABEL_OVERRIDES = {
     "presets.apply": "server presets",
     "admin.omnitool": "Omnitool",
+    "admin.automation": "Automation",
     "ranks.view": "rank list",
     // **Named by the JOB, not by the noun.** These two sat next to each other
     // reading "every channel" and "channels", which share a word and differ by
@@ -775,8 +776,23 @@ export function displayRanks(playerOrId) {
     // lists are now built separately rather than one from the other.
     const badge = packBadge(playerOrId)
     if (badge && onlyDefaultRank(playerOrId)) return [badge]
-    // An unlisted rank is held and works, but never shows.
-    return ordered.filter(rank => rankType(rank) !== "unlisted")
+    // **ONE MAIN TAG (2.10.0, the user, 2026-11-12):** "if you have multiple
+    // staff ranks for some reason, it'll only show 1, and it'll show the
+    // highest one ... It replaces your main tag, which is usually either
+    // default or staff. Cosmetic is what you would make if you want extra
+    // tags." So of the ranks in the order (Default and Staff), only the
+    // heaviest shows, and it comes first. Cosmetic ranks follow, in the
+    // holder's own order. Unlisted ranks never show. Every rank still counts
+    // for what they can do; this is only the tags.
+    const inOrder = ordered.filter(isRanked)
+    const main = inOrder.reduce((best, rank) => (rank.weight ?? 0) > (best?.weight ?? -Infinity) ? rank : best, undefined)
+    return [...(main ? [main] : []), ...ordered.filter(rank => rankType(rank) === "cosmetic")]
+}
+
+/** Ranks they hold that don't show as a tag: lower ranks in the order, and unlisted ones. */
+export function hiddenRanks(playerOrId) {
+    const shown = new Set(displayRanks(playerOrId).map(rank => rank.id))
+    return heldRankObjects(playerOrId).filter(rank => !shown.has(rank.id))
 }
 
 export { CREATOR_RANK, DEVELOPER_RANK, TESTER_RANK, isCreator, isTeamDeveloper, isTester, packBadge }

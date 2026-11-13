@@ -6,6 +6,7 @@ import { hubTitle, hubButton, hubEntry } from "../core/theme.js"
 import { ranksScreen } from "./ranksUI.js"
 import { actionsScreen } from "./actions.js"
 import { codeScreen, canUseCode, allValuesScreen, configPresetsScreen, factoryResetScreen } from "./code.js"
+import { automationScreen } from "./automationUI.js"
 import { hasOperator } from "../core/devgate.js"
 import { warpsScreen } from "./warps.js"
 import { claimsScreen } from "./claims.js"
@@ -121,10 +122,14 @@ function serverButtons(player, back) {
     const settings = has(player, "admin.settings")
     return [
         settings
-            ? { text: hubButton("settings", "Settings", "Switch things on and off: travel, chat, names, moderation, extras, Omnitool"), run: () => settingsScreen(player, back) }
+            ? { text: hubButton("settings", "Settings", "Switch things on and off: travel, chat, names, moderation, extras, Omnitool, Automation"), run: () => settingsScreen(player, back) }
             : null,
         has(player, "admin.automod")
-            ? { text: hubButton("settings", "Automod", "Ore alerts, fast breaking, chat flooding, chat screening"), run: () => automodHubScreen(player, back) }
+            ? { text: hubButton("settings", "Automod", "Ore alerts and fast breaking · chat automod is on hold"), run: () => automodHubScreen(player, back) }
+            : null,
+        // The user, 2026-11-12: "we can have our own automation setting under server".
+        has(player, "admin.automation")
+            ? { text: hubButton("settings", "Automation", "Automations that run by themselves, like Shortcuts"), run: () => automationScreen(player, back) }
             : null,
         has(player, "presets.apply")
             ? { text: hubButton("presets", "Server presets", "Coming soon · suggest ideas on the Discord"), run: () => serverPresetsScreen(player, back) }

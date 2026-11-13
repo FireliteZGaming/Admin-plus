@@ -56,6 +56,70 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.10.0 — 2026-11-12
+
+**Automation: automations that run by themselves, written in a text editor.
+And one main tag per player.**
+
+A new section with its own switch (Server ▸ Settings ▸ Automation). The user
+asked for it after King bacon6016 showed how much a world can do with a few
+lines of text.
+
+### Server ▸ Automation
+1. A list of automations, each with its own on/off, like the automations in
+   Apple Shortcuts.
+2. + New automation asks for a name, then opens the tall text editor with a
+   short example in it. The instructions sit above the box.
+3. A mistake doesn't save. The editor opens again with the same text and the
+   problem on top, such as "Line 2: I don't know 'tel'. Did you mean tell?"
+4. An automation's page shows when it runs, whether it's on, who saved it,
+   when it last ran and its last problem. Its buttons are Edit, Turn off (or
+   on), Try it on me, Rename and Delete.
+5. Try it on me says what the automation would do for you, and does nothing.
+6. How to write automations shows an example of everything.
+
+### The language
+1. `when join`, `when first join`, `when leave`, `when chat`, `when death`,
+   `when respawn`, and `every 5 minutes` (10 seconds at the shortest).
+2. `if (...) { } else { }` with ==, !=, >, <, >=, <=, contains, starts with,
+   ends with, and, or, not, has rank "VIP", is staff and chance 10%. The
+   user's own form works: `if({Rank} == "Owner") {`.
+3. Words in braces, the same as chat formats: {NAME}, {NICKNAME}, {RANK},
+   {MSG} and {ONLINE}. Capital letters don't matter.
+4. It can say, tell, tell staff, show a title or text above the hotbar, play a
+   sound, send to a warp, give a rank (for a set time, if you like) or take
+   one, wait, and stop. In `when chat` it can also cancel a message or
+   replace its words.
+
+### Rules that keep it safe
+1. An automation can only do what the person who saved it can do: say needs
+   Broadcast, warp needs Teleport, give and take rank need Give ranks and a
+   rank they could give themselves, and cancel and replace need Mute. This is
+   checked on saving and again on every run.
+2. An automation never gives or takes a rank from the person who saved it.
+3. One run does 20 things at most, its waits add up to 10 minutes at most,
+   and one automation has 20 runs waiting at most. Three problems in a row
+   turn it off, and Logs say why.
+4. When an automation stops or changes a message, Logs keep the real words
+   and staff who can see that player are told. Server ▸ Settings ▸
+   Automation ▸ "Automations can change chat" turns cancel and replace off.
+5. Messages an automation sends never start `when chat`, so automations
+   can't set each other off.
+6. A world can have 50 automations at most.
+
+### One main tag
+1. A player shows one main tag: their highest Default or Staff rank. Two staff
+   ranks show only the higher one, and a staff rank replaces the default one.
+   This is the user's rule.
+2. Cosmetic ranks are the extra tags. They follow the main one, in the
+   holder's own order.
+3. Every rank still counts for what they can do. A player's rank page now
+   lists the ranks they hold that don't show as a tag.
+
+### Also
+1. Server ▸ Automod's button says chat automod is on hold.
+2. Credits: King bacon6016 is "tester, and the spark for Automation".
+
 ## 2.9.3 — 2026-11-12
 
 **Factory reset wipes everything, Help you can read, and a chat archive.**

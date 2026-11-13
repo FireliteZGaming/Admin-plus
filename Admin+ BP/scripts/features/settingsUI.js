@@ -214,6 +214,21 @@ export const GROUPS = [
                 ]
             }
         ]
+    },
+    {
+        id: "automation",
+        label: "Automation",
+        hint: "Automations that run by themselves",
+        body: "The automations themselves are in Server ▸ Automation.",
+        pages: [
+            {
+                label: "General", hint: "Every Automation switch",
+                fields: [
+                    sw("feature.automation", "Automations", "Off stops every automation. They are kept."),
+                    sw("automation.chatEdit", "Automations can change chat", "Lets cancel and replace work. replace needs Admin+ chat on.")
+                ]
+            }
+        ]
     }
 ]
 

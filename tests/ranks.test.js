@@ -75,18 +75,18 @@ console.log("\n— weight precedence across multiple ranks —")
 // Holding both member and admin: admin is heavier, so it decides.
 setRanks(steve.id, ["member", "admin"], steve.name)
 check("heaviest rank decides the node", has(steve, "admin.ban"), true)
-// Held order was ["member", "admin"], but a STAFF rank is pulled to the front:
-// the one thing a player must be able to read off a name is whether the person
-// is staff, and held order is manual enough to hide that by accident.
-check("staff is pulled ahead of the non-staff rank",
-    displayRanks(steve).map(r => r.id), ["admin", "member"])
+// ONE MAIN TAG (2.10.0, the user, 2026-11-12): of the ranks in the order,
+// only the highest shows. "It replaces your main tag, which is usually either
+// default or staff." So Admin shows and Member, held too, does not.
+check("only the highest rank in the order shows: admin, not member as well",
+    displayRanks(steve).map(r => r.id), ["admin"])
 check("so the tag is the staff one", primaryRank(steve).id, "admin")
 check("authority = heaviest, not tag", playerRanks(steve)[0].id, "admin")
 check("authority weight is admin's", topWeight(steve), getRank("admin").weight)
 
 console.log("\n— per-player display order is cosmetic —")
 moveHeldRank(steve.id, "admin", -1)
-check("moved admin to front", displayRanks(steve).map(r => r.id), ["admin", "member"])
+check("reordering changes nothing here: still only admin", displayRanks(steve).map(r => r.id), ["admin"])
 check("tag now admin", primaryRank(steve).id, "admin")
 check("authority unchanged by reorder", topWeight(steve), getRank("admin").weight)
 setRanks(steve.id, ["member"], steve.name)
@@ -428,15 +428,21 @@ setRanks(collector.id, ["vip", "mod"], collector.name)
 check("held order puts the cosmetic tag first",
     heldRankIds(collector.id), ["vip", "mod"])
 check("but the staff rank is what shows", primaryRank(collector).id, "mod")
-check("and the cosmetic one is still held, just behind it",
+// Vip here has a weight and no type, so it is a rank in the order, and the
+// one main tag is Mod. "Cosmetic is what you would make if you want extra tags."
+check("a lower rank in the order is held but doesn't show",
+    displayRanks(collector.id).map(r => r.id), ["mod"])
+saveR("vip", { display: "§aVip", type: "cosmetic", staff: false, perms: [], inherits: [] })
+check("made cosmetic, it shows as an extra tag behind the main one",
     displayRanks(collector.id).map(r => r.id), ["mod", "vip"])
+saveR("vip", { display: "§aVip", type: "default", weight: 15, staff: false, perms: [], inherits: [] })
 
-// Stable inside each group: two staff ranks keep the order their holder chose.
+// Two staff ranks: "it'll only show 1, and it'll show the highest one."
 setRanks(collector.id, ["mod", "admin"], collector.name)
-check("two staff ranks keep the manual order",
-    displayRanks(collector.id).map(r => r.id), ["mod", "admin"])
+check("two staff ranks: only the highest shows",
+    displayRanks(collector.id).map(r => r.id), ["admin"])
 setRanks(collector.id, ["admin", "mod"], collector.name)
-check("reversed, and it follows", displayRanks(collector.id).map(r => r.id), ["admin", "mod"])
+check("whichever order they are held in", displayRanks(collector.id).map(r => r.id), ["admin"])
 check("authority is unchanged either way — still the heaviest",
     playerRanks(collector.id)[0].id, "admin")
 

@@ -7,6 +7,7 @@ import { displayName, nameTokens, stripCodes } from "../core/identity.js"
 import { render, flag } from "../core/settings.js"
 import { screen } from "../core/chatfilter.js"
 import { CHAT_AUTOMOD_ON_HOLD } from "../core/hold.js"
+import { chatAutomations } from "./automation.js"
 import { hold } from "../core/heldchat.js"
 // One voice for anything automatic — see alertStaff.
 import { alertStaff, actOnFilter } from "./automod.js"
@@ -111,6 +112,9 @@ export function installChat() {
         // Still logged, so staff can read back what was said.
         if (!flag("feature.adminchat")) {
             const said = eventData.message
+            // Automations still see it. They can stop it, but can't change its
+            // words: the game or the other mod delivers it as typed.
+            if (chatAutomations(player, said, { canReplace: false }).cancel) { eventData.cancel = true; return }
             system.run(() => noteChat(player, said, undefined))
             return
         }
@@ -174,7 +178,13 @@ export function installChat() {
         // sender already knows which channel they are in, because switching
         // said so and the panel shows it. Chat output is reserved for the
         // things that actually changed: switching channels, and commands.
-        system.run(() => postToChannel(player, message, channel))
+        // Automations (Server ▸ Automation) see it last, once it is really
+        // going to a room. They may stop it or change its words; Logs keep
+        // the real ones.
+        const automated = chatAutomations(player, message)
+        if (automated.cancel) return
+        const said = automated.replace ?? message
+        system.run(() => postToChannel(player, said, channel))
     })
 
     console.log("[Admin+] chat channels active")

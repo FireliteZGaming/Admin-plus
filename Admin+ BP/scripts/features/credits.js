@@ -77,7 +77,7 @@ const LEARNED_FROM = [
 // People who helped shape Admin+. The user, 2026-11-12, about the tester who
 // showed how far Saved setups can go: "this guy can be in the in-mod credits".
 const THANKS = [
-    { who: "King bacon6016", what: "tester, and the spark for Automation (coming soon)" }
+    { who: "King bacon6016", what: "tester, and the spark for Automation" }
 ]
 
 export async function creditsScreen(player, back) {
