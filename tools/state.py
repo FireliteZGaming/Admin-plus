@@ -16,6 +16,7 @@ import os
 import pathlib
 import re
 import subprocess
+import sys
 import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -51,6 +52,12 @@ def head(text):
 
 
 def main():
+    # notes/UNTESTED.md has arrows and § in it, which a Windows console's
+    # default code page can't print (it crashed here on "↔", 2026-11-13).
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
     print("Admin+ - state")
 
     # ---------------------------------------------------------------- versions

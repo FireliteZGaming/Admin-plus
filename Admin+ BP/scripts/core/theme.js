@@ -18,9 +18,15 @@ export const HUB = {
     about:    "§0"
 }
 
+/**
+ * How every Admin+ title starts: "Admin+ |". Admin+'s own look (core/look.js)
+ * draws the name in its frame, so it takes this off again.
+ */
+export const BRAND_PREFIX = "§l§bAdmin§d+§r §8| "
+
 /** A hub-coloured screen title: "Admin+ | Ranks" with Ranks in the hub colour. */
 export function hubTitle(hub, text) {
-    return `§l§bAdmin§d+§r §8| ${HUB[hub] ?? "§r"}${text}`
+    return `${BRAND_PREFIX}${HUB[hub] ?? "§r"}${text}`
 }
 
 /**

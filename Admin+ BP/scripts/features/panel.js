@@ -3,6 +3,7 @@ import { ADMINPLUS_VERSION } from "../config.js"
 import { primaryRank, has } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
 import { hubTitle, hubButton, hubEntry } from "../core/theme.js"
+import { tile } from "../core/look.js"
 import { ranksScreen } from "./ranksUI.js"
 import { actionsScreen } from "./actions.js"
 import { codeScreen, canUseCode, allValuesScreen, configPresetsScreen, factoryResetScreen } from "./code.js"
@@ -12,7 +13,7 @@ import { warpsScreen } from "./warps.js"
 import { claimsScreen } from "./claims.js"
 import { claimLimit } from "../core/claims.js"
 import { flag } from "../core/settings.js"
-import { reportsScreen, reportsBadge } from "./reports.js"
+import { reportsScreen, reportsBadge, reportsTile } from "./reports.js"
 import { logsScreen } from "./logsUI.js"
 import { settingsScreen } from "./settingsUI.js"
 import { automodHubScreen } from "./automodUI.js"
@@ -43,45 +44,54 @@ export async function openPanel(player) {
 
     // Waiting reports go first, and only when there are any.
     const badge = reportsBadge(player)
-    if (badge) buttons.push({ text: badge, run: () => reportsScreen(player, again) })
+    if (badge) buttons.push({ text: badge, tile: reportsTile(player), run: () => reportsScreen(player, again) })
 
     buttons.push({
         text: hubButton("actions", "Players", "Find a player to help, warn or punish"),
+        tile: tile("players", "Players", "Help, warn, punish"),
         run: () => actionsScreen(player, again)
     })
     if (has(player, "ranks.view")) {
         buttons.push({
             text: hubButton("ranks", "Ranks", "Make ranks and give them to players"),
+            tile: tile("ranks", "Ranks", "Make and give ranks"),
             run: () => ranksScreen(player, again)
         })
     }
     if (placesButtons(player, again).length) {
         buttons.push({
             text: hubButton("warps", "Places", "Warps, spawn, floating text and land claims"),
+            tile: tile("places", "Places", "Warps, spawn, text"),
             run: () => placesScreen(player, again)
         })
     }
     if (has(player, "admin.logs")) {
         buttons.push({
             text: hubButton("chat", "Logs", "What happened, who did it, and undo"),
+            tile: tile("logs", "Logs", "Who did what, undo"),
             run: () => logsScreen(player, again)
         })
     }
     if (serverButtons(player, again).length) {
         buttons.push({
             text: hubButton("settings", "Server", "Settings, automod, presets and advanced"),
+            tile: tile("server", "Server", "Settings, automod"),
             run: () => serverScreen(player, again)
         })
     }
     buttons.push({
         text: hubButton("about", "Help", "What everything does, and the version"),
+        tile: tile("help", "Help", "What things do"),
         run: () => helpScreen(player, again)
     })
 
+    // In Admin+'s own look (Beta) these six are tiles, as in the concept the
+    // user approved on 2026-11-13. On Default nothing changes.
     return menu(player, {
         title: hubTitle("ranks", "Staff panel"),
         body: subtitle(`You are ${displayName(player)}, ${primaryRank(player)?.display ?? "§7no rank"}§r§7.`),
-        buttons
+        buttons,
+        layout: "tiles"
     })
 }
 

@@ -1,5 +1,7 @@
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui"
 import { CONFIG } from "../config.js"
+import { BRAND_PREFIX } from "./theme.js"
+import { betaLook, lookTitle, lift } from "./look.js"
 
 // Form helpers. Every panel screen is built from these so navigation, paging and
 // the "back" affordance behave the same everywhere.
@@ -29,6 +31,21 @@ function decorate(form, entry) {
     else if (typeof form.label === "function") form.label(entry.label)
 }
 
+/** A header or label made readable for the Beta look; a divider as it is. */
+function liftDecoration(entry) {
+    return { ...entry, header: lift(entry.header), label: lift(entry.label) }
+}
+
+/**
+ * Whether a menu is drawn as tiles. Only in the Beta look, only when asked
+ * (`layout: "tiles"`), and only when the menu is nothing but buttons: a label,
+ * a divider or a Back button would be drawn as a tile too.
+ */
+export function drawsTiles(spec, beta) {
+    return !!beta && spec.layout === "tiles" && !spec.back
+        && spec.buttons.every(button => !button || !isDecoration(button))
+}
+
 /**
  * A menu screen.
  *
@@ -36,21 +53,30 @@ function decorate(form, entry) {
  * only the BUTTONS when it says which one was pressed ("the index of the button
  * that was pushed", Microsoft's ActionFormResponse docs, read 2026-11-11), so
  * counting a divider here would shift every button after it by one.
+ *
+ * In the Beta look (core/look.js) the title carries the look's marker and the
+ * text is lifted for the dark panel. With `layout: "tiles"` a button shows its
+ * `tile` face (core/look.js tile()) instead of its text. On Default, `layout`
+ * and `tile` are ignored and the menu is exactly what it was.
  * @param {import("@minecraft/server").Player} player
- * @param {{title: string, body?: string, buttons: ({text: string, icon?: string, run: () => any}|{header?: string, label?: string, divider?: boolean})[], back?: () => any}} spec
+ * @param {{title: string, body?: string, layout?: "tiles", buttons: ({text: string, icon?: string, tile?: {text: string, icon: string}, run: () => any}|{header?: string, label?: string, divider?: boolean})[], back?: () => any}} spec
  */
 export async function menu(player, spec) {
-    const form = new ActionFormData().title(spec.title)
-    if (spec.body) form.body(spec.body)
+    const beta = betaLook()
+    const tiles = drawsTiles(spec, beta)
+    const show = text => beta ? lift(text) : text
+    const form = new ActionFormData().title(beta ? lookTitle(spec.title, { tiles }) : spec.title)
+    if (spec.body) form.body(show(spec.body))
     const actions = []
     for (const button of spec.buttons) {
         if (!button) continue
-        if (isDecoration(button)) { decorate(form, button); continue }
-        form.button(button.text, button.icon)
+        if (isDecoration(button)) { decorate(form, beta ? liftDecoration(button) : button); continue }
+        const face = tiles && button.tile ? button.tile : button
+        form.button(show(face.text), face.icon)
         actions.push(button.run)
     }
     if (spec.back) {
-        form.button("§8< Back")
+        form.button(show("§8< Back"))
         actions.push(spec.back)
     }
     const response = await form.show(player)
@@ -96,11 +122,13 @@ export async function pagedMenu(player, spec) {
  * they were added, full stop — and a destructive default is never button 0.
  */
 export async function confirm(player, titleText, body, confirmText = "§cConfirm", cancelText = "Cancel") {
+    const beta = betaLook()
+    const show = text => beta ? lift(text) : text
     const response = await new ActionFormData()
-        .title(titleText)
-        .body(body)
-        .button(cancelText)
-        .button(confirmText)
+        .title(beta ? lookTitle(titleText) : titleText)
+        .body(show(body))
+        .button(show(cancelText))
+        .button(show(confirmText))
         .show(player)
     return !response.canceled && response.selection === 1
 }
@@ -113,25 +141,30 @@ export async function confirm(player, titleText, body, confirmText = "§cConfirm
  * @param {{id: string, type: "text"|"toggle"|"slider"|"dropdown", label: string, placeholder?: string, tooltip?: string, default?: any, min?: number, max?: number, step?: number, options?: string[]}[]} fields
  */
 export async function modal(player, title, fields) {
-    const form = new ModalFormData().title(title)
+    const beta = betaLook()
+    const show = text => beta ? lift(text) : text
+    const form = new ModalFormData().title(beta ? lookTitle(title) : title)
     // A tooltip is the "!" beside a box (server-ui 2.0.0 ModalFormData*Options).
-    const tip = field => field.tooltip ? { tooltip: field.tooltip } : {}
+    const tip = field => field.tooltip ? { tooltip: show(field.tooltip) } : {}
     for (const field of fields) {
         switch (field.type) {
             case "toggle":
-                form.toggle(field.label, { defaultValue: !!field.default, ...tip(field) })
+                form.toggle(show(field.label), { defaultValue: !!field.default, ...tip(field) })
                 break
             case "slider":
-                form.slider(field.label, field.min ?? 0, field.max ?? 100, {
+                form.slider(show(field.label), field.min ?? 0, field.max ?? 100, {
                     valueStep: field.step ?? 1,
                     defaultValue: field.default ?? field.min ?? 0
                 })
                 break
             case "dropdown":
-                form.dropdown(field.label, field.options ?? [], { defaultValueIndex: field.default ?? 0 })
+                // The choices are drawn on the game's own drop-down in both
+                // looks, so they keep the colours chosen for it.
+                form.dropdown(show(field.label), field.options ?? [], { defaultValueIndex: field.default ?? 0 })
                 break
             default:
-                form.textField(field.label, field.placeholder ?? "", { defaultValue: String(field.default ?? ""), ...tip(field) })
+                // The box's value is never lifted: it is what gets saved.
+                form.textField(show(field.label), show(field.placeholder ?? ""), { defaultValue: String(field.default ?? ""), ...tip(field) })
         }
     }
     const response = await form.show(player)
@@ -142,7 +175,7 @@ export async function modal(player, title, fields) {
 }
 
 /** Standard panel title, so every screen reads as one product. */
-export function title(text) { return `§l§bAdmin§d+§r §8| §r${text}` }
+export function title(text) { return `${BRAND_PREFIX}§r${text}` }
 
 /** Shorthand for the informational line at the top of a screen. */
 export function subtitle(text) { return CONFIG.brand.info + text }

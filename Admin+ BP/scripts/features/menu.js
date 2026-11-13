@@ -2,6 +2,7 @@ import { world } from "@minecraft/server"
 import { command } from "../core/registry.js"
 import { menu, modal, subtitle } from "../core/ui.js"
 import { hubTitle, hubButton, hubEntry } from "../core/theme.js"
+import { tile } from "../core/look.js"
 import { ok, err, info } from "../core/util.js"
 import { flag } from "../core/settings.js"
 import { displayName } from "../core/identity.js"
@@ -97,18 +98,21 @@ export async function openMenu(player) {
     if (travelButtons(player, again).length) {
         buttons.push({
             text: hubButton("warps", "Travel", "Spawn, warps, homes and more"),
+            tile: tile("travel", "Travel", "Spawn, warps, homes"),
             run: () => travelScreen(player, again)
         })
     }
 
     buttons.push({
         text: hubButton("ranks", "People", "Teleport, private chat and reports"),
+        tile: tile("people", "People", "Teleport and chat"),
         run: () => peopleScreen(player, again)
     })
 
     if (flag("feature.claims") && claimLimit(player) > 0) {
         buttons.push({
             text: hubButton("warps", "Land claims", "Protect what you build"),
+            tile: tile("claims", "Land claims", "Protect your builds"),
             run: () => claimsScreen(player, again)
         })
     }
@@ -117,11 +121,13 @@ export async function openMenu(player) {
     buttons.push({
         text: hubButton("settings", "My settings",
             changed ? `${changed} changed · only affects you` : "Teleport requests and messages · only affects you"),
+        tile: tile("settings", "My settings", changed ? `${changed} changed` : "Only affects you"),
         run: () => settingsScreen(player, again)
     })
 
     buttons.push({
         text: hubButton("about", "Help", "What you can do on this server"),
+        tile: tile("help", "Help", "What you can do"),
         run: () => infoScreen(player, again)
     })
 
@@ -131,14 +137,17 @@ export async function openMenu(player) {
     if (canUseConsole(player)) {
         buttons.push({
             text: hubButton("code", "Console", "Run a server command"),
+            tile: tile("console", "Console", "Run a command"),
             run: () => consoleScreen(player, again)
         })
     }
 
+    // Tiles in Admin+'s own look (Beta), like /admin. On Default nothing changes.
     return menu(player, {
         title: hubTitle("ranks", "Menu"),
         body: statsLines(player).join("\n"),
-        buttons
+        buttons,
+        layout: "tiles"
     })
 }
 

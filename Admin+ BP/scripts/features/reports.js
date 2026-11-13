@@ -2,6 +2,7 @@ import { world, CustomCommandParamType } from "@minecraft/server"
 import { command, defineEnum } from "../core/registry.js"
 import { menu, pagedMenu, modal, subtitle } from "../core/ui.js"
 import { hubTitle, hubEntry } from "../core/theme.js"
+import { tile } from "../core/look.js"
 import { ok, err, info, formatDate, formatDuration } from "../core/util.js"
 import { displayName } from "../core/identity.js"
 import { has } from "../core/ranks.js"
@@ -189,6 +190,15 @@ export function reportsBadge(player) {
     if (!pending) return undefined
     const unread = unreadCount(player)
     return `§c§lReports§r §8(${pending}${unread ? `, §c${unread} new§8` : ""})`
+}
+
+/** The same badge as a tile, for /admin in Admin+'s own look (Beta). */
+export function reportsTile(player) {
+    if (!has(player, "admin.reports")) return undefined
+    const pending = readableReports(player, pendingReports()).length
+    if (!pending) return undefined
+    const unread = unreadCount(player)
+    return tile("reports", "Reports", unread ? `${pending} waiting, §c${unread} new` : `${pending} waiting`)
 }
 
 export async function reportsScreen(player, back) {

@@ -339,10 +339,10 @@ value in the wrong key.
   Admin+ ▸ World Tools.
 - **3.0.0 waits for the user's full approval and complete testing** (2026-11-12:
   "right after I give the full approval and the mods have been tested
-  completely"). The UI overhaul and the setup screen (with its optional
-  password) come first. New features land behind a Default/Beta slider in the
-  pack's own settings (manifest v3 `settings`, read with
-  `world.getPackSettings()`). Plan: Obsidian ▸ Admin+ ▸ Before 3.0.0.
+  completely"). The UI overhaul (started in 2.11.0, in Beta) and the setup
+  screen (with its optional password) come first. New features land behind
+  the Default/Beta slider (see Beta features below). Plan: Obsidian ▸ Admin+
+  ▸ Before 3.0.0.
 - **No economy or shop**, ever. The `+` means essentials.
 - **Fly, god, heal, feed: dropped.** Removed on purpose, not missing. Do not
   build them unasked. Three things came OFF this list because the user asked
@@ -368,7 +368,8 @@ value in the wrong key.
 - **Button text is never §7 on the game's grey button (#C6C6C6).** Grey on
   grey all but vanished ("the help text completely matches the button
   color", 2026-11-12). The one exception is a greyed-out, inactive button.
-  `tests/readable.test.js`. Admin+'s own look will redo button colours.
+  `tests/readable.test.js`. This is the game's look; Admin+'s own look (Beta)
+  has dark buttons and lifts these colours itself.
 - **The exploit rules (2.10.1, the user's exploit check).** Chat, emote,
   private message, join, leave, command and nametag formats must keep {MSG}
   and/or a name token (`settingProblem` in `core/settings.js`, enforced on
@@ -381,6 +382,23 @@ value in the wrong key.
   BP's subpacks (Default first, higher memory tier, so new worlds start on
   Default); the Beta subpack adds the hidden item `adminplus:channel_beta`,
   which is how scripts know. Proven on this PC by the Lifesteal pack.
+- **Admin+'s own look is Beta (2.11.0, the user approved the concept on
+  2026-11-13: "Yes the UI is perfect, we can start on that").** `core/look.js`
+  adds `BETA_LOOK` (and `TILES`) to the END of a title only when `isBeta()`;
+  `Admin+ RP/ui/server_form.json` then draws Admin+'s frame from
+  `ui/adminplus_beta.json` instead of the game's. Rules: Default must stay
+  byte-for-byte what it was; every form goes through `core/ui.js`, which
+  does the marking; `lift()` turns §0 and §8 light on the dark panel but
+  NEVER touches a text box's value (that is what gets saved), and drop-down
+  choices keep their colours (the game draws them on its own light widget in
+  both looks); tiles only for a
+  menu of buttons alone, with no Back, label or divider (`drawsTiles`), and a
+  tile's second line fits about 18 letters. Textures come from
+  `tools/genlook.py` (drawn from scratch, never copied). The layout copies the
+  game's own 1.26.45 patterns; read them with `python tools/vanillaui.py`
+  after a game update. `tests/look.test.js` works out which frame shows for
+  each kind of title from the bindings themselves. Design: Obsidian ▸ Admin+
+  ▸ UI Overhaul.
 - **Chat automod is ON HOLD (2.9.2, the user, 2026-11-12: "a complete hold, so
   disabling it and graying out the button to inactive").** Chat screening and
   chat flooding both stop, whatever the settings say; ore alerts and fast

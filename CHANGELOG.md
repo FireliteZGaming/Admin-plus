@@ -56,6 +56,53 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.11.0 — 2026-11-13
+
+**Admin+'s own look, in Beta.**
+
+The user approved the concept on 2026-11-13: "Yes the UI is perfect, we can
+start on that." It is the first thing behind the Default ↔ Beta slider.
+
+### What it looks like
+1. Every Admin+ menu and form opens in Admin+'s own frame: a dark panel with
+   the aqua-to-pink bar, "Admin+" and the screen's name in the title bar, a
+   BETA LOOK badge and a close button.
+2. /admin and /menu are drawn as tiles, two to a row. Each tile has a pixel
+   icon, a stripe in its section's colour, its name in white and one short
+   line.
+3. Other menus are dark rows that light up with an aqua edge. Section labels
+   are grey, and dividers are thin lines.
+4. Forms keep the game's own switches, sliders and boxes, on the dark panel.
+5. Text chosen for the game's light grey buttons is lifted so it stays
+   readable: black becomes white and dark grey becomes grey. The value in a
+   text box is never changed, because that is what gets saved.
+
+### How to turn it on
+Behavior Packs ▸ Admin+ BP ▸ the gear ▸ slide to Beta. On Default every menu
+is exactly what it was.
+
+### How it works
+1. `core/look.js` adds a hidden marker to a form's title only when the slider
+   is on Beta: `§b§e§t§a`, plus `§q§u§a§d` for tiles. Like the multi-line
+   editor's marker, it is all colour codes, so nothing prints.
+2. `Admin+ RP/ui/server_form.json` draws a marked form in Admin+'s frame
+   (`ui/adminplus_beta.json`) instead of the game's.
+3. The textures are drawn from scratch by `tools/genlook.py`: flat colours,
+   two gradients and 12 tile icons taken from the concept. No game texture is
+   copied.
+4. `tests/look.test.js` works out from the pack's own bindings which frame
+   shows for each kind of title, and checks that every texture and control
+   exists, that Default is untouched and that every tile's text fits.
+   `tests/multiline.test.js` now does the same for the four kinds of form.
+
+### Not done yet
+1. Not seen in game. The layout copies patterns from the game's own 1.26.45
+   menu files, but a mistake in a resource pack's menu only shows when the
+   game draws it.
+2. Still to come from the concept: switches and drop-downs in Admin+'s
+   colours, the 16 colour codes as squares, the rank list's number and type
+   on each row, and the code editor's error box and colours.
+
 ## 2.10.1 — 2026-11-12
 
 **The exploit check, and the Default ↔ Beta slider.**

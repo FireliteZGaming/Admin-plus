@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs"
 import { MULTILINE, multilineTitle, hubTitle } from "../Admin+ BP/scripts/core/theme.js"
 import { toBlock, blockHasNoConfig } from "../Admin+ BP/scripts/features/code.js"
+import { lookTitle } from "../Admin+ BP/scripts/core/look.js"
+import { panelsOf, shownFor } from "./jsonui.js"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -54,17 +56,26 @@ console.log("\n— the upstream flag still works —")
 // pays. Dropping it would break them for no gain.
 check("the original trigger is kept as an alternate", SWITCH.$flag_form_title_alt, "JavaScript REPL")
 
-console.log("\n— the two panels are exact opposites —")
-// One binding shows the ordinary form, the other the multi-line one. If they are
-// not complements you get both at once, or neither, and the form looks broken
-// rather than wrong.
-const [plainPanel, multiPanel] = SWITCH.controls
-const plainExpr = plainPanel["custom_form@server_form.custom_form"]
-    .bindings.find(b => b.target_property_name === "#visible").source_property_name
-const multiExpr = multiPanel["custom_multiline_form@server_form.custom_multiline_form"]
-    .bindings.find(b => b.target_property_name === "#visible").source_property_name
-check("the multi-line panel shows exactly when the plain one does not", multiExpr, `(not ${plainExpr})`)
-check("both flags are consulted", plainExpr.includes("$flag_form_title") && plainExpr.includes("$flag_form_title_alt"), true)
+console.log("\n— exactly one form shows for every title —")
+// The switch holds four panels: the plain form and the multi-line one, each in
+// the game's look and in Admin+'s own look (Beta, 2.11.0). For any title
+// exactly one may show. Two at once, or none, and the form looks broken rather
+// than wrong. Each case is worked out from the bindings themselves.
+const panels = panelsOf(SWITCH.controls)
+const flags = { $flag_form_title: SWITCH.$flag_form_title, $flag_form_title_alt: SWITCH.$flag_form_title_alt }
+check("four panels share the switch", panels.map(p => p.name),
+    ["custom_form", "custom_multiline_form", "beta_custom_form", "beta_multiline_form"])
+for (const [what, titleText, expected] of [
+    ["a plain title", hubTitle("settings", "Settings"), "custom_form"],
+    ["a multi-line title", multilineTitle("code", "< Code >"), "custom_multiline_form"],
+    ["the upstream trigger", "JavaScript REPL", "custom_multiline_form"],
+    ["a title in Admin+'s own look", lookTitle(hubTitle("settings", "Settings")), "beta_custom_form"],
+    ["a multi-line title in Admin+'s own look", lookTitle(multilineTitle("code", "< Code >")), "beta_multiline_form"]
+]) {
+    check(`${what} shows ${expected} and nothing else`, shownFor(panels, titleText, flags), [expected])
+}
+check("every panel consults both multi-line flags",
+    panels.every(p => p.expr.includes("$flag_form_title") && p.expr.includes("$flag_form_title_alt")), true)
 
 console.log("\n— the control chain the pack needs is all present —")
 // Five controls, each inheriting the next. Any one of them missing and the form
