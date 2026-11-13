@@ -56,6 +56,28 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.11.7 — 2026-11-13
+
+**The Admin+ badge belongs to the Admin+ team.**
+
+In the 2.11.6 playtest a player made a rank called "ADMIN+ CREATOR". It showed
+no badge, which is how it could be told from the real one, but anyone allowed
+to edit ranks could have given it the Admin+ badge and made it look exactly
+the same. The user: "admin+ badge is specific only to me and other devs now".
+
+1. **Only the creator and the devs wear the Admin+ badge.** Testers keep the
+   flask.
+2. **A rank's Badge screen no longer offers it**, and picking it is refused
+   even from a screen left open since before the update.
+3. **A world's own rank that already picked it** goes back to its default: the
+   ban hammer for a staff rank, no badge for any other.
+
+### Seen in game (2.11.5, 2026-11-13)
+The badges and the template cards again; your Admin+ badge shows in Staff chat.
+
+### Checked
+`tests/badges.test.js` (84, eight new).
+
 ## 2.11.6 — 2026-11-13
 
 **Rename lines say the old name and the new one, and who really did it.**

@@ -4,7 +4,7 @@ import { __test } from "@minecraft/server"
 import { __ui } from "@minecraft/server-ui"
 import { setRanks, onPlayerJoin, applyPreset, getRank, saveRank, renderTags, rankType, playerBadge, badgedTags } from "../Admin+ BP/scripts/core/ranks.js"
 import { setSetting, renderTag, render } from "../Admin+ BP/scripts/core/settings.js"
-import { BADGES, BADGE_PAGE, TICK, badgeChar, badgeOf, badgesOn, badgeLabel, canWearBadge } from "../Admin+ BP/scripts/core/badges.js"
+import { BADGES, BADGE_PAGE, TICK, badgeChar, badgeOf, badgesOn, badgeLabel, canWearBadge, pickableBadges, mayWear, TEAM_RANKS } from "../Admin+ BP/scripts/core/badges.js"
 import { ranksScreen, rankScreen } from "../Admin+ BP/scripts/features/ranksUI.js"
 import { GROUPS, groupScreen, settingKeys } from "../Admin+ BP/scripts/features/settingsUI.js"
 
@@ -140,6 +140,16 @@ console.log("\n— which badge a rank wears —")
     check("nor does an unlisted rank", badgeOf({ id: "secret", meta: { badge: "gem" } }, "unlisted"), undefined)
     check("staff and default ranks can", [canWearBadge("staff"), canWearBadge("default"), canWearBadge("cosmetic"), canWearBadge("unlisted")], [true, true, false, false])
     check("a default rank like VIP keeps its gem", badgeOf({ id: "vip" }, "default"), "gem")
+
+    // 2.11.7, the user: "admin+ badge is specific only to me and other devs
+    // now", after a player made a rank called "ADMIN+ CREATOR".
+    check("the Admin+ team's ranks wear the Admin+ badge", TEAM_RANKS.map(id => badgeOf({ id }, "default")), ["plus", "plus"])
+    check("testers keep the flask", badgeOf({ id: "adminplus_tester" }, "default"), "flask")
+    check("a world's own rank that picked it shows no badge", badgeOf({ id: "admin_creator", meta: { badge: "plus" } }, "default"), undefined)
+    check("a staff rank that picked it goes back to the ban hammer", badgeOf({ id: "fake", meta: { badge: "plus" } }, "staff"), "hammer")
+    check("it is not offered on a rank's Badge screen", pickableBadges().some(b => b.key === "plus"), false)
+    check("every other badge still is", pickableBadges().length, BADGES.length - 1)
+    check("and anyone may wear those", BADGES.filter(b => b.key !== "plus").every(b => mayWear({ id: "fake" }, b.key)), true)
     check("a picked badge wins", badgeOf({ id: "mod", meta: { badge: "gem" } }, "staff"), "gem")
     check("so does picking none", badgeOf({ id: "owner", meta: { badge: "none" } }, "staff"), undefined)
     check("a badge that no longer exists falls back to the default", badgeOf({ id: "mod", meta: { badge: "dragon" } }, "staff"), "hammer")
@@ -241,7 +251,7 @@ console.log("\n— picking a rank's badge —")
     check("everything else about the rank is kept", [after.display, rankType(after), after.weight, after.perms.length],
         [before.display, rankType(before), before.weight, before.perms.length])
 
-    __ui.answers.push(press(at), press(BADGES.length))
+    __ui.answers.push(press(at), press(pickableBadges().length))
     await rankScreen(boss, "mod", () => {})
     check("No badge saves none", getRank("mod").meta.badge, "none")
     check("and the player wears no picture", playerBadge(moddy), "")
@@ -254,6 +264,14 @@ console.log("\n— picking a rank's badge —")
     __ui.answers.length = 0
     await rankScreen(moddy, "owner", () => {})
     check("a mod sees no Badge button on the owner rank", buttonsOf(lastForm()).some(t => t.includes("Badge")), false)
+
+    __ui.answers.length = 0
+    await rankScreen(boss, "mod", () => {})
+    const badgeAt = buttonsOf(lastForm()).findIndex(t => t.includes("Badge"))
+    __ui.answers.push(press(badgeAt))
+    await rankScreen(boss, "mod", () => {})
+    check("the Badge screen lists no Admin+ badge, even for the owner",
+        buttonsOf(lastForm()).some(t => t.includes("Admin+") && t.includes(badgeChar("plus"))), false)
 }
 
 console.log("\n— the tick for template cards —")

@@ -465,7 +465,11 @@ field, or (on a game that drew no labels) one per input.
   main rank or rank tags off means no badge. A staff rank's button shows its
   badge instead of the word staff. `{RANK}` and `{TAG}` never carry a badge,
   so automations comparing them still work. Staff ranks default to the ban
-  hammer. `tests/badges.test.js`.
+  hammer. **The Admin+ badge (`plus`) is the Admin+ team's alone (2.11.7, the
+  user: "specific only to me and other devs"):** only `TEAM_RANKS` (creator,
+  dev) wear it; `pickableBadges()` leaves it off the Badge screen, `mayWear`
+  refuses it, and a world's rank that had picked it falls back to its default.
+  `tests/badges.test.js`.
 - **+ New rank is short steps (2.11.4, the user's design, 2026-11-13).**
   New rank (Continue) ▸ Template (Staff only: Mod, Admin, Manager, Owner as
   cards in Beta, or Permissions) ▸ Permissions (ONE long form, a label and a

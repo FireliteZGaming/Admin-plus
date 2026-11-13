@@ -89,11 +89,33 @@ export function canWearBadge(type) {
  * default. `type` is the rank's type from core/ranks.js, passed in so this
  * file never imports ranks.js.
  */
+/**
+ * The Admin+ badge is the Admin+ team's own mark: the creator and the devs
+ * (2.11.7). The user, 2026-11-13: "admin+ badge is specific only to me and
+ * other devs now", after a player made a rank called "ADMIN+ CREATOR" and
+ * could have given it the same badge. Testers wear the flask. These are the
+ * pack's own team ranks (teamBadge in core/ranks.js), named here by id so
+ * this file never imports ranks.js.
+ */
+export const TEAM_BADGE = "plus"
+export const TEAM_RANKS = Object.freeze(["adminplus_creator", "adminplus_dev"])
+
+/** May this rank wear the badge `key`? Every badge but the team's is for anyone. */
+export function mayWear(rank, key) {
+    return key !== TEAM_BADGE || TEAM_RANKS.includes(rank?.id)
+}
+
+/** The badges a world's own rank can be given on its Badge screen. */
+export function pickableBadges() {
+    return BADGES.filter(badge => badge.key !== TEAM_BADGE)
+}
+
 export function badgeOf(rank, type) {
     if (!rank || !canWearBadge(type)) return undefined
     const picked = rank.meta?.badge
     if (picked === "none") return undefined
-    if (picked && picked in INDEX) return picked
+    // A rank that picked the team's badge before 2.11.7 goes back to its default.
+    if (picked && picked in INDEX && mayWear(rank, picked)) return picked
     if (DEFAULT_BADGES[rank.id]) return DEFAULT_BADGES[rank.id]
     return type === "staff" ? "hammer" : undefined
 }

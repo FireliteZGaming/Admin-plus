@@ -4,7 +4,7 @@ import { hubTitle, hubEntry, COLOUR_CODE_TIP } from "../core/theme.js"
 import { setting, flag, render, renderTag } from "../core/settings.js"
 import { record } from "../core/logs.js"
 import { ok, err, info } from "../core/util.js"
-import { BADGES, TICK, badgeChar, badgeFor, badgeLabel, badgeOf, badgeStyle, badgesOn, canWearBadge } from "../core/badges.js"
+import { TICK, badgeChar, badgeFor, badgeLabel, badgeOf, badgeStyle, badgesOn, canWearBadge, pickableBadges, mayWear } from "../core/badges.js"
 import { cardStripe } from "../core/look.js"
 import { STAFF_TEMPLATES, staffTemplate } from "../core/rankTemplates.js"
 import { stripCodes, displayName } from "../core/identity.js"
@@ -432,6 +432,7 @@ async function badgeScreen(player, rankId, back) {
     const pick = key => {
         const fresh = getRank(rankId)
         if (!fresh) { err(player, "That rank no longer exists."); return back() }
+        if (key !== "none" && !mayWear(fresh, key)) { err(player, "The Admin+ badge belongs to the Admin+ team."); return back() }
         saveRank(rankId, { meta: { ...(fresh.meta ?? {}), badge: key } })
         ok(player, key === "none"
             ? `${fresh.display}§a has no badge now.`
@@ -442,7 +443,8 @@ async function badgeScreen(player, rankId, back) {
         title: hubTitle("ranks", `${nameOf(rank)} · Badge`),
         body: subtitle("The picture before this rank's tag, in chat and above heads, and on its button."),
         buttons: [
-            ...BADGES.map(badge => ({
+            // The Admin+ badge is the Admin+ team's alone (core/badges.js).
+            ...pickableBadges().map(badge => ({
                 text: `${badgeChar(badge.key, style)} §f${badge.label}${badge.key === current ? " §7· now" : ""}`,
                 run: () => pick(badge.key)
             })),
