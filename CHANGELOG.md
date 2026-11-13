@@ -56,6 +56,32 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.9.1 — 2026-11-12
+
+**Colour-code help that shows in game, a Tester badge, and thanks in Credits.**
+
+### Colour-code help
+1. Help that wrote `§§` to show the section sign showed nothing in game. The
+   game hides `§` and the character after it, so `§§` vanishes. Seen in a
+   screenshot from the user's world.
+2. The help now names the section sign in words: a rank's Name and Chat
+   colour, a player's display name, chat room names and warp names.
+3. The row of codes under a rank's Name still shows each code in its colour.
+
+### Admin+ Tester
+1. A new pack badge, `Admin+ Tester`, in the same colours as Creator and Dev.
+   Like them, it carries no permissions, adds no weight, and shows only while
+   the player holds nothing but the starting rank.
+2. Testers get no Creator & Dev console.
+3. The tester list in `core/ranks.js` holds one gamertag: `King bacon6016`.
+   It is named here so world owners can see who wears the badge.
+
+### Credits
+1. Help ▸ Credits has a new section, "Testers and thanks". King bacon6016 is
+   in it, as a tester and the spark for Automation, which is coming.
+2. The last three lines that joined two thoughts with " — " (two in Credits,
+   one in the command log) now use a comma or a colon.
+
 ## 2.9.0 — 2026-11-12
 
 **World tools: `/wts`, the Omnitool, and spawn as an area.**

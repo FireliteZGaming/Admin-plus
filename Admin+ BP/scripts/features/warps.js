@@ -281,7 +281,7 @@ async function setSpawnScreen(player, back) {
 async function createScreen(player, back) {
     const values = await modal(player, hubTitle("warps", "New warp"), [
         { id: "id", type: "text", label: "ID §8· lowercase, no spaces. Players type this.", placeholder: "market" },
-        { id: "display", type: "text", label: "Name §8· shown in the list, §§ codes allowed", placeholder: "§aMarket" }
+        { id: "display", type: "text", label: "Name §8· shown in the list, colour codes allowed", placeholder: "§aMarket" }
     ])
     if (!values) return back()
 

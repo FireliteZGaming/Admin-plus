@@ -74,6 +74,12 @@ const LEARNED_FROM = [
     }
 ]
 
+// People who helped shape Admin+. The user, 2026-11-12, about the tester who
+// showed how far Saved setups can go: "this guy can be in the in-mod credits".
+const THANKS = [
+    { who: "King bacon6016", what: "tester, and the spark for Automation (coming soon)" }
+]
+
 export async function creditsScreen(player, back) {
     return menu(player, {
         title: hubTitle("about", "Credits"),
@@ -87,10 +93,10 @@ export async function creditsScreen(player, back) {
             "§7the §f+§7 means essentials.",
             "",
             "§fIncludes code from",
-            ...INCLUDED.map(entry => `§8· §f${entry.pack} §8— ${entry.licence}`),
+            ...INCLUDED.map(entry => `§8· §f${entry.pack}§8, ${entry.licence}`),
             "",
             "§fTechniques learned from",
-            ...LEARNED_FROM.map(entry => `§8· §f${entry.pack} §8— ${entry.what}`),
+            ...LEARNED_FROM.map(entry => `§8· §f${entry.pack}§8: ${entry.what}`),
             "",
             "§8No code from the second list is included. The ideas were",
             "§8rewritten here. Tap one to read what was learned.",
@@ -100,6 +106,9 @@ export async function creditsScreen(player, back) {
             "§fDiscord",
             "§7Help, updates, and ideas for new presets:",
             `  ${discordLine()}`,
+            "",
+            "§fTesters and thanks",
+            ...THANKS.map(t => `§8· §f${t.who}§8: ${t.what}`),
             "",
             "§fLinks",
             ...HOMES.map(home => `§8· ${home.where}\n  §7${home.url}`)

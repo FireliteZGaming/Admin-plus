@@ -666,6 +666,22 @@ function teamBadge(id, word) {
 const CREATOR_RANK = teamBadge("adminplus_creator", "Creator")
 const DEVELOPER_RANK = teamBadge("adminplus_dev", "Dev")
 
+/**
+ * TESTERS try Admin+ builds before they ship. A badge and nothing else: no
+ * permission, no weight, and NO Creator & Dev console, which is why they are
+ * not on the developer list above. Added at the user's request on 2026-11-12
+ * ("you can make King bacon6016 a tester, so his tag will have Admin+
+ * Tester"). Gamertags with a space are fine here; it is only typed commands
+ * that need them in quotes.
+ */
+const TESTERS = Object.freeze([
+    "King bacon6016"
+])
+const TESTER_RANK = teamBadge("adminplus_tester", "Tester")
+
+/** The tester list as it stands. */
+export function testerGamertags() { return TESTERS }
+
 /** The gamertag behind either kind of argument these helpers accept. */
 function nameOf(playerOrId) {
     const name = typeof playerOrId === "string"
@@ -686,10 +702,17 @@ function isTeamDeveloper(playerOrId) {
     return TEAM_DEVELOPERS.some(tag => String(tag).toLowerCase() === name)
 }
 
-/** The pack badge this player wears, if any. Creator wins over Dev. */
+function isTester(playerOrId) {
+    const name = nameOf(playerOrId)
+    if (!name) return false
+    return TESTERS.some(tag => String(tag).toLowerCase() === name)
+}
+
+/** The pack badge this player wears, if any. Creator, then Dev, then Tester. */
 function packBadge(playerOrId) {
     if (isCreator(playerOrId)) return CREATOR_RANK
     if (isTeamDeveloper(playerOrId)) return DEVELOPER_RANK
+    if (isTester(playerOrId)) return TESTER_RANK
     return undefined
 }
 
@@ -756,7 +779,7 @@ export function displayRanks(playerOrId) {
     return ordered.filter(rank => rankType(rank) !== "unlisted")
 }
 
-export { CREATOR_RANK, DEVELOPER_RANK, isCreator, isTeamDeveloper, packBadge }
+export { CREATOR_RANK, DEVELOPER_RANK, TESTER_RANK, isCreator, isTeamDeveloper, isTester, packBadge }
 
 /** The rank that shows as their tag: first in their display order. */
 export function primaryRank(playerOrId) { return displayRanks(playerOrId)[0] }

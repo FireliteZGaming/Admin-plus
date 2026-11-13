@@ -419,7 +419,7 @@ function commandReadLine(entry) {
     const typed = commandText(entry)
     const tag = entry.refused ? "§c[Cmd]" : "§a[Cmd]"
     const out = [`§8${clockOf(entry.at)} ${tag} §f${entry.name}§7: §r${typed}`]
-    if (entry.refused) out.push(`§c      refused — ${entry.refused}`)
+    if (entry.refused) out.push(`§c      refused: ${entry.refused}`)
     else if (entry.ran && entry.ran !== typed) out.push(`§8      ran as ${entry.ran}`)
     return out
 }

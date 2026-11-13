@@ -77,6 +77,10 @@ any playtest. The user's game is **1.26.45**; the pack targets 1.21.130.
 
 These were each paid for with a playtest. Do not rediscover them.
 
+**A form cannot show a literal `§`.** The game hides `§` and the character
+after it, so `§§` shows nothing at all (seen in game, 2026-11-12; 2.8.5 had
+assumed it printed one `§`). Help names it in words: "the section sign".
+
 **`#` is rejected in a command target.** Java-style `#fakeplayer` scoreboard
 holders do not exist. Worse, a `.mcfunction` with one unparseable line is
 dropped WHOLE, so a single bad character produced two unrelated-looking

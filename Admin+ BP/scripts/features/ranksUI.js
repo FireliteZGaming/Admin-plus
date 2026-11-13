@@ -81,7 +81,7 @@ const raisesHolder = (player, targetId, held) =>
 //
 // Codes are typed with §, as in Minecraft and Essentials. Not &: the user's
 // correction on 2026-11-12, "its not & but the other symbol". A form label
-// shows a literal § as §§, as this pack's chat room and warp forms always have.
+// can't show a literal § at all: the game hides § and the next character, so "§§" shows nothing (seen in game, 2026-11-12). Help names the section sign in words.
 
 /**
  * Switch one formatting code (l bold, o italic) on or off for the whole name.
@@ -127,17 +127,18 @@ const typedOf = rank => rank?.text ?? rank?.display ?? ""
 /** The name field's help: how to colour it, with an example and the codes. */
 const NAME_HELP = [
     "Name",
-    "§8Colour it by putting §§ and a code in front of the words.",
-    "§8Example: §7§§c§§lAdmin§8 shows as §c§lAdmin",
+    "§8Colour it with codes: type the section sign, then a code, before the words.",
+    "§8Example: §c§lAdmin§8 is typed as the section sign, c, the section sign, l, then Admin.",
+    "§8The codes, each in its colour:",
     "§0§§0 §1§§1 §2§§2 §3§§3 §4§§4 §5§§5 §6§§6 §7§§7 §8§§8 §9§§9 §a§§a §b§§b §c§§c §d§§d §e§§e §f§§f",
-    "§8§§l bold · §§o italic"
+    "§8And: l bold · o italic · r back to normal"
 ].join("\n")
 
 /** Fonts are look-alike letters; the list names each font in itself. */
 const FONT_HELP = "Font\n§8Look-alike letters, like the fancy fonts on Discord."
 
 /** Chat colour is typed too: one code, or nothing for the normal colour. */
-const CHAT_HELP = "Chat colour\n§8A code like §§e for what they type. Leave it empty for normal."
+const CHAT_HELP = "Chat colour\n§8The section sign and a code, for what they type. Leave it empty for normal."
 function chatCodeFrom(typed) {
     const value = String(typed ?? "").trim()
     // The letter on its own counts too: "e" is as clear as "§e".
@@ -414,7 +415,7 @@ export async function createRankScreen(player, back) {
     const hiddenParents = parents.length < usable.length ? "\n§8Ranks with permissions you don't have aren't listed." : ""
 
     const values = await modal(player, hubTitle("ranks", "New rank"), [
-        { id: "name", type: "text", label: NAME_HELP, placeholder: "§§eHelper" },
+        { id: "name", type: "text", label: NAME_HELP, placeholder: "§eHelper" },
         { id: "bold", type: "toggle", label: "Bold", default: false },
         { id: "italic", type: "toggle", label: "Italic", default: false },
         { id: "font", type: "dropdown", label: `${FONT_HELP}\n§8It goes on the rank tag. Basics can put it on names and messages too.`, options: fontOptions(), default: 0 },
@@ -512,7 +513,7 @@ export async function basicsScreen(player, rankId, back) {
             ? { id: "nameColour", type: "dropdown", label: `Name colour\n§8The player's name, in chat and above their head${coloursOff}`, options: nameColourOptions(), default: styleAt }
             : null,
         type !== "cosmetic"
-            ? { id: "chatColour", type: "text", label: CHAT_HELP, placeholder: "§§e", default: chatCode ? `§${chatCode}` : "" }
+            ? { id: "chatColour", type: "text", label: CHAT_HELP, placeholder: "§eLike this", default: chatCode ? `§${chatCode}` : "" }
             : null,
         ranked
             ? { id: "isDefault", type: "toggle", label: "New players get this rank\n§8The starting rank. Only one rank can be it.", default: !!rank.default }

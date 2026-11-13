@@ -549,7 +549,7 @@ export async function nicknameScreen(player, target, back) {
             type: "text",
             label: [
                 `Display name §8(up to ${NICK_MAX} characters, codes count)`,
-                "§8Put §§ and a code in front for colour: §7§§b§§lSteve§8 shows as §b§lSteve",
+                "§8Colour it with the section sign and a code in front, the same codes as rank names: §b§lSteve",
                 "§8Their gamertag or an empty box means no display name."
             ].join("\n"),
             placeholder: target.name,

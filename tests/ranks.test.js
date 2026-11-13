@@ -9,7 +9,8 @@ import {
     setRanks, grantRank, revokeRank, heldRankIds, playerRanks, displayRanks, primaryRank,
     moveHeldRank, onPlayerJoin, defaultRank, displacedBy, cooldownFor, saveRank as saveR, knownHolders,
     CREATOR_GAMERTAG, CREATOR_RANK, allRanks, rankState, rankGrant,
-    DEVELOPER_RANK, isTeamDeveloper, __setTeamDevelopers, nodeLabels, canTrollOn, onStaffLost
+    DEVELOPER_RANK, isTeamDeveloper, __setTeamDevelopers, nodeLabels, canTrollOn, onStaffLost,
+    TESTER_RANK, isTester, testerGamertags
 } from "../Admin+ BP/scripts/core/ranks.js"
 import { CONFIG } from "../Admin+ BP/scripts/config.js"
 
@@ -614,6 +615,35 @@ check("Creator outranks Dev when somebody is both",
     primaryRank(creator).id, "adminplus_creator")
 __setTeamDevelopers([])
 check("off the list, the badge goes with it", primaryRank(hired).id, defaultRank().id)
+
+
+console.log("\n— the tester's badge —")
+// [Admin+ Tester], for people who try builds before they ship. Added for
+// "King bacon6016" on 2026-11-12. The same badge again, so the same promises.
+const testerName = testerGamertags()[0]
+const tester = fakePlayer(testerName)
+check("King bacon6016 is on the list, space and all", testerName, "King bacon6016")
+check("they wear it", primaryRank(tester).id, "adminplus_tester")
+check("and it reads Admin+ Tester", TESTER_RANK.display.replace(/§./g, ""), "Admin+ Tester")
+check("in the same colours as the other two",
+    TESTER_RANK.display.replace("Tester", "X"),
+    CREATOR_RANK.display.replace("Creator", "X"))
+check("the name matches in any case", isTester({ name: "king BACON6016" }), true)
+check("a near miss does not", isTester({ name: "King bacon601" }), false)
+check("nor does the name without its space", isTester({ name: "Kingbacon6016" }), false)
+check("it grants NO panel access", has(tester, "admin.panel"), false)
+check("it is not staff", isStaff(tester), false)
+check("it carries no permissions at all", TESTER_RANK.perms, [])
+check("it adds no authority", topWeight(tester), topWeight(stranger))
+check("it is not in the rank table", allRanks().some(r => r.id === "adminplus_tester"), false)
+grantRank(tester.id, "mod", tester.name)
+check("a real rank replaces it", primaryRank(tester).id, "mod")
+revokeRank(tester.id, "mod")
+check("and giving it up brings the badge back", primaryRank(tester).id, "adminplus_tester")
+__setTeamDevelopers([testerName])
+check("Dev outranks Tester when somebody is both", primaryRank(tester).id, "adminplus_dev")
+__setTeamDevelopers([])
+check("off the team, the Tester badge is back", primaryRank(tester).id, "adminplus_tester")
 
 
 console.log("\n— permission switches are labelled, not spelled out —")
