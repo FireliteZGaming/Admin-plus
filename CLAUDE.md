@@ -337,6 +337,12 @@ value in the wrong key.
   every 30 ticks; it writes, so never call it from a before-event. The full
   design is in Obsidian: Firelite ▸ Projects ▸ Minecraft ▸ Bedrock ▸ Mods ▸
   Admin+ ▸ World Tools.
+- **3.0.0 waits for the user's full approval and complete testing** (2026-11-12:
+  "right after I give the full approval and the mods have been tested
+  completely"). The UI overhaul and the setup screen (with its optional
+  password) come first. New features land behind a Default/Beta slider in the
+  pack's own settings (manifest v3 `settings`, read with
+  `world.getPackSettings()`). Plan: Obsidian ▸ Admin+ ▸ Before 3.0.0.
 - **No economy or shop**, ever. The `+` means essentials.
 - **Fly, god, heal, feed: dropped.** Removed on purpose, not missing. Do not
   build them unasked. Three things came OFF this list because the user asked
