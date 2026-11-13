@@ -34,10 +34,10 @@ const SNAPSHOT_KEY = "rankSnapshot"
  * Reporting and seeing who is online are basics, not privileges — a member who
  * cannot report has to go find a staff member in chat instead.
  */
-const BASIC_PERMS = ["warp.use", "spawn.use", "tpa.use", "report.use", "online.use"]
+export const BASIC_PERMS = ["warp.use", "spawn.use", "tpa.use", "report.use", "online.use"]
 
 /** What any staff rank needs before it can do anything at all. */
-const STAFF_CORE = ["admin.panel", "ranks.view", "chat.staff", "chat.codes"]
+export const STAFF_CORE = ["admin.panel", "ranks.view", "chat.staff", "chat.codes"]
 
 /**
  * Ready-made ladders. Applying one REPLACES the rank table; holders keep their
@@ -842,19 +842,38 @@ export function renderTags(playerOrId) {
     // with nothing between the brackets. Filtering before the join is what
     // stops a blanked tag in the middle leaving a double space behind it.
     const sep = String(setting("format.tagJoin") ?? " ")
-    return all.slice(0, limit).map(rank => badgedTag(rank)).filter(Boolean).join(sep)
+    return all.slice(0, limit).map(rank => renderTag(rank)).filter(Boolean).join(sep)
 }
 
 /**
- * A rank's tag with its badge in front (Beta only; see core/badges.js), like
- * `<badge> [Mod]`: outside the bracket, as the user asked on 2026-11-13
- * ("|badge|{Owner} I feel like thats how it should be"). A rank whose name was
- * blanked still shows no tag at all: the badge goes with a tag, never alone.
+ * The ONE badge a player wears (Beta only; see core/badges.js): the badge of
+ * the rank their main tag shows, which is always a Staff or Default rank.
+ * Since 2.11.4 the badge is no longer glued to each tag. It sits once, in
+ * front of every tag, between bars: "General | <badge> | [Owner] [Builder]"
+ * on a line labelled with its chat room and "| <badge> | [Owner]" everywhere
+ * else (the user, 2026-11-13). The bars are added where the line is drawn
+ * (`{BADGE}` in core/settings.js render, badgedTags below), so this answers
+ * the bare picture or "".
+ *
+ * A main rank whose name was blanked shows no tag, so it shows no badge
+ * either: the badge goes with a tag, never alone. With rank tags switched off
+ * there is no main tag, so there is no badge.
  */
-function badgedTag(rank) {
-    const tag = renderTag(rank)
-    const badge = tag ? badgeFor(rank, rankType(rank)) : ""
-    return badge ? `${badge} ${tag}` : tag
+export function playerBadge(playerOrId) {
+    if (!flag("feature.ranktags")) return ""
+    const main = displayRanks(playerOrId).find(rank => rankType(rank) !== "cosmetic")
+    if (!main || !renderTag(main)) return ""
+    return badgeFor(main, rankType(main))
+}
+
+/**
+ * Their badge between bars, then their tags, for a list of players on a
+ * screen: "| <badge> | [Owner] [Builder]", or just the tags with no badge.
+ */
+export function badgedTags(playerOrId) {
+    const tags = renderTags(playerOrId)
+    const badge = playerBadge(playerOrId)
+    return badge ? `§8| ${badge} §8|§r${tags ? ` ${tags}` : ""}` : tags
 }
 
 /** Their authority: the strongest rank they hold, whatever the display order. */
@@ -1730,6 +1749,7 @@ export function refreshNameTag(player) {
         }
 
         const tag = render("format.nameTag", {
+            BADGE: playerBadge(player),
             TAG: renderTags(player),
             RANK: rank?.display ?? "",
             ...tokens

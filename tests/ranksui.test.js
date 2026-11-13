@@ -1,7 +1,8 @@
 import { __test } from "@minecraft/server"
 import { __ui } from "@minecraft/server-ui"
-import { ladder, getRank, saveRank, setRanks, grantRank, heldRankIds, onPlayerJoin, applyPreset, nameFontFor, whereToGrant, nodeLabels, PERMISSION_NODES } from "../Admin+ BP/scripts/core/ranks.js"
+import { ladder, getRank, saveRank, setRanks, grantRank, heldRankIds, onPlayerJoin, applyPreset, nameFontFor, whereToGrant, nodeLabels, PERMISSION_NODES, topWeight } from "../Admin+ BP/scripts/core/ranks.js"
 import { createRankScreen, basicsScreen, ranksScreen, rankScreen, playerRankScreen } from "../Admin+ BP/scripts/features/ranksUI.js"
+import { staffTemplate } from "../Admin+ BP/scripts/core/rankTemplates.js"
 import { basicsMenu, openActionsFor } from "../Admin+ BP/scripts/features/actions.js"
 import { getNickname, getNameFont } from "../Admin+ BP/scripts/core/identity.js"
 import { FONT_IDS, applyFont } from "../Admin+ BP/scripts/core/fonts.js"
@@ -36,42 +37,107 @@ const TYPE = { default: 0, staff: 1, cosmetic: 2, unlisted: 3 }
 const lastForm = () => __ui.shown[__ui.shown.length - 1]
 const partsOf = (form, kind) => form.parts.filter(p => p[0] === kind).map(p => p[1])
 
-// New rank, in field order: name, bold, italic, font, type, "also gets
-// everything from" (0 is "no other rank", so ranks start at 1), "put it just
-// below".
-console.log("\n— a new rank from a typed name —")
+// + New rank in short steps (2.11.4, the user's design of 2026-11-13):
+//   New rank (name, bold, italic, font, type) ▸ Template (staff only) ▸
+//   Permissions (one long list) ▸ Where it goes ▸ Create this rank?
+// Answers are queued in the order the forms open. The name form's answers
+// are name, bold, italic, font, type. Create this rank? is Back (0) then
+// Create (1).
+const said = []
+boss.sendMessage = m => said.push(String(m))
+const lastSaid = () => (said.at(-1) ?? "").replace(/§./g, "")
+const titleOf = form => (form.parts.find(p => p[0] === "title")?.[1] ?? "").replace(/§./g, "")
+const shownSince = from => __ui.shown.slice(from).map(titleOf)
+const CREATE = press(1), BACK = press(0)
+const BASICS = PERMISSION_NODES.Everyone
+/** The places a new rank can go for Boss: every rank below theirs, as the form lists them. */
+const places = () => ladder().filter(r => (r.weight ?? 0) < topWeight(boss))
+const above = id => places().findIndex(r => r.id === id)
+const AT_THE_BOTTOM = () => places().length
+/**
+ * The long Permissions form answered as the game would: a place for each label
+ * and divider, then a value per switch, section by section. Boss can give
+ * everything, so every switch is on the form.
+ */
+function permissions(staff, on = node => BASICS.includes(node)) {
+    const values = []
+    const groups = staff ? Object.keys(PERMISSION_NODES) : ["Everyone"]
+    groups.forEach((group, i) => {
+        if (i) values.push(undefined)
+        values.push(undefined)
+        for (const node of PERMISSION_NODES[group]) values.push(on(node))
+    })
+    return submit(...values)
+}
+const name = (text, type = TYPE.default, o = {}) => submit(text, o.bold ?? false, o.italic ?? false, o.font ?? 0, type)
+/** A Default rank all the way through: name, permissions, place, Create. */
+function makeDefault(text, o = {}, place = () => above("member")) {
+    __ui.answers.push(name(text, TYPE.default, o), permissions(false), submit(place()), CREATE)
+}
+
+console.log("\n— a new rank in short steps —")
 {
     __ui.answers.length = 0
-    __ui.answers.push(submit("§eHelper", false, false, 0, TYPE.default, at("member") + 1, at("mod")))
+    const from = __ui.shown.length
+    makeDefault("§eHelper")
     await createRankScreen(boss, () => {})
+
+    const first = __ui.shown[from]
+    check("the first step is New rank", titleOf(first), "Admin+ | New rank")
+    check("asking name, bold, italic, font and type", first.parts.filter(p => ["text", "toggle", "dropdown"].includes(p[0])).map(p => p[0]),
+        ["text", "toggle", "toggle", "dropdown", "dropdown"])
+    check("with no 'Also gets everything from' or 'Put it just below'",
+        first.parts.some(p => /Also gets everything|just below/.test(String(p[1]))), false)
+    check("and a Continue button", first.parts.find(p => p[0] === "submit")?.[1], "Continue")
+    check("a Default rank goes name, permissions, where it goes, Create",
+        shownSince(from).slice(0, 4), ["Admin+ | New rank", "Admin+ | Permissions · Helper", "Admin+ | Where it goes", "Admin+ | Create this rank?"])
 
     const made = getRank("helper")
     check("the rank exists, its id made from the letters", !!made, true)
-    check("the & code colours it", made?.display, "§eHelper")
+    check("the § code colours it", made?.display, "§eHelper")
     check("and what was typed is kept for the box", made?.text, "§eHelper")
-    check("it gets everything the chosen rank has", made?.inherits, ["member"])
-    check("it sits just below the rank picked", order().indexOf("helper"), order().indexOf("mod") + 1)
-    check("so it is still above the new players' rank", at("helper") < at("member"), true)
+    check("it starts with the basics, copied once", made?.perms, BASICS)
+    check("and gets nothing from another rank", made?.inherits, [])
+    check("it sits just above the rank picked", order().indexOf("helper"), order().indexOf("member") - 1)
     check("a Default rank is not staff", made?.staff, false)
     check("and its type is Default", made?.type, "default")
 }
 
+console.log("\n— the steps say what they ask —")
+{
+    __ui.answers.length = 0
+    const from = __ui.shown.length
+    __ui.answers.push(name("§eLook"), permissions(false))
+    await createRankScreen(boss, () => {})
+    const perms = __ui.shown[from + 1]
+    check("the basics start on, from the new players' rank",
+        perms.parts.filter(p => p[0] === "toggle").map(p => p[2]?.defaultValue), BASICS.map(() => true))
+    check("under a section title", perms.parts.find(p => p[0] === "label")?.[1], "§lWhat they can use")
+    check("its button says Continue", perms.parts.find(p => p[0] === "submit")?.[1], "Continue")
+    const place = __ui.shown[from + 2]
+    const choices = place.parts.find(p => p[0] === "dropdown")
+    check("Where it goes lists the ranks below yours, then At the bottom",
+        choices?.[2].map(o => o.replace(/§./g, "")), [...places().map(r => r.display.replace(/§./g, "")), "At the bottom"])
+    check("and starts just above the new players' rank", choices?.[3]?.defaultValueIndex, above("member"))
+    check("closing a step makes nothing", !!getRank("look"), false)
+}
+
 console.log("\n— Bold, Italic and fonts —")
 {
-    __ui.answers.push(submit("§eBold one", true, false, 0, TYPE.default, 0, at("member")))
+    makeDefault("§eBold one", { bold: true })
     await createRankScreen(boss, () => {})
     check("Bold puts §l after the colour", getRank("bold_one")?.display, "§e§lBold one")
 
-    __ui.answers.push(submit("§c§lStrong", false, false, 0, TYPE.default, 0, at("member")))
+    makeDefault("§c§lStrong")
     await createRankScreen(boss, () => {})
     check("a name typed with its own §l stays bold with the switch left off", getRank("strong")?.display, "§c§lStrong")
 
-    __ui.answers.push(submit("Plain", false, true, 0, TYPE.default, 0, at("member")))
+    makeDefault("Plain", { italic: true })
     await createRankScreen(boss, () => {})
     check("no colour typed shows white, and Italic adds §o", getRank("plain")?.display, "§f§oPlain")
     check("the box keeps it without the white", getRank("plain")?.text, "§oPlain")
 
-    __ui.answers.push(submit("§bTiny", false, false, font("smallcaps"), TYPE.default, 0, at("member")))
+    makeDefault("§bTiny", { font: font("smallcaps") })
     await createRankScreen(boss, () => {})
     check("a font changes the letters on the tag", getRank("tiny")?.display, `§b${applyFont("Tiny", "smallcaps")}`)
     check("but the box keeps the letters as typed", getRank("tiny")?.text, "§bTiny")
@@ -79,38 +145,117 @@ console.log("\n— Bold, Italic and fonts —")
     check("a new rank's font goes on its tag only", [getRank("tiny")?.fontTag, getRank("tiny")?.fontName, getRank("tiny")?.fontChat], [true, false, false])
 }
 
-console.log("\n— the four rank types —")
+console.log("\n— a staff rank from a template —")
 {
-    __ui.answers.push(submit("§9Guard", false, false, 0, TYPE.staff, at("member") + 1, at("mod")))
+    __ui.answers.length = 0
+    const from = __ui.shown.length
+    __ui.answers.push(name("§9Guard", TYPE.staff), press(0), submit(above("member")), CREATE)
     await createRankScreen(boss, () => {})
-    check("Staff is staff", getRank("guard")?.staff, true)
-    check("and in the order", order().includes("guard"), true)
+    const picker = __ui.shown[from + 1]
+    check("a Staff rank asks for a template next", titleOf(picker), "Admin+ | Template")
+    check("Mod, Admin, Manager and Owner, then Permissions and Back",
+        partsOf(picker, "button").map(b => b.split("\n")[0].replace(/§./g, "")), ["Mod", "Admin", "Manager", "Owner", "Permissions", "< Back"])
+    check("with a template it skips Permissions",
+        shownSince(from).slice(0, 4), ["Admin+ | New rank", "Admin+ | Template", "Admin+ | Where it goes", "Admin+ | Create this rank?"])
+    const guard = getRank("guard")
+    check("Staff is staff", guard?.staff, true)
+    check("and in the order, just above the rank picked", order().indexOf("guard"), order().indexOf("member") - 1)
+    check("it gets the template's permissions", guard?.perms, [...staffTemplate("mod").perms])
+    check("which include the basics", BASICS.every(n => guard?.perms.includes(n)), true)
+    check("and wears the template's badge", guard?.meta?.badge, "hammer")
+    check("copied, not linked", guard?.inherits, [])
 
-    __ui.answers.push(submit("§6Builder", false, false, 0, TYPE.cosmetic, at("member") + 1, 0))
+    __ui.answers.push(name("§4Second", TYPE.staff), press(3), submit(above("coowner")), CREATE)
     await createRankScreen(boss, () => {})
+    check("the Owner template gives everything", getRank("second")?.perms, ["*"])
+    check("and the crown", getRank("second")?.meta?.badge, "crown")
+    check("and it can go just under the maker's own rank", order().indexOf("second"), order().indexOf("owner") + 1)
+}
+
+console.log("\n— a staff rank picked switch by switch —")
+{
+    __ui.answers.length = 0
+    const from = __ui.shown.length
+    const picked = ["warp.use", "admin.warn", "admin.kick"]
+    __ui.answers.push(name("§3Warden", TYPE.staff), press(4), permissions(true, n => picked.includes(n)), submit(AT_THE_BOTTOM()), CREATE)
+    await createRankScreen(boss, () => {})
+    check("Permissions comes after the template step",
+        shownSince(from).slice(0, 5), ["Admin+ | New rank", "Admin+ | Template", "Admin+ | Permissions · Warden", "Admin+ | Where it goes", "Admin+ | Create this rank?"])
+    const list = __ui.shown[from + 2]
+    check("every section is on one form, a title each",
+        partsOf(list, "label"), Object.keys(PERMISSION_NODES).map(g => `§l${g === "Everyone" ? "What they can use" : g}`))
+    check("split by dividers", list.parts.filter(p => p[0] === "divider").length, Object.keys(PERMISSION_NODES).length - 1)
+    check("with a switch for every permission", list.parts.filter(p => p[0] === "toggle").length, Object.values(PERMISSION_NODES).flat().length)
+    check("it gets exactly the switches turned on", getRank("warden")?.perms, picked)
+    check("At the bottom puts it under every rank", order().at(-1), "warden")
+    check("with no template there is no badge picked", getRank("warden")?.meta, {})
+}
+
+console.log("\n— cosmetic and unlisted ranks —")
+{
+    __ui.answers.length = 0
+    let from = __ui.shown.length
+    __ui.answers.push(name("§6Builder", TYPE.cosmetic), CREATE)
+    await createRankScreen(boss, () => {})
+    check("Cosmetic goes straight to Create this rank?", shownSince(from).slice(0, 2), ["Admin+ | New rank", "Admin+ | Create this rank?"])
+    check("which offers Back, then Create", partsOf(__ui.shown[from + 1], "button").map(b => b.replace(/§./g, "")), ["< Back", "Create"])
     const builder = getRank("builder")
     check("Cosmetic has no place in the order", order().includes("builder"), false)
     check("weighs nothing", builder?.weight, 0)
-    check("and inherits nothing, even when a rank was picked", builder?.inherits, [])
+    check("and has no permissions", [builder?.perms, builder?.inherits], [[], []])
 
-    __ui.answers.push(submit("§7Tester", false, false, 0, TYPE.unlisted, at("member") + 1, 0))
+    from = __ui.shown.length
+    __ui.answers.push(name("§7Tester", TYPE.unlisted), permissions(false), CREATE)
     await createRankScreen(boss, () => {})
+    check("Unlisted skips Where it goes", shownSince(from).slice(0, 3), ["Admin+ | New rank", "Admin+ | Permissions · Tester", "Admin+ | Create this rank?"])
     const tester = getRank("tester")
     check("Unlisted has no place in the order either", order().includes("tester"), false)
-    check("but can start with another rank's permissions", tester?.inherits, ["member"])
+    check("but gives permissions", tester?.perms, BASICS)
+}
+
+console.log("\n— Back keeps what you chose —")
+{
+    __ui.answers.length = 0
+    const from = __ui.shown.length
+    __ui.answers.push(name("§aScout"), permissions(false), submit(above("mod")), BACK, submit(above("member")), CREATE)
+    await createRankScreen(boss, () => {})
+    const again = __ui.shown.slice(from).filter(f => titleOf(f) === "Admin+ | Where it goes")[1]
+    check("Back shows the step before", !!again, true)
+    check("with the place picked still picked", again?.parts.find(p => p[0] === "dropdown")?.[3]?.defaultValueIndex, above("mod"))
+    check("and the second choice is the one kept", order().indexOf("scout"), order().indexOf("member") - 1)
+
+    const start = __ui.shown.length
+    __ui.answers.push(name("§bRanger", TYPE.staff, { bold: true }), press(5))
+    await createRankScreen(boss, () => {})
+    const named = __ui.shown[start + 2]
+    check("Back from the templates shows New rank again", titleOf(named), "Admin+ | New rank")
+    check("with the name typed", named?.parts.find(p => p[0] === "text")?.[3]?.defaultValue, "§bRanger")
+    check("and the switches as they were", named?.parts.filter(p => p[0] === "toggle").map(p => p[2]?.defaultValue), [true, false])
+    check("and nothing is made until Create", !!getRank("ranger"), false)
+}
+
+console.log("\n— a short answer saves nothing —")
+{
+    __ui.answers.length = 0
+    __ui.answers.push(name("§eShort"), submit(true, true))
+    await createRankScreen(boss, () => {})
+    check("answers that don't line up with the switches make nothing", !!getRank("short"), false)
+    check("and it says so", lastSaid().includes("Not every switch came back"), true)
 }
 
 console.log("\n— the same name twice, and a blank one —")
 {
-    __ui.answers.push(submit("§aHelper", false, false, 0, TYPE.default, 0, at("member")))
+    makeDefault("§aHelper")
     await createRankScreen(boss, () => {})
     check("a second Helper gets its own id rather than overwriting the first", !!getRank("helper2"), true)
     check("and the first is untouched", getRank("helper")?.display, "§eHelper")
 
     const before = order()
-    __ui.answers.push(submit("  §c  ", false, false, 0, TYPE.default, 0, 0))
+    __ui.answers.length = 0
+    __ui.answers.push(name("  §c  "))
     await createRankScreen(boss, () => {})
     check("a name that is only codes makes nothing", order(), before)
+    check("and asks for a name", lastSaid().endsWith("Give the rank a name."), true)
 }
 
 // Basics on a rank in the order, in field order: name, bold, italic, font,

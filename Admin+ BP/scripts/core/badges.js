@@ -73,12 +73,24 @@ const DEFAULT_BADGES = Object.freeze({
 })
 
 /**
+ * Which ranks can wear a badge: Staff and Default ranks only (2.11.4). The
+ * user, 2026-11-13: "only staff ranks can have [badges] and default ranks i
+ * suppose ... because vip, the heighest rank gets priority". A player wears
+ * one badge, from their main tag's rank (playerBadge in core/ranks.js), and
+ * that is always a Staff or Default rank. Cosmetic tags sit beside it and
+ * unlisted ranks show nothing.
+ */
+export function canWearBadge(type) {
+    return type !== "cosmetic" && type !== "unlisted"
+}
+
+/**
  * The badge a rank wears: its own pick, nothing if "none" was picked, or its
  * default. `type` is the rank's type from core/ranks.js, passed in so this
  * file never imports ranks.js.
  */
 export function badgeOf(rank, type) {
-    if (!rank) return undefined
+    if (!rank || !canWearBadge(type)) return undefined
     const picked = rank.meta?.badge
     if (picked === "none") return undefined
     if (picked && picked in INDEX) return picked
@@ -92,3 +104,9 @@ export function badgeFor(rank, type) {
     const key = badgeOf(rank, type)
     return key ? badgeChar(key, badgeStyle()) : ""
 }
+
+/**
+ * A plain green tick, for lists of what something gives (the template cards,
+ * 2.11.4). Row 2 of the same glyph page, drawn by tools/genbadges.py.
+ */
+export const TICK = String.fromCharCode(BADGE_PAGE + 0x20)

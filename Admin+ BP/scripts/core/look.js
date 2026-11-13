@@ -76,6 +76,21 @@ export function tileText(text, index) {
 export function tileIcon(key) { return `textures/ui/adminplus/tile_${key}` }
 
 /**
+ * Cards (2.11.4): buttons drawn side by side as cards, like Discord's role
+ * templates, which the user pointed to on 2026-11-13. A button whose text ends
+ * in CARD is a card. The pack's list frame draws every card in one row across
+ * the top and every other button as a normal row under them, so a menu of
+ * cards still has its Back button. Same hidden-code style as the markers above.
+ */
+export const CARD = "§j§c§a§s"
+
+/** A card's text, marked so the list frame draws it as a card. */
+export function cardText(text) { return `${text}${CARD}` }
+
+/** The coloured strip along a card's top edge, drawn by tools/genlook.py. */
+export function cardStripe(key) { return `textures/ui/adminplus/stripe_${key}` }
+
+/**
  * A button's face when its menu is drawn as tiles: a white name over one short
  * grey line. The line has room for about 18 letters.
  */

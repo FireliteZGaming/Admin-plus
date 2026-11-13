@@ -2,9 +2,9 @@ import { readFileSync, existsSync, readdirSync } from "node:fs"
 import { __test } from "@minecraft/server"
 import { __ui } from "@minecraft/server-ui"
 import { setRanks, onPlayerJoin, applyPreset } from "../Admin+ BP/scripts/core/ranks.js"
-import { BETA_LOOK, TILES, TILE_LEFT, lift, lookTitle, tile, tileIcon, tileText, betaLook } from "../Admin+ BP/scripts/core/look.js"
+import { BETA_LOOK, TILES, TILE_LEFT, CARD, cardText, cardStripe, lift, lookTitle, tile, tileIcon, tileText, betaLook } from "../Admin+ BP/scripts/core/look.js"
 import { MULTILINE, hubTitle, hubButton, BRAND_PREFIX, COLOUR_CODE_TIP } from "../Admin+ BP/scripts/core/theme.js"
-import { menu, modal, confirm, drawsTiles } from "../Admin+ BP/scripts/core/ui.js"
+import { menu, modal, confirm, drawsTiles, drawsCards, INCOMPLETE } from "../Admin+ BP/scripts/core/ui.js"
 import { openPanel } from "../Admin+ BP/scripts/features/panel.js"
 import { openMenu } from "../Admin+ BP/scripts/features/menu.js"
 import { panelsOf, shownFor, evaluate, visibleExpr } from "./jsonui.js"
@@ -190,6 +190,51 @@ console.log("\n— each tile shows in one column —")
     check("it spells no other marker", [MULTILINE, BETA_LOOK, TILES, ...CHEST].filter(m => TILE_LEFT.includes(m) || m.includes(TILE_LEFT)), [])
 }
 
+console.log("\n— each card shows once, above the rows —")
+// 2.11.4: a button whose text ends in CARD is a card in the row across the top
+// of the list frame; every other button stays a row under it. Worked out from
+// the bindings themselves, as for the tiles.
+{
+    const visible = (control, text) => evaluate(visibleExpr(control), { "#form_button_text": text })
+    for (const [what, text, expected] of [
+        ["a template card", cardText("§f§lMod\n§7Keeps the peace day to day."), ["card"]],
+        ["the Permissions button under the cards", "§bPermissions§r\n§8Pick each permission yourself", ["row"]],
+        ["Back", "§8< Back", ["row"]],
+        ["a tile's text", tileText("§f§lPlayers", 0), ["row"]]
+    ]) {
+        const shown = [["card", LOOK.card_slot], ["row", LOOK.row]].filter(([, c]) => visible(c, text)).map(([k]) => k)
+        check(`${what} shows as a ${expected.join(" and a ")}`, shown, expected)
+    }
+    check("the cards are made from the form's buttons, like the rows",
+        [LOOK.cards.collection_name, LOOK.cards.factory.name, LOOK.cards.bindings[0]],
+        ["form_buttons", "buttons", { binding_name: "#form_button_contents", binding_name_override: "#collection_length" }])
+    check("naming the same four parts as the game's list", Object.keys(LOOK.cards.factory.control_ids), ["button", "label", "header", "divider"])
+    check("a label, header or divider makes no card",
+        ["label", "header", "divider"].map(k => LOOK.cards.factory.control_ids[k]), ["@adminplus_beta.nothing", "@adminplus_beta.nothing", "@adminplus_beta.nothing"])
+    check("they stand side by side, a quarter of the width each",
+        [LOOK.cards.type, LOOK.cards.orientation, LOOK.card_slot.size[0]], ["stack_panel", "horizontal", "25%"])
+    check("under the body text and above the rows",
+        LOOK.list_scroll.controls.map(c => Object.keys(c)[0].split("@")[0]), ["intro", "padding", "cards", "wrapping_panel"])
+    const cardButton = LOOK["card_button@adminplus_beta.dark_content_button"]
+    check("a card presses like the game's own form button", cardButton.$pressed_button_name, "button.form_button_click")
+    check("and knows which button of the list it is",
+        cardButton.bindings.some(x => x.binding_type === "collection_details" && x.binding_collection_name === "form_buttons"), true)
+    check("it fits in its slot", [cardButton.size[1] <= LOOK.card_slot.size[1], cardButton.$button_content], [true, "adminplus_beta.card_content"])
+    const parts = Object.fromEntries(LOOK.card_content.controls.map(c => Object.entries(c)[0]))
+    check("its strip stretches along the top edge", [parts.stripe.keep_ratio, parts.stripe.size], [false, ["100% - 2px", 3]])
+    check("the strip is the button's own picture",
+        parts.stripe.bindings.some(b => b.binding_name === "#form_button_texture" && b.binding_name_override === "#texture"), true)
+    check("its words wrap to the card's width", [parts.text.size, parts.text.text], [["100% - 8px", "default"], "#form_button_text"])
+    const chip = parts.select.controls.map(c => Object.entries(c)[0][1])
+    check("Select sits at the bottom on Admin+'s gradient", [parts.select.anchor_to, chip[0].texture, chip[0].keep_ratio, chip[1].text],
+        ["bottom_middle", "textures/ui/adminplus/gradient", false, "Select"])
+    check("every template's strip is in the pack", ["mod", "admin", "manager", "owner"].map(cardStripe).filter(t => !textureExists(t)), [])
+    check("CARD prints nothing and restyles nothing", /^(?:§[0-9a-jmnpqstuv])+$/.test(CARD), true)
+    check("lifting leaves it alone", lift(CARD), CARD)
+    check("it spells no other marker",
+        [MULTILINE, BETA_LOOK, TILES, TILE_LEFT, ...CHEST].filter(m => CARD.includes(m) || m.includes(CARD)), [])
+}
+
 // A player who may open everything.
 const boss = {
     id: "look-boss", name: "Boss", nameTag: "Boss", commandPermissionLevel: 0,
@@ -243,6 +288,60 @@ console.log("\n— on Default, every form is exactly what it was —")
     check("a form keeps its title", titleOf(lastForm()), hubTitle("ranks", "Basics"))
     check("and its words", [box[1], box[2], box[3].defaultValue], ["§8Name", "§8Example: §eHelper", "§8Mod"])
     check("and its choices", partsOf(lastForm(), "dropdown")[0][2], ["§0Black", "§8Dark grey"])
+}
+
+console.log("\n— a menu of cards —")
+{
+    const CARD_SPEC = () => ({
+        title: hubTitle("ranks", "Template"),
+        body: "§8Start from a template.",
+        layout: "cards",
+        buttons: [
+            { text: "§a§lMod§r\n§8Keeps the peace day to day.", card: { text: "§f§lMod\n§7Keeps the peace", icon: cardStripe("mod") }, run: () => {} },
+            { text: "§bPermissions", run: () => {} }
+        ],
+        back: () => {}
+    })
+    setBeta(false)
+    check("on Default, cards are never drawn", drawsCards(CARD_SPEC(), false), false)
+    await menu(boss, CARD_SPEC())
+    check("a menu of cards is a plain list on Default", partsOf(lastForm(), "button").map(p => [p[1], p[2]]),
+        [["§a§lMod§r\n§8Keeps the peace day to day.", undefined], ["§bPermissions", undefined], ["§8< Back", undefined]])
+    check("and its title carries no marker", titleOf(lastForm()), hubTitle("ranks", "Template"))
+    setBeta(true)
+    check("on Beta it is drawn as cards", drawsCards(CARD_SPEC(), true), true)
+    await menu(boss, CARD_SPEC())
+    const buttons = partsOf(lastForm(), "button")
+    check("the card shows its card face, marked, with its strip", [buttons[0][1], buttons[0][2]],
+        [cardText("§f§lMod\n§7Keeps the peace"), cardStripe("mod")])
+    check("the other buttons and Back stay rows", buttons.slice(1).map(p => p[1].endsWith(CARD)), [false, false])
+    check("a menu of cards keeps the list frame, not the tiles", titleOf(lastForm()).includes(TILES), false)
+    setBeta(false)
+}
+
+console.log("\n— a long form in sections —")
+{
+    const FIELDS = [
+        { type: "label", label: "§lFirst" },
+        { id: "a", type: "toggle", label: "a", default: true },
+        { type: "divider" },
+        { type: "label", label: "§lSecond" },
+        { id: "b", type: "toggle", label: "b" }
+    ]
+    __ui.answers.length = 0
+    __ui.answers.push({ canceled: false, formValues: [undefined, true, undefined, undefined, false] })
+    const kept = await modal(boss, "Sections", FIELDS, { submit: "Continue", strict: true })
+    const form = lastForm()
+    check("labels and dividers are drawn in order", form.parts.filter(p => ["label", "divider", "toggle"].includes(p[0])).map(p => p[0]),
+        ["label", "toggle", "divider", "label", "toggle"])
+    check("the button says Continue", partsOf(form, "submit")[0]?.[1], "Continue")
+    check("answers are read past the labels and dividers", kept, { a: true, b: false })
+    __ui.answers.push({ canceled: false, formValues: [true, false] })
+    check("a game that drew no labels is read by the switches alone", await modal(boss, "Sections", FIELDS, { strict: true }), { a: true, b: false })
+    __ui.answers.push({ canceled: false, formValues: [undefined, true, undefined] })
+    check("answers that line up with nothing are refused", await modal(boss, "Sections", FIELDS, { strict: true }), INCOMPLETE)
+    __ui.answers.push({ canceled: true })
+    check("closing it is still nothing", await modal(boss, "Sections", FIELDS, { strict: true }), undefined)
 }
 
 console.log("\n— on Beta, Admin+ draws its own look —")

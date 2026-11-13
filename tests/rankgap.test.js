@@ -111,13 +111,34 @@ console.log("\n— 'Also gets permissions from' lists only ranks Ally could give
     check("Admin, Mod and Member can", ["Admin", "Mod", "Member"].every(n => names.includes(n)), true)
 }
 
-console.log("\n— a new rank can't start from one with more than its maker —")
+console.log("\n— a new rank can't start from more than its maker has —")
 {
     const from = __ui.shown.length
+    __ui.answers.length = 0
+    // New rank as Staff, then Permissions (after the two templates Ally may use).
+    __ui.answers.push(submit("§9Aide", false, false, 0, 1), press(2))
     await createRankScreen(ally, () => {})
-    const start = partsOf(formTitled("New rank", from), "dropdown").find(p => plain(p[1]).startsWith("Also gets everything from"))
-    check("Jester is not offered", start[2].map(plain).includes("Jester"), false)
-    check("and the form says some were left out", plain(start[1]).includes("aren't listed"), true)
+    const picker = formTitled("Template", from)
+    check("Ally is offered the Mod and Admin templates only", buttonsOf(picker).map(b => b.split("\n")[0]), ["Mod", "Admin", "Permissions", "< Back"])
+    check("and told some were left out", plain(partsOf(picker, "body")[0]?.[1]).includes("aren't listed"), true)
+    const list = formTitled("Permissions", from)
+    const switches = partsOf(list, "toggle").map(p => plain(p[1]))
+    check("the long list has no switch Ally can't give", ["smite", "sudo", "banperm", "server presets"].filter(s => switches.includes(s)), [])
+    check("but has the ones Ally can", ["warn", "ban", "kick"].every(s => switches.includes(s)), true)
+    check("and says some were left out", partsOf(list, "label").some(p => plain(p[1]).includes("aren't listed")), true)
+    check("closing it makes nothing", !!getRank("aide"), false)
+
+    // Create checks again: the Admin template stops being Ally's to give
+    // while the screens are open.
+    const adminPerms = [...getRank("admin").perms]
+    __ui.answers.push(submit("§9Aide", false, false, 0, 1), press(1), submit(0), {
+        canceled: false,
+        get selection() { saveRank("admin", { perms: adminPerms.filter(n => n !== "admin.ban") }); return 1 }
+    })
+    await createRankScreen(ally, () => {})
+    saveRank("admin", { perms: adminPerms })
+    check("Create refuses a template that now gives more than the maker has", !!getRank("aide"), false)
+    check("and says why", lastSaid(ally).includes("permissions you don't have"), true)
 }
 
 console.log("\n— giving ranks —")

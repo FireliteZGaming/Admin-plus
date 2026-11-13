@@ -2,7 +2,7 @@ import { world, CustomCommandParamType as P } from "@minecraft/server"
 import { menu, pagedMenu, modal, subtitle } from "./ui.js"
 import { hubTitle } from "./theme.js"
 import { info } from "./util.js"
-import { has, renderTags } from "./ranks.js"
+import { has, renderTags, badgedTags } from "./ranks.js"
 import { displayName, getNickname, stripCodes } from "./identity.js"
 import { isVanished } from "./vanish.js"
 import { by } from "./logs.js"
@@ -112,7 +112,7 @@ export async function pickPlayer(viewer, options = {}) {
             : body ?? "Pick a player. Nearest first."),
         items: rows,
         render: row => {
-            const tag = renderTags(row.player)
+            const tag = badgedTags(row.player)
             const you = row.id === viewer.id ? " §8(you)" : ""
             return { text: `${tag ? tag + "§r " : ""}§9${displayName(row.player)}§r${you}` }
         },

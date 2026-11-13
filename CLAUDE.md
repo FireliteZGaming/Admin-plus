@@ -257,7 +257,9 @@ vanish hiding armour, and this.
 
 **`ModalFormData` label/header/divider elements shift `formValues` indices.**
 Avoided deliberately in the config screen — a mis-indexed write would put every
-value in the wrong key.
+value in the wrong key. Since 2.11.4 `modal()` takes `{ type: "label" |
+"header" | "divider" }` fields and reads the answers either way: one per
+field, or (on a game that drew no labels) one per input.
 
 ## Standing decisions
 
@@ -421,7 +423,10 @@ value in the wrong key.
   choices keep their colours (the game draws them on its own light widget in
   both looks); tiles only for a
   menu of buttons alone, with no Back, label or divider (`drawsTiles`), and a
-  tile's second line fits about 18 letters. Textures come from
+  tile's second line fits about 18 letters. Cards (2.11.4,
+  `layout: "cards"`, a button's `card` face, `drawsCards`) may sit with other
+  rows and Back: the list frame draws CARD-marked buttons in a row above the
+  rows, made in every slot and shown in one, like the tiles. Textures come from
   `tools/genlook.py` (drawn from scratch, never copied). The layout copies the
   game's own 1.26.45 patterns; read them with `python tools/vanillaui.py`
   after a game update. `tests/look.test.js` works out which frame shows for
@@ -435,11 +440,32 @@ value in the wrong key.
   flat and bold like Twitch's and Discord's (2.11.3: pixel-by-pixel art was
   "sloppy"; draw at 8x and shrink). `core/badges.js` lists them
   in the SAME order; never reorder one without the other. The user liked
-  both styles, so `badge.classic` picks. A tag gets its badge IN FRONT,
-  outside the bracket: `<badge> [Owner]` (`badgedTag` in `core/ranks.js`,
-  the user's call); a blanked rank name still shows no tag. A staff rank's button shows its badge instead of the word staff.
-  `{RANK}` never carries a badge, so automations comparing it still work.
-  Staff ranks default to the ban hammer. `tests/badges.test.js`.
+  both styles, so `badge.classic` picks. **Since 2.11.4 only Staff and
+  Default ranks wear one (`canWearBadge`), and a PLAYER wears ONE badge**, from
+  their main tag's rank (`playerBadge` in `core/ranks.js`), in front of all
+  their tags and between bars: "General | (badge) | [Owner]" on a room line,
+  "| (badge) | [Owner]" everywhere else (the user's own syntax). Tags never
+  carry it; `{BADGE}` in the formats does, and `render()` in
+  `core/settings.js` draws the bars (`badgeBetweenBars`: after a bar it adds
+  only the closing one). Screens listing players use `badgedTags`. A blanked
+  main rank or rank tags off means no badge. A staff rank's button shows its
+  badge instead of the word staff. `{RANK}` and `{TAG}` never carry a badge,
+  so automations comparing them still work. Staff ranks default to the ban
+  hammer. `tests/badges.test.js`.
+- **+ New rank is short steps (2.11.4, the user's design, 2026-11-13).**
+  New rank (Continue) ▸ Template (Staff only: Mod, Admin, Manager, Owner as
+  cards in Beta, or Permissions) ▸ Permissions (ONE long form, a label and a
+  divider per section, "not in buttons that lead to sections") ▸ Where it
+  goes ("Put it above", or At the bottom) ▸ Create this rank? (Back, Create).
+  Default skips the template, Unlisted also skips the place, Cosmetic goes
+  straight to Create. `draft` carries the answers so Back keeps them; nothing
+  is saved before Create, which rechecks the rank gap. The basics start on,
+  copied from the new players' rank, because "Also gets everything from" is
+  gone from this flow. Templates live in `core/rankTemplates.js`; their
+  permissions are placeholders until the user sets them. The long form uses
+  `modal(..., { strict: true })`: a reply whose answer count matches neither
+  all fields nor the inputs alone returns `INCOMPLETE` and saves nothing.
+  `tests/ranksui.test.js`, `tests/rankgap.test.js`.
 - **Chat automod is ON HOLD (2.9.2, the user, 2026-11-12: "a complete hold, so
   disabling it and graying out the button to inactive").** Chat screening and
   chat flooding both stop, whatever the settings say; ore alerts and fast

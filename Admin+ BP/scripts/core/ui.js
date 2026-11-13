@@ -1,7 +1,7 @@
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui"
 import { CONFIG } from "../config.js"
 import { BRAND_PREFIX } from "./theme.js"
-import { betaLook, lookTitle, lift, tileText } from "./look.js"
+import { betaLook, lookTitle, lift, tileText, cardText } from "./look.js"
 
 // Form helpers. Every panel screen is built from these so navigation, paging and
 // the "back" affordance behave the same everywhere.
@@ -47,6 +47,15 @@ export function drawsTiles(spec, beta) {
 }
 
 /**
+ * Whether a menu's card buttons are drawn as cards. Only in the Beta look and
+ * only when asked (`layout: "cards"`). Unlike tiles, a menu of cards may have
+ * other buttons and a Back button: those stay rows under the cards.
+ */
+export function drawsCards(spec, beta) {
+    return !!beta && spec.layout === "cards"
+}
+
+/**
  * A menu screen.
  *
  * Headers, labels and dividers take no place in `actions`. The game numbers
@@ -56,14 +65,17 @@ export function drawsTiles(spec, beta) {
  *
  * In the Beta look (core/look.js) the title carries the look's marker and the
  * text is lifted for the dark panel. With `layout: "tiles"` a button shows its
- * `tile` face (core/look.js tile()) instead of its text. On Default, `layout`
- * and `tile` are ignored and the menu is exactly what it was.
+ * `tile` face (core/look.js tile()) instead of its text. With `layout:
+ * "cards"` a button with a `card` face is drawn as a card (core/look.js CARD).
+ * On Default, `layout`, `tile` and `card` are ignored and the menu is exactly
+ * what it was.
  * @param {import("@minecraft/server").Player} player
- * @param {{title: string, body?: string, layout?: "tiles", buttons: ({text: string, icon?: string, tile?: {text: string, icon: string}, run: () => any}|{header?: string, label?: string, divider?: boolean})[], back?: () => any}} spec
+ * @param {{title: string, body?: string, layout?: "tiles"|"cards", buttons: ({text: string, icon?: string, tile?: {text: string, icon: string}, card?: {text: string, icon?: string}, run: () => any}|{header?: string, label?: string, divider?: boolean})[], back?: () => any}} spec
  */
 export async function menu(player, spec) {
     const beta = betaLook()
     const tiles = drawsTiles(spec, beta)
+    const cards = drawsCards(spec, beta)
     const show = text => beta ? lift(text) : text
     const form = new ActionFormData().title(beta ? lookTitle(spec.title, { tiles }) : spec.title)
     if (spec.body) form.body(show(spec.body))
@@ -71,6 +83,11 @@ export async function menu(player, spec) {
     for (const button of spec.buttons) {
         if (!button) continue
         if (isDecoration(button)) { decorate(form, beta ? liftDecoration(button) : button); continue }
+        if (cards && button.card) {
+            form.button(show(cardText(button.card.text)), button.card.icon)
+            actions.push(button.run)
+            continue
+        }
         const face = tiles && button.tile ? button.tile : button
         // As tiles, every other one carries the left-column marker (core/look.js).
         form.button(show(tiles ? tileText(face.text, actions.length) : face.text), face.icon)
@@ -135,13 +152,30 @@ export async function confirm(player, titleText, body, confirmText = "§cConfirm
 }
 
 /**
+ * What `modal` answers, with `strict`, when the game sent back a different
+ * number of answers than the form had fields. Answers are matched to fields
+ * by position, so a short list would read the missing ones as off; a caller
+ * that saves many switches at once refuses it instead.
+ */
+export const INCOMPLETE = Object.freeze({ incomplete: true })
+
+/** A label, header or divider in a form's fields: drawn, never answered. */
+const isFormDecoration = field => field?.type === "label" || field?.type === "header" || field?.type === "divider"
+
+/**
  * A modal form. `fields` describe the controls; returns an object keyed by field
  * id, or undefined if the player cancelled.
+ *
+ * Fields may include `{ type: "label", label }` and `{ type: "divider" }` to
+ * split a long form into sections. `options.submit` names the button (for
+ * example "Continue"), and `options.strict` returns INCOMPLETE when the
+ * answers don't line up with the fields.
  * @param {import("@minecraft/server").Player} player
  * @param {string} title
- * @param {{id: string, type: "text"|"toggle"|"slider"|"dropdown", label: string, placeholder?: string, tooltip?: string, default?: any, min?: number, max?: number, step?: number, options?: string[]}[]} fields
+ * @param {{id?: string, type: "text"|"toggle"|"slider"|"dropdown"|"label"|"header"|"divider", label?: string, placeholder?: string, tooltip?: string, default?: any, min?: number, max?: number, step?: number, options?: string[]}[]} fields
+ * @param {{submit?: string, strict?: boolean}} [options]
  */
-export async function modal(player, title, fields) {
+export async function modal(player, title, fields, options = {}) {
     const beta = betaLook()
     const show = text => beta ? lift(text) : text
     const form = new ModalFormData().title(beta ? lookTitle(title) : title)
@@ -149,6 +183,17 @@ export async function modal(player, title, fields) {
     const tip = field => field.tooltip ? { tooltip: show(field.tooltip) } : {}
     for (const field of fields) {
         switch (field.type) {
+            // Section parts. A game too old to draw them skips them, and the
+            // answers are then read by the inputs alone (below).
+            case "label":
+                if (typeof form.label === "function") form.label(show(field.label ?? ""))
+                break
+            case "header":
+                if (typeof form.header === "function") form.header(show(field.label ?? ""))
+                break
+            case "divider":
+                if (typeof form.divider === "function") form.divider()
+                break
             case "toggle":
                 form.toggle(show(field.label), { defaultValue: !!field.default, ...tip(field) })
                 break
@@ -168,10 +213,20 @@ export async function modal(player, title, fields) {
                 form.textField(show(field.label), show(field.placeholder ?? ""), { defaultValue: String(field.default ?? ""), ...tip(field) })
         }
     }
+    // The button's own words, where the game allows it (Minecraft Essentials
+    // does the same with "Save settings").
+    if (options.submit && typeof form.submitButton === "function") form.submitButton(show(options.submit))
     const response = await form.show(player)
     if (response.canceled) return undefined
+    const values = response.formValues ?? []
+    // The game keeps a place in the answers for each label, header and divider
+    // (CLAUDE.md: they shift formValues). A game that drew none of them answers
+    // for the inputs alone. Anything else doesn't line up.
+    const inputs = fields.filter(field => !isFormDecoration(field))
+    const lined = values.length === fields.length ? fields : values.length === inputs.length ? inputs : null
+    if (!lined && options.strict) return INCOMPLETE
     const out = {}
-    fields.forEach((field, i) => { out[field.id] = response.formValues[i] })
+    ;(lined ?? fields).forEach((field, i) => { if (!isFormDecoration(field)) out[field.id] = values[i] })
     return out
 }
 

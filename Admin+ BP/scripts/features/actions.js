@@ -4,7 +4,7 @@ import { hubTitle, COLOUR_CODE_TIP } from "../core/theme.js"
 import { nameTakenBy } from "../core/names.js"
 import { sameLetters } from "../core/audit.js"
 import { ok, err, info, formatDuration } from "../core/util.js"
-import { primaryRank, playerRanks, canActOn, canSeeActionsOf, has, refreshNameTag, knownHolders, getRank, heldRankIds, renderTags, nameFontFor } from "../core/ranks.js"
+import { primaryRank, playerRanks, canActOn, canSeeActionsOf, has, refreshNameTag, knownHolders, getRank, heldRankIds, renderTags, nameFontFor, badgedTags } from "../core/ranks.js"
 import { invseeScreen } from "./invsee.js"
 import { displayName, getNickname, setNickname, NICK_MAX, getNameFont, setNameFont } from "../core/identity.js"
 import { FONT_IDS, FONTS, fontOptions } from "../core/fonts.js"
@@ -58,7 +58,7 @@ export async function actionsScreen(player, back, filter = "") {
         items: rows,
         render: row => {
             if (row.online) {
-                const tag = renderTags(row.player)
+                const tag = badgedTags(row.player)
                 const self = row.id === player.id ? " §8(you)" : ""
                 const nick = getNickname(row.player) ? " §8~" : ""
                 return { text: `${tag ? tag + "§r " : ""}§9${displayName(row.player)}§r${nick}${self}` }
@@ -187,7 +187,7 @@ async function playerActionsScreen(player, target, back) {
     const ranks = rankNames(playerRanks(target))
 
     const body = [
-        `${renderTags(target)}§r ${displayName(target)}`,
+        `${badgedTags(target)}§r ${displayName(target)}`,
         nick ? `§8gamertag: ${target.name}` : "§8no display name set",
         "",
         `§fRanks: §r${ranks}`,

@@ -302,6 +302,10 @@
 	"row": {
 		"type": "panel",
 		"size": [ "100%", 32 ],
+		"bindings": [
+			{ "binding_name": "#form_button_text", "binding_type": "collection", "binding_collection_name": "form_buttons" },
+			{ "binding_type": "view", "source_property_name": "((#form_button_text - '§j§c§a§s') = #form_button_text)", "target_property_name": "#visible" }
+		],
 		"controls": [
 			{
 				"line": {
@@ -578,6 +582,136 @@
 		]
 	},
 
+	"card_content": {
+		"type": "panel",
+		"size": [ "100%", "100%" ],
+		"controls": [
+			{
+				"stripe": {
+					"type": "image",
+					"size": [ "100% - 2px", 3 ],
+					"offset": [ 0, 1 ],
+					"anchor_from": "top_middle",
+					"anchor_to": "top_middle",
+					"keep_ratio": false,
+					"layer": 1,
+					"bindings": [
+						{
+							"binding_name": "#form_button_texture",
+							"binding_name_override": "#texture",
+							"binding_type": "collection",
+							"binding_collection_name": "form_buttons"
+						},
+						{
+							"binding_name": "#form_button_texture_file_system",
+							"binding_name_override": "#texture_file_system",
+							"binding_type": "collection",
+							"binding_collection_name": "form_buttons"
+						},
+						{
+							"binding_type": "view",
+							"source_property_name": "(not ((#texture = '') or (#texture = 'loading')))",
+							"target_property_name": "#visible"
+						}
+					]
+				}
+			},
+			{
+				"text": {
+					"type": "label",
+					"text": "#form_button_text",
+					"color": "$text_color",
+					"shadow": false,
+					"layer": 2,
+					"offset": [ 4, 8 ],
+					"size": [ "100% - 8px", "default" ],
+					"anchor_from": "top_left",
+					"anchor_to": "top_left",
+					"bindings": [
+						{ "binding_name": "#form_button_text", "binding_type": "collection", "binding_collection_name": "form_buttons" }
+					]
+				}
+			},
+			{
+				"select": {
+					"type": "panel",
+					"size": [ "100% - 8px", 13 ],
+					"offset": [ 0, -4 ],
+					"anchor_from": "bottom_middle",
+					"anchor_to": "bottom_middle",
+					"layer": 2,
+					"controls": [
+						{
+							"chip": {
+								"type": "image",
+								"texture": "textures/ui/adminplus/gradient",
+								"keep_ratio": false,
+								"size": [ "100%", "100%" ],
+								"layer": 2
+							}
+						},
+						{
+							"word": {
+								"type": "label",
+								"text": "Select",
+								"color": [ 0.043, 0.051, 0.071 ],
+								"shadow": false,
+								"layer": 3,
+								"size": [ "default", "default" ],
+								"anchor_from": "center",
+								"anchor_to": "center"
+							}
+						}
+					]
+				}
+			}
+		]
+	},
+
+	"card_button@adminplus_beta.dark_content_button": {
+		"$pressed_button_name": "button.form_button_click",
+		"size": [ "100% - 4px", 160 ],
+		"anchor_from": "top_middle",
+		"anchor_to": "top_middle",
+		"$button_content": "adminplus_beta.card_content",
+		"bindings": [
+			{ "binding_type": "collection_details", "binding_collection_name": "form_buttons" }
+		]
+	},
+
+	"card_slot": {
+		"type": "panel",
+		"size": [ "25%", 164 ],
+		"bindings": [
+			{ "binding_name": "#form_button_text", "binding_type": "collection", "binding_collection_name": "form_buttons" },
+			{ "binding_type": "view", "source_property_name": "(not ((#form_button_text - '§j§c§a§s') = #form_button_text))", "target_property_name": "#visible" }
+		],
+		"controls": [
+			{ "card_button@adminplus_beta.card_button": {} }
+		]
+	},
+
+	"cards": {
+		"type": "stack_panel",
+		"orientation": "horizontal",
+		"size": [ "100%", "100%c" ],
+		"anchor_from": "top_left",
+		"anchor_to": "top_left",
+		"factory": {
+			"name": "buttons",
+			"control_ids": {
+				"button": "adminplus_beta.card_slot",
+				"label": "@adminplus_beta.nothing",
+				"header": "@adminplus_beta.nothing",
+				"divider": "@adminplus_beta.nothing"
+			}
+		},
+		"collection_name": "form_buttons",
+		"bindings": [
+			{ "binding_name": "#form_button_contents", "binding_name_override": "#collection_length" }
+		]
+	},
+
 	"list_scroll": {
 		"type": "stack_panel",
 		"size": [ "100% - 4px", "100%c" ],
@@ -587,6 +721,7 @@
 		"controls": [
 			{ "intro@adminplus_beta.intro": {} },
 			{ "padding": { "type": "panel", "size": [ "100%", 4 ] } },
+			{ "cards@adminplus_beta.cards": {} },
 			{
 				"wrapping_panel": {
 					"type": "panel",

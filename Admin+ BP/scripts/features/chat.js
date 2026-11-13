@@ -1,7 +1,7 @@
 import { world, system } from "@minecraft/server"
 import { noteChat } from "../core/chatlog.js"
 import { CONFIG } from "../config.js"
-import { primaryRank, isStaff, renderTags, chatNameFor, chatColourFor, chatFontFor } from "../core/ranks.js"
+import { primaryRank, isStaff, renderTags, chatNameFor, chatColourFor, chatFontFor, playerBadge } from "../core/ranks.js"
 import { applyFont } from "../core/fonts.js"
 import { displayName, nameTokens, stripCodes } from "../core/identity.js"
 import { render, flag } from "../core/settings.js"
@@ -47,6 +47,7 @@ export function formatChatLine(sender, message, channel, labelled) {
     const withTag = CONFIG.ranks.showInChat
     const names = nameTokens(sender)
     const tokens = {
+        BADGE: withTag ? playerBadge(sender) : "",
         TAG: withTag ? renderTags(sender) : "",
         RANK: withTag && flag("feature.ranktags") ? (rank?.display ?? "") : "",
         ...names,

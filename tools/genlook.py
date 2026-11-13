@@ -203,6 +203,11 @@ def tile_texture(key, icon, stripe):
     return save(img, f"tile_{key}")
 
 
+# The strip along the top of each template card (2.11.4), in the colour its
+# rank usually has: Mod green, Admin gold, Manager purple, Owner dark red.
+STRIPES = {"mod": "55ff55", "admin": "ffaa00", "manager": "aa00aa", "owner": "aa0000"}
+
+
 def main():
     made = [
         flat(rgb("ffffff"), "white"),
@@ -214,6 +219,8 @@ def main():
     ]
     for key, (icon, stripe) in TILES.items():
         made.append(tile_texture(key, icon, stripe))
+    for key, colour in STRIPES.items():
+        made.append(flat(rgb(colour), f"stripe_{key}"))
     print(f"{len(made)} textures in {OUT}")
     for name in made:
         print(f"  {name}.png")

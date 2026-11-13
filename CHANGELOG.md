@@ -56,6 +56,68 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.11.4 — 2026-11-13
+
+**+ New rank in short steps, template cards for staff ranks, and one badge
+per player between bars.** All of it is the user's design from 2026-11-13,
+in both looks.
+
+### + New rank, in steps
+The one long form is now short steps, and each rank type takes only the
+steps it needs:
+1. **New rank:** name, Bold, Italic, font and type, with a Continue button.
+   "Also gets everything from" and "Put it just below" are gone from it.
+2. **Template (Staff only):** Mod, Admin, Manager or Owner, or Permissions to
+   pick each one yourself. In the Beta look the four are cards side by side,
+   like Discord's role templates: badge and name, one line, ticks for what it
+   gives, and Select. The Owner card says it is as strong as the owner. A
+   template copies its permissions and its badge once.
+3. **Permissions:** one long form with every switch, a bold title and a
+   divider per section, instead of buttons that lead to sections. Staff ranks
+   get all 8 sections (46 switches); other ranks get "What they can use".
+   The basics start switched on, copied from the new players' rank.
+4. **Where it goes:** "Put it above" any rank below yours, or At the bottom.
+   It starts just above the new players' rank.
+5. **Create this rank?:** the tag as it will look in chat and a summary, then
+   Back or Create. Every path ends here; Back keeps what you chose.
+
+Staff: 1, 2, (3 with no template), 4, 5. Default: 1, 3, 4, 5. Unlisted: 1, 3,
+5. Cosmetic: 1, 5. Closing any step makes nothing.
+
+The four templates' permissions are placeholders, the shipped Server ranks
+flattened, until the user sets them (`core/rankTemplates.js`).
+
+Only places below your own rank are offered, only switches you have yourself
+are listed, and a template that gives more than you have is hidden. Create
+checks all of it again.
+
+### One badge per player
+1. **Only Staff and Default ranks wear a badge.** Cosmetic and unlisted ranks
+   have no Badge button.
+2. **A player wears one badge,** from the rank their main tag shows, in front
+   of every tag and between bars: "General | (badge) | [Owner] [Builder]" on a
+   line labelled with its chat room, "| (badge) | [Owner]" everywhere else,
+   above heads included. The user's words: "General | (badge) | {ranks}" and
+   "for normal view: | (badge) |".
+3. A new `{BADGE}` token in the chat, chat room, nametag and private chat
+   formats. Right after a bar (the one after the room's name) it shares that
+   bar. No badge leaves no empty bars. Worlds that changed a format keep
+   theirs and add `{BADGE}` where they want it.
+
+### Under the hood
+1. `modal()` draws section titles and dividers, names its button
+   (`{ submit: "Continue" }`), and with `strict` refuses answers that don't
+   line up with the fields (`INCOMPLETE`), so a short reply saves nothing.
+2. The Beta list frame draws card-marked buttons (`CARD`, `§j§c§a§s`) as cards
+   in a row above the other rows, built like the tiles.
+3. A green tick on the badge page (U+EA20) and four card strips
+   (`stripe_mod` and so on), drawn by our own tools.
+
+### Checked
+`tests/ranksui.test.js` (124), `tests/rankgap.test.js` (63),
+`tests/badges.test.js` (71) and `tests/look.test.js` (174). 63 test files,
+3,263 checks.
+
 ## 2.11.3 — 2026-11-13
 
 **Badges redrawn, the badge moves in front of the tag, and renames say what

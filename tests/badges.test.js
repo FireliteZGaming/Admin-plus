@@ -2,9 +2,9 @@ import { readFileSync, existsSync } from "node:fs"
 import { inflateSync } from "node:zlib"
 import { __test } from "@minecraft/server"
 import { __ui } from "@minecraft/server-ui"
-import { setRanks, onPlayerJoin, applyPreset, getRank, saveRank, renderTags, rankType } from "../Admin+ BP/scripts/core/ranks.js"
-import { setSetting, renderTag } from "../Admin+ BP/scripts/core/settings.js"
-import { BADGES, BADGE_PAGE, badgeChar, badgeOf, badgesOn, badgeLabel } from "../Admin+ BP/scripts/core/badges.js"
+import { setRanks, onPlayerJoin, applyPreset, getRank, saveRank, renderTags, rankType, playerBadge, badgedTags } from "../Admin+ BP/scripts/core/ranks.js"
+import { setSetting, renderTag, render } from "../Admin+ BP/scripts/core/settings.js"
+import { BADGES, BADGE_PAGE, TICK, badgeChar, badgeOf, badgesOn, badgeLabel, canWearBadge } from "../Admin+ BP/scripts/core/badges.js"
 import { ranksScreen, rankScreen } from "../Admin+ BP/scripts/features/ranksUI.js"
 import { GROUPS, groupScreen, settingKeys } from "../Admin+ BP/scripts/features/settingsUI.js"
 
@@ -90,7 +90,7 @@ console.log("\n— the pictures and the list agree —")
     const stray = []
     for (let row = 0; row < 16; row++)
         for (let col = 0; col < 16; col++)
-            if ((row > 1 || col >= BADGES.length) && filled(col, row)) stray.push(`${col},${row}`)
+            if ((row > 1 || col >= BADGES.length) && !(row === 2 && col === 0) && filled(col, row)) stray.push(`${col},${row}`)
     check("and nothing else is drawn on the page", stray, [])
     // Characters U+EA00 to U+EAFF draw from this page. Page EA is used by
     // neither the game nor any pack installed on the PC this was made on.
@@ -134,7 +134,12 @@ console.log("\n— which badge a rank wears —")
     check("a mod wears the ban hammer, the Admin+ answer to Twitch's mod badge", badgeOf(getRank("mod"), "staff"), "hammer")
     check("any other staff rank wears the ban hammer too", badgeOf(getRank("guard"), rankType(getRank("guard"))), "hammer")
     check("the starting rank wears none", badgeOf(getRank("member"), "default"), undefined)
-    check("a cosmetic rank wears none until one is picked", badgeOf(getRank("builder"), "cosmetic"), undefined)
+    check("a cosmetic rank wears none", badgeOf(getRank("builder"), "cosmetic"), undefined)
+    // 2.11.4, the user: badges are for staff and default ranks.
+    check("even with one picked", badgeOf({ id: "builder", meta: { badge: "gem" } }, "cosmetic"), undefined)
+    check("nor does an unlisted rank", badgeOf({ id: "secret", meta: { badge: "gem" } }, "unlisted"), undefined)
+    check("staff and default ranks can", [canWearBadge("staff"), canWearBadge("default"), canWearBadge("cosmetic"), canWearBadge("unlisted")], [true, true, false, false])
+    check("a default rank like VIP keeps its gem", badgeOf({ id: "vip" }, "default"), "gem")
     check("a picked badge wins", badgeOf({ id: "mod", meta: { badge: "gem" } }, "staff"), "gem")
     check("so does picking none", badgeOf({ id: "owner", meta: { badge: "none" } }, "staff"), undefined)
     check("a badge that no longer exists falls back to the default", badgeOf({ id: "mod", meta: { badge: "dragon" } }, "staff"), "hammer")
@@ -158,31 +163,53 @@ console.log("\n— on Default, nothing changes —")
     check("and Names and tags shows no Badges page", buttonsOf(lastForm()).some(t => t.includes("Badges")), false)
 }
 
-console.log("\n— on Beta, tags and buttons wear badges —")
+console.log("\n— on Beta, one badge per player, between bars —")
 {
     setBeta(true)
     check("badges are on", badgesOn(), true)
-    const ownerTag = renderTags(boss)
-    // Outside the bracket, as the user asked: "|badge|{Owner}".
-    check("the owner's badge comes first, then the tag as it always was",
-        ownerTag, `${badgeChar("crown")} ${renderTag(getRank("owner"))}`)
-    check("a mod's has the ban hammer", renderTags(moddy).includes(badgeChar("hammer")), true)
-    check("a new player's has none", PRIVATE_USE.test(renderTags(newbie)), false)
+    check("tags themselves carry no picture any more", [boss, moddy, newbie].map(p => PRIVATE_USE.test(renderTags(p))), [false, false, false])
+    check("the owner wears the crown", playerBadge(boss), badgeChar("crown"))
+    check("a mod wears the ban hammer", playerBadge(moddy), badgeChar("hammer"))
+    check("a new player wears none", playerBadge(newbie), "")
     check("the stored rank keeps its own name", PRIVATE_USE.test(getRank("owner").display), false)
 
+    // The user, 2026-11-13: "General | (badge) | {ranks}", and for a line
+    // without a room "| (badge) |". In front of all the tags, once.
+    const plain = s => s.replace(/§./g, "")
+    const line = (key, p, nick, extra = {}) => plain(render(key, { BADGE: playerBadge(p), TAG: renderTags(p), NICKNAME: nick, MSG: "hi", ...extra }))
+    check("a line labelled with its room shares the room's bar",
+        line("format.chatChannel", boss, "Boss", { CHANNEL: "General" }), `General | ${badgeChar("crown")} | [Owner] Boss: hi`)
+    check("any other chat line puts the badge between two bars",
+        line("format.chat", boss, "Boss"), `| ${badgeChar("crown")} | [Owner] Boss » hi`)
+    check("so does the name above their head",
+        line("format.nameTag", boss, "Boss"), `| ${badgeChar("crown")} | [Owner] Boss`)
+    check("no badge leaves no empty bars on a room line",
+        line("format.chatChannel", newbie, "Newbie", { CHANNEL: "General" }), "General | [Member] Newbie: hi")
+    check("or on any other line", line("format.chat", newbie, "Newbie"), "[Member] Newbie » hi")
+    check("a caller that gives no badge prints no {BADGE}", plain(render("format.chat", { TAG: "[A]", NICKNAME: "Steve", MSG: "hi" })), "[A] Steve » hi")
+
+    setRanks(moddy.id, ["mod", "builder"], moddy.name)
+    check("one badge for every tag, in front of them all", plain(badgedTags(moddy)), `| ${badgeChar("hammer")} | [Mod] [Builder]`)
+    check("the cosmetic tag adds no badge of its own", [...badgedTags(moddy)].filter(c => PRIVATE_USE.test(c)).length, 1)
+    setRanks(moddy.id, ["mod"], moddy.name)
+    check("a player list without a badge is just the tags", badgedTags(newbie), renderTags(newbie))
+
     setSetting("badge.classic", "true")
-    check("the classic style draws from the second row", renderTags(boss).includes(badgeChar("crown", "classic")), true)
+    check("the classic style draws from the second row", playerBadge(boss), badgeChar("crown", "classic"))
     setSetting("badge.classic", "false")
     setSetting("feature.badges", "false")
-    check("with the Badges switch off, no picture", PRIVATE_USE.test(renderTags(boss)), false)
+    check("with the Badges switch off, no picture", playerBadge(boss), "")
     setSetting("feature.badges", "true")
 
     // Blanking a rank's name is how a world asks for no tag. A badge must not
     // bring the tag back.
     const ownerName = getRank("owner").display
     saveRank("owner", { display: "" })
-    check("a rank with a blanked name still shows no tag", renderTags(boss).includes(badgeChar("crown")), false)
+    check("a rank with a blanked name shows no badge either", playerBadge(boss), "")
     saveRank("owner", { display: ownerName })
+    setSetting("feature.ranktags", "false")
+    check("with rank tags off there is no main tag, so no badge", playerBadge(boss), "")
+    setSetting("feature.ranktags", "true")
 
     await ranksScreen(boss, () => {})
     const rows = buttonsOf(lastForm())
@@ -192,6 +219,8 @@ console.log("\n— on Beta, tags and buttons wear badges —")
     check("on one line", ownerRow?.includes("\n"), false)
     const memberRow = rows.find(r => r.includes("Member"))
     check("the starting rank still says new players get it", memberRow?.includes("new players get it"), true)
+    const builderRow = rows.find(r => r.includes("Builder"))
+    check("a cosmetic rank's row shows no badge", PRIVATE_USE.test(builderRow ?? ""), false)
 }
 
 console.log("\n— picking a rank's badge —")
@@ -208,19 +237,32 @@ console.log("\n— picking a rank's badge —")
     await rankScreen(boss, "mod", () => {})
     const after = getRank("mod")
     check("picking the gem saves it", after.meta.badge, "gem")
-    check("and the tag shows it", renderTags(moddy).includes(badgeChar("gem")), true)
+    check("and the player wears it", playerBadge(moddy), badgeChar("gem"))
     check("everything else about the rank is kept", [after.display, rankType(after), after.weight, after.perms.length],
         [before.display, rankType(before), before.weight, before.perms.length])
 
     __ui.answers.push(press(at), press(BADGES.length))
     await rankScreen(boss, "mod", () => {})
     check("No badge saves none", getRank("mod").meta.badge, "none")
-    check("and the tag shows no picture", PRIVATE_USE.test(renderTags(moddy)), false)
+    check("and the player wears no picture", playerBadge(moddy), "")
+
+    __ui.answers.length = 0
+    await rankScreen(boss, "builder", () => {})
+    check("a cosmetic rank has no Badge button", buttonsOf(lastForm()).some(t => t.includes("Badge")), false)
 
     // Only someone who may edit a rank may change its badge, as with Basics.
     __ui.answers.length = 0
     await rankScreen(moddy, "owner", () => {})
     check("a mod sees no Badge button on the owner rank", buttonsOf(lastForm()).some(t => t.includes("Badge")), false)
+}
+
+console.log("\n— the tick for template cards —")
+{
+    check("the tick is on the same page, row 2", TICK, String.fromCharCode(BADGE_PAGE + 0x20))
+    const page = readAlpha(PAGE_FILE)
+    let ink = false
+    for (let y = 64; y < 96; y++) for (let x = 0; x < 32; x++) if (page.alpha(x, y) > 0) ink = true
+    check("and is drawn", ink, true)
 }
 
 console.log("\n— the Badges page —")

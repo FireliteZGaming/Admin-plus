@@ -43,19 +43,19 @@ export const DEFAULTS = {
     "format.nameTag": {
         // Tag BESIDE the name, on one line — the way Essentials shows it.
         // Put \\n back in (via < Code >) to stack it above instead.
-        value: "{TAG} §f{NICKNAME}",
+        value: "{BADGE} {TAG} §f{NICKNAME}",
         label: "Nametag (above head)",
-        help: "Tokens: {TAG} {RANK} {NAME} {NICKNAME} · {NAME} is the gamertag, {NICKNAME} is their display name · \\n puts the tag on its own line above the name"
+        help: "Tokens: {BADGE} {TAG} {RANK} {NAME} {NICKNAME} · {NAME} is the gamertag, {NICKNAME} is their display name · {BADGE} is their rank's badge between bars (Beta) · \\n puts the tag on its own line above the name"
     },
     "format.chat": {
-        value: "{TAG} §7{NICKNAME} §8» §r{MSG}",
+        value: "{BADGE} {TAG} §7{NICKNAME} §8» §r{MSG}",
         label: "Chat line",
-        help: "Tokens: {TAG} {RANK} {NAME} {NICKNAME} {MSG} · {NAME} is the gamertag, {NICKNAME} is their display name · needs Beta APIs on"
+        help: "Tokens: {BADGE} {TAG} {RANK} {NAME} {NICKNAME} {MSG} · {NAME} is the gamertag, {NICKNAME} is their display name · {BADGE} is their rank's badge between bars (Beta) · needs Beta APIs on"
     },
     "format.chatChannel": {
-        value: "{CHANNEL} §8|§r {TAG} {NICKNAME}§7: §r{MSG}",
+        value: "{CHANNEL} §8|§r {BADGE} {TAG} {NICKNAME}§7: §r{MSG}",
         label: "Chat line (players reading several rooms)",
-        help: "Tokens: {CHANNEL} {TAG} {RANK} {NAME} {NICKNAME} {MSG} · used for players who can read more than one chat room"
+        help: "Tokens: {CHANNEL} {BADGE} {TAG} {RANK} {NAME} {NICKNAME} {MSG} · used for players who can read more than one chat room · {BADGE} is their rank's badge between bars (Beta), sharing the bar after the room"
     },
     "presence.announce": {
         value: "true",
@@ -480,9 +480,9 @@ export const DEFAULTS = {
         // Same shape as format.chatChannel: who the room is, then who spoke.
         // {PAIR} names BOTH people, so a line scrolling past says which
         // conversation it belongs to — the same job the channel label does.
-        value: "§8[§5{PAIR}§8]§r {TAG} {NICKNAME}§7: §r{MSG}",
+        value: "§8[§5{PAIR}§8]§r {BADGE} {TAG} {NICKNAME}§7: §r{MSG}",
         label: "Private chat session line",
-        help: "Tokens: {PAIR} {TAG} {RANK} {NAME} {NICKNAME} {MSG} · {PAIR} is both names, {NAME} is whoever spoke"
+        help: "Tokens: {PAIR} {BADGE} {TAG} {RANK} {NAME} {NICKNAME} {MSG} · {PAIR} is both names, {NAME} is whoever spoke · {BADGE} is their rank's badge between bars (Beta)"
     },
     "format.spy": {
         value: "§8[spy · {KIND}] §7{FROM} §8» §7{TO}§8: {MSG}",
@@ -640,15 +640,22 @@ export function render(key, tokens) {
     // somebody's own text and must survive exactly as typed — "hello    there"
     // stays "hello    there".
     const GAP = "\u0000"
-    for (const [token, value] of Object.entries(tokens)) {
-        const text = String(value ?? "")
-        const empty = !stripFormatting(text).trim()
+    // {BADGE} is in the shipped formats since 2.11.4; a caller that has no
+    // badge to give leaves it empty rather than printing the token.
+    for (const [token, value] of Object.entries({ BADGE: "", ...tokens })) {
+        const bare = String(value ?? "")
+        const empty = !stripFormatting(bare).trim()
         // One at a time rather than replaceAll, because what goes in depends on
         // WHERE it goes: the formatting to restore afterwards is whatever the
         // template was in at that spot.
         for (;;) {
             const at = out.indexOf(`{${token}}`)
             if (at < 0) break
+            // {BADGE} is the bare picture; it stands between bars (2.11.4,
+            // the user: "General | (badge) | {ranks}", and "| (badge) |"
+            // anywhere else). Straight after a bar, such as the one after a
+            // chat room's name, it shares that bar and adds only the closing one.
+            const text = token === "BADGE" && !empty ? badgeBetweenBars(bare, out.slice(0, at)) : bare
             // identity.js already closes a styled name with §r; don't add a
             // second one just to put the template's colour back after it.
             const closed = text.endsWith("§r") ? text : `${text}§r`
@@ -665,6 +672,14 @@ export function render(key, tokens) {
     // Somebody's own text survives exactly as typed; only the gaps left by
     // empty tokens close, and the sentinel above already closed those.
     return out.trim()
+}
+
+/**
+ * A badge between bars, as `{BADGE}` draws it: "§8| <badge> §8|", or just
+ * "<badge> §8|" when the format already puts a bar right before it.
+ */
+export function badgeBetweenBars(badge, before = "") {
+    return /\|\s*$/.test(stripFormatting(before)) ? `${badge} §8|` : `§8| ${badge} §8|`
 }
 
 /** Read a setting as a boolean. Anything but "false"/"0"/"off"/"no" is true. */

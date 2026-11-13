@@ -1,10 +1,12 @@
 import { world } from "@minecraft/server"
-import { menu, pagedMenu, modal, confirm, subtitle, isDecoration } from "../core/ui.js"
+import { menu, pagedMenu, modal, confirm, subtitle, isDecoration, INCOMPLETE } from "../core/ui.js"
 import { hubTitle, hubEntry, COLOUR_CODE_TIP } from "../core/theme.js"
 import { setting, flag, render, renderTag } from "../core/settings.js"
 import { record } from "../core/logs.js"
 import { ok, err, info } from "../core/util.js"
-import { BADGES, badgeChar, badgeFor, badgeLabel, badgeOf, badgeStyle, badgesOn } from "../core/badges.js"
+import { BADGES, TICK, badgeChar, badgeFor, badgeLabel, badgeOf, badgeStyle, badgesOn, canWearBadge } from "../core/badges.js"
+import { cardStripe } from "../core/look.js"
+import { STAFF_TEMPLATES, staffTemplate } from "../core/rankTemplates.js"
 import { stripCodes, displayName } from "../core/identity.js"
 import { STYLES, STYLE_IDS, paint } from "../core/nametag.js"
 import { FONTS, FONT_IDS, applyFont, fontOptions } from "../core/fonts.js"
@@ -263,7 +265,11 @@ function previewLine(rank) {
     const tag = type === "cosmetic" && starter
         ? [renderTag(starter), renderTag(rank)].filter(Boolean).join(" ")
         : renderTag(rank)
-    return render("format.chat", { TAG: tag, RANK: rank.display, NAME: "Steve", NICKNAME: name, MSG: `${colour}${message}` })
+    // One badge, from the rank whose tag leads (core/ranks.js playerBadge):
+    // for a cosmetic rank that is the starting rank beside it.
+    const lead = type === "cosmetic" ? starter : rank
+    const badge = lead && renderTag(lead) ? badgeFor(lead, rankType(lead)) : ""
+    return render("format.chat", { BADGE: badge, TAG: tag, RANK: rank.display, NAME: "Steve", NICKNAME: name, MSG: `${colour}${message}` })
 }
 
 export async function ranksScreen(player, back) {
@@ -310,7 +316,7 @@ async function ladderScreen(player, back) {
         render: item => isDecoration(item) ? item : { text: ladderLine(item, ranks.indexOf(item)) },
         onPick: rank => rankScreen(player, rank.id, again),
         extra: [
-            { text: hubEntry("presets", "+ New rank", "A name, a font and a type"), run: () => createRankScreen(player, again) },
+            { text: hubEntry("presets", "+ New rank", "A few short steps"), run: () => createRankScreen(player, again) },
             { text: hubEntry("ranks", "Give a rank to a player", "Or take one away"), run: () => rankPlayersScreen(player, again) },
             // Both replace the whole list, the top rank included, so they need
             // canReplaceRankList (core/ranks.js).
@@ -388,8 +394,9 @@ export async function rankScreen(player, rankId, back) {
             // the rank looks and what type it is; Permissions is what it can
             // do, split into Member and Administrative.
             { text: hubEntry("ranks", "Basics", "Name, font, type and colours"), run: () => basicsScreen(player, rankId, again) },
-            // Badges show only in Beta (core/badges.js), so the button does too.
-            badgesOn()
+            // Badges show only in Beta (core/badges.js), so the button does too,
+            // and only Staff and Default ranks wear one (2.11.4).
+            badgesOn() && canWearBadge(type)
                 ? { text: hubEntry("ranks", "Badge", badgeLine(rank)), run: () => badgeScreen(player, rankId, again) }
                 : null,
             type !== "cosmetic"
@@ -419,6 +426,7 @@ async function badgeScreen(player, rankId, back) {
     const rank = getRank(rankId)
     if (!rank) { err(player, "That rank no longer exists."); return back() }
     if (!canEditRank(player, rank)) { err(player, "This rank is at or above yours, so you can only look."); return back() }
+    if (!canWearBadge(rankType(rank))) { err(player, "Only staff and default ranks wear a badge. A player's badge comes from their main rank."); return back() }
     const current = badgeOf(rank, rankType(rank))
     const style = badgeStyle()
     const pick = key => {
@@ -454,86 +462,285 @@ function moveAndReturn(player, rankId, delta, again) {
 }
 
 /**
- * A new rank: a typed name, a font and a type.
+ * + New rank, in short steps (2.11.4, the user's design of 2026-11-13).
  *
- * The name is typed with its colours, the way players already write them
- * (see "typed names" at the top), and the id is made from its letters, so
- * nobody types an id. Only Default and Staff ranks take a place in the order,
- * and a cosmetic rank inherits nothing, because it gives no permissions.
+ *   1. New rank          name, bold, italic, font and type. Continue.
+ *   2. Template          staff ranks only: Mod, Admin, Manager or Owner, as
+ *                        four cards in the Beta look, or Permissions to pick
+ *                        each one yourself.
+ *   3. Permissions       one long list, a bold title and a divider per
+ *                        section, "not in buttons that lead to sections".
+ *   4. Where it goes     "Put it above" a rank below yours, or At the bottom.
+ *   5. Create this rank? Back or Create. Every path ends here ("if you pick
+ *                        cosmetic ... it'll just ask if you are sure ... Create
+ *                        or Back", and "same for at the very end too").
  *
- * Only places at or below the maker's own rank are offered. A rank to get
- * permissions from must give nothing the maker lacks: being below the maker
- * was never enough, because a lower rank can still hold a permission the
- * maker does not (see "the rank gap" in core/ranks.js).
+ * Each type takes only the steps that apply to it:
+ *   Staff     1, 2, then 3 if no template, 4, 5
+ *   Default   1, 3, 4, 5
+ *   Unlisted  1, 3, 5     no place in the order
+ *   Cosmetic  1, 5        no permissions and no place; each holder arranges
+ *                         their cosmetic tags themselves
+ *
+ * The answers so far travel in `draft`, so Back shows a step as it was left.
+ * Closing any step makes nothing. Nothing is saved until Create, and Create
+ * checks everything again, since ranks and permissions can change while the
+ * screens are open.
+ *
+ * "Also gets everything from" used to start a new rank with the new players'
+ * rank's permissions, so it never lost the basics when it replaced that rank
+ * as a player's tag. Now the basics start switched on in Permissions instead,
+ * and every staff template includes them. A rank can still get permissions
+ * from another one, live, on its Permissions screen.
+ *
+ * Only places below the maker's own rank are offered, and only what the maker
+ * has can be given (see "the rank gap" in core/ranks.js).
  */
 export async function createRankScreen(player, back) {
-    const mine = topWeight(player)
-    const usable = ladder().filter(r => (r.weight ?? 0) <= mine)
-    if (!usable.length) { err(player, "You can only make ranks below your own, and there are none to place it under."); return back() }
-    const parents = usable.filter(r => !nodesBeyond(player, r).length)
-    const fallback = defaultRank()
-    const fallbackAt = usable.findIndex(r => r.id === fallback?.id)
-    const fallbackParent = parents.findIndex(r => r.id === fallback?.id)
-    const hiddenParents = parents.length < usable.length ? "\n§8Ranks with permissions you don't have aren't listed." : ""
+    return nameStep(player, { name: "", bold: false, italic: false, font: 0, type: 0, template: null, perms: null, above: undefined }, back)
+}
 
+/** The type picked on the first step. */
+const draftType = draft => RANK_TYPES[draft.type] ?? "default"
+
+/** Default and Staff ranks have a place in the order. */
+const isRankedType = type => type === "default" || type === "staff"
+
+/** The rank as it would be made, for the preview. Nothing here is saved. */
+function draftRank(draft) {
+    const font = FONT_IDS[draft.font] ?? "normal"
+    const name = buildName(draft.name, { bold: draft.bold, italic: draft.italic, font })
+    const template = draftType(draft) === "staff" ? staffTemplate(draft.template) : undefined
+    return {
+        id: "", display: name.display, text: name.text, font,
+        fontTag: true, fontName: false, fontChat: false,
+        type: draftType(draft), inherits: [], perms: [],
+        meta: template ? { badge: template.badge } : {}
+    }
+}
+
+/** A template as a rank, so the rank-gap rules can read what it gives. */
+const templateRank = template => ({ id: `template:${template.key}`, type: "staff", perms: [...template.perms], inherits: [], meta: {} })
+
+async function nameStep(player, draft, back) {
     const values = await modal(player, hubTitle("ranks", "New rank"), [
-        { id: "name", type: "text", label: NAME_HELP, placeholder: "Example: §eHelper", tooltip: COLOUR_CODE_TIP },
-        { id: "bold", type: "toggle", label: "Bold", default: false },
-        { id: "italic", type: "toggle", label: "Italic", default: false },
-        { id: "font", type: "dropdown", label: `${FONT_HELP}\n§8It goes on the rank tag. Basics can put it on names and messages too.`, options: fontOptions(), default: 0 },
-        { id: "type", type: "dropdown", label: TYPE_HELP, options: TYPE_OPTIONS, default: 0 },
-        {
-            id: "from", type: "dropdown",
-            label: `Also gets everything from\n§8It starts with all of that rank's permissions. Not for cosmetic ranks.${hiddenParents}`,
-            options: ["§7No other rank", ...parents.map(r => `${r.display}§r`)],
-            // New players' rank by default, so the new rank never loses the
-            // basics when it replaces that one.
-            default: fallbackParent >= 0 ? fallbackParent + 1 : 0
-        },
-        {
-            id: "below", type: "dropdown",
-            label: "Put it just below\n§8Only Default and Staff ranks have a place in the order.",
-            options: usable.map(r => `${r.display}§r`),
-            // Just above the new players' rank, where Helper, VIP or Builder
-            // usually belongs.
-            default: Math.max(0, fallbackAt - 1)
-        }
-    ])
+        { id: "name", type: "text", label: NAME_HELP, placeholder: "Example: §eHelper", tooltip: COLOUR_CODE_TIP, default: draft.name },
+        { id: "bold", type: "toggle", label: "Bold", default: draft.bold },
+        { id: "italic", type: "toggle", label: "Italic", default: draft.italic },
+        { id: "font", type: "dropdown", label: `${FONT_HELP}\n§8It goes on the rank tag. Basics can put it on names and messages too.`, options: fontOptions(), default: draft.font },
+        { id: "type", type: "dropdown", label: TYPE_HELP, options: TYPE_OPTIONS, default: draft.type }
+    ], { submit: "Continue" })
     if (!values) return back()
+    Object.assign(draft, {
+        name: String(values.name ?? ""), bold: !!values.bold, italic: !!values.italic,
+        font: values.font ?? 0, type: values.type ?? 0
+    })
+    // A bad name asks again with everything else kept.
+    const plain = stripCodes(draft.name).trim()
+    if (!plain) { err(player, "Give the rank a name."); return nameStep(player, draft, back) }
+    if (!normaliseRankId(plain)) { err(player, "Use letters or numbers in the name."); return nameStep(player, draft, back) }
 
-    const typed = String(values.name ?? "")
-    const plain = stripCodes(typed).trim()
-    if (!plain) { err(player, "Give the rank a name."); return back() }
+    const again = () => nameStep(player, draft, back)
+    const type = draftType(draft)
+    if (type === "cosmetic") {
+        draft.template = null
+        draft.perms = []
+        return createStep(player, draft, again, back)
+    }
+    if (type === "staff") return templateStep(player, draft, again, back)
+    draft.template = null
+    return permissionsStep(player, draft, again, back)
+}
+
+/** A template's card: badge and name, its line, a tick per point, and Owner's warning. */
+function templateCard(template) {
+    const badge = badgesOn() ? `${badgeChar(template.badge, badgeStyle())} ` : ""
+    const lines = [
+        `${badge}§f§l${template.name}`,
+        `§7${template.line}`,
+        ...template.points.map(point => `${TICK} §f${point}`),
+        template.warn ? `§6${template.warn}` : ""
+    ].filter(Boolean)
+    return { text: lines.join("\n"), icon: cardStripe(template.key) }
+}
+
+async function templateStep(player, draft, prev, back) {
+    const again = () => templateStep(player, draft, prev, back)
+    // A template is a set of permissions, so the rank gap applies: one that
+    // gives anything the maker lacks isn't offered.
+    const offered = STAFF_TEMPLATES.filter(template => !nodesBeyond(player, templateRank(template)).length)
+    const missing = offered.length < STAFF_TEMPLATES.length
+    return menu(player, {
+        title: hubTitle("ranks", "Template"),
+        body: subtitle("Start from a template, or pick each permission yourself.")
+            + (missing ? "\n§8Templates with permissions you don't have aren't listed." : ""),
+        layout: "cards",
+        buttons: [
+            ...offered.map(template => ({
+                text: `${template.colour}§l${template.name}§r\n§8${template.line}`,
+                card: templateCard(template),
+                run: () => {
+                    draft.template = template.key
+                    draft.perms = null
+                    return placeStep(player, draft, again, back)
+                }
+            })),
+            {
+                text: hubEntry("ranks", "Permissions", "Pick each permission yourself"),
+                run: () => {
+                    draft.template = null
+                    return permissionsStep(player, draft, again, back)
+                }
+            }
+        ],
+        back: prev
+    })
+}
+
+/** What a section of switches is called on the long list. */
+const SECTION_TITLES = { "Everyone": "What they can use" }
+
+/**
+ * Every permission on one form, as the user asked: sections split by a bold
+ * title and a divider. Staff ranks get every section; other ranks get what
+ * any player can use, as on the Permissions screens.
+ *
+ * Today's Permissions screens split long lists into pages of 14, because the
+ * game's answers are matched to switches by position. This list keeps all of
+ * them on one form and asks modal() to refuse answers that don't line up
+ * (INCOMPLETE), so a short reply saves nothing rather than the wrong things.
+ */
+async function permissionsStep(player, draft, prev, back) {
+    const type = draftType(draft)
+    const groups = type === "staff" ? Object.keys(PERMISSION_NODES) : MEMBER_GROUPS
+    const starter = defaultRank()
+    // The basics start on, from the new players' rank (see createRankScreen).
+    const startsOn = node => draft.perms ? draft.perms.includes(node) : (!!starter && holds(starter, node))
+    const fields = []
+    let hidden = 0
+    for (const group of groups) {
+        const nodes = PERMISSION_NODES[group]
+        const labels = nodeLabels(nodes)
+        const open = nodes.filter(node => canGiveNode(player, node))
+        hidden += nodes.length - open.length
+        if (!open.length) continue
+        if (fields.length) fields.push({ type: "divider" })
+        fields.push({ type: "label", label: `§l${SECTION_TITLES[group] ?? group}` })
+        for (const node of open) {
+            fields.push({ id: node, type: "toggle", label: labels[nodes.indexOf(node)], default: startsOn(node) })
+        }
+    }
+    if (hidden) fields.push({ type: "label", label: "§8Permissions you don't have yourself aren't listed." })
+
+    const values = await modal(player, hubTitle("ranks", `Permissions · ${stripCodes(draftRank(draft).display) || "new rank"}`), fields, { submit: "Continue", strict: true })
+    if (values === undefined) return back()
+    if (values === INCOMPLETE) {
+        err(player, "Not every switch came back from the game, so nothing was kept. Try again.")
+        return permissionsStep(player, draft, prev, back)
+    }
+    draft.perms = Object.keys(values).filter(node => values[node] === true)
+    const again = () => permissionsStep(player, draft, prev, back)
+    return type === "unlisted" ? createStep(player, draft, again, back) : placeStep(player, draft, again, back)
+}
+
+/** Ranks the maker may put a new rank above: those below their own. */
+const placesFor = player => ladder().filter(rank => (rank.weight ?? 0) < topWeight(player))
+
+async function placeStep(player, draft, prev, back) {
+    const below = placesFor(player)
+    const starter = defaultRank()
+    const indexOf = id => below.findIndex(rank => rank.id === id)
+    // Where it was left, or just above the new players' rank, where Helper,
+    // VIP or Builder usually belongs.
+    const at = draft.above === null ? below.length
+        : indexOf(draft.above) >= 0 ? indexOf(draft.above)
+        : indexOf(starter?.id) >= 0 ? indexOf(starter.id) : below.length
+    const values = await modal(player, hubTitle("ranks", "Where it goes"), [{
+        id: "above", type: "dropdown",
+        label: "Put it above\n§8A rank outranks every rank under it. At the bottom puts it under all of them.",
+        options: [...below.map(rank => `${rank.display}§r`), "At the bottom"],
+        default: at
+    }], { submit: "Continue" })
+    if (!values) return back()
+    draft.above = below[values.above]?.id ?? null
+    return createStep(player, draft, () => placeStep(player, draft, prev, back), back)
+}
+
+async function createStep(player, draft, prev, back) {
+    const rank = draftRank(draft)
+    const type = rank.type
+    const template = type === "staff" ? staffTemplate(draft.template) : undefined
+    const above = draft.above ? getRank(draft.above) : undefined
+    const lines = [
+        `§fIn chat: §r${previewLine(rank)}`,
+        "",
+        `§7Type: §f${TYPE_OPTIONS[RANK_TYPES.indexOf(type)]}`,
+        template ? `§7Template: §f${template.name}` : null,
+        !template && type !== "cosmetic" ? `§7Permissions: §f${(draft.perms ?? []).length} switched on` : null,
+        isRankedType(type) ? `§7Place: §f${above ? `above ${above.display}§r` : "at the bottom"}` : null,
+        type === "cosmetic" ? "§7A tag beside the others, with no permissions. Each player who has it arranges their own tags." : null
+    ].filter(line => line !== null)
+    return menu(player, {
+        title: hubTitle("ranks", "Create this rank?"),
+        body: lines.join("\n"),
+        buttons: [
+            { text: "§8< Back", run: prev },
+            { text: "§2Create", run: () => makeRank(player, draft, back) }
+        ]
+    })
+}
+
+function makeRank(player, draft, back) {
+    const type = draftType(draft)
+    const ranked = isRankedType(type)
+    const template = type === "staff" ? staffTemplate(draft.template) : undefined
+
+    // Everything again: ranks and permissions can change while the screens are open.
+    if (template && nodesBeyond(player, templateRank(template)).length) {
+        err(player, `The ${template.name} template has permissions you don't have, so the rank wasn't made.`)
+        return back()
+    }
+    let target
+    if (ranked && draft.above) {
+        target = placesFor(player).find(rank => rank.id === draft.above)
+        if (!target) {
+            err(player, "That place in the order isn't free for you any more. Pick another.")
+            return placeStep(player, draft, () => createStep(player, draft, () => {}, back), back)
+        }
+    }
+    const plain = stripCodes(draft.name).trim()
     const base = normaliseRankId(plain)
     if (!base) { err(player, "Use letters or numbers in the name."); return back() }
     let id = base
     for (let n = 2; getRank(id); n++) id = `${base}${n}`
 
-    const type = RANK_TYPES[values.type] ?? "default"
-    const ranked = type === "default" || type === "staff"
-    const font = FONT_IDS[values.font] ?? "normal"
-    const name = buildName(typed, { bold: !!values.bold, italic: !!values.italic, font })
-    const parent = type !== "cosmetic" && values.from ? parents[values.from - 1] : undefined
+    const perms = type === "cosmetic" ? []
+        : template ? [...template.perms]
+        : (draft.perms ?? []).filter(node => canGiveNode(player, node))
+    const font = FONT_IDS[draft.font] ?? "normal"
+    const name = buildName(draft.name, { bold: draft.bold, italic: draft.italic, font })
     saveRank(id, {
         display: name.display, text: name.text, font,
         fontTag: true, fontName: false, fontChat: false,
-        type, inherits: parent ? [parent.id] : [], perms: [], meta: {}
+        type, inherits: [], perms, meta: template ? { badge: template.badge } : {}
     })
 
-    // A rank in the order lands at the bottom. Walk it up to just below the
-    // chosen one.
-    if (ranked) {
-        const target = usable[values.below] ?? usable[usable.length - 1]
+    // A rank in the order joins at the bottom (saveRank), which is where At
+    // the bottom leaves it. Otherwise walk it up until it sits just above the
+    // chosen rank.
+    if (target) {
         for (let guard = 0; guard < 64; guard++) {
-            const order = ladder().map(r => r.id)
-            if (order.indexOf(id) <= order.indexOf(target.id) + 1) break
+            const order = ladder().map(rank => rank.id)
+            if (order.indexOf(id) <= order.indexOf(target.id)) break
             if (!moveRank(id, -1)) break
         }
     }
 
     ok(player, {
         default: `Made the ${name.display}§a rank. Its permissions are under Permissions.`,
-        staff: `Made the ${name.display}§a staff rank. Staff tools are under Permissions ▸ Administrative.`,
+        staff: template
+            ? `Made the ${name.display}§a staff rank from the ${template.name} template. Change it under Permissions.`
+            : `Made the ${name.display}§a staff rank. Staff tools are under Permissions ▸ Administrative.`,
         cosmetic: `Made the ${name.display}§a cosmetic rank. Give it to players from Give a rank.`,
         unlisted: `Made the ${name.display}§a unlisted rank. It shows no tag. Give it to players from Give a rank.`
     }[type])

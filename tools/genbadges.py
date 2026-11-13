@@ -23,7 +23,8 @@ nor any pack installed on this PC (E0-E4, E7-E9, F1, F9) uses. Each picture is
 32 pixels, the size the game's own smooth icons use (its page E0), and still
 draws one letter tall. Row 0 is the Admin+ style, row 1 the classic, one
 column per badge in the order of BADGES. core/badges.js lists them in the same
-order, and tests/badges.test.js checks.
+order, and tests/badges.test.js checks. Row 2 holds plain marks for text with
+no tile behind them: the green tick on the template cards (2.11.4) at U+EA20.
 """
 import math
 import pathlib
@@ -276,11 +277,29 @@ def classic_style(name, colour):
     return shrink(base)
 
 
+# Plain marks for row 2, in glyph order: (symbol, colour). No tile behind
+# them, so they read as part of a line of text. core/badges.js TICK is the first.
+MARKS = [("check", "55ff55")]
+
+
+def mark_style(name, colour):
+    """The symbol alone, in one colour, a little smaller than a badge's."""
+    big = (CELL * SS, CELL * SS)
+    base = Image.new("RGBA", big, (0, 0, 0, 0))
+    base.paste(Image.new("RGBA", big, rgb(colour)), (0, 0), symbol_mask(name, (CELL - BOX) / 2))
+    small = base.resize((CELL - 6, CELL - 6), Image.BOX)
+    out = Image.new("RGBA", (CELL, CELL), (0, 0, 0, 0))
+    out.alpha_composite(small, (3, 3))
+    return out
+
+
 def build():
     sheet = Image.new("RGBA", (CELL * 16, CELL * 16), (0, 0, 0, 0))
     for i, (key, _label, classic, admin) in enumerate(BADGES):
         sheet.alpha_composite(admin_style(key, admin), (i * CELL, 0))
         sheet.alpha_composite(classic_style(key, classic), (i * CELL, CELL))
+    for i, (symbol, colour) in enumerate(MARKS):
+        sheet.alpha_composite(mark_style(symbol, colour), (i * CELL, 2 * CELL))
     OUT.parent.mkdir(parents=True, exist_ok=True)
     sheet.save(OUT)
     return sheet
