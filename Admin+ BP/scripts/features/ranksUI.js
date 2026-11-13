@@ -4,6 +4,7 @@ import { hubTitle, hubEntry, COLOUR_CODE_TIP } from "../core/theme.js"
 import { setting, flag, render, renderTag } from "../core/settings.js"
 import { record } from "../core/logs.js"
 import { ok, err, info } from "../core/util.js"
+import { BADGES, badgeChar, badgeFor, badgeLabel, badgeOf, badgeStyle, badgesOn } from "../core/badges.js"
 import { stripCodes, displayName } from "../core/identity.js"
 import { STYLES, STYLE_IDS, paint } from "../core/nametag.js"
 import { FONTS, FONT_IDS, applyFont, fontOptions } from "../core/fonts.js"
@@ -199,8 +200,21 @@ function sectioned(ranks) {
     return items
 }
 
+/**
+ * A rank's name for a button, with its badge in front when badges show
+ * (core/badges.js, Beta). A staff rank's badge stands in for the word "staff"
+ * (the user, 2026-11-13: badges "to the buttons instead of putting staff"),
+ * so a staff rank needs no second line unless it is also the starting rank.
+ * With no badge the text is exactly what it was.
+ */
+function rankText(rank, lead = "") {
+    const badge = badgeFor(rank, rankType(rank))
+    if (badge && rankType(rank) === "staff" && !rank.default) return `${lead}${badge} §r${rank.display}`
+    return `${lead}${badge ? `${badge} §r` : ""}${rank.display}§r\n§8${typeNote(rank)}`
+}
+
 /** A rank's button in any list: its name, then its type. */
-const rankButton = rank => ({ text: `${rank.display}§r\n§8${typeNote(rank)}` })
+const rankButton = rank => ({ text: rankText(rank) })
 
 /** A rank's name as plain text, for titles and messages. */
 const nameOf = rank => stripCodes(String(rank?.display ?? "")) || rank?.id || "this rank"
@@ -263,8 +277,7 @@ export async function ranksScreen(player, back) {
 
 function ladderLine(rank, index) {
     // Cosmetic and unlisted ranks have no number, because they have no place.
-    if (!isRanked(rank)) return `§r${rank.display}§r\n§8${typeNote(rank)}`
-    return `§8${index + 1}. §r${rank.display}§r\n§8${typeNote(rank)}`
+    return rankText(rank, isRanked(rank) ? `§8${index + 1}. §r` : "§r")
 }
 
 /**
@@ -375,6 +388,10 @@ export async function rankScreen(player, rankId, back) {
             // the rank looks and what type it is; Permissions is what it can
             // do, split into Member and Administrative.
             { text: hubEntry("ranks", "Basics", "Name, font, type and colours"), run: () => basicsScreen(player, rankId, again) },
+            // Badges show only in Beta (core/badges.js), so the button does too.
+            badgesOn()
+                ? { text: hubEntry("ranks", "Badge", badgeLine(rank)), run: () => badgeScreen(player, rankId, again) }
+                : null,
             type !== "cosmetic"
                 ? { text: hubEntry("ranks", "Permissions", type === "staff" ? "Member and administrative" : "What players with it can do"), run: () => permissionsScreen(player, rankId, again) }
                 : null,
@@ -382,6 +399,47 @@ export async function rankScreen(player, rankId, back) {
             canMoveDown ? { text: `§8▼ Move down · below ${nameOf(rows[index + 1])}`, run: () => moveAndReturn(player, rankId, 1, again) } : null,
             { text: "§cDelete this rank", run: () => deleteScreen(player, rankId, back) }
         ].filter(Boolean) : [],
+        back
+    })
+}
+
+/** The badge a rank wears, for its button: the picture and its name. */
+function badgeLine(rank) {
+    const key = badgeOf(rank, rankType(rank))
+    return key ? `${badgeChar(key, badgeStyle())} §8${badgeLabel(key)} · before its tag` : "None · pick a picture for its tag"
+}
+
+/**
+ * Pick a rank's badge (2.11.2, Beta). A badge is only a picture, so it gives
+ * nothing and needs no rank-gap check; it does need the right to edit the
+ * rank, the same as Basics. "No badge" is stored as "none", so a staff rank
+ * can go without one even though staff ranks wear the ban hammer by default.
+ */
+async function badgeScreen(player, rankId, back) {
+    const rank = getRank(rankId)
+    if (!rank) { err(player, "That rank no longer exists."); return back() }
+    if (!canEditRank(player, rank)) { err(player, "This rank is at or above yours, so you can only look."); return back() }
+    const current = badgeOf(rank, rankType(rank))
+    const style = badgeStyle()
+    const pick = key => {
+        const fresh = getRank(rankId)
+        if (!fresh) { err(player, "That rank no longer exists."); return back() }
+        saveRank(rankId, { meta: { ...(fresh.meta ?? {}), badge: key } })
+        ok(player, key === "none"
+            ? `${fresh.display}§a has no badge now.`
+            : `${fresh.display}§a wears the ${badgeLabel(key)} badge now.`)
+        return back()
+    }
+    return menu(player, {
+        title: hubTitle("ranks", `${nameOf(rank)} · Badge`),
+        body: subtitle("The picture before this rank's tag, in chat and above heads, and on its button."),
+        buttons: [
+            ...BADGES.map(badge => ({
+                text: `${badgeChar(badge.key, style)} §f${badge.label}${badge.key === current ? " §7· now" : ""}`,
+                run: () => pick(badge.key)
+            })),
+            { text: `§fNo badge${current ? "" : " §7· now"}`, run: () => pick("none") }
+        ],
         back
     })
 }

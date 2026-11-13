@@ -81,6 +81,7 @@ export const GROUPS = {
     namecolour: "Name colour effects",
     omni: "Omnitool",
     automation: "Automation",
+    badge: "Badges (Beta)",
     ranks: "Ranks",
     staff: "Staff"
 }

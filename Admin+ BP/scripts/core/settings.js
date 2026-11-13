@@ -352,6 +352,15 @@ export const DEFAULTS = {
         value: "true", label: "Cosmetic ranks",
         help: "true / false · show the tags of cosmetic ranks: ranks that only change how a name looks, with no place in the rank order and no permissions"
     },
+    // Rank badges (2.11.2): Beta only, see core/badges.js.
+    "feature.badges": {
+        value: "true", label: "Badges",
+        help: "true / false · Beta only: a small picture before each rank's tag, in chat and above heads, and on rank buttons instead of the word staff"
+    },
+    "badge.classic": {
+        value: "false", label: "Classic badges",
+        help: "true / false · Beta only: badges as coloured squares instead of Admin+'s dark tiles"
+    },
     "creator.console": {
         value: "true",
         label: "Creator & Dev console",

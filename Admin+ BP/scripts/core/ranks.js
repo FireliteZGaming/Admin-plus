@@ -5,6 +5,7 @@ import { displayName, nameTokens, stripCodes, hasNickname, getNameFont, setNameD
 import { render, renderTag, nameTagsEnabled, flag, setting } from "./settings.js"
 import { STYLES, STYLE_IDS, paint, currentFrame } from "./nametag.js"
 import { applyFont } from "./fonts.js"
+import { badgeFor } from "./badges.js"
 
 // Admin+ rank engine — see RANKS_PLAN.md for the design rationale.
 //
@@ -841,7 +842,18 @@ export function renderTags(playerOrId) {
     // with nothing between the brackets. Filtering before the join is what
     // stops a blanked tag in the middle leaving a double space behind it.
     const sep = String(setting("format.tagJoin") ?? " ")
-    return all.slice(0, limit).map(rank => renderTag(rank)).filter(Boolean).join(sep)
+    return all.slice(0, limit).map(rank => badgedTag(rank)).filter(Boolean).join(sep)
+}
+
+/**
+ * A rank's tag with its badge before the name (2.11.2, Beta only; see
+ * core/badges.js), like `[<badge> Mod]`. A rank whose name was blanked still
+ * shows no tag at all: the badge decorates a tag, it never makes one.
+ */
+function badgedTag(rank) {
+    const tag = renderTag(rank)
+    const badge = tag ? badgeFor(rank, rankType(rank)) : ""
+    return badge ? renderTag({ ...rank, display: `${badge} ${rank.display}` }) : tag
 }
 
 /** Their authority: the strongest rank they hold, whatever the display order. */

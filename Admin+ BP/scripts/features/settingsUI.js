@@ -7,6 +7,7 @@ import { has } from "../core/ranks.js"
 import { record } from "../core/logs.js"
 import { channelsScreen } from "./chatUI.js"
 import { previewLine } from "./code.js"
+import { isBeta } from "../core/channel.js"
 
 // /admin ▸ Server ▸ Settings
 //
@@ -122,6 +123,14 @@ export const GROUPS = [
                 ]
             },
             { label: "Cosmetic ranks", hint: "Show the tags of cosmetic ranks", fields: [sw("feature.tags", "Cosmetic ranks", "Show the tags of cosmetic ranks, beside the rank tag")] },
+            // Badges are Beta (core/badges.js), so their page shows on Beta only.
+            {
+                label: "Badges", hint: "A small picture before each rank's tag", beta: true,
+                fields: [
+                    sw("feature.badges", "Badges", "Before each rank's tag in chat and above heads, and on rank buttons instead of the word staff. Pick each rank's in Ranks ▸ a rank ▸ Badge."),
+                    sw("badge.classic", "Classic style", "Coloured squares instead of Admin+'s dark tiles")
+                ]
+            },
             { label: "Names above heads", hint: "Off leaves nametags to the game or another mod", fields: [sw("feature.nametags", "Names above heads", "Off: Admin+ never changes nametags, and puts every name back to the gamertag once")] },
             {
                 label: "Name colours", hint: "A colour or moving effect, set per rank",
@@ -274,7 +283,8 @@ export async function groupScreen(player, group, back) {
             group.preview ? `\n§8A chat line looks like this: §r${previewLine()}` : ""
         ].filter(Boolean).join("\n"),
         buttons: [
-            ...group.pages.map(page => ({
+            // A Beta page (badges) shows only when the slider is on Beta.
+            ...group.pages.filter(page => !page.beta || isBeta()).map(page => ({
                 text: hubEntry("settings", page.label, `${stateOf(page)}${page.hint}`),
                 run: () => pageScreen(player, page, again)
             })),

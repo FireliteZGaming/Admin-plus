@@ -427,6 +427,17 @@ value in the wrong key.
   after a game update. `tests/look.test.js` works out which frame shows for
   each kind of title from the bindings themselves. Design: Obsidian ▸ Admin+
   ▸ UI Overhaul.
+- **Rank badges are Beta (2.11.2, the user's idea, 2026-11-13: "not their
+  way, but our way. In our theme and style ... Especially to the buttons
+  instead of putting staff").** A badge is a character on our glyph page
+  `Admin+ RP/font/glyph_EA.png` (U+EA00 on; row 0 the Admin+ style, row 1
+  the classic), drawn by `tools/genbadges.py`. `core/badges.js` lists them
+  in the SAME order; never reorder one without the other. The user liked
+  both styles, so `badge.classic` picks. Tags get the badge inside the
+  bracket (`badgedTag` in `core/ranks.js`); a blanked rank name still shows
+  no tag. A staff rank's button shows its badge instead of the word staff.
+  `{RANK}` never carries a badge, so automations comparing it still work.
+  Staff ranks default to the ban hammer. `tests/badges.test.js`.
 - **Chat automod is ON HOLD (2.9.2, the user, 2026-11-12: "a complete hold, so
   disabling it and graying out the button to inactive").** Chat screening and
   chat flooding both stop, whatever the settings say; ore alerts and fast

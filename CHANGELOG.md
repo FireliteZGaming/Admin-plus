@@ -56,6 +56,44 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.11.2 — 2026-11-13
+
+**Rank badges, in Beta.**
+
+The user's idea: badges like the little ones on Twitch and Discord, "not their
+way, but our way. In our theme and style", on rank tags and "to the buttons
+instead of putting staff". Of the first previews they liked two styles, so
+both ship.
+
+### What it does
+1. A small picture before each rank's tag, in chat and above heads:
+   `[<badge> Mod]`.
+2. In the rank list, a staff rank shows its badge instead of the word staff,
+   on one line.
+3. Ranks ▸ a rank ▸ Badge picks one of 11: Crown, Ban hammer, Shield, Star,
+   Gem, Heart, Bolt, Pickaxe, Flask, Check and Admin+, or No badge.
+4. Until a badge is picked, the owner wears the crown, admins the shield,
+   managers the star, mods and every other staff rank the ban hammer, VIPs
+   the gem, and the Admin+ team its own mark. Other ranks wear none.
+5. Server ▸ Settings ▸ Names and tags ▸ Badges turns them off, or switches to
+   the classic style: coloured squares instead of Admin+'s dark tiles with
+   the aqua-to-pink bar.
+6. Beta only. On Default, tags and buttons are exactly what they were.
+
+### How it works
+1. Minecraft draws pictures inside text from glyph pages. Admin+ draws its
+   own page, `Admin+ RP/font/glyph_EA.png`, with `tools/genbadges.py`: row 0
+   is the Admin+ style, row 1 the classic. Page EA is used by neither the game
+   nor any pack installed on the PC it was made on.
+2. `core/badges.js` names each picture by its place on the page.
+   `tests/badges.test.js` checks the two agree, that every picture is drawn
+   and nothing else is, and that Default never changes.
+3. The ban hammer is a mace shape drawn from scratch, because Admin+'s Ban
+   Hammer is a real mace in game.
+
+### Not seen in game yet
+How big a badge draws next to text, and whether it lines up with the words.
+
 ## 2.11.1 — 2026-11-13
 
 **Admin+'s own look, fixed after its first test, and the slider starts on
