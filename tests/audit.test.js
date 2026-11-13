@@ -3,6 +3,7 @@ import { __test } from "@minecraft/server"
 import { onPlayerJoin, setRanks, has } from "../Admin+ BP/scripts/core/ranks.js"
 import { setting, setSetting, resetSetting } from "../Admin+ BP/scripts/core/settings.js"
 import { audienceFor, lineFor, phraseFor, verbOf, announce, SILENT, PHRASES, sameLetters } from "../Admin+ BP/scripts/core/audit.js"
+import { record } from "../Admin+ BP/scripts/core/logs.js"
 import { setNickname } from "../Admin+ BP/scripts/core/identity.js"
 
 let passed = 0, failed = 0
@@ -324,6 +325,38 @@ console.log("\n— renaming says who, and what changed —")
     check("clearing a display name still names them",
         plain(admin, member, "name.clear", "back to gamertag"), "[Admin: Cleared Member's display name]")
     check("sameLetters ignores colour codes", [sameLetters("Steve", "§c§lSteve"), sameLetters("Steve", "Stevie"), sameLetters("", "")], [true, false, false])
+}
+
+console.log("\n— the old name and the new one, and who really did it —")
+// 2.11.5 playtest: a player renamed themselves to look like the creator and
+// staff read "[Firelie: Changed own display name to Firelie]". The user: "it
+// still doesn't show the previous name then changed to new one".
+{
+    const line = (a, t, act, d, previous) => lineFor(a, t, act, d, { previous }).replace(/§./g, "")
+    setNickname(member, "Firelie")
+    check("renaming yourself names you by gamertag, not by the new name",
+        line(member, member, "name.set", "Firelie", ""), "[Member: Changed own display name to Firelie]")
+    check("and says the name you had before, when you had one",
+        line(member, member, "name.set", "Firelie", "§9Bobby"), "[Member: Changed own display name from Bobby to Firelie]")
+    check("so does a staff member renaming someone",
+        line(admin, member, "name.set", "§cRob", "§9Bobby"), "[Admin: Renamed Member from Bobby to Rob]")
+    check("a gamertag in a colour was not a name of their own",
+        line(admin, member, "name.set", "Rob", "§5Member"), "[Admin: Renamed Member to Rob]")
+    check("a new look on the old name is still a new look",
+        line(member, member, "name.set", "§cBobby", "§9Bobby"), "[Member: Changed the look of own name]")
+    check("clearing a name says what it was",
+        line(admin, member, "name.clear", "back to gamertag", "§9Bobby"), "[Admin: Cleared Member's display name (was Bobby)]")
+    check("and so does clearing your own",
+        line(member, member, "name.clear", "back to gamertag", "§9Bobby"), "[Member: Cleared own display name (was Bobby)]")
+    check("other lines still name the actor by display name",
+        lineFor(member, member, "mod.gamemode", "Creative").replace(/§./g, ""), "[Firelie: Set own game mode to Creative]")
+
+    // The whole way, as a rename really travels: recorded with what it replaced.
+    for (const p of [owner, admin, admin2, mod, mod2, member]) p.heard.length = 0
+    record(member, "name.set", member, "Firelie", { kind: "nickname", previous: "§9Bobby" })
+    check("a recorded rename reaches staff with both names and the gamertag",
+        String(owner.heard.at(-1) ?? "").replace(/§./g, ""), "[Member: Changed own display name from Bobby to Firelie]")
+    setNickname(member, "")
 }
 
 console.log(`\n${passed} passed, ${failed} failed\n`)

@@ -56,6 +56,39 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.11.6 — 2026-11-13
+
+**Rename lines say the old name and the new one, and who really did it.**
+
+In the 2.11.5 playtest a player renamed themselves to look like the creator,
+and staff read "[Firelie: Changed own display name to Firelie]": the line
+named them by their NEW name and never said what it was before. The user:
+"it still doesn't show the previous name then changed to new one".
+
+1. **In any name change, the person who did it is named by gamertag**, so a
+   new name can't hide who chose it: "[eXeinty404: Changed own display name to
+   Firelie]".
+2. **The old display name is said when there was one**: "Changed own display
+   name from Bob to Firelie", "Renamed Midnight from Bob to Rob", and
+   clearing reads "Cleared Midnight's display name (was Bob)". A gamertag in
+   a colour doesn't count as a name of their own, so "Renamed Midnight to
+   Rob" stays as it was.
+3. **Names in these lines are plain**, so a coloured name can't recolour the
+   rest of the line.
+4. Every other staff line still names the actor by display name.
+
+The old name was already kept with each rename for Logs undo; it now also
+reaches the spoken line (`record()` passes it to `announce()`).
+
+### Seen in game (2.11.5, 2026-11-13)
+Badges sit level with the words in chat and in the rank list, and the template
+cards are right: small badges, text-sized ticks, no stray bold, Owner's
+warning inside its card.
+
+### Checked
+`tests/audit.test.js` (81, nine new), including a rename recorded the real way
+and heard by staff.
+
 ## 2.11.5 — 2026-11-13
 
 **Badges and ticks drawn at text size, and the template cards fixed, after the

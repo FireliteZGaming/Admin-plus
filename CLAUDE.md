@@ -414,7 +414,10 @@ field, or (on a game that drew no labels) one per input.
   write AND read). No display name may copy another player's
   (`core/names.js`). Every teleport refuses while frozen (`queueTeleport`).
   Typed colour codes need `chat.codes` (`core/chattext.js`). An automation
-  can only be changed by its saver or someone who outranks them.
+  can only be changed by its saver or someone who outranks them. A staff
+  line about a name change names the actor AND the target by gamertag, with
+  the old display name (2.11.6, `lineFor` in `core/audit.js`): a lookalike
+  name can't hide who chose it.
   `tests/exploits.test.js`.
 - **Beta features check `isBeta()` (`core/channel.js`).** The slider is the
   BP's subpacks (Default listed LAST, both on memory tier 0, so new worlds

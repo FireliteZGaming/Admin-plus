@@ -59,7 +59,9 @@ export function record(actor, action, target, detail, undo) {
     // log rather than off each command is what keeps the two consistent: if it
     // was worth recording, it is the same event worth announcing, and a command
     // added later is covered the day it starts logging.
-    try { announce(actor, action, target, detail) } catch { /* never break the log */ }
+    // `undo` carries what the action replaced, such as the display name before
+    // a rename, so the spoken line can say "from ... to ...".
+    try { announce(actor, action, target, detail, undo) } catch { /* never break the log */ }
 
     return entry
 }

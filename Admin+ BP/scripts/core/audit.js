@@ -137,9 +137,14 @@ const PHRASES = {
     "mod.gamemode": (t, d) => `Set ${t}'s game mode to ${d}`,
     "mod.bring": t => `Brought ${t}`,
     // Same letters, new colour or style: "Renamed Midnight to Midnight" read
-    // as nonsense in a playtest (2026-11-12), so say what changed.
-    "name.set": (t, d) => sameLetters(t, d) ? `Changed the look of ${t}'s name` : `Renamed ${t} to ${d}`,
-    "name.clear": t => `Cleared ${t}'s display name`,
+    // as nonsense in a playtest (2026-11-12), so say what changed. And the old
+    // name, when they had one (2.11.6, the user: "it still doesn't show the
+    // previous name then changed to new one"). `p` is the display name before.
+    "name.set": (t, d, p) => {
+        if (sameLetters(p || t, d)) return `Changed the look of ${t}'s name`
+        return hadOwnName(p, t) ? `Renamed ${t} from ${plainName(p)} to ${plainName(d)}` : `Renamed ${t} to ${plainName(d)}`
+    },
+    "name.clear": (t, _d, p) => hadOwnName(p, t) ? `Cleared ${t}'s display name (was ${plainName(p)})` : `Cleared ${t}'s display name`,
     "rank.grant": (t, d) => `Gave ${t} ${d}`,
     "rank.revoke": (t, d) => `Took ${d} from ${t}`,
     "rank.set": (t, d) => `Set ${t} to ${d}`,
@@ -166,8 +171,18 @@ const PHRASES = {
  */
 const SELF_PHRASES = {
     "mod.gamemode": (_t, d) => `Set own game mode to ${d}`,
-    "name.set": (t, d) => sameLetters(t, d) ? "Changed the look of own name" : `Changed own display name to ${d}`
+    "name.set": (t, d, p) => {
+        if (sameLetters(p || t, d)) return "Changed the look of own name"
+        return hadOwnName(p, t) ? `Changed own display name from ${plainName(p)} to ${plainName(d)}` : `Changed own display name to ${plainName(d)}`
+    },
+    "name.clear": (t, _d, p) => hadOwnName(p, t) ? `Cleared own display name (was ${plainName(p)})` : "Cleared own display name"
 }
+
+/** A name with its colour codes taken out, so it can't recolour the rest of a staff line. */
+const plainName = name => String(name ?? "").replace(/§./g, "").trim()
+
+/** Did they go by a display name of their own before, not just their gamertag in a colour? */
+const hadOwnName = (previous, gamertag) => !!plainName(previous) && !sameLetters(previous, gamertag)
 
 /**
  * True when a new display name has the same letters as the name it replaces,
@@ -179,10 +194,13 @@ export function sameLetters(before, after) {
     return plain(before) !== "" && plain(before) === plain(after)
 }
 
-/** The sentence, without the surrounding format. */
-export function phraseFor(action, targetName, detail, self) {
+/**
+ * The sentence, without the surrounding format. `previous` is the display name
+ * a name change replaced, if they had one.
+ */
+export function phraseFor(action, targetName, detail, self, previous = "") {
     const build = (self && SELF_PHRASES[action]) || PHRASES[action]
-    if (build) return build(targetName, String(detail ?? ""))
+    if (build) return build(targetName, String(detail ?? ""), String(previous ?? ""))
     return `Used ${verbOf(action)} on ${targetName}`
 }
 
@@ -218,16 +236,23 @@ export function audienceFor(actor, target, action) {
  * it: a world that customised format.command before this change has that older
  * string stored, and dropping the token would leave it printing "{COMMAND}".
  */
-export function lineFor(actor, target, action, detail) {
+export function lineFor(actor, target, action, detail, extra = {}) {
     // A display-name change is recorded AFTER it is made, so the target's
     // display name is already the new one, and every rename read "Renamed
     // Midnight to Midnight" (seen in a playtest, 2026-11-12). Name them by
     // their gamertag instead, which a rename never changes.
-    const name = String(action).startsWith("name.") && target?.name ? target.name : displayName(target)
+    const naming = String(action).startsWith("name.")
+    const name = naming && target?.name ? target.name : displayName(target)
     const self = !!(actor && target && actor.id && actor.id === target.id)
+    // Someone renaming themselves showed up under the NEW name, as in
+    // "[Firelie: Changed own display name to Firelie]" (2.11.5 playtest), so
+    // nobody could tell who it was. In a name change the actor is named by
+    // gamertag too: a new name can't hide who chose it.
+    const actorTokens = nameTokens(actor)
+    if (naming && actor?.name) actorTokens.NICKNAME = actor.name
     return render("format.command", {
-        ...nameTokens(actor),
-        ACTION: phraseFor(action, name, detail, self),
+        ...actorTokens,
+        ACTION: phraseFor(action, name, detail, self, naming ? extra?.previous : ""),
         COMMAND: verbOf(action),
         TARGET: name,
         DETAIL: String(detail ?? "")
@@ -238,11 +263,11 @@ export function lineFor(actor, target, action, detail) {
  * Announce one staff action. Called from record(); nothing else should need to.
  * @returns {number} how many people were told
  */
-export function announce(actor, action, target, detail) {
+export function announce(actor, action, target, detail, extra) {
     const audience = audienceFor(actor, target, action)
     if (!audience.length) return 0
 
-    const line = lineFor(actor, target, action, detail)
+    const line = lineFor(actor, target, action, detail, extra)
     // Deferred: record() is called from inside event handlers, and sending a
     // message is not something to do while one is still being dispatched.
     system.run(() => {
