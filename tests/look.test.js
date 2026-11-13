@@ -58,6 +58,18 @@ for (const [name, marker] of [["BETA_LOOK", BETA_LOOK], ["TILES", TILES]]) {
     check(`lifting leaves ${name} alone`, lift(marker), marker)
 }
 check("the two are different", BETA_LOOK === TILES, false)
+
+console.log("\n— lifting reads codes the way the game does —")
+// The game reads "§" plus the next character as one code, left to right, so
+// "§§" is a code that hides itself. The rank editor's row of codes is written
+// "§0§§0 §1§§1 ...": each code, then "§§" to hide nothing, then its letter.
+// A first version of lift() turned that row's 0 into f and its 8 into 7, seen
+// on the phone page on 2026-11-13.
+check("dark grey and black are lifted", lift("§8Most never need it. §0Black"), "§7Most never need it. §fBlack")
+check("a code shown off in its own colour keeps it", lift("§0§§0 §1§§1 §8§§8 §f§§f"), "§0§§0 §1§§1 §8§§8 §f§§f")
+check("the letter after §§ is never read as a code", lift("§§8 and §§0"), "§§8 and §§0")
+check("a § at the very end is left alone", lift(COLOUR_CODE_TIP), COLOUR_CODE_TIP)
+check("other colours are untouched", lift("§cRed §7grey §eyellow"), "§cRed §7grey §eyellow")
 // Markers are matched as text inside the whole title. Placed side by side,
 // they must not spell out somebody else's.
 const ours = { MULTILINE, BETA_LOOK, TILES }

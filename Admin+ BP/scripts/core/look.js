@@ -35,9 +35,17 @@ const LIFT = { "0": "f", "8": "7" }
 /**
  * The same text, readable on the dark panel. For words a player READS: never
  * for a value in a text box, which is what gets saved.
+ *
+ * The game reads "§" and the character after it as one code, left to right,
+ * so "§§" is a code too and hides itself. A code followed by "§§" is being
+ * shown off in its own colour, as in the rank editor's row "§0§§0 §1§§1 ...",
+ * so it keeps its colour. Reading codes one at a time like the game also
+ * means the "8" shown after "§§" is never mistaken for a code.
  */
 export function lift(text) {
-    return typeof text === "string" ? text.replace(/§([08])/g, (_, code) => `§${LIFT[code]}`) : text
+    if (typeof text !== "string") return text
+    return text.replace(/§([\s\S])/g, (pair, code, at) =>
+        LIFT[code] && !text.startsWith("§§", at + 2) ? `§${LIFT[code]}` : pair)
 }
 
 /**
