@@ -1,9 +1,10 @@
 import { world, system, CommandPermissionLevel } from "@minecraft/server"
 import { CONFIG } from "../config.js"
 import { Table, cleanId } from "./storage.js"
-import { displayName, nameTokens, stripCodes, hasNickname, getNameFont, setNameDecorator } from "./identity.js"
+import { displayName, nameTokens, stripCodes, hasNickname, getNameFont, setNameDecorator, getNameColours } from "./identity.js"
 import { render, renderTag, nameTagsEnabled, flag, setting } from "./settings.js"
-import { STYLES, STYLE_IDS, paint, currentFrame } from "./nametag.js"
+import { STYLES, STYLE_IDS, paint, currentFrame, rampFrom } from "./nametag.js"
+import { isBeta } from "./channel.js"
 import { applyFont } from "./fonts.js"
 import { badgeFor } from "./badges.js"
 
@@ -164,6 +165,11 @@ export const DEFAULT_RANKS = JSON.parse(JSON.stringify(PRESETS.server.ranks))
  */
 export const PERMISSION_NODES = {
     "Everyone": ["warp.use", "spawn.use", "tpa.use", "report.use", "online.use"],
+    // 2.12.0, the user: the colour shift is "rank specific ... it would have
+    // to be turned on for the rank, it is tagged under personalization and
+    // 'Name Color'". Off until a rank has it; /menu ▸ Personalization is
+    // open to everyone (features/personalize.js).
+    "Personalization": ["personalize.namecolour"],
     "The panel": ["admin.panel", "admin.settings", "admin.logs", "ranks.view"],
     "Chat": ["chat.staff", "chat.viewall", "chat.manage", "chat.spy", "chat.codes", "admin.broadcast", "admin.clearchat"],
     "Staff tools": ["admin.staffmode", "admin.vanish", "admin.tp", "admin.gamemode", "admin.nickname", "admin.holograms", "admin.invsee", "admin.lagclear", "admin.claims", "admin.alerts", "admin.omnitool"],
@@ -219,6 +225,7 @@ export const PERMISSION_NODES = {
  * silently strip it from every rank already holding it.
  */
 const LABEL_OVERRIDES = {
+    "personalize.namecolour": "Name colour",
     "presets.apply": "server presets",
     "admin.omnitool": "Omnitool",
     "admin.automation": "Automation",
@@ -1394,7 +1401,7 @@ setNameDecorator((player, text) => applyFont(text, nameFontFor(player)))
  */
 export function chatNameFor(player, text) {
     if (!flag("feature.namecolour")) return text
-    const ramp = STYLES[effectiveNametagStyle(player)]?.ramp
+    const ramp = effectiveNameRamp(player)
     if (!ramp) return text
     return paint(stripCodes(text), ramp, 0)
 }
@@ -1475,6 +1482,26 @@ export function effectiveNametagStyle(player) {
     const creator = creatorIdentity(player)
     if (creator && !hasNickname(player)) return creator.style
     return nametagStyleFor(player)
+}
+
+/**
+ * A player's own name colours as a ramp to paint with, when they may show:
+ * Personalization is a Beta feature (2.12.0), and choosing colours needs the
+ * rank's Name colour switch (personalize.namecolour), which starts off. ""
+ * when they have none or may not.
+ */
+export function personalRamp(player) {
+    if (!isBeta() || !has(player, "personalize.namecolour")) return ""
+    return rampFrom(getNameColours(player))
+}
+
+/**
+ * The colours actually painted on a name: their own first, then the creator
+ * identity's or their rank's effect. The nametag, the animation tick and chat
+ * all ask this one function, for the reason given on effectiveNametagStyle.
+ */
+export function effectiveNameRamp(player) {
+    return personalRamp(player) || STYLES[effectiveNametagStyle(player)]?.ramp || ""
 }
 
 export function valueFor(playerOrId, key) {
@@ -1738,14 +1765,9 @@ export function refreshNameTag(player) {
         // ONE function answers this, and the animation tick asks the same one.
         // Asking separately is what froze the creator's name — see the note on
         // effectiveNametagStyle.
-        const styleId = effectiveNametagStyle(player)
-
-        if (styleId !== "none" && flag("feature.namecolour")) {
-            const ramp = STYLES[styleId]?.ramp
-            if (ramp) {
-                tokens.NICKNAME = paint(
-                    stripCodes(tokens.NICKNAME), ramp, currentFrame())
-            }
+        const ramp = effectiveNameRamp(player)
+        if (ramp && flag("feature.namecolour")) {
+            tokens.NICKNAME = paint(stripCodes(tokens.NICKNAME), ramp, currentFrame())
         }
 
         const tag = render("format.nameTag", {

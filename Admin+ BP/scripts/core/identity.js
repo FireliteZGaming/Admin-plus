@@ -82,6 +82,28 @@ export function setNameFont(playerOrId, fontId) {
 }
 
 /**
+ * Each player's own name colours (2.12.0), set in /menu ▸ Personalization: up
+ * to four colour codes, kept as their letters. core/ranks.js decides whether
+ * they show (the rank's Name colour switch and the Beta pack setting).
+ */
+const nameColours = new Table("nameColours", {})
+const COLOUR_LETTER = /^[0-9a-jmnpqstuv]$/
+
+export function getNameColours(playerOrId) {
+    const raw = nameColours.get(idOf(playerOrId))
+    return Array.isArray(raw) ? raw.map(c => String(c).toLowerCase()).filter(c => COLOUR_LETTER.test(c)).slice(0, 4) : []
+}
+
+/** Save up to four colours; none clears them. Returns what was kept. */
+export function setNameColours(playerOrId, codes) {
+    const id = idOf(playerOrId)
+    const list = (codes ?? []).map(c => String(c).toLowerCase()).filter(c => COLOUR_LETTER.test(c)).slice(0, 4)
+    if (!list.length) nameColours.delete(id)
+    else nameColours.set(id, list)
+    return list
+}
+
+/**
  * How a name is dressed before a template draws it: the font. core/ranks.js
  * registers this, because a rank can give its players a name font and only
  * ranks.js knows who holds what; identity.js cannot import ranks.js without a

@@ -67,6 +67,16 @@ ICONS = {
         "ssssssss",
         "sssmmsss",
         "ssssssss"]),
+    # Personalization (2.12.0): a painter's palette with four dabs of colour.
+    "palette": ({"w": "d9b77e", "d": "a07a43", "r": "ff5555", "y": "ffff55", "b": "55ffff", "p": "ff55ff"}, [
+        "..wwww..",
+        ".wrwwyw.",
+        "wwwwwwww",
+        "wbwwddww",
+        "wwwwddw.",
+        "wwpwwww.",
+        ".wwwwww.",
+        "..wwww.."]),
     "crown": ({"g": "ffd166", "d": "c99a2e", "a": "55ffff"}, [
         "........",
         "...gg...",
@@ -177,6 +187,7 @@ TILES = {
     "claims": ("shield", GREEN),
     "settings": ("gear", STEEL),
     "console": ("terminal", PURPLE),
+    "personalize": ("palette", PINK),
 }
 
 # A tile's icon area is 32x34 on screen (inside the button's 1px edge), drawn

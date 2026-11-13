@@ -1,7 +1,7 @@
 import { world, system } from "@minecraft/server"
 import { flag, setting, nameTagsEnabled } from "../core/settings.js"
-import { refreshNameTag, effectiveNametagStyle } from "../core/ranks.js"
-import { advanceFrame, STYLES } from "../core/nametag.js"
+import { refreshNameTag, effectiveNameRamp } from "../core/ranks.js"
+import { advanceFrame } from "../core/nametag.js"
 
 // The clock behind a colour that travels along a nametag.
 //
@@ -51,8 +51,9 @@ export function stepNameAnimation(players) {
         // whatever frame last painted it.
         // A single still colour never changes, so it is painted when the
         // nametag is drawn and skipped here.
-        const style = effectiveNametagStyle(player)
-        if (style === "none" || STYLES[style]?.still) continue
+        // Their own colours count too (2.12.0): effectiveNameRamp asks both.
+        const ramp = effectiveNameRamp(player)
+        if (new Set(ramp).size < 2) continue
         refreshNameTag(player)
         painted++
     }

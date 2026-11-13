@@ -56,6 +56,51 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.12.0 — 2026-11-13
+
+**Personalization in /menu: choose your own name colours. In Beta.**
+
+The user's idea: "a personalization area, sort of how discord does it". It
+starts with the name.
+
+### Personalization
+1. **A new Personalization button in /menu** (a tile in the Beta look), open
+   to everyone.
+2. **Name colours:** four boxes, Colour 1 to 4. Each takes a colour code, like
+   c or §c, and the codes are shown in their own colours above the boxes,
+   Bedrock's extra ones (g, h, i, j, m, n, p, q, s, t, u, v) included. Empty
+   boxes are skipped:
+   - one colour makes a still name;
+   - two to four shift along the name like the built-in effects, each colour
+     held for two letters and then running back, so the wave is smooth;
+   - all empty turns it off, and the rank's own effect shows again.
+3. **It shows above the head and in chat** (chat shows one still frame, since a
+   chat line can't move). A player's own colours beat their rank's effect.
+4. **A box that isn't a colour** says which one and asks again with
+   everything kept.
+
+### Who can choose colours
+**A rank switch, off until you turn it on.** The user: the colour shift is
+"rank specific, so it would have to be turned on for the rank, it is tagged
+under personalization and 'Name Color'". Every rank's Permissions ▸ Member now
+has a **Personalization** section with one switch, **Name colour**. Without
+it, Personalization still opens and Name colours says it isn't switched on for
+their rank and where staff switch it on. Switched off later, a player's
+colours stay saved but stop showing. The long permissions list in + New rank
+has the section too.
+
+### Not in this version
+1. Display names stay with staff (/nick, a player's Display screen).
+2. Protecting names from lookalikes ("Firelie" for "Firelite", names worked
+   out from gamertags) waits for automod in 4.0.0, the user's call. The exact
+   copy rule from 2.10.1 still stands.
+
+### Checked
+`tests/personalize.test.js` (38): the colour wave, the switch and where it
+sits, the screens in both looks, choosing, wrong boxes, the rank's effect and
+the switch going off. `tests/ranksui.test.js` and `tests/rankgap.test.js`
+follow the new section.
+
 ## 2.11.7 — 2026-11-13
 
 **The Admin+ badge belongs to the Admin+ team.**

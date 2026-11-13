@@ -228,7 +228,8 @@ const holds = (rank, node) => ["own", "wildcard", "inherited"].includes(rankGran
  * The two halves of a rank's permissions, as split on 2026-11-11: Member is
  * what any player with the rank can do, Administrative is staff tools.
  */
-const MEMBER_GROUPS = ["Everyone"]
+// Personalization (2.12.0) is for any player too, not a staff tool.
+const MEMBER_GROUPS = ["Everyone", "Personalization"]
 const ADMIN_GROUPS = Object.keys(PERMISSION_NODES).filter(group => !MEMBER_GROUPS.includes(group))
 const countOn = (rank, groups) => groups.reduce((n, g) => n + PERMISSION_NODES[g].filter(node => holds(rank, node)).length, 0)
 const countAll = groups => groups.reduce((n, g) => n + PERMISSION_NODES[g].length, 0)
@@ -602,7 +603,7 @@ async function templateStep(player, draft, prev, back) {
 }
 
 /** What a section of switches is called on the long list. */
-const SECTION_TITLES = { "Everyone": "What they can use" }
+const SECTION_TITLES = { "Everyone": "What they can use", "Personalization": "Personalization" }
 
 /**
  * Every permission on one form, as the user asked: sections split by a bold
@@ -988,7 +989,7 @@ async function permissionsScreen(player, rankId, back) {
                 : ""
         ].filter(Boolean).join("\n"),
         buttons: [
-            { text: hubEntry("ranks", "Member", `What they can use, limits and cooldowns · ${countOn(rank, MEMBER_GROUPS)} of ${countAll(MEMBER_GROUPS)} on`), run: () => memberPermissionsScreen(player, rankId, again) },
+            { text: hubEntry("ranks", "Member", `What they can use, personalization, limits and cooldowns · ${countOn(rank, MEMBER_GROUPS)} of ${countAll(MEMBER_GROUPS)} on`), run: () => memberPermissionsScreen(player, rankId, again) },
             staff || adminOn
                 ? { text: hubEntry("actions", "Administrative", `Staff tools · ${adminOn} of ${countAll(ADMIN_GROUPS)} on`), run: () => adminPermissionsScreen(player, rankId, again) }
                 : null,
@@ -1010,7 +1011,9 @@ async function memberPermissionsScreen(player, rankId, back) {
                 const nodes = PERMISSION_NODES[group]
                 const on = nodes.filter(node => holds(rank, node)).length
                 return {
-                    text: hubEntry("ranks", "What they can use", `Warps, spawn, requests, reports, who is online · ${on} of ${nodes.length} on`),
+                    text: group === "Personalization"
+                        ? hubEntry("ranks", "Personalization", `Name colour · ${on ? "on" : "off"}`)
+                        : hubEntry("ranks", "What they can use", `Warps, spawn, requests, reports, who is online · ${on} of ${nodes.length} on`),
                     run: () => nodeGroupScreen(player, rankId, group, again)
                 }
             }),

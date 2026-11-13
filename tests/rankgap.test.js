@@ -42,7 +42,8 @@ const buttonsOf = form => partsOf(form, "button").map(p => plain(p[1]))
 const titleOf = form => plain(partsOf(form, "title")[0]?.[1])
 /** The first form shown since `from` whose title includes `text`. */
 const formTitled = (text, from) => __ui.shown.slice(from).find(form => titleOf(form).includes(text))
-const ADMIN_GROUPS = Object.keys(PERMISSION_NODES).filter(group => group !== "Everyone")
+// Staff tools: every section but the two any player's rank can have.
+const ADMIN_GROUPS = Object.keys(PERMISSION_NODES).filter(group => !["Everyone", "Personalization"].includes(group))
 
 applyPreset("server")
 const boss = person("gap-boss", "Boss")

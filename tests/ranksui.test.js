@@ -50,6 +50,8 @@ const titleOf = form => (form.parts.find(p => p[0] === "title")?.[1] ?? "").repl
 const shownSince = from => __ui.shown.slice(from).map(titleOf)
 const CREATE = press(1), BACK = press(0)
 const BASICS = PERMISSION_NODES.Everyone
+// What any player's rank can be given: the basics and, since 2.12.0, Personalization.
+const MEMBER_SECTIONS = ["Everyone", "Personalization"]
 /** The places a new rank can go for Boss: every rank below theirs, as the form lists them. */
 const places = () => ladder().filter(r => (r.weight ?? 0) < topWeight(boss))
 const above = id => places().findIndex(r => r.id === id)
@@ -61,7 +63,7 @@ const AT_THE_BOTTOM = () => places().length
  */
 function permissions(staff, on = node => BASICS.includes(node)) {
     const values = []
-    const groups = staff ? Object.keys(PERMISSION_NODES) : ["Everyone"]
+    const groups = staff ? Object.keys(PERMISSION_NODES) : MEMBER_SECTIONS
     groups.forEach((group, i) => {
         if (i) values.push(undefined)
         values.push(undefined)
@@ -111,7 +113,7 @@ console.log("\n— the steps say what they ask —")
     await createRankScreen(boss, () => {})
     const perms = __ui.shown[from + 1]
     check("the basics start on, from the new players' rank",
-        perms.parts.filter(p => p[0] === "toggle").map(p => p[2]?.defaultValue), BASICS.map(() => true))
+        perms.parts.filter(p => p[0] === "toggle").map(p => p[2]?.defaultValue), [...BASICS.map(() => true), ...PERMISSION_NODES.Personalization.map(() => false)])
     check("under a section title", perms.parts.find(p => p[0] === "label")?.[1], "§lWhat they can use")
     check("its button says Continue", perms.parts.find(p => p[0] === "submit")?.[1], "Continue")
     const place = __ui.shown[from + 2]
@@ -467,7 +469,7 @@ console.log("\n— \"switch it on here\" names the real buttons —")
     await rankScreen(boss, "mod", () => {})
     const groups = partsOf(lastForm(), "button")
     check("Permissions ▸ Administrative lists every staff group",
-        Object.keys(PERMISSION_NODES).filter(g => g !== "Everyone").filter(g => !groups.some(b => b.includes(g))), [])
+        Object.keys(PERMISSION_NODES).filter(g => !MEMBER_SECTIONS.includes(g)).filter(g => !groups.some(b => b.includes(g))), [])
 }
 
 console.log("\n— a player's screen: Basics, Actions, then Inventory and Warnings —")

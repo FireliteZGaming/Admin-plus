@@ -170,6 +170,24 @@ export function paint(text, ramp, frame) {
 let frame = 0
 
 export function currentFrame() { return frame }
+
+/**
+ * A player's own colours (2.12.0, /menu ▸ Personalization): up to four colour
+ * codes, in their order. One colour is a still name. Two to four shift along
+ * the name like the effects above: each colour twice, then back down through
+ * the middle ones, so the wave runs smoothly instead of flickering letter by
+ * letter. ["c", "6", "e"] becomes "cc66ee66".
+ */
+export const NAME_COLOUR_CODE = /^[0-9a-jmnpqstuv]$/i
+export const NAME_COLOURS_MAX = 4
+
+export function rampFrom(codes) {
+    const list = (codes ?? []).map(c => String(c).toLowerCase()).filter(c => NAME_COLOUR_CODE.test(c)).slice(0, NAME_COLOURS_MAX)
+    if (list.length <= 1) return list.join("")
+    const up = list.flatMap(c => [c, c])
+    const down = list.slice(1, -1).reverse().flatMap(c => [c, c])
+    return [...up, ...down].join("")
+}
 export function advanceFrame() { frame = (frame + 1) % 65536 }
 
 /** Tests only. */

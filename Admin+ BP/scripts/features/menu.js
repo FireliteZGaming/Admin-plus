@@ -22,6 +22,7 @@ import { homeLimit } from "../core/homes.js"
 import { claimsScreen } from "./claims.js"
 import { claimLimit } from "../core/claims.js"
 import { infoScreen } from "./info.js"
+import { canPersonalize, personalizeScreen } from "./personalize.js"
 import { runPackCommand } from "../core/dispatch.js"
 
 // /menu — the other half of panel-first.
@@ -124,6 +125,15 @@ export async function openMenu(player) {
         tile: tile("settings", "My settings", changed ? `${changed} changed` : "Only affects you"),
         run: () => settingsScreen(player, again)
     })
+
+    // Personalization (2.12.0, Beta): how you look to everyone else.
+    if (canPersonalize(player)) {
+        buttons.push({
+            text: hubButton("chat", "Personalization", "Your name's colours · only you change them"),
+            tile: tile("personalize", "Personalization", "Name colours"),
+            run: () => personalizeScreen(player, again)
+        })
+    }
 
     buttons.push({
         text: hubButton("about", "Help", "What you can do on this server"),
