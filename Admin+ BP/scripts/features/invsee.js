@@ -140,7 +140,7 @@ async function listView(viewer, target, allowed, back) {
         }))
 
     const carried = snap.slots.map(item => ({
-        text: `§7${slotLabel(item.ref)}§r §8· §f${item.label}${item.amount > 1 ? ` §7x${item.amount}` : ""}${badges(item)}`,
+        text: `§8${slotLabel(item.ref)}§r §8· §f${item.label}${item.amount > 1 ? ` §7x${item.amount}` : ""}${badges(item)}`,
         run: () => itemScreen(viewer, target, item, allowed, again)
     }))
 

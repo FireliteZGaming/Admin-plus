@@ -12,7 +12,10 @@ export const HUB = {
     settings: "§8",   // grey   — configuration, in any hub
     code:     "§5",   // purple — the dev escape hatch
     chat:     "§d",   // pink   — what people said, as opposed to what they did
-    about:    "§7"    // silver — inert information
+    // Black: inert information. It was silver (§7), the button's own grey, so
+    // "Help" all but vanished (the user, 2026-11-12: "the help text completely
+    // matches the button color").
+    about:    "§0"
 }
 
 /** A hub-coloured screen title: "Admin+ | Ranks" with Ranks in the hub colour. */

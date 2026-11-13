@@ -378,8 +378,8 @@ export async function rankScreen(player, rankId, back) {
             type !== "cosmetic"
                 ? { text: hubEntry("ranks", "Permissions", type === "staff" ? "Member and administrative" : "What players with it can do"), run: () => permissionsScreen(player, rankId, again) }
                 : null,
-            canMoveUp ? { text: `§7▲ Move up §8· above ${nameOf(rows[index - 1])}`, run: () => moveAndReturn(player, rankId, -1, again) } : null,
-            canMoveDown ? { text: `§7▼ Move down §8· below ${nameOf(rows[index + 1])}`, run: () => moveAndReturn(player, rankId, 1, again) } : null,
+            canMoveUp ? { text: `§8▲ Move up · above ${nameOf(rows[index - 1])}`, run: () => moveAndReturn(player, rankId, -1, again) } : null,
+            canMoveDown ? { text: `§8▼ Move down · below ${nameOf(rows[index + 1])}`, run: () => moveAndReturn(player, rankId, 1, again) } : null,
             { text: "§cDelete this rank", run: () => deleteScreen(player, rankId, back) }
         ].filter(Boolean) : [],
         back
@@ -1059,7 +1059,7 @@ export async function rankPlayersScreen(player, back) {
         },
         onPick: target => playerRankScreen(player, target.id, target.name, () => rankPlayersScreen(player, back)),
         extra: [
-            { text: "§7Everyone seen\n§8Includes players who are offline", run: () => offlinePlayersScreen(player, () => rankPlayersScreen(player, back)) }
+            { text: "§8Everyone seen\n§8Includes players who are offline", run: () => offlinePlayersScreen(player, () => rankPlayersScreen(player, back)) }
         ],
         back
     })
@@ -1112,7 +1112,7 @@ export async function playerRankScreen(player, targetId, targetName, back) {
             { text: "§a+ Give a rank", run: () => addRankScreen(player, targetId, targetName, again) },
             { text: "§c- Take a rank away", run: () => removeRankScreen(player, targetId, targetName, again) },
             shown.length > 1
-                ? { text: "§7Change the tag order", run: () => displayOrderScreen(player, targetId, targetName, again) }
+                ? { text: "§8Change the tag order", run: () => displayOrderScreen(player, targetId, targetName, again) }
                 : null,
             { text: "§bReplace all their ranks with one", run: () => setRankScreen(player, targetId, targetName, again) }
         ].filter(Boolean) : [],
@@ -1174,8 +1174,8 @@ async function moveHeldScreen(player, targetId, targetName, rankId, back) {
             up || down ? "" : "§8It is the only one of its type, so it stays where it is."
         ].filter(Boolean).join("\n"),
         buttons: [
-            up ? { text: "§7▲ Move up", run: () => { swapShown(targetId, shown, index, -1); return again() } } : null,
-            down ? { text: "§7▼ Move down", run: () => { swapShown(targetId, shown, index, 1); return again() } } : null
+            up ? { text: "§8▲ Move up", run: () => { swapShown(targetId, shown, index, -1); return again() } } : null,
+            down ? { text: "§8▼ Move down", run: () => { swapShown(targetId, shown, index, 1); return again() } } : null
         ].filter(Boolean),
         back
     })

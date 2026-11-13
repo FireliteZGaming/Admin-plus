@@ -35,8 +35,14 @@ export const STAFF_CATEGORIES = new Set(["abuse"])
 
 const idOf = p => typeof p === "string" ? p : p?.id
 
+// A counter, not a random number. With a random 0 to 1295, two reports filed
+// in the same millisecond got the same id one time in 1,296, and the second
+// overwrote the first (found 2026-11-12 by a test that failed once in a while).
+let sequence = 0
 function nextId() {
-    return `r${Date.now().toString(36)}${Math.floor(Math.random() * 1296).toString(36)}`
+    let id
+    do { id = `r${Date.now().toString(36)}${(++sequence).toString(36)}` } while (reports.has(id))
+    return id
 }
 
 export function allReports() {

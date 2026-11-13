@@ -35,7 +35,7 @@ export async function automodHubScreen(player, back) {
             // Greyed out and inactive while on hold, as the user asked: pressing
             // it opens nothing and only says why.
             CHAT_AUTOMOD_ON_HOLD
-                ? { text: "§7Chat screening\n§7On hold", run: () => { info(player, "Chat screening is on hold for now."); return again() } }
+                ? { text: "§7Chat screening\n§8On hold", run: () => { info(player, "Chat screening is on hold for now."); return again() } }
                 : { text: hubEntry("settings", "Chat screening", flag("filter.enabled") ? "§aon§8 · what to hold, and what it costs the sender" : "§coff§8 · holds flagged messages for staff"), run: () => screeningScreen(player, again) },
             waiting
                 ? { text: hubEntry("settings", `Held messages (${waiting})`, "Messages the screen stopped: allow or delete them"), run: () => heldScreen(player, again) }

@@ -7,6 +7,7 @@ import { refreshNameTag } from "../core/ranks.js"
 import { DEFAULTS, setting, overrides, replaceOverrides } from "../core/settings.js"
 import { allPresets, getPreset, detectPreset, applyPreset, savePresetFromCurrent } from "../core/configPresets.js"
 import { record } from "../core/logs.js"
+import { factoryReset } from "./reset.js"
 
 // /admin ▸ < Code >
 //
@@ -440,7 +441,7 @@ async function blockScreen(player, back) {
             "§7§oresource§r§7 pack is not on in this world. It is what turns this",
             "§7screen into an editor. Turn it on, or use §fServer ▸ Advanced ▸ Every setting§7,",
             "§7which changes the same settings one at a time and needs no pack.",
-            "§8To clear every change on purpose: Server ▸ Advanced ▸ Factory reset."
+            "§8To put every setting back on purpose: Server ▸ Advanced ▸ Saved setups ▸ Vanilla."
         ].join("\n"))
         return back()
     }
@@ -498,30 +499,38 @@ async function blockScreen(player, back) {
 }
 
 /**
- * /admin ▸ Settings ▸ Factory reset. OPERATOR ONLY.
+ * Server ▸ Advanced ▸ Factory reset. OPERATOR ONLY, and asked twice.
  *
- * It moved here out of < Code > because it is a setting, and it kept a gate on
- * the way: `admin.settings` opens the Settings screen, but throwing away every
- * changed value in one press is not the same size of act as editing one of
- * them. The check is here rather than only on the button, because a screen that
- * trusts its caller is one refactor away from trusting the wrong one.
+ * Since 2.9.3 it wipes Admin+ completely, as if the pack had just been added
+ * (the user, 2026-11-12). The work is in features/reset.js. Putting only the
+ * settings back is Saved setups ▸ Vanilla. The operator check is here rather
+ * than only on the button, because a screen that trusts its caller is one
+ * refactor away from trusting the wrong one.
  */
 export async function factoryResetScreen(player, back) {
     if (!hasOperator(player)) { err(player, "Only an operator can use Factory reset."); return back() }
 
-    const count = Object.keys(overrides()).length
-    if (!count) { ok(player, "Every setting is already at its default."); return back() }
-
-    const yes = await confirm(player, hubTitle("settings", "Factory reset"),
-        `Put all §f${count}§r changed setting${count === 1 ? "" : "s"} back to the default?\n\n§8Ranks, players and bans are not touched. Only settings change.`,
-        "§cFactory reset")
+    const yes = await confirm(player, hubTitle("settings", "Factory reset"), [
+        "Wipe Admin+ completely and start over, as if it was just added to this world?",
+        "",
+        "§cThis deletes§r ranks and who has them, bans, mutes, warnings, warps, spawn, homes, land claims, chat rooms, reports, logs, floating text, settings and Saved setups.",
+        "",
+        "§8Staff in staff mode get their things back first. Vanished and frozen players go back to normal. Admin items handed out before stop working, so get new ones from /items.",
+        "",
+        "§cThis can't be undone."
+    ].join("\n"), "§cWipe everything")
     if (!yes) return back()
 
-    const previous = overrides()
-    replaceOverrides({})
-    restyleEveryone()
-    record(player, "config.reset", undefined, `${count} value(s) discarded`, { kind: "config", overrides: previous })
-    ok(player, "Every setting is back to its default.")
+    const typed = await modal(player, hubTitle("settings", "Factory reset"), [
+        { id: "word", type: "text", label: "Type RESET to wipe Admin+.\n§8Anything else cancels.", placeholder: "RESET" }
+    ])
+    if (!typed || String(typed.word ?? "").trim().toUpperCase() !== "RESET") {
+        info(player, "Nothing was wiped.")
+        return back()
+    }
+
+    const result = factoryReset(player)
+    ok(player, `Admin+ was wiped and starts over like new.${result.returned ? ` ${result.returned} staff got their things back.` : ""}`)
     return back()
 }
 

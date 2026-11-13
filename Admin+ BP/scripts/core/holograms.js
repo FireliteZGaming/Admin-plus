@@ -289,6 +289,19 @@ export function installHolograms() {
             sawEntities = entities().length > 0
         })
     }, SYNC_TICKS)
+    // A hologram whose record is gone, met when its chunk loads: a factory
+    // reset, or a record deleted while the chunk was unloaded. The slow sweep
+    // stops on a world with no holograms, so this catches the rest.
+    try {
+        world.afterEvents?.entityLoad?.subscribe?.(({ entity }) => {
+            safe(() => {
+                if (entity?.typeId !== TYPE) return
+                const tag = (entity.getTags() ?? []).find(t => t.startsWith(`${TAG}:`))
+                const id = tag ? tag.slice(TAG.length + 1) : undefined
+                if (!id || !get(id)) entity.remove()
+            })
+        })
+    } catch { /* older runtime: the sweep after load still runs */ }
     console.log("[Admin+] holograms ready")
     return true
 }

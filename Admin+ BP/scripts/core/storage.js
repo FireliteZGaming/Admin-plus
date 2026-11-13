@@ -114,8 +114,52 @@ export function tableReport() {
         // world simply had nothing yet". Conflating those two made the startup
         // line shout about data loss on every brand-new world.
         unreadable: !!t.pendingRead,
-        entries: Object.keys(t.data ?? {}).length
+        entries: Object.keys(t.data ?? {}).length,
+        // Still exactly what a brand-new world starts with.
+        atSeed: JSON.stringify(t.data) === JSON.stringify(t.seed)
     }))
+}
+
+/**
+ * FACTORY RESET at the storage level: every Admin+ value in the world goes,
+ * and every table starts over from its seed and writes it, exactly as adopt()
+ * does on a world that just got the pack. `keep` names tables to leave alone
+ * (see features/reset.js for which, and why).
+ *
+ * It removes every "ap:" property, not only the ones a table knows, so keys
+ * left by older versions go too. On a runtime without getDynamicPropertyIds it
+ * falls back to the keys the tables know.
+ * @returns {number} how many stored properties were removed
+ */
+export function wipeAll({ keep = [] } = {}) {
+    const kept = new Set(keep)
+    const isKept = id => [...kept].some(key => id === `${PREFIX}${key}` || id.startsWith(`${PREFIX}${key}#`))
+    let ids
+    try { ids = world.getDynamicPropertyIds?.() } catch (e) { console.warn(`[Admin+] could not list stored keys: ${e}`) }
+
+    let removed = 0
+    if (Array.isArray(ids)) {
+        for (const id of ids) {
+            if (!String(id).startsWith(PREFIX) || isKept(id)) continue
+            try { world.setDynamicProperty(id, undefined); removed++ } catch { /* already gone */ }
+        }
+    } else {
+        for (const table of tables) {
+            if (kept.has(table.key)) continue
+            drop(table.key)
+            removed++
+        }
+    }
+    for (const key of [...cache.keys()]) if (!kept.has(key)) cache.delete(key)
+
+    for (const table of tables) {
+        if (kept.has(table.key)) continue
+        table.data = JSON.parse(JSON.stringify(table.seed))
+        table.fromStorage = false
+        table.pendingRead = false
+        table.flush()
+    }
+    return removed
 }
 
 export class Table {

@@ -118,8 +118,8 @@ async function channelScreen(player, channelId, back) {
             channel.open ? "§aOpen§7: everyone can use it" : `§fNeeds permission: §7${channel.node}`
         ].join("\n"),
         buttons: [
-            index > 0 ? { text: "§7▲ Move up", run: () => { moveChannel(channelId, -1); return again() } } : null,
-            index < list.length - 1 ? { text: "§7▼ Move down", run: () => { moveChannel(channelId, 1); return again() } } : null,
+            index > 0 ? { text: "§8▲ Move up", run: () => { moveChannel(channelId, -1); return again() } } : null,
+            index < list.length - 1 ? { text: "§8▼ Move down", run: () => { moveChannel(channelId, 1); return again() } } : null,
             { text: "§bEdit", run: () => editChannelScreen(player, channelId, again) },
             { text: "§cDelete chat room", run: () => deleteChannelScreen(player, channelId, back) }
         ].filter(Boolean),

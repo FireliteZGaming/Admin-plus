@@ -239,7 +239,7 @@ export async function warningsScreen(staff, target, back) {
             : "§7Nothing on record.",
         buttons: [
             mayWarn ? { text: "§eAdd a warning", run: () => addScreen(staff, target, () => warningsScreen(staff, target, back)) } : null,
-            mayWarn && list.length ? { text: "§7Remove one", run: () => removeScreen(staff, target, () => warningsScreen(staff, target, back)) } : null
+            mayWarn && list.length ? { text: "§8Remove one", run: () => removeScreen(staff, target, () => warningsScreen(staff, target, back)) } : null
         ].filter(Boolean),
         back
     })

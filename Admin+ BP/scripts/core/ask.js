@@ -102,7 +102,7 @@ export async function pickPlayer(viewer, options = {}) {
     const extra = []
     if (filter) extra.push({ text: `§8Clear search §7"${filter}"`, run: () => reopen("") })
     else if (everyone.length >= SEARCH_FROM) {
-        extra.push({ text: "§7Search§r\n§8Find a player by gamertag or display name", run: search })
+        extra.push({ text: "§8Search§r\n§8Find a player by gamertag or display name", run: search })
     }
 
     return pagedMenu(viewer, {

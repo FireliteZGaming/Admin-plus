@@ -118,8 +118,14 @@ function playVanishAnimation(player) {
  */
 export function installVanish() {
     world.afterEvents.playerSpawn.subscribe(({ player, initialSpawn }) => {
-        if (!initialSpawn || !isVanished(player)) return
-        system.run(() => apply(player))
+        if (!initialSpawn) return
+        if (isVanished(player)) { system.run(() => apply(player)); return }
+        // Hidden by Admin+ with no record behind it: a factory reset while they
+        // were away, or a record lost some other way. Show them again, rather
+        // than leave them invisible with nothing that could bring them back.
+        let tagged = false
+        try { tagged = player.hasTag(TAG) } catch { /* left */ }
+        if (tagged) system.run(() => clear(player))
     })
 
     system.runInterval(() => {

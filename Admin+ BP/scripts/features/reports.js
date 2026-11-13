@@ -273,7 +273,7 @@ async function reportScreen(player, reportId, back) {
                 text: "§cTake action §8· open their Actions screen",
                 run: () => openActionsFor(player, report.target.id, report.target.name, () => closeScreen(player, reportId, "action", back))
             },
-            { text: "§7Dismiss §8· nothing to do here", run: () => closeScreen(player, reportId, "dismissed", back) },
+            { text: "§8Dismiss · nothing to do here", run: () => closeScreen(player, reportId, "dismissed", back) },
             { text: "§8Leave it for someone else", run: () => back() }
         ],
         back
@@ -322,7 +322,7 @@ async function historyScreen(player, back) {
         body: subtitle("The last few, and who closed them."),
         items: handled,
         render: report => ({
-            text: `§7${report.target.name}§r\n§8${report.handled.outcome} by ${report.handled.by}${report.handled.note ? " · " + report.handled.note : ""}`
+            text: `§8${report.target.name}§r\n§8${report.handled.outcome} by ${report.handled.by}${report.handled.note ? " · " + report.handled.note : ""}`
         }),
         onPick: report => reportScreen(player, report.id, () => historyScreen(player, back)),
         back

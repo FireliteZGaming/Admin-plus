@@ -264,3 +264,5 @@ export function installStaffMode() {
 // Exported for the tests: the signature check is what stands between a staff
 // tool and anybody who owns an anvil, so it is tested like the hammer's is.
 export { staffModeList, TOOLS, makeTool, toolFor, HAMMER_SLOT, HAMMER_NAME }
+// Factory reset gives everyone online their things back through this.
+export { stopStaffMode }

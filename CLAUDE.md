@@ -69,7 +69,14 @@ The user owns **CurseForge and MCPEDL**. Prepare copy for them; never upload.
 
 The content log is the ground truth and has caught bugs nothing else would:
 `%APPDATA%/Minecraft Bedrock/logs/ContentLog*.txt`, newest file. Check it after
-any playtest. The user's game is **1.26.45**; the pack targets 1.21.130.
+any playtest. It also holds every chat line, which is the fastest way to read
+what testers said.
+
+**After every playtest, run `python tools/chatarchive.py`.** Minecraft does not
+keep its logs forever. The tool copies every chat line into
+`notes/chat-archive/chat.jsonl` (gitignored), never twice and unfiltered: the
+user wants all of it, harassment included, to train moderation later
+(2026-11-12). Other players wrote it, so it never leaves this PC. The user's game is **1.26.45**; the pack targets 1.21.130.
 
 ---
 
@@ -330,6 +337,19 @@ value in the wrong key.
   stay their call. Flooding chat is counted rather than inferred, and the ladder
   is a talking-to, then 1m, 5m, 10m. It speaks as **[Automod]**, never as
   [Admin+], so nobody blames the staff who are online.
+- **Factory reset wipes ALL of Admin+ (2.9.3, the user, 2026-11-12: "as if
+  the mod just was added to your world").** `features/reset.js`: operators
+  only, asked twice (a confirm, then typing RESET). It removes every `ap:`
+  property, so a new table is covered without being listed. It keeps two
+  tables: `staffmode` (an offline player's stowed items) and `enderBlocks`
+  (undoes old blocks). **Anything that leaves state ON a player or in the
+  world (a tag, an effect, an entity, input permissions) must put itself right
+  on join when its record is gone,** as vanish, holograms, freeze, rank tags
+  and the mute tag do. `tests/reset.test.js` fills every corner and wipes it.
+- **Button text is never §7 on the game's grey button (#C6C6C6).** Grey on
+  grey all but vanished ("the help text completely matches the button
+  color", 2026-11-12). The one exception is a greyed-out, inactive button.
+  `tests/readable.test.js`. Admin+'s own look will redo button colours.
 - **Chat automod is ON HOLD (2.9.2, the user, 2026-11-12: "a complete hold, so
   disabling it and graying out the button to inactive").** Chat screening and
   chat flooding both stop, whatever the settings say; ore alerts and fast

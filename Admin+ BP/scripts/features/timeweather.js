@@ -51,7 +51,7 @@ async function askTime(player) {
         body: subtitle(`It is ${clockFace(now)} now. What time should it be?`),
         buttons: [
             ...TIMES.map(([name, ticks]) => ({ text: `§f${title(name)}§r\n§8${clockFace(ticks)}`, run: () => name })),
-            { text: "§7A number§r\n§80 to 24000 · 6000 is noon", run: () => "set" }
+            { text: "§8A number§r\n§80 to 24000 · 6000 is noon", run: () => "set" }
         ]
     })
 }

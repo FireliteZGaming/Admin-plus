@@ -108,6 +108,10 @@ export function getWarning(playerOrId, warningId) {
  * Add a warning.
  * @returns {{ok: true, entry: object, total: number} | {ok: false, reason: string}}
  */
+// A counter, not a random number: two warnings in the same millisecond could
+// share an id, and taking one back then removed both. Same fix as reports.
+let sequence = 0
+
 export function addWarning(actor, target, reason, note = "", options = {}) {
     const targetId = idOf(target)
     if (!targetId) return { ok: false, reason: "No such player." }
@@ -117,7 +121,7 @@ export function addWarning(actor, target, reason, note = "", options = {}) {
     if (!text) return { ok: false, reason: "A warning needs a reason." }
 
     const entry = {
-        id: `w${Date.now().toString(36)}${Math.floor(Math.random() * 1296).toString(36)}`,
+        id: `w${Date.now().toString(36)}${(++sequence).toString(36)}`,
         at: Date.now(),
         by: actor?.name ?? "console",
         byId: idOf(actor),

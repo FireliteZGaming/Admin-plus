@@ -56,6 +56,55 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.9.3 — 2026-11-12
+
+**Factory reset wipes everything, Help you can read, and a chat archive.**
+
+### Factory reset is a complete wipe
+1. Factory reset now wipes Admin+ completely, as if it had just been added to
+   the world. The user asked for this. Before, it only put settings back.
+2. It deletes ranks and who has them, bans, mutes, warnings, warps, spawn,
+   homes, land claims, chat rooms, reports, logs, floating text, settings and
+   Saved setups. Keys left by older versions go too. Other packs' data is not
+   touched.
+3. What belongs to players is handed back first. Staff in staff mode who are
+   online get their things back. Staff who are offline keep their stowed
+   things and get them back when they join. Vanished players are shown again,
+   and frozen players can move again.
+4. Everyone online gets the starting rank again. One log line says who reset
+   it, and everyone is told.
+5. Only an operator can do it, and it asks twice: a confirm that lists what
+   goes, then typing RESET.
+6. Admin items handed out before stop working, because their signature is
+   part of what is wiped.
+7. To put only the settings back, use Server ▸ Advanced ▸ Saved setups ▸
+   Vanilla.
+
+### Glitches found on the way
+1. A player who was vanished when their record went, such as by a reset while
+   they were away, stayed invisible with nothing to undo it. Joining now shows
+   them again.
+2. Floating text whose record went while its chunk was unloaded stayed for
+   good on a world with no other floating text. It is now removed when its
+   chunk loads.
+3. Reports and warnings made in the same millisecond could get the same id.
+   One report then replaced the other, and taking back one warning removed
+   both. Ids now use a counter. A test that failed once in a while found it.
+
+### Readable buttons
+1. Help, Credits and "What can I do?" were grey on the grey button, so they
+   were hard to read in game. They are black now.
+2. The other grey button titles are dark grey now: Search, Move up and down,
+   Dismiss, Remove one, Keep editing, A number, Everyone seen, and Change the
+   tag order.
+
+### Chat archive
+1. `python tools/chatarchive.py` copies every chat line from the game's logs
+   into `notes/chat-archive/chat.jsonl`, never twice and with nothing
+   filtered. It is for training moderation later, stays on this PC, and git
+   ignores it. The first run kept 2,300 lines, from 2 September to 12
+   November.
+
 ## 2.9.2 — 2026-11-12
 
 **Chat automod on hold, smaller section titles, and colour-code help the

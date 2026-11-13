@@ -75,7 +75,7 @@ export async function actionsScreen(player, back, filter = "") {
             // pattern the Logs screen already uses.
             needle
                 ? { text: `§8Clear search §7"${filter}"`, run: () => actionsScreen(player, back, "") }
-                : { text: "§7Search§r\n§8Find a player by gamertag or display name", run: () => searchScreen(player, back) },
+                : { text: "§8Search§r\n§8Find a player by gamertag or display name", run: () => searchScreen(player, back) },
             ...(has(player, "admin.ban")
                 ? [{ text: `§cBanned players\n§8${banned} active`, run: () => bannedScreen(player, again) }]
                 : [])

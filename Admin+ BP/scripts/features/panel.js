@@ -146,8 +146,8 @@ async function serverScreen(player, back) {
 }
 
 // Fine-tuning that most servers never need, kept out of the way. Factory reset
-// also needs OPERATOR, because throwing away every change at once is a bigger
-// act than changing one value; its own screen checks again.
+// also needs OPERATOR, because it wipes all of Admin+ (2.9.3); its own screen
+// checks again and asks twice.
 async function advancedScreen(player, back) {
     const again = () => advancedScreen(player, back)
     const settings = has(player, "admin.settings")
@@ -165,7 +165,7 @@ async function advancedScreen(player, back) {
                 ? { text: hubEntry("code", "< Code >", "Edit every setting as text"), run: () => codeScreen(player, again) }
                 : null,
             settings && hasOperator(player)
-                ? { text: hubEntry("actions", "Factory reset", "Put every setting back to its default"), run: () => factoryResetScreen(player, again) }
+                ? { text: hubEntry("actions", "Factory reset", "Wipe Admin+ and start over like new"), run: () => factoryResetScreen(player, again) }
                 : null
         ].filter(Boolean),
         back

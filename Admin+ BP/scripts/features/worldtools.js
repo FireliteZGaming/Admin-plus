@@ -244,7 +244,7 @@ async function confirmEdit(player, s) {
         ].filter(Boolean).join("\n"),
         buttons: [
             complete ? { text: "§aConfirm\n§8Save this as the spawn area", run: () => saveEdit(player, s, r) } : null,
-            { text: "§7Keep editing", run: () => {} },
+            { text: "§8Keep editing", run: () => {} },
             { text: "§cCancel\n§8Throw this selection away", run: () => cancelEdit(player) }
         ].filter(Boolean)
     })
