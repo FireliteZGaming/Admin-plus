@@ -7,12 +7,20 @@
 		]
 	},
 	"main_screen_content/server_form_factory": {
+		"size": [
+			"100%",
+			"100%"
+		],
 		"control_ids": {
 			"custom_form": "@server_form.custom_form_switch"
 		}
 	},
 	"long_form": {
 		"type": "panel",
+		"size": [
+			"100%",
+			"100%"
+		],
 		"controls": [
 			{
 				"long_form@common_dialogs.main_panel_no_buttons": {

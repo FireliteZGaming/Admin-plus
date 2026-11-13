@@ -2,12 +2,12 @@ import { readFileSync, existsSync, readdirSync } from "node:fs"
 import { __test } from "@minecraft/server"
 import { __ui } from "@minecraft/server-ui"
 import { setRanks, onPlayerJoin, applyPreset } from "../Admin+ BP/scripts/core/ranks.js"
-import { BETA_LOOK, TILES, lift, lookTitle, tile, tileIcon, betaLook } from "../Admin+ BP/scripts/core/look.js"
+import { BETA_LOOK, TILES, TILE_LEFT, lift, lookTitle, tile, tileIcon, tileText, betaLook } from "../Admin+ BP/scripts/core/look.js"
 import { MULTILINE, hubTitle, hubButton, BRAND_PREFIX, COLOUR_CODE_TIP } from "../Admin+ BP/scripts/core/theme.js"
 import { menu, modal, confirm, drawsTiles } from "../Admin+ BP/scripts/core/ui.js"
 import { openPanel } from "../Admin+ BP/scripts/features/panel.js"
 import { openMenu } from "../Admin+ BP/scripts/features/menu.js"
-import { panelsOf, shownFor } from "./jsonui.js"
+import { panelsOf, shownFor, evaluate, visibleExpr } from "./jsonui.js"
 
 // Admin+'s own look, the UI overhaul (2.11.0). The user approved the concept on
 // 2026-11-13: "Yes the UI is perfect, we can start on that." It ships in Beta:
@@ -120,7 +120,7 @@ console.log("\n— the Beta frames are all there —")
     // The game numbers what is pressed. A button that sends anything else does
     // nothing at all.
     const rowButton = LOOK.row.controls[0].line.controls[1]["row_button@adminplus_beta.dark_button"]
-    const tileButton = LOOK.tile_cell.controls[0]["tile_button@adminplus_beta.dark_content_button"]
+    const tileButton = LOOK["tile_button@adminplus_beta.dark_content_button"]
     check("a row presses like the game's own form button", rowButton.$pressed_button_name, "button.form_button_click")
     check("so does a tile", tileButton.$pressed_button_name, "button.form_button_click")
     check("and both know which button of the list they are",
@@ -128,21 +128,66 @@ console.log("\n— the Beta frames are all there —")
     check("the close button closes, like the game's",
         LOOK.close.button_mappings.every(m => m.to_button_id === "button.menu_exit"), true)
 
-    // The list and the grid read how many entries the form has the way the
-    // game's own 1.26 server_form.json does.
-    check("the list counts entries like the game does",
-        LOOK.rows.bindings[0], { binding_name: "#form_button_contents", binding_name_override: "#collection_length" })
-    check("so does the grid of tiles",
-        LOOK.tiles.bindings[0], { binding_name: "#form_button_contents", binding_name_override: "#maximum_grid_items" })
-    check("a list uses the same four parts as the game's list",
-        Object.keys(LOOK.rows.factory.control_ids), ["button", "label", "header", "divider"])
+    // The list and both columns of tiles read how many entries the form has,
+    // and which kind each is, the way the game's own 1.26 server_form.json
+    // does. 2.11.0's grid of tiles drew nothing in game (2026-11-13).
+    const columns = [LOOK.tile_column_left, LOOK.tile_column_right]
+    for (const [what, list] of [["the list", LOOK.rows], ["the left column of tiles", columns[0]], ["the right column", columns[1]]]) {
+        check(`${what} counts entries like the game does`,
+            list.bindings[0], { binding_name: "#form_button_contents", binding_name_override: "#collection_length" })
+        check(`${what} is made from the form's buttons`, [list.collection_name, list.factory.name], ["form_buttons", "buttons"])
+        check(`${what} names the same four parts as the game's list`,
+            Object.keys(list.factory.control_ids), ["button", "label", "header", "divider"])
+    }
+    check("there is no grid any more", JSON.stringify(LOOK).includes("\"grid\""), false)
+    check("the two columns share the width, with a 4px gap",
+        [columns[0].size[0], columns[1].size[0], LOOK.tiles.controls[1].gap.size[0]], ["50% - 2px", "50% - 2px", 4])
 
-    // Two tiles to a row on a screen wide enough for the whole frame. The
-    // content sits 5px in from each side, the scroll bar takes about 8px, and
-    // the list 2px more on each side.
-    const [cellWidth] = LOOK.tile_cell.size
-    const [frameWidth] = LOOK.frame["$frame_max_size|default"]
-    check(`two ${cellWidth}px tiles fit side by side in the ${frameWidth}px frame`, 2 * cellWidth <= frameWidth - 24, true)
+    // Pictures keep their own shape unless told not to, which squashed 2.11.0's
+    // panel into a square and its badge into a line (seen in game, 2026-11-13).
+    // Every picture of ours that is stretched says so. Tile icons are drawn at
+    // their own shape, so they may keep it.
+    const images = []
+    const walk = (node, name) => {
+        if (Array.isArray(node)) return node.forEach(n => walk(n, name))
+        if (!node || typeof node !== "object") return
+        if (node.type === "image" && typeof node.texture === "string") images.push([name, node])
+        for (const [k, v] of Object.entries(node)) walk(v, k.split("@")[0])
+    }
+    walk(LOOK, "")
+    check("every picture of ours stretches to its box",
+        images.filter(([, n]) => n.keep_ratio !== false).map(([name]) => name), [])
+    check("so does a button's face", [LOOK["dark_button@common_buttons.light_text_button"].$button_image,
+        LOOK["dark_content_button@common_buttons.light_content_button"].$button_image, LOOK.button_fill.keep_ratio],
+        ["adminplus_beta.button_fill", "adminplus_beta.button_fill", false])
+    check("and the flat colours stretch as nine-slices too",
+        ["tile", "tile_hover", "tile_pressed", "white"].filter(t => !existsSync(new URL(`${t}.json`, TEXTURES))), [])
+
+    // The frame sizes itself from the screen, so the panels above it must be
+    // the screen's size. In 2.11.0 they weren't, and the frame fell back to its
+    // smallest size (seen in game: 225 by 200).
+    check("the form's factory fills the screen", FORM["main_screen_content/server_form_factory"].size, ["100%", "100%"])
+    check("and so does the menu panel", FORM.long_form.size, ["100%", "100%"])
+    check("the frame never shrinks below 300 by 200", LOOK.frame["$frame_min_size|default"], [300, 200])
+}
+
+console.log("\n— each tile shows in one column —")
+// Every tile is made in both columns; the left shows tiles carrying TILE_LEFT,
+// the right shows the rest. Worked out from the bindings themselves.
+{
+    const visible = (control, text) => evaluate(visibleExpr(control), { "#form_button_text": text })
+    for (const [what, text, expected] of [
+        ["the first tile", tileText("§f§lPlayers§r\n§7Help, warn, punish", 0), ["left"]],
+        ["the second", tileText("§f§lRanks§r\n§7Make and give ranks", 1), ["right"]],
+        ["the third", tileText("§f§lPlaces", 2), ["left"]],
+        ["an empty entry", "", []]
+    ]) {
+        const shown = [["left", LOOK.tile_left], ["right", LOOK.tile_right]].filter(([, c]) => visible(c, text)).map(([side]) => side)
+        check(`${what} shows ${expected.length ? `on the ${expected.join(" and ")}` : "on neither side"}`, shown, expected)
+    }
+    check("TILE_LEFT prints nothing and restyles nothing", /^(?:§[0-9a-jmnpqstuv])+$/.test(TILE_LEFT), true)
+    check("lifting leaves it alone", lift(TILE_LEFT), TILE_LEFT)
+    check("it spells no other marker", [MULTILINE, BETA_LOOK, TILES, ...CHEST].filter(m => TILE_LEFT.includes(m) || m.includes(TILE_LEFT)), [])
 }
 
 // A player who may open everything.
@@ -279,9 +324,16 @@ console.log("\n— every tile fits, and has its picture —")
 // enough to keep a tile's line on one line.
 const NARROW = { "i": 2, "!": 2, ",": 2, ".": 2, ":": 2, ";": 2, "'": 2, "|": 2, "l": 3, "`": 3, "t": 4, "I": 4, " ": 4, "[": 4, "]": 4, "(": 5, ")": 5, "f": 5, "k": 5, "<": 5, ">": 5, "{": 5, "}": 5, "\"": 5, "*": 5 }
 const widthOf = (text, bold = false) => [...text.replace(/§./g, "")].reduce((w, c) => w + (NARROW[c] ?? 6) + (bold && c !== " " ? 1 : 0), 0)
-// tile_cell is 164 wide; the button is 4px narrower; its content 6px narrower
-// again; the words start 34px in and stop 2px short (adminplus_beta.json).
-const ROOM = LOOK.tile_cell.size[0] - 4 - 6 - 36
+// Room for a tile's words, from adminplus_beta.json: the content sits 5px in
+// on each side, the scroll bar and the list take about 12px, the columns
+// share what is left with a 4px gap, the button's content is 6px narrower,
+// and the words start 34px in and stop 2px short. A tile shows three lines.
+const [maxWidth] = LOOK.frame["$frame_max_size|default"]
+const [minWidth] = LOOK.frame["$frame_min_size|default"]
+const roomAt = width => (width - 22) / 2 - 2 - 6 - 36
+const ROOM = roomAt(maxWidth), TIGHT = roomAt(minWidth)
+check(`the words get ${ROOM}px at the widest and ${TIGHT}px at the narrowest`, TIGHT > 80, true)
+check("a tile has room for three lines", LOOK.tile_content.controls[1].text.max_size[1], 30)
 {
     const sources = readdirSync(new URL("features/", BP)).filter(f => f.endsWith(".js"))
         .map(f => readFileSync(new URL(`features/${f}`, BP), "utf8")).join("\n")
@@ -289,13 +341,16 @@ const ROOM = LOOK.tile_cell.size[0] - 4 - 6 - 36
     check("the tiles are found in the code", calls.length >= 12, true)
     check("every tile's picture is in the pack", [...new Set(calls.map(c => c[1]))].filter(k => !textureExists(tileIcon(k))), [])
     for (const [, key, name, line] of calls) {
-        check(`${key}: "${name}" fits in ${ROOM}px`, widthOf(name, true) <= ROOM, true)
-        if (line !== undefined) check(`${key}: "${line}" fits on one line`, widthOf(line) <= ROOM, true)
+        check(`${key}: "${name}" fits on one line even at the narrowest`, widthOf(name, true) <= TIGHT, true)
+        if (line !== undefined) {
+            check(`${key}: "${line}" fits on one line at the widest`, widthOf(line) <= ROOM, true)
+            check(`and on two at the narrowest`, widthOf(line) <= 2 * TIGHT, true)
+        }
     }
     // Lines worked out at run time, at their longest.
     check("My settings with a count fits", widthOf("12 changed") <= ROOM, true)
     check("Reports at its longest fits", widthOf("99 waiting, 99 new") <= ROOM, true)
-    const pictures = readdirSync(TEXTURES).filter(f => f.startsWith("tile_") && f !== "tile_hover.png" && f !== "tile_pressed.png")
+    const pictures = readdirSync(TEXTURES).filter(f => f.startsWith("tile_") && f.endsWith(".png") && f !== "tile_hover.png" && f !== "tile_pressed.png")
     check("and no picture is left over", pictures.filter(f => !calls.some(c => `tile_${c[1]}.png` === f)), [])
 }
 

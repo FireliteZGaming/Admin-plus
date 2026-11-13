@@ -84,6 +84,33 @@ user wants all of it, harassment included, to train moderation later
 
 These were each paid for with a playtest. Do not rediscover them.
 
+**Resource-pack menus: four things the first in-game test of Admin+'s own
+look taught (2.11.0, 2026-11-13, the user's screenshot).**
+1. **A picture keeps its texture's shape unless it says `"keep_ratio":
+   false`.** The flat-colour panel drew as a square, its fill as a thin strip
+   and the BETA LOOK badge as a line through the words. The game's own files
+   set it false 29 times. `tests/look.test.js` demands it on every picture of
+   ours that stretches; the button faces use `adminplus_beta.button_fill`.
+2. **Percentage sizes under a server form collapsed.** The frame came out at
+   exactly its `min_size` (225 by 200), so the panels above it reported no
+   size. 2.11.1 sizes `main_screen_content/server_form_factory` and
+   `long_form` at 100%. Keep a `min_size` on anything sized in percent.
+3. **A grid bound to `form_buttons` drew nothing on 1.26.45**, with no line in
+   the content log. Tiles are now two factory columns built like the game's
+   own list (`#form_button_contents` to `#collection_length`); every tile is
+   made in both and shown in one, by the hidden `TILE_LEFT` code at the end of
+   its text.
+4. **The content log shows no menu errors at all.** A broken menu is silent;
+   only a screenshot tells.
+
+**Subpacks: the game starts on the LAST subpack when they tie.** 2.10.1 put
+Default first on a higher `memory_tier` and the user's world started on Beta
+(2026-11-13). The game now ranks subpacks by `memory_performance_tier`, which
+needs manifest version 3 (experimental), so ours tie, and Microsoft's docs say
+"In the case of a tie, the system selects the last subpack listed of that
+tier." Default is listed last, both on `memory_tier` 0, so the slider reads
+Beta, then Default. `tests/channel.test.js`.
+
 **A form cannot show a literal `§`.** The game hides `§` and the character
 after it, so `§§` shows nothing at all (seen in game, 2026-11-12; 2.8.5 had
 assumed it printed one `§`). Since 2.9.2 help explains codes the way
@@ -379,8 +406,9 @@ value in the wrong key.
   can only be changed by its saver or someone who outranks them.
   `tests/exploits.test.js`.
 - **Beta features check `isBeta()` (`core/channel.js`).** The slider is the
-  BP's subpacks (Default first, higher memory tier, so new worlds start on
-  Default); the Beta subpack adds the hidden item `adminplus:channel_beta`,
+  BP's subpacks (Default listed LAST, both on memory tier 0, so new worlds
+  start on Default; see the subpack rule above); the Beta subpack adds the
+  hidden item `adminplus:channel_beta`,
   which is how scripts know. Proven on this PC by the Lifesteal pack.
 - **Admin+'s own look is Beta (2.11.0, the user approved the concept on
   2026-11-13: "Yes the UI is perfect, we can start on that").** `core/look.js`

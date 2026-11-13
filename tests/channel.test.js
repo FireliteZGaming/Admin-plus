@@ -20,10 +20,16 @@ const manifest = JSON.parse(readFileSync(new URL("manifest.json", bp), "utf8"))
 
 console.log("\n— the slider —")
 const subpacks = manifest.subpacks ?? []
-check("two subpacks, reading Default then Beta", subpacks.map(s => s.name), ["Default", "Beta"])
-// The game starts a new world on the highest memory tier a device allows.
-check("so Default is on the higher tier, and new worlds start there",
-    subpacks[0]?.memory_tier > subpacks[1]?.memory_tier, true)
+// 2.10.1 listed Default first on a higher memory_tier, and the user's world
+// started on Beta (2026-11-13). The game now picks by memory_performance_tier,
+// which needs manifest version 3, so ours tie, and Microsoft's docs: "In the
+// case of a tie, the system selects the last subpack listed of that tier."
+check("two subpacks, with Default last", subpacks.map(s => s.name), ["Beta", "Default"])
+check("on the same tier, so they tie and the game starts on the last one",
+    subpacks.map(s => s.memory_tier), [0, 0])
+check("no tier the game could rank them by instead",
+    subpacks.some(s => "memory_performance_tier" in s), false)
+check("and the manifest stays version 2", manifest.format_version, 2)
 for (const s of subpacks) {
     const marker = new URL(`subpacks/${s.folder_name}/items/channel_${s.folder_name}.json`, bp)
     check(`${s.name}'s folder holds its marker item`, existsSync(marker), true)

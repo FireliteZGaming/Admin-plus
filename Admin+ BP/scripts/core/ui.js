@@ -1,7 +1,7 @@
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui"
 import { CONFIG } from "../config.js"
 import { BRAND_PREFIX } from "./theme.js"
-import { betaLook, lookTitle, lift } from "./look.js"
+import { betaLook, lookTitle, lift, tileText } from "./look.js"
 
 // Form helpers. Every panel screen is built from these so navigation, paging and
 // the "back" affordance behave the same everywhere.
@@ -72,7 +72,8 @@ export async function menu(player, spec) {
         if (!button) continue
         if (isDecoration(button)) { decorate(form, beta ? liftDecoration(button) : button); continue }
         const face = tiles && button.tile ? button.tile : button
-        form.button(show(face.text), face.icon)
+        // As tiles, every other one carries the left-column marker (core/look.js).
+        form.button(show(tiles ? tileText(face.text, actions.length) : face.text), face.icon)
         actions.push(button.run)
     }
     if (spec.back) {

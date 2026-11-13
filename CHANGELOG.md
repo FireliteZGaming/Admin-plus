@@ -56,6 +56,41 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.11.1 — 2026-11-13
+
+**Admin+'s own look, fixed after its first test, and the slider starts on
+Default.**
+
+The user tested 2.11.0 on Beta and sent a screenshot: the frame showed, but
+squashed, and /admin had no tiles. They also found the slider had started on
+Beta.
+
+### Fixed
+1. **Squashed shapes.** The game keeps a picture's own shape unless told not
+   to, so the panel's colours drew as a square and a thin strip, and the BETA
+   LOOK badge as a line through the words. Every picture of Admin+'s now
+   stretches to its box, and buttons draw their faces the same way.
+2. **No tiles.** The grid the tiles were drawn in showed nothing in game.
+   Tiles are now two columns built the way the game builds its own menu
+   lists. Each tile is made in both columns and shown in one.
+3. **A small frame.** The frame came out at its smallest size, 225 by 200,
+   because the panels above it had no size. Both are now full screen, and the
+   smallest size is 300 by 200 so two columns of tiles still fit.
+4. **The slider started on Beta.** The game now ranks subpacks by a field
+   that needs an experimental manifest, so Admin+'s two tie, and on a tie the
+   game picks the last one listed. Default is now last: the slider reads
+   Beta, then Default, and new worlds start on Default. A world that already
+   has a setting keeps it, so check the gear on yours.
+
+### Checked
+`tests/look.test.js` now checks that every picture stretches, that each tile
+shows in exactly one column, and that the words fit at the frame's widest and
+narrowest. `tests/channel.test.js` checks the new order.
+
+### Not seen in game yet
+All four fixes. If the tiles are still missing, the next try is a single
+column of tiles.
+
 ## 2.11.0 — 2026-11-13
 
 **Admin+'s own look, in Beta.**

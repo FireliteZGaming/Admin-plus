@@ -11,11 +11,16 @@ import { ItemTypes } from "@minecraft/server"
 // one is on: scripts can't read the subpack itself, but they can ask whether
 // an item type exists.
 //
-// Default is listed first and on the higher memory tier, so the slider reads
-// Default ——— Beta and a new world starts on Default.
+// **Default is listed LAST (2.11.1).** 2.10.1 listed Default first on a higher
+// memory_tier, and the user's world started on Beta anyway (2026-11-13). The
+// game now picks the starting subpack by `memory_performance_tier`, which
+// needs manifest version 3 (still experimental), so every Admin+ subpack ties,
+// and Microsoft's docs say: "In the case of a tie, the system selects the last
+// subpack listed of that tier." So the slider reads Beta ——— Default and new
+// worlds start on Default. Both stay on memory_tier 0 so the tie holds on
+// every device.
 //
-// Every Beta feature asks isBeta(). Nothing is in Beta yet; Admin+'s own look
-// will be first.
+// Every Beta feature asks isBeta(). Admin+'s own look (2.11.0) is the first.
 
 const BETA_MARKER = "adminplus:channel_beta"
 

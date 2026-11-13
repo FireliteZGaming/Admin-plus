@@ -58,6 +58,20 @@ export function lookTitle(title, { tiles = false } = {}) {
     return lift(text) + BETA_LOOK + (tiles ? TILES : "")
 }
 
+/**
+ * Tiles stand in two columns. The pack builds each column the way the game
+ * builds its own menu lists (2.11.1: the first try, a grid, drew nothing in
+ * game). Every tile is made in both columns and shown in one: a tile whose
+ * text ends in TILE_LEFT shows on the left, any other on the right. Same
+ * hidden-code style as the markers above.
+ */
+export const TILE_LEFT = "§e§f§t"
+
+/** A tile's text at its place in the menu: every other tile goes on the left. */
+export function tileText(text, index) {
+    return index % 2 === 0 ? `${text}${TILE_LEFT}` : text
+}
+
 /** A tile's picture: its stripe and icon, drawn by tools/genlook.py. */
 export function tileIcon(key) { return `textures/ui/adminplus/tile_${key}` }
 

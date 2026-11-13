@@ -4,7 +4,19 @@
 	"fill": {
 		"type": "image",
 		"texture": "textures/ui/adminplus/white",
+		"keep_ratio": false,
 		"size": [ "100%", "100%" ]
+	},
+
+	"button_fill": {
+		"type": "image",
+		"layer": 1,
+		"texture": "$new_ui_button_texture",
+		"keep_ratio": false,
+		"$button_alpha|default": "$content_alpha",
+		"alpha": "$button_alpha",
+		"$button_image_bindings|default": [],
+		"bindings": "$button_image_bindings"
 	},
 
 	"frame": {
@@ -13,7 +25,7 @@
 		"anchor_to": "center",
 		"$frame_size|default": [ "100% - 8px", "100% - 8px" ],
 		"$frame_max_size|default": [ 360, 250 ],
-		"$frame_min_size|default": [ 225, 200 ],
+		"$frame_min_size|default": [ 300, 200 ],
 		"$frame_content|default": "common.empty_panel",
 		"size": "$frame_size",
 		"max_size": "$frame_max_size",
@@ -26,6 +38,7 @@
 				"body": {
 					"type": "image",
 					"texture": "textures/ui/adminplus/panel",
+					"keep_ratio": false,
 					"size": [ "100% - 2px", "100% - 2px" ],
 					"layer": 2
 				}
@@ -34,6 +47,7 @@
 				"bar": {
 					"type": "image",
 					"texture": "textures/ui/adminplus/gradient",
+					"keep_ratio": false,
 					"size": [ "100%", 2 ],
 					"anchor_from": "top_middle",
 					"anchor_to": "top_middle",
@@ -138,6 +152,7 @@
 							"chip": {
 								"type": "image",
 								"texture": "textures/ui/adminplus/gradient",
+								"keep_ratio": false,
 								"size": [ 56, 11 ],
 								"controls": [
 									{
@@ -180,6 +195,7 @@
 				"inside": {
 					"type": "image",
 					"texture": "$close_fill",
+					"keep_ratio": false,
 					"size": [ "100% - 2px", "100% - 2px" ],
 					"layer": 2
 				}
@@ -252,6 +268,7 @@
 	},
 
 	"dark_button@common_buttons.light_text_button": {
+		"$button_image": "adminplus_beta.button_fill",
 		"$default_button_texture": "textures/ui/adminplus/tile",
 		"$hover_button_texture": "textures/ui/adminplus/tile_hover",
 		"$pressed_button_texture": "textures/ui/adminplus/tile_pressed",
@@ -267,6 +284,7 @@
 	},
 
 	"dark_content_button@common_buttons.light_content_button": {
+		"$button_image": "adminplus_beta.button_fill",
 		"$default_button_texture": "textures/ui/adminplus/tile",
 		"$hover_button_texture": "textures/ui/adminplus/tile_hover",
 		"$pressed_button_texture": "textures/ui/adminplus/tile_pressed",
@@ -454,7 +472,7 @@
 					"layer": 2,
 					"offset": [ 34, 0 ],
 					"size": [ "default", "default" ],
-					"max_size": [ "100% - 36px", 20 ],
+					"max_size": [ "100% - 36px", 30 ],
 					"anchor_from": "left_middle",
 					"anchor_to": "left_middle",
 					"bindings": [
@@ -465,36 +483,98 @@
 		]
 	},
 
-	"tile_cell": {
+	"nothing": {
 		"type": "panel",
-		"size": [ 164, 40 ],
+		"size": [ 0, 0 ]
+	},
+
+	"tile_left": {
+		"type": "panel",
+		"size": [ "100%", 42 ],
+		"bindings": [
+			{ "binding_name": "#form_button_text", "binding_type": "collection", "binding_collection_name": "form_buttons" },
+			{ "binding_type": "view", "source_property_name": "(not ((#form_button_text - '§e§f§t') = #form_button_text))", "target_property_name": "#visible" }
+		],
 		"controls": [
-			{
-				"tile_button@adminplus_beta.dark_content_button": {
-					"$pressed_button_name": "button.form_button_click",
-					"size": [ "100% - 4px", "100% - 4px" ],
-					"$button_content": "adminplus_beta.tile_content",
-					"bindings": [
-						{ "binding_type": "collection_details", "binding_collection_name": "form_buttons" },
-						{ "binding_name": "#form_button_text", "binding_type": "collection", "binding_collection_name": "form_buttons" },
-						{ "binding_type": "view", "source_property_name": "(not (#form_button_text = ''))", "target_property_name": "#visible" }
-					]
-				}
+			{ "tile_button@adminplus_beta.tile_button": {} }
+		]
+	},
+
+	"tile_right": {
+		"type": "panel",
+		"size": [ "100%", 42 ],
+		"bindings": [
+			{ "binding_name": "#form_button_text", "binding_type": "collection", "binding_collection_name": "form_buttons" },
+			{ "binding_type": "view", "source_property_name": "((not (#form_button_text = '')) and ((#form_button_text - '§e§f§t') = #form_button_text))", "target_property_name": "#visible" }
+		],
+		"controls": [
+			{ "tile_button@adminplus_beta.tile_button": {} }
+		]
+	},
+
+	"tile_button@adminplus_beta.dark_content_button": {
+		"$pressed_button_name": "button.form_button_click",
+		"size": [ "100%", 40 ],
+		"anchor_from": "top_left",
+		"anchor_to": "top_left",
+		"$button_content": "adminplus_beta.tile_content",
+		"bindings": [
+			{ "binding_type": "collection_details", "binding_collection_name": "form_buttons" }
+		]
+	},
+
+	"tile_column_left": {
+		"type": "stack_panel",
+		"orientation": "vertical",
+		"size": [ "50% - 2px", "100%c" ],
+		"anchor_from": "top_left",
+		"anchor_to": "top_left",
+		"factory": {
+			"name": "buttons",
+			"control_ids": {
+				"button": "adminplus_beta.tile_left",
+				"label": "@adminplus_beta.nothing",
+				"header": "@adminplus_beta.nothing",
+				"divider": "@adminplus_beta.nothing"
 			}
+		},
+		"collection_name": "form_buttons",
+		"bindings": [
+			{ "binding_name": "#form_button_contents", "binding_name_override": "#collection_length" }
+		]
+	},
+
+	"tile_column_right": {
+		"type": "stack_panel",
+		"orientation": "vertical",
+		"size": [ "50% - 2px", "100%c" ],
+		"anchor_from": "top_left",
+		"anchor_to": "top_left",
+		"factory": {
+			"name": "buttons",
+			"control_ids": {
+				"button": "adminplus_beta.tile_right",
+				"label": "@adminplus_beta.nothing",
+				"header": "@adminplus_beta.nothing",
+				"divider": "@adminplus_beta.nothing"
+			}
+		},
+		"collection_name": "form_buttons",
+		"bindings": [
+			{ "binding_name": "#form_button_contents", "binding_name_override": "#collection_length" }
 		]
 	},
 
 	"tiles": {
-		"type": "grid",
-		"size": [ "100%", "default" ],
+		"type": "stack_panel",
+		"orientation": "horizontal",
+		"size": [ "100%", "100%c" ],
 		"anchor_from": "top_left",
 		"anchor_to": "top_left",
-		"grid_rescaling_type": "horizontal",
-		"grid_item_template": "adminplus_beta.tile_cell",
-		"collection_name": "form_buttons",
-		"maximum_grid_items": 12,
-		"bindings": [
-			{ "binding_name": "#form_button_contents", "binding_name_override": "#maximum_grid_items" }
+		"controls": [
+			{ "left@adminplus_beta.tile_column_left": {} },
+			{ "gap": { "type": "panel", "size": [ 4, 0 ] } },
+			{ "right@adminplus_beta.tile_column_right": {} }
 		]
 	},
 
