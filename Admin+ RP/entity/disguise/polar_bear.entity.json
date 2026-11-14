@@ -12,7 +12,7 @@
       },
       "geometry": {
         "default": "geometry.polarbear",
-        "baby": "geometry.polar_bear.baby"
+        "baby": "geometry.polarbear"
       },
       "animations": {
         "walk": "animation.quadruped.walk",

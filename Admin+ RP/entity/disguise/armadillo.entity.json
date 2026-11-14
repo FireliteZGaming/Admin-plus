@@ -12,7 +12,7 @@
       },
       "geometry": {
         "default": "geometry.armadillo",
-        "baby": "geometry.armadillo.baby"
+        "baby": "geometry.armadillo"
       },
       "animations": {
         "look_at_target": "animation.armadillo.look_at_target",

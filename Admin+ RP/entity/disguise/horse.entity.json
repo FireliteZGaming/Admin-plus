@@ -40,7 +40,7 @@
       },
       "geometry": {
         "default": "geometry.horse.v3",
-        "baby": "geometry.horse.baby"
+        "baby": "geometry.horse.v3"
       },
       "animations": {
         "walk": "animation.horse.v3.walk",

@@ -21,7 +21,7 @@
       },
       "geometry": {
         "default": "geometry.axolotl",
-        "baby": "geometry.axolotl.baby"
+        "baby": "geometry.axolotl"
       },
       "animations": {
         "idle_float": "animation.axolotl.idle_underwater",

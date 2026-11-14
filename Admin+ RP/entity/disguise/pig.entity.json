@@ -17,7 +17,7 @@
       },
       "geometry": {
         "default": "geometry.pig.v3",
-        "baby": "geometry.pig.baby"
+        "baby": "geometry.pig.v3"
       },
       "animations": {
         "setup": "animation.pig.setup",

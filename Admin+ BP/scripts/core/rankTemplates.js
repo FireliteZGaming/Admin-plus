@@ -1,4 +1,5 @@
 import { BASIC_PERMS, STAFF_CORE } from "./ranks.js"
+import { SERVER_PRESETS_SHOWN } from "./onhold.js"
 
 // Templates for a new STAFF rank (2.11.4, the user's design of 2026-11-13).
 //
@@ -52,7 +53,11 @@ export const STAFF_TEMPLATES = Object.freeze([
     {
         key: "manager", name: "Manager", colour: "§5", badge: "star",
         line: "Runs the server for you.",
-        points: ["Every staff tool", "Make and edit ranks", "Server presets"],
+        // While Server presets are hidden (core/onhold.js) the third tick names
+        // what Manager has and Admin doesn't: the allowlist and Automation.
+        // The permission itself stays in MANAGER, so the rank is ready when
+        // presets come back.
+        points: ["Every staff tool", "Make and edit ranks", SERVER_PRESETS_SHOWN ? "Server presets" : "Allowlist, Automation"],
         perms: MANAGER
     },
     {

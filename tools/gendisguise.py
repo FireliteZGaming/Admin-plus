@@ -32,6 +32,11 @@ What changes from the game's own look, and why:
      and the like) start at resting values: reading one that was never set is
      an error, and the animation it feeds would stop.
   4. An animation the game no longer ships is left out.
+  5. (2.12.9) A geometry a disguise never draws (a baby, a sheared sheep, a
+     cow's warm and cold coats) points at the default one, and three looks
+     get the extra names the game asks for. Both come from the content log
+     of the first world that loaded these files (2026-11-14, game 1.26.63);
+     see NEVER_DRAWN and GAME_ASKS_FOR below.
 
 The entity has gravity and collision, with a hitbox too small to snag on
 anything, so the game itself knows when it stands on the ground: rabbits,
@@ -148,6 +153,46 @@ MOBS = [
 # Resting values for variables the game supplies to its own mobs. Anything not
 # listed starts at 0. A divisor must never be 0: humanoids divide by this one.
 RESTING = {"gliding_speed_value": "1.0"}
+
+# Geometries a disguise never draws, pointed at the default one (2.12.9).
+#
+# The game works out a neck point (armor_offset.default_neck) for every
+# geometry a look lists, and when two disagree it logs, once per world load:
+#   "model already has a locator armor_offset.default_neck that doesn't
+#   exactly match the one wanting to be added - skipping new definition in
+#   default(geometry.pig.v3)"
+# 30 of the 76 looks did that on 2026-11-14, nearly all because the baby's
+# neck sits lower than the grown-up's. No vanilla file defines that point (it
+# isn't in any of the game's models), so the only cure is fewer different
+# geometries. A disguise is always the grown-up mob in its default variant, so:
+#   baby       every look; the render controllers ask query.is_baby, never true
+#   the rest   below, each with what keeps it from ever being drawn
+# The plain look (SIMPLE_RENDER) draws Geometry.default only, so every other
+# geometry of a plain-look mob points at it too.
+NEVER_DRAWN_EVERYWHERE = ("baby",)
+NEVER_DRAWN = {
+    "cow": ("warm", "cold"),   # the coat is chosen by its climate, read as the default, temperate
+    "sheep": ("sheared",),     # Array.geos[query.is_sheared], never sheared
+}
+
+# Names the game asks for that none of its own files define (2.12.9). The
+# content log, 2026-11-14:
+#   warden      controller.render.warden_bioluminescent_layer (and the spots,
+#               tendrils and heart) | Geometries | 'geometry.default_bioluminescent' not found
+#   creaking    controller.render.creaking_eyes | Geometries | 'geometry.eyes' not found
+#   magma_cube  controller.render.magma_cube | Materials | 'material.opaque' / 'material.glow' not found
+# The render controllers in the game's files ask for Geometry.default and
+# Material.default there, so the game itself must swap the names in when it
+# draws them; neither the files nor the game program contain them as text. So
+# each missing name is given the part the game's file asks for, which is what
+# the game drew before. Missing, the layer isn't drawn: no glowing spots or
+# heart on the warden, no eyes on the creaking, maybe no magma cube at all.
+# (part, missing name, the existing name it copies)
+GAME_ASKS_FOR = {
+    "warden": [("geometry", "default_bioluminescent", "default")],
+    "creaking": [("geometry", "eyes", "default")],
+    "magma_cube": [("materials", "opaque", "default"), ("materials", "glow", "default")],
+}
 
 VAR_READ = re.compile(r"\b(?:variable|v)\.([a-z_][a-z0-9_]*)", re.I)
 VAR_SET = re.compile(r"\b(?:variable|v)\.([a-z_][a-z0-9_]*)\s*=(?!=)", re.I)
@@ -357,7 +402,26 @@ def build(mob_id, vanilla, game, defaults):
     out = {"identifier": f"{PREFIX}{mob_id}"}
     for key in ("materials", "textures", "geometry"):
         if desc.get(key):
-            out[key] = desc[key]
+            out[key] = dict(desc[key])  # a copy: the game's own table is read again for the report
+
+    # Point 5: geometries never drawn share the default's, and names the game
+    # asks for are given the part its own file asks for.
+    geometry = out.get("geometry") or {}
+    if "default" in geometry:
+        never = set(NEVER_DRAWN_EVERYWHERE) | set(NEVER_DRAWN.get(mob_id, ()))
+        if plain:
+            never |= set(geometry) - {"default"}
+        for name in sorted(never & set(geometry)):
+            if geometry[name] != geometry["default"]:
+                geometry[name] = geometry["default"]
+                dropped.append(f"geometry {name}: drawn as the default (never shown on a disguise)")
+    for part, name, same_as in GAME_ASKS_FOR.get(mob_id, []):
+        table = out.get(part) or {}
+        if same_as not in table:
+            raise SystemExit(f"{mob_id}: the game asks for {part} '{name}', and there is no '{same_as}' to give it")
+        if name not in table:
+            table[name] = table[same_as]
+            dropped.append(f"{part} {name}: the game asks for it; given the {same_as} one")
     if animations:
         out["animations"] = animations
     if old_style:

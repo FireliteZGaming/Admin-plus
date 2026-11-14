@@ -20,7 +20,7 @@
         "default": "geometry.chicken.v1.12",
         "warm": "geometry.chicken.v1.12",
         "cold": "geometry.chicken.cold",
-        "baby": "geometry.chicken.baby"
+        "baby": "geometry.chicken.v1.12"
       },
       "animations": {
         "move": "animation.chicken.move",

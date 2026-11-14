@@ -16,7 +16,8 @@
         "heart": "textures/entity/warden/warden_heart"
       },
       "geometry": {
-        "default": "geometry.warden"
+        "default": "geometry.warden",
+        "default_bioluminescent": "geometry.warden"
       },
       "animations": {
         "emerge": "animation.warden.emerge",

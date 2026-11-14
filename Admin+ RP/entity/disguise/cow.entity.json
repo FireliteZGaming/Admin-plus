@@ -17,9 +17,9 @@
       },
       "geometry": {
         "default": "geometry.cow.v2",
-        "baby": "geometry.cow.baby",
-        "warm": "geometry.cow.warm",
-        "cold": "geometry.cow.cold"
+        "baby": "geometry.cow.v2",
+        "warm": "geometry.cow.v2",
+        "cold": "geometry.cow.v2"
       },
       "animations": {
         "setup": "animation.cow.setup",

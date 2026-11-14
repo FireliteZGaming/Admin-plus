@@ -6,6 +6,7 @@ import { GROUPS, settingKeys, settingsScreen, pageScreen } from "../Admin+ BP/sc
 import { automodHubScreen, screeningScreen } from "../Admin+ BP/scripts/features/automodUI.js"
 import { openPanel } from "../Admin+ BP/scripts/features/panel.js"
 import { creditsScreen } from "../Admin+ BP/scripts/features/credits.js"
+import { serverPresetsScreen } from "../Admin+ BP/scripts/features/serverPresets.js"
 import { CONFIG } from "../Admin+ BP/scripts/config.js"
 
 let passed = 0, failed = 0
@@ -17,7 +18,8 @@ function check(name, actual, expected) {
 
 // /admin ▸ Server, as the user laid it out on 2026-11-12: Settings (every
 // switch, in groups that say what they hold), Automod, and Advanced, plus
-// Server presets, which fits none of the three.
+// Server presets, which fits none of the three. Server presets is hidden since
+// 2.12.9 (core/onhold.js): "not dropping it but hiding".
 
 const boss = {
     id: "set-boss", name: "Boss", nameTag: "Boss", commandPermissionLevel: 0,
@@ -34,17 +36,18 @@ const lastForm = () => __ui.shown[__ui.shown.length - 1]
 const buttonsOf = form => form.parts.filter(p => p[0] === "button").map(p => p[1])
 const pageOf = (groupId, label) => GROUPS.find(g => g.id === groupId).pages.find(p => p.label === label)
 
-console.log("\n— Server holds Settings, Automod, Server presets and Advanced —")
+console.log("\n— Server holds Settings, Automod, Automation and Advanced —")
 {
     __ui.answers.length = 0
     await openPanel(boss)
     const panel = buttonsOf(lastForm())
     const serverAt = panel.findIndex(text => text.includes("Server"))
+    check("the Server button doesn't mention presets", panel[serverAt].replace(/§./g, "").includes("presets"), false)
     __ui.answers.push(press(serverAt))
     await openPanel(boss)
     const server = buttonsOf(lastForm()).map(text => text.split("\n")[0].replace(/§./g, ""))
     // Automation joined Server in 2.10.0 (the user: "our own automation setting under server").
-    check("those five, in that order", server, ["Settings", "Automod", "Automation", "Server presets", "Advanced", "< Back"])
+    check("those four, in that order", server, ["Settings", "Automod", "Automation", "Advanced", "< Back"])
 }
 
 console.log("\n— the groups say what they hold —")
@@ -136,18 +139,14 @@ console.log("\n— Automod is its own door —")
     for (const key of ["filter.profanity", "filter.action", "filter.muteSeconds"]) resetSetting(key)
 }
 
-console.log("\n— Server presets asks for ideas on the Discord —")
+console.log("\n— the hidden Server presets screen still asks for ideas on the Discord —")
 // The user, 2026-11-12: "when people click on it it says join the discord to
-// suggest ideas for presets".
+// suggest ideas for presets". Hidden in 2.12.9, not dropped, so the screen
+// itself must still work for the day it comes back. Opened directly here,
+// since no button leads to it.
 {
     __ui.answers.length = 0
-    await openPanel(boss)
-    const serverAt = buttonsOf(lastForm()).findIndex(text => text.includes("Server"))
-    __ui.answers.push(press(serverAt))
-    await openPanel(boss)
-    const presetsAt = buttonsOf(lastForm()).findIndex(text => text.includes("Server presets"))
-    __ui.answers.push(press(serverAt), press(presetsAt))
-    await openPanel(boss)
+    await serverPresetsScreen(boss, () => {})
     const screen = lastForm()
     const body = String(screen.parts.find(p => p[0] === "body")?.[1] ?? "")
     check("it is the presets screen", String(screen.parts.find(p => p[0] === "title")?.[1]).includes("Server presets"), true)
@@ -156,14 +155,14 @@ console.log("\n— Server presets asks for ideas on the Discord —")
     check("with no link set, it says one is coming", body.includes("link is coming soon"), true)
 
     CONFIG.brand.discord = "discord.gg/example"
-    __ui.answers.push(press(serverAt), press(presetsAt))
-    await openPanel(boss)
+    await serverPresetsScreen(boss, () => {})
     check("with a link set, it prints the link",
         String(lastForm().parts.find(p => p[0] === "body")?.[1] ?? "").includes("discord.gg/example"), true)
 
     await creditsScreen(boss, () => {})
     const credits = String(lastForm().parts.find(p => p[0] === "body")?.[1] ?? "")
     check("Credits has a place for the Discord", credits.includes("§fDiscord") && credits.includes("discord.gg/example"), true)
+    check("which no longer asks for preset ideas", credits.includes("presets"), false)
     CONFIG.brand.discord = ""
 }
 

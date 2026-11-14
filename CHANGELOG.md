@@ -56,6 +56,78 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.12.9 — 2026-11-14
+
+**Server presets is hidden, and the disguise looks are fixed from the game's
+own log.**
+
+1. **Server presets is hidden, not dropped.** The user: "since presets won't
+   be here, not dropping it but hiding". Every place a player could see it is
+   gone, in both looks:
+   1. /admin ▸ Server shows Settings, Automod, Automation and Advanced. The
+      Server button says "Settings, automod, automation and advanced".
+   2. Ranks ▸ a rank ▸ Permissions ▸ Administrative ▸ Server settings has no
+      "server presets" switch. Ranks that hold the permission keep it.
+   3. The Manager template's third tick reads "Allowlist, Automation", which
+      Manager has and Admin doesn't, instead of "Server presets".
+   4. `/version` says how many ranks there are, without naming a preset.
+      Credits' Discord line says "Help, updates and ideas:".
+   5. Nothing was deleted: the screen, the four presets, the permission and
+      /scriptevent are all still there. `SERVER_PRESETS_SHOWN` in
+      `core/onhold.js` brings every place back at once.
+2. **Logs ▸ Server** says "saved setups" in its hint, the name the panel uses,
+   instead of "presets".
+
+### Fixed: the disguise looks
+A build carrying the 2.12.8 code, still numbered 2.12.7, ran in a world on
+2026-11-14 (08:35 and 09:14). So the 2.12.8 note "Nothing has run in game"
+was wrong. Its content log held 42 error lines naming the disguises:
+1. **30 mobs: "model already has a locator armor_offset.default_neck that
+   doesn't exactly match".** The game works out a neck point for every
+   geometry a look lists, and the baby's differs from the grown-up's. A
+   disguise is always the grown-up in its default variant, so the geometries
+   it never draws (the baby, a cow's warm and cold coats, a sheared sheep, the
+   copper golem's other poses) now point at the default one.
+2. **The warden's glowing layers, the creaking's eyes and the magma cube**
+   asked for names that none of the game's files define:
+   `geometry.default_bioluminescent`, `geometry.eyes`, `material.opaque` and
+   `material.glow`. Each is now given the part the game's own file names
+   there. Without them the game can't draw those layers.
+3. The look files keep the game's animation formulas. The user: "whatever
+   makes it the most accurate".
+
+### Tools
+1. `tools/state.py` shows the build the game actually has. The user opens
+   Admin+.mcaddon, which the game unpacks into folders like `Admin+v2(4)`, so
+   the deploy folder (still 2.7.7) said nothing about what ran. It also counts
+   content-log errors that name `adminplus:`; it said "problems none" about
+   the 42 above.
+2. CLAUDE.md: run `setversion.py` before the first `verify.py` of a version.
+   `verify.py` rebuilds Admin+.mcaddon, and the user may open that file at any
+   time, which is how the build above ran under the old number.
+
+### Not checked
+1. In game: Server's four buttons, the four Server settings switches, the
+   Manager card and `/version`.
+2. In game: after a world loads, the content log shows no `[Geometry]` or
+   `[Molang]` error naming `adminplus:disguise_`. The warden shows its glowing
+   spots and heart, the creaking its eyes, and the magma cube draws.
+3. The magma cube's two names both get its one material, as its old look had.
+   Whether the game draws it brighter than the real one is unseen.
+
+### Checked
+1. `tests/settingsui.test.js`: Server has four buttons and its button doesn't
+   say presets; the hidden screen still asks for ideas on the Discord;
+   Credits doesn't ask for preset ideas.
+2. `tests/ranks.test.js`: no switch for the presets permission while hidden,
+   and the panel still checks it. `tests/rankgap.test.js`: the mixed
+   ready-made set is Tidying up now, since Server shape holds Settings alone.
+3. `tests/disguise.test.js` (73): no look draws a baby geometry that differs
+   from the grown-up's; the cow's coats and the sheared sheep are the default;
+   a plain look lists one geometry; the warden, creaking and magma cube have
+   the names the game asks for.
+4. 68 test files, 3,714 checks. Verifier: 0 problems.
+
 ## 2.12.8 — 2026-11-14
 
 **/disguise: become any mob that walks or swims. In Beta.**

@@ -12,7 +12,7 @@
       },
       "geometry": {
         "default": "geometry.camel",
-        "baby": "geometry.camel.baby"
+        "baby": "geometry.camel"
       },
       "animations": {
         "moving": "animation.camel.walk",

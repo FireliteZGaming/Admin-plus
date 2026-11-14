@@ -21,11 +21,11 @@
       },
       "geometry": {
         "default": "geometry.copper_golem",
-        "flower": "geometry.copper_golem.flower",
+        "flower": "geometry.copper_golem",
         "standing": "geometry.copper_golem",
-        "sitting": "geometry.copper_golem.sitting",
-        "running": "geometry.copper_golem.running",
-        "star": "geometry.copper_golem.star"
+        "sitting": "geometry.copper_golem",
+        "running": "geometry.copper_golem",
+        "star": "geometry.copper_golem"
       },
       "animations": {
         "look_at_target": "animation.common.look_at_target",

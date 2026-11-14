@@ -12,7 +12,7 @@
       },
       "geometry": {
         "default": "geometry.zombie.drowned.v1.16",
-        "baby": "geometry.zombie.baby"
+        "baby": "geometry.zombie.drowned.v1.16"
       },
       "animations": {
         "look_at_target": "controller.animation.humanoid.look_at_target",

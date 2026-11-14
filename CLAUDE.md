@@ -23,6 +23,12 @@ python tools/release.py --alpha    # tag, GitHub pre-release, archived build
 
 - **Never hand-edit a version.** Six arrays plus `config.js` plus two pack names
   must agree; `setversion.py` is the only thing that gets that right.
+- **Run `setversion.py` before the first `verify.py` of a version.**
+  `verify.py` rebuilds `Admin+.mcaddon`, and the user installs by opening that
+  file whenever they like; the game unpacks it into `behavior_packs/Admin+v2(N)`.
+  A mid-work build carrying 2.12.8's code ran under 2.12.7 that way
+  (2026-11-14). `deploy.py`'s folder is not where the user's builds go, so
+  `state.py` reports both ("deployed" and "imported").
 - **What each version position means** (revised 2026-09-04): patch `2.0.x` is the
   day-to-day — a command, a fix, a tweak, most work. Minor `2.x.0` is a whole new
   SECTION behind its own toggle (the troll section is the archetype), not one
@@ -291,7 +297,8 @@ field, or (on a game that drew no labels) one per input.
   Advanced. Keep new screens inside this shape rather than adding root buttons.
 - **Server is Settings, Automod, Automation, Server presets, Advanced** (2.8.3,
   the user's layout, 2026-11-12; Automation added in 2.10.0 because the user
-  asked for "our own automation setting under server"). Settings is every switch, in five groups whose buttons
+  asked for "our own automation setting under server"; Server presets hidden
+  since 2.12.9, see below). Settings is every switch, in five groups whose buttons
   list what they hold: Travel, Chat, Names and tags, Moderation, Player extras
   (`GROUPS` in `features/settingsUI.js`). Each thing has ONE page with its
   switch and its numbers ("Tpa... covers all Tpa things"). A new feature switch
@@ -337,7 +344,13 @@ field, or (on a game that drew no labels) one per input.
   the game's own models, textures, animations and render controllers, plus
   the molang that feeds them; a `minecraft:*` property reads as the mob's
   default, and engine-supplied variables start at rest. Flying mobs stay off
-  the list. `tests/disguise.test.js`.
+  the list. `tests/disguise.test.js`. **The content log is the check for the
+  look files** (2.12.9): the game derives a neck locator per geometry and
+  logs an error when two differ, so geometries a disguise never draws (baby,
+  coats, sheared, a plain look's poses) point at the default (`NEVER_DRAWN`);
+  and it asks some vanilla render controllers for names no vanilla file
+  defines, which `GAME_ASKS_FOR` supplies from the content log's own words.
+  After a game update, load a world and read the log for `adminplus:disguise_`.
 - **< Code > is JavaScript in Beta (2.12.7, the user: "we actually make that
   JavaScript too").** `const setup = "..."` and `const settings = { ... }`,
   one heading per group (`toScript`/`fromScript` in `features/code.js`).
@@ -416,7 +429,14 @@ field, or (on a game that drew no labels) one per input.
   people to suggest ideas on the Discord instead of offering presets. The old
   four stay in `core/serverPresets.js` (scriptevent still applies them) so
   presets can return. The Discord link is `CONFIG.brand.discord`, printed by
-  `core/links.js`; empty means "coming soon".
+  `core/links.js`; empty means "coming soon". **Hidden since 2.12.9** (the
+  user: "since presets won't be here, not dropping it but hiding"):
+  `SERVER_PRESETS_SHOWN` in `core/onhold.js` is false, which takes away the
+  Server button, the `presets.apply` switch (ranks keep the permission), its
+  place in the Server shape set, the Manager card's tick, the `/version`
+  preset line and Credits' "ideas for new presets". Flip it to bring them all
+  back. `tests/ranks.test.js` lets `presets.apply` be checked without a switch
+  only while it is false. Anything else put on hold gets a flag there too.
 - **Nobody gives out a permission they don't have (2.8.7, the user asked for
   the rank gap to be fixed, 2026-11-12).** Switches, ready-made sets, "Also
   gets permissions from", a new rank's starting rank, and giving ranks are all

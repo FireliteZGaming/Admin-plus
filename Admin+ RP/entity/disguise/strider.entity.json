@@ -16,7 +16,7 @@
       },
       "geometry": {
         "default": "geometry.strider",
-        "baby": "geometry.strider.baby"
+        "baby": "geometry.strider"
       },
       "animations": {
         "look_at_target": "animation.strider.look_at_target.default",

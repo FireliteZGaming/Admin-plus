@@ -12,7 +12,7 @@
       },
       "geometry": {
         "default": "geometry.goat",
-        "baby": "geometry.goat.baby"
+        "baby": "geometry.goat"
       },
       "animations": {
         "walk": "animation.goat.walk",

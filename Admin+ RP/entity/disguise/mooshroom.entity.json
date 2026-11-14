@@ -14,7 +14,7 @@
       },
       "geometry": {
         "default": "geometry.mooshroom.v2",
-        "baby": "geometry.cow.baby"
+        "baby": "geometry.mooshroom.v2"
       },
       "animations": {
         "setup": "animation.mooshroom.setup",

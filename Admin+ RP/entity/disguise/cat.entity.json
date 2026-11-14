@@ -54,7 +54,7 @@
       },
       "geometry": {
         "default": "geometry.cat",
-        "baby": "geometry.cat.baby"
+        "baby": "geometry.cat"
       },
       "animations": {
         "sneak": "animation.cat.sneak",

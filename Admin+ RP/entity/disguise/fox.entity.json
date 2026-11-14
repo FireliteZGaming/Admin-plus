@@ -16,7 +16,7 @@
       },
       "geometry": {
         "default": "geometry.fox",
-        "baby": "geometry.fox.baby"
+        "baby": "geometry.fox"
       },
       "animations": {
         "walk": "animation.quadruped.walk",

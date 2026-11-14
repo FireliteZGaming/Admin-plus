@@ -64,7 +64,7 @@
       },
       "geometry": {
         "default": "geometry.wolf",
-        "baby": "geometry.wolf.baby"
+        "baby": "geometry.wolf"
       },
       "animations": {
         "wolf_setup": "animation.wolf.setup",

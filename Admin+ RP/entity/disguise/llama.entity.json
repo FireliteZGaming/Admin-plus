@@ -37,7 +37,7 @@
       },
       "geometry": {
         "default": "geometry.llama.v1.8",
-        "baby": "geometry.llama.baby"
+        "baby": "geometry.llama.v1.8"
       },
       "animations": {
         "setup": "animation.llama.setup",

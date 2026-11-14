@@ -19,7 +19,7 @@
       },
       "geometry": {
         "default": "geometry.nautilus",
-        "baby": "geometry.nautilus.baby",
+        "baby": "geometry.nautilus",
         "saddle": "geometry.nautilus_saddle",
         "armor": "geometry.nautilus_armor"
       },

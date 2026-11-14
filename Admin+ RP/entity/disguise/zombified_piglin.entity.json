@@ -12,7 +12,7 @@
       },
       "geometry": {
         "default": "geometry.piglin",
-        "baby": "geometry.piglin.baby"
+        "baby": "geometry.piglin"
       },
       "animations": {
         "humanoid_base_pose": "animation.humanoid.base_pose",

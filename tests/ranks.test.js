@@ -13,6 +13,7 @@ import {
     TESTER_RANK, isTester, testerGamertags, MEDIA_RANK, isMedia, mediaGamertags
 } from "../Admin+ BP/scripts/core/ranks.js"
 import { CONFIG } from "../Admin+ BP/scripts/config.js"
+import { SERVER_PRESETS_SHOWN } from "../Admin+ BP/scripts/core/onhold.js"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -316,8 +317,14 @@ check("no node is declared without being checked", unused, [])
 const nodePattern = /(?:has\([^)]*"|perm: *")([a-z]+\.[a-z]+)"/g
 const checked = new Set()
 for (const match of CODE.matchAll(nodePattern)) checked.add(match[1])
-const undeclared = [...checked].filter(node => !declared.includes(node) && !node.startsWith("chat."))
+// One written exception: a feature that is hidden, not dropped
+// (core/onhold.js). Its check stays in the code for the day it comes back, but
+// its switch is gone, since it would switch on nothing anyone can see.
+const ON_HOLD = SERVER_PRESETS_SHOWN ? [] : ["presets.apply"]
+const undeclared = [...checked].filter(node => !declared.includes(node) && !node.startsWith("chat.") && !ON_HOLD.includes(node))
 check("and nothing is checked without being declared", undeclared, [])
+check("while presets are hidden, their permission has no switch", declared.includes("presets.apply"), SERVER_PRESETS_SHOWN)
+check("but the panel still checks it, ready for their return", CODE.includes(`has(player, "presets.apply")`), true)
 
 check("no node is listed in two groups at once",
     Object.values(PERMISSION_NODES).flat().length, declared.length)
@@ -330,7 +337,7 @@ for (const [id, preset] of Object.entries(PRESETS)) {
     const granted = Object.values(preset.ranks).flatMap(r => r.perms)
     const bogus = granted
         .map(p => p.replace(/^-/, ""))
-        .filter(p => p !== "*" && !p.endsWith(".*") && !declared.includes(p))
+        .filter(p => p !== "*" && !p.endsWith(".*") && !declared.includes(p) && !ON_HOLD.includes(p))
     check(`${id} grants nothing invented`, bogus, [])
 }
 

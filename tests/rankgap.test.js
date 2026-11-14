@@ -95,11 +95,18 @@ console.log("\n— ready-made sets switch on only what the presser has —")
     const sets = formTitled("Ready-made sets", from)
     check("its button says so first", buttonsOf(sets).some(b => b.startsWith("Everything") && b.includes("you don't have")), true)
 
-    // Server shape is Settings, which Ally has, and Presets, which they don't.
-    __ui.answers.push(press(1), press(1), press(0), press(keys.indexOf("shape")))
+    // A set Ally only partly has. Server shape (Settings and Presets) was the
+    // example until 2.12.9 hid presets (core/onhold.js), which left it holding
+    // Settings alone. Tidying up is the example now, with /lagclear denied to
+    // Ally's rank for this check only.
+    check("while presets are hidden, Server shape is Settings alone", BUNDLES.shape.nodes, ["admin.settings"])
+    const adminPerms = [...getRank("admin").perms]
+    saveRank("admin", { perms: [...adminPerms, "-admin.lagclear"] })
+    __ui.answers.push(press(1), press(1), press(0), press(keys.indexOf("upkeep")))
     await rankScreen(ally, "helper", () => {})
-    check("a mixed set switches on only Settings", ["admin.settings", "presets.apply"].map(n => getRank("helper").perms.includes(n)), [true, false])
+    check("a mixed set switches on only what Ally has", ["admin.clearchat", "admin.lagclear"].map(n => getRank("helper").perms.includes(n)), [true, false])
     check("and says one stayed off", lastSaid(ally).includes("1 stayed off"), true)
+    saveRank("admin", { perms: adminPerms })
 }
 
 console.log("\n— 'Also gets permissions from' lists only ranks Ally could give —")

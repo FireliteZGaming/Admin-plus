@@ -24,7 +24,7 @@
       },
       "geometry": {
         "default": "geometry.rabbit.v2",
-        "baby": "geometry.rabbit.baby"
+        "baby": "geometry.rabbit.v2"
       },
       "animations": {
         "move": "animation.rabbit.move.v2",

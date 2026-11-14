@@ -12,7 +12,7 @@
       },
       "geometry": {
         "default": "geometry.sniffer",
-        "baby": "geometry.sniffer.baby"
+        "baby": "geometry.sniffer"
       },
       "animations": {
         "walk": "animation.sniffer.walk",

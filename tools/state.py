@@ -72,6 +72,31 @@ def main():
     else:
         print(f"  deployed  {deployed}  <- the game is running an OLDER build")
 
+    # **The user installs by opening Admin+.mcaddon, not through deploy.py.**
+    # The game unpacks each import into a folder named after the pack, with
+    # (1), (2) ... for repeats, so the deploy folder above can sit at 2.7.7
+    # while the game runs 2.12.7. Found 2026-11-14, after this screen had said
+    # the game was "running an OLDER build" about a world that ran the newest.
+    # Matched by the pack's own uuid, which every version shares.
+    try:
+        uuid = json.load(io.open(BP / "manifest.json", encoding="utf-8"))["header"]["uuid"]
+        copies = []
+        for manifest in DEPLOY.parent.glob("*/manifest.json"):
+            try:
+                header = json.load(io.open(manifest, encoding="utf-8-sig"))["header"]
+            except Exception:
+                continue
+            if header.get("uuid") == uuid:
+                copies.append((tuple(header["version"]), manifest.stat().st_mtime, manifest.parent.name))
+        if copies:
+            newest = max(copies)
+            import time
+            when = time.strftime("%Y-%m-%d %H:%M", time.localtime(newest[1]))
+            note = "in sync" if ".".join(map(str, newest[0])) == source else "older than source"
+            print(f"  imported  {'.'.join(map(str, newest[0]))}  ({newest[2]}, {when}, {note}; {len(copies)} copies in the game)")
+    except Exception as e:
+        print(f"  imported  could not read the game's packs: {e}")
+
     # ------------------------------------------------------------------- tests
     head("tests")
     out = run("npm", "--silent", "test", shell=True)   # npm is npm.cmd here
@@ -151,9 +176,14 @@ def main():
             recovered = re.search(r"storage: all (\d+) tables read", body)
             early = [l for l in lines if "early execution" in l and "[Admin+]" in l]
 
+            # Errors about OUR entities count too. The disguise look files'
+            # 33 [Geometry] and [Molang] errors on 2026-11-14 named
+            # "adminplus:disguise_..." and nothing else, so this screen said
+            # "problems none" about them.
             problems = [l for l in lines
                         if (("[Admin+]" in l and ("error" in l.lower() or "warn" in l.lower()))
-                            or "Scripting][error]" in l)
+                            or "Scripting][error]" in l
+                            or ("][error]" in l and "adminplus:" in l))
                         and not (recovered and "early execution" in l)]
 
             print(f"  {newest.name}" + (f"  ({skipped} newer log(s) without Admin+)" if skipped else ""))

@@ -24,7 +24,7 @@
       },
       "geometry": {
         "default": "geometry.panda",
-        "baby": "geometry.panda.baby"
+        "baby": "geometry.panda"
       },
       "animations": {
         "unhappy": "animation.panda.unhappy",

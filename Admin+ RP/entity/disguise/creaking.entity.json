@@ -12,7 +12,8 @@
         "eyes": "textures/entity/creaking/creaking_eyes"
       },
       "geometry": {
-        "default": "geometry.creaking"
+        "default": "geometry.creaking",
+        "eyes": "geometry.creaking"
       },
       "animations": {
         "look_at_target": "animation.creaking.look_at_target",

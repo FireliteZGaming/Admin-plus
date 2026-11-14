@@ -12,8 +12,8 @@
       },
       "geometry": {
         "default": "geometry.sheep.v1.8",
-        "sheared": "geometry.sheep.sheared.v1.8",
-        "baby": "geometry.sheep.baby"
+        "sheared": "geometry.sheep.v1.8",
+        "baby": "geometry.sheep.v1.8"
       },
       "animations": {
         "grazing": "animation.sheep.grazing.v2",

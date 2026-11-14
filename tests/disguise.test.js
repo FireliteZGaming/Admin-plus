@@ -133,6 +133,23 @@ console.log("\n— the mobs —")
         return [...read].some(name => !set.has(name))
     }).map(d => d.id)
     check("every variable a look reads, it sets", unset, [])
+
+    // 2.12.9, from the content log of the first world that loaded these
+    // looks (2026-11-14). A disguise is always the grown-up mob in its default
+    // variant, and two different geometries give the game two different neck
+    // points, which it logs as an error for each mob (tools/gendisguise.py,
+    // NEVER_DRAWN).
+    const look = id => JSON.parse(rp(id))["minecraft:client_entity"].description
+    check("no look draws a baby: it is the grown-up's geometry",
+        DISGUISES.filter(d => look(d.id).geometry?.baby && look(d.id).geometry.baby !== look(d.id).geometry.default).map(d => d.id), [])
+    check("a cow's warm and cold coats, and a sheared sheep, are the default too",
+        [look("cow").geometry.warm, look("cow").geometry.cold, look("sheep").geometry.sheared], ["geometry.cow.v2", "geometry.cow.v2", "geometry.sheep.v1.8"])
+    check("a plain look lists one geometry, however many names point at it",
+        new Set(Object.values(look("copper_golem").geometry)).size, 1)
+    // Names the game asks for that its own files never define (GAME_ASKS_FOR).
+    check("the warden's glowing layers have the geometry the game asks for", look("warden").geometry.default_bioluminescent, "geometry.warden")
+    check("the creaking's eyes too", look("creaking").geometry.eyes, "geometry.creaking")
+    check("and the magma cube both of its materials", [look("magma_cube").materials.opaque, look("magma_cube").materials.glow], ["magma_cube", "magma_cube"])
     const lang = readFileSync(new URL("../Admin+ RP/texts/en_US.lang", import.meta.url), "utf8")
     check("each has a name in the language file", DISGUISES.every(d => lang.includes(`entity.${DISGUISE_PREFIX}${d.id}.name=${d.name}`)), true)
 
