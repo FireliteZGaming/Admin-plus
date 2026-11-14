@@ -157,7 +157,7 @@ function groupEntries(group) {
  * It disappears by itself: nothing writes `sign.*` any more, so once the ring
  * buffer has turned over the group stops appearing and never comes back.
  */
-function groupsFor() {
+export function groupsFor() {
     const legacySigns = branch("sign")
     if (!legacySigns.length) return GROUPS
     return [...GROUPS, {
@@ -209,7 +209,7 @@ function line(entry) {
 // anything.
 
 /** Entries per page. A form body scrolls, so this is about reading comfort. */
-const READ_PAGE = 14
+export const READ_PAGE = 14
 
 /**
  * "Today", "Yesterday", or a date. Local time on purpose: the person reading is
@@ -336,7 +336,7 @@ export function readLine(entry) {
  * Anything you were part of is always yours to read, whichever end you were on.
  * An entry about you is how an appeal starts.
  */
-function canReadEntry(player, entry) {
+export function canReadEntry(player, entry) {
     if (!entry) return false
     if (entry.actor?.id === player.id || entry.target?.id === player.id) return true
     if (entry.actor?.id && !canSeeActionsOf(player, entry.actor.id)) return false
@@ -345,7 +345,7 @@ function canReadEntry(player, entry) {
 }
 
 /** The entries this person is allowed to see, in the order they came. */
-function readableLog(player, entries) {
+export function readableLog(player, entries) {
     return (entries ?? []).filter(entry => canReadEntry(player, entry))
 }
 
@@ -393,7 +393,7 @@ async function listScreen(player, title, entries, back) {
  * second, after deciding the words matter, and a coordinate in the middle of a
  * sentence makes the sentence unreadable.
  */
-function chatReadLine(entry) {
+export function chatReadLine(entry) {
     const sign = entry.kind === "sign"
     const tag = sign ? "§6[Sign]" : "§b[Chat]"
     const where = !sign && entry.channel ? ` §8[${entry.channel}]` : ""
@@ -415,7 +415,7 @@ function chatReadLine(entry) {
  * only when it differs from what was typed, because for most commands it does
  * not and a line repeated back adds nothing.
  */
-function commandReadLine(entry) {
+export function commandReadLine(entry) {
     const typed = commandText(entry)
     const tag = entry.refused ? "§c[Cmd]" : "§a[Cmd]"
     const out = [`§8${clockOf(entry.at)} ${tag} §f${entry.name}§7: §r${typed}`]
@@ -477,7 +477,7 @@ function canReadChatLine(player, entry) {
 }
 
 /** The lines this person is allowed to see, in the order they came. */
-function readableChat(player, entries) {
+export function readableChat(player, entries) {
     return entries.filter(entry => canReadChatLine(player, entry))
 }
 
@@ -782,7 +782,7 @@ export function undoBlocked(player, entry) {
     return ""
 }
 
-async function undoScreen(player, entryId, back) {
+export async function undoScreen(player, entryId, back) {
     const entry = getEntry(entryId)
     if (!canUndo(entry)) { info(player, "That can't be undone."); return back() }
 

@@ -524,6 +524,21 @@ field, or (on a game that drew no labels) one per input.
   see a way to change it until you turn it on"). `personalRamp` needs both.
   Display names stay staff-only for now, and lookalike protection waits for
   automod in 4.0.0. `tests/personalize.test.js`.
+- **The Logs timeline (2.12.5, Beta, the user: "do a complete overhaul on
+  logs and do what you think is honestly best, in both style and layout ...
+  something distinct ... not close to the template one").**
+  `features/logbook.js`; `openLogs` sends Default to the untouched
+  `logsUI.js`. It opens on the log: tabs Actions, Chat, Commands (TAB,
+  TAB_ON), filter pills Player, Kind, Search (PILL) that work across tabs,
+  then Actions as a timeline in the LOGS frame (`log_*` in
+  `adminplus_beta.json`): a rail, a dot picture per kind (`log_<key>` from
+  `tools/genlook.py` LOG_ICONS), day markers from form labels, one plain
+  sentence per entry (`phraseOf`: audit.js PHRASES, else LOG_PHRASES). Chat
+  and Commands stay reading text. The entry page never shows an action id.
+  Reading rules go through `readableLog`/`canReadEntry`/`readableChat` in
+  logsUI.js, and undo through its `undoBlocked`/`undoScreen`. A new action
+  id needs a LOG_PHRASES line (or a PHRASES one with a target);
+  `tests/logbook.test.js` greps every `record(` and fails otherwise.
 - **The Profile card (2.12.3, Beta, the user: "in /menu, you can see your
   skin and then right by it it has your rank, and stuff").** A menu spec's
   `profile` text, with tiles, adds the PROFILE marker after TILES and becomes

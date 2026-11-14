@@ -14,7 +14,7 @@ import { claimsScreen } from "./claims.js"
 import { claimLimit } from "../core/claims.js"
 import { flag } from "../core/settings.js"
 import { reportsScreen, reportsBadge, reportsTile } from "./reports.js"
-import { logsScreen } from "./logsUI.js"
+import { openLogs } from "./logbook.js"
 import { settingsScreen } from "./settingsUI.js"
 import { automodHubScreen } from "./automodUI.js"
 import { serverPresetsScreen } from "./serverPresets.js"
@@ -69,7 +69,8 @@ export async function openPanel(player) {
         buttons.push({
             text: hubButton("chat", "Logs", "What happened, who did it, and undo"),
             tile: tile("logs", "Logs", "Who did what, undo"),
-            run: () => logsScreen(player, again)
+            // The timeline in Admin+'s own look (2.12.5), the old screens on Default.
+            run: () => openLogs(player, again)
         })
     }
     if (serverButtons(player, again).length) {

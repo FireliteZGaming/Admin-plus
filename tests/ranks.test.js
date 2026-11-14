@@ -968,7 +968,10 @@ console.log("\nâ€” surfaces that SHOW you another player, not just act on one â€
         for (const file of readdirSync(base).filter(f => f.endsWith(".js"))) {
             const code = read(new URL(file, base))
             if (!OBSERVERS.test(code)) continue
-            watching.push({ file: `${where}/${file}`, sees: /canSeeActionsOf\s*\(/.test(code) })
+            // canSeeActionsOf itself, or the Logs' funnel that calls it
+            // (readableLog and canReadEntry in features/logsUI.js), which the
+            // Beta Logs (features/logbook.js, 2.12.5) reads through.
+            watching.push({ file: `${where}/${file}`, sees: /\b(canSeeActionsOf|readableLog|canReadEntry)\s*\(/.test(code) })
         }
     }
 

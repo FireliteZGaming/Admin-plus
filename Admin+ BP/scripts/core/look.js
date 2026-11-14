@@ -59,11 +59,34 @@ export function lift(text) {
  * A title for the Beta look. The frame draws "Admin+" itself, so the brand
  * prefix comes off and the screen's own name stays, in its hub colour.
  */
-export function lookTitle(title, { tiles = false, profile = false } = {}) {
+export function lookTitle(title, { tiles = false, profile = false, logs = false } = {}) {
     let text = String(title ?? "")
     if (text.startsWith(BRAND_PREFIX)) text = text.slice(BRAND_PREFIX.length)
-    return lift(text) + BETA_LOOK + (tiles ? TILES : "") + (tiles && profile ? PROFILE : "")
+    return lift(text) + BETA_LOOK + (tiles ? TILES : "") + (tiles && profile ? PROFILE : "") + (!tiles && logs ? LOGS : "")
 }
+
+/**
+ * The Logs (2.12.5): a timeline frame of its own. The user, 2026-11-13: "do a
+ * complete overhaul on logs ... I want something distinct for logs too, not
+ * close to the template one". A title ending in LOGS is drawn as tabs across
+ * the top, filter pills under them, then the entries down a coloured line,
+ * each with a picture for its kind and a day marker where the day changes.
+ * A button whose text ends in TAB is a tab (TAB_ON: the open one, underlined)
+ * and one ending in PILL is a filter pill. Same hidden-code style as above.
+ */
+export const LOGS = "§t§i§m§e"
+export const TAB = "§t§a§b"
+export const TAB_ON = "§t§a§b§1"
+export const PILL = "§p§q§s"
+
+/** A tab's text: white and underlined when it's the open one. */
+export function tabText(text, on) { return `${on ? "§f" : "§7"}${text}${on ? TAB_ON : TAB}` }
+
+/** A filter pill's text: aqua when the filter is set. */
+export function pillText(text, on) { return `${on ? "§b" : "§7"}${text}${PILL}` }
+
+/** A picture on the Logs timeline, drawn by tools/genlook.py. */
+export function logIcon(key) { return `textures/ui/adminplus/log_${key}` }
 
 /**
  * Tiles stand in two columns. The pack builds each column the way the game

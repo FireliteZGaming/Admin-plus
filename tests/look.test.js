@@ -2,7 +2,7 @@ import { readFileSync, existsSync, readdirSync } from "node:fs"
 import { __test } from "@minecraft/server"
 import { __ui } from "@minecraft/server-ui"
 import { setRanks, onPlayerJoin, applyPreset } from "../Admin+ BP/scripts/core/ranks.js"
-import { BETA_LOOK, TILES, TILE_LEFT, CARD, PROFILE, cardText, cardStripe, lift, lookTitle, tile, tileIcon, tileText, betaLook } from "../Admin+ BP/scripts/core/look.js"
+import { BETA_LOOK, TILES, TILE_LEFT, CARD, PROFILE, LOGS, TAB, TAB_ON, PILL, tabText, pillText, logIcon, cardText, cardStripe, lift, lookTitle, tile, tileIcon, tileText, betaLook } from "../Admin+ BP/scripts/core/look.js"
 import { MULTILINE, hubTitle, hubButton, BRAND_PREFIX, COLOUR_CODE_TIP } from "../Admin+ BP/scripts/core/theme.js"
 import { menu, modal, confirm, drawsTiles, drawsCards, INCOMPLETE } from "../Admin+ BP/scripts/core/ui.js"
 import { openPanel } from "../Admin+ BP/scripts/features/panel.js"
@@ -84,19 +84,22 @@ for (const parts of [["BETA_LOOK", "TILES"], ["MULTILINE", "BETA_LOOK"], ["MULTI
 console.log("\n— the pack draws one look per menu title —")
 {
     const panels = panelsOf(FORM.long_form.controls)
-    check("four ways to draw a menu", panels.map(p => p.name), ["long_form", "adminplus_ui", "beta_list", "beta_tiles"])
+    // 2.12.5 added the Logs timeline, a fifth.
+    check("five ways to draw a menu", panels.map(p => p.name), ["long_form", "adminplus_ui", "beta_list", "beta_logs", "beta_tiles"])
     const plain = hubTitle("ranks", "Staff panel")
     for (const [what, title, expected] of [
         ["a plain title", plain, "long_form"],
         ["a chest grid", "Inventory§m§c§e", "adminplus_ui"],
         ["a Beta title", lookTitle(plain), "beta_list"],
         ["a Beta title asking for tiles", lookTitle(plain, { tiles: true }), "beta_tiles"],
+        ["a Beta title asking for the Logs timeline", lookTitle(plain, { logs: true }), "beta_logs"],
+        ["the Logs marker without the Beta look", plain + LOGS, "long_form"],
         ["a chest grid that somehow carries the Beta marker", "Inventory§m§c§e" + BETA_LOOK, "adminplus_ui"]
     ]) {
         check(`${what}: ${expected} and nothing else`, shownFor(panels, title), [expected])
     }
     check("each Beta menu is drawn in Admin+'s own frame",
-        panels.filter(p => p.name.startsWith("beta_")).map(p => p.base), ["adminplus_beta.list_form", "adminplus_beta.tile_form"])
+        panels.filter(p => p.name.startsWith("beta_")).map(p => p.base), ["adminplus_beta.list_form", "adminplus_beta.log_form", "adminplus_beta.tile_form"])
 }
 
 console.log("\n— the Beta frames are all there —")
@@ -243,6 +246,59 @@ console.log("\n— a Profile card above the /menu tiles —")
     check("with the form's body beside it", card.text.text, "#form_text")
     check("cut off before it runs out of the card", card.text.max_size[1] <= parts.card.size[1], true)
     check("nothing on it can be pressed", JSON.stringify(LOOK.profile).match(/"button"|button_mappings|form_button_click/g), null)
+}
+
+console.log("\n— the Logs timeline frame —")
+// 2.12.5, the user: "I want something distinct for logs too, not close to the
+// template one". Tabs across the top, filter pills under them, then the
+// entries down a coloured line. Worked out from the bindings themselves.
+{
+    const markers = [LOGS, TAB, TAB_ON, PILL]
+    check("its markers print nothing and restyle nothing", markers.every(m => /^(?:§[0-9a-jmnpqstuv])+$/.test(m)), true)
+    check("lifting leaves them alone", markers.map(lift), markers)
+    // TAB_ON is a tab too, so it holds TAB on purpose.
+    const others = [MULTILINE, BETA_LOOK, TILES, TILE_LEFT, CARD, PROFILE, ...CHEST]
+    check("they spell no other marker",
+        [LOGS, TAB, PILL].flatMap(m => others.filter(o => m.includes(o) || o.includes(m))), [])
+    check("the open tab holds the tab marker", TAB_ON.startsWith(TAB), true)
+    check("the timeline is never asked for with tiles", lookTitle("x", { tiles: true, logs: true }).includes(LOGS), false)
+
+    const scroll = panelsOf(LOOK.log_scroll.controls)
+    check("tabs, then pills, then the body, then the timeline",
+        scroll.map(p => p.name), ["tabs", "tab_gap", "pills", "pill_gap", "intro", "padding", "wrapping_panel"])
+    const shown = (control, text) => evaluate(visibleExpr(control), { "#form_button_text": text })
+    const where = text => [["tab", LOOK.log_tab], ["pill", LOOK.log_pill], ["row", LOOK.log_row]].filter(([, c]) => shown(c, text)).map(([k]) => k)
+    for (const [what, text, expected] of [
+        ["an open tab", tabText("Actions · 12", true), ["tab"]],
+        ["a closed tab", tabText("Chat · 3", false), ["tab"]],
+        ["a filter pill", pillText("Player · anyone", false), ["pill"]],
+        ["a set filter", pillText("Kind · Moderation", true), ["pill"]],
+        ["an entry", "§f§lFirelite§r §fbanned Steve\n§814:02 · griefing", ["row"]],
+        ["Back", "§8< Back", ["row"]]
+    ]) {
+        check(`${what} shows as a ${expected.join(" and a ")}`, where(text), expected)
+    }
+    const underline = LOOK.log_tab_content.controls.map(c => Object.entries(c)[0]).find(([k]) => k === "underline")[1]
+    check("only the open tab is underlined, in Admin+'s gradient",
+        [evaluate(visibleExpr(underline), { "#form_button_text": tabText("A", true) }), evaluate(visibleExpr(underline), { "#form_button_text": tabText("B", false) }), underline.texture, underline.keep_ratio],
+        [true, false, "textures/ui/adminplus/gradient", false])
+    for (const [what, list] of [["the tabs", LOOK.log_tabs], ["the pills", LOOK.log_pills], ["the timeline", LOOK.log_rows]]) {
+        check(`${what} are made from the form's buttons, like the game's list`,
+            [list.collection_name, list.factory.name, list.bindings[0]],
+            ["form_buttons", "buttons", { binding_name: "#form_button_contents", binding_name_override: "#collection_length" }])
+    }
+    check("a label on the timeline is a day marker", LOOK.log_rows.factory.control_ids.label, "@adminplus_beta.log_day")
+    check("tabs and pills make nothing of labels, headers or dividers",
+        [LOOK.log_tabs, LOOK.log_pills].flatMap(l => ["label", "header", "divider"].map(k => l.factory.control_ids[k])).every(id => id === "@adminplus_beta.nothing"), true)
+    const row = Object.fromEntries(LOOK.log_row.controls.map(c => Object.entries(c)[0]))
+    check("each entry sits on the line, with its kind's picture as the dot",
+        [Object.keys(row).map(k => k.split("@")[0]), row.dot.bindings.some(b => b.binding_name === "#form_button_texture" && b.binding_name_override === "#texture")],
+        [["rail", "dot", "entry"], true])
+    check("an entry presses like the game's own form button", row["entry@adminplus_beta.dark_button"].$pressed_button_name, "button.form_button_click")
+    check("three tabs and three pills share the width", [LOOK.log_tab.size[0], LOOK.log_pill.size[0]], ["33%", "33%"])
+    const keys = ["moderation", "chatmod", "people", "staff", "server", "reports", "land", "signs", "blocks", "older", "newer", "undo", "clear", "search"]
+    check("every timeline picture is in the pack", keys.map(logIcon).filter(t => !textureExists(t)), [])
+    check("and drawn from scratch by the tool", keys.every(k => readFileSync(new URL("../tools/genlook.py", import.meta.url), "utf8").includes(`"${k}": (`)), true)
 }
 
 console.log("\n— each card shows once, above the rows —")

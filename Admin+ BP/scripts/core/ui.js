@@ -70,7 +70,7 @@ export function drawsCards(spec, beta) {
  * On Default, `layout`, `tile` and `card` are ignored and the menu is exactly
  * what it was.
  * @param {import("@minecraft/server").Player} player
- * @param {{title: string, body?: string, profile?: string, layout?: "tiles"|"cards", buttons: ({text: string, icon?: string, tile?: {text: string, icon: string}, card?: {text: string, icon?: string}, run: () => any}|{header?: string, label?: string, divider?: boolean})[], back?: () => any}} spec
+ * @param {{title: string, body?: string, profile?: string, layout?: "tiles"|"cards"|"logs", buttons: ({text: string, icon?: string, tile?: {text: string, icon: string}, card?: {text: string, icon?: string}, run: () => any}|{header?: string, label?: string, divider?: boolean})[], back?: () => any}} spec
  */
 export async function menu(player, spec) {
     const beta = betaLook()
@@ -80,7 +80,9 @@ export async function menu(player, spec) {
     // A Profile card (2.12.3) goes with tiles only, and carries its own text
     // as the body: the card shows the body beside the player's model.
     const profile = tiles && spec.profile ? spec.profile : ""
-    const form = new ActionFormData().title(beta ? lookTitle(spec.title, { tiles, profile: !!profile }) : spec.title)
+    // The Logs timeline (2.12.5) has a frame of its own in Admin+'s look.
+    const logs = beta && spec.layout === "logs"
+    const form = new ActionFormData().title(beta ? lookTitle(spec.title, { tiles, profile: !!profile, logs }) : spec.title)
     const body = profile || spec.body
     if (body) form.body(show(body))
     const actions = []

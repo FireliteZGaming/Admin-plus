@@ -56,6 +56,61 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.12.5 — 2026-11-13
+
+**Logs, overhauled: a timeline with tabs and filters. In Beta.**
+
+The user: "do a complete overhaul on logs and do what you think is honestly
+best, in both style and layout, you see, like we added the sick feature for
+template choosing for ranks, I want something distinct and for logs too, not
+close to the template one of course." Default keeps the old Logs as they were.
+
+### Layout
+1. **Logs open on the log itself.** Before, there were six buttons (Actions,
+   Chat, Commands, Players, Filter, Search) before a single entry.
+2. **Three tabs across the top: Actions, Chat, Commands**, each with how many
+   it holds.
+3. **Three filters under them: Player, Kind, Search.** Player and Search work
+   on all three tabs at once, so picking a player shows what they did, what
+   was done to them, and what they said and typed. Kind narrows the open tab:
+   moderation, ranks, land and the rest for actions; signs for chat; refused
+   commands or command blocks for commands.
+4. **One tap opens an entry.** It used to take two.
+5. **An entry page** says what happened in words, then the kind, the details,
+   and whether it can be undone. Undo is a button, or the page says why you
+   can't. It also offers "Everything about" each person in it.
+
+### Look (Admin+'s own, in Beta)
+1. **Tabs** as a row, the open one underlined in Admin+'s aqua-to-pink.
+2. **Filter pills** under them, lit aqua while a filter is set.
+3. **Actions as a timeline:** a line down the left, a round picture on it for
+   each kind of action (a hammer for moderation, a crown for ranks, a gear
+   for the server, a shield for land and more), and a day marker such as
+   "Today" where the day changes.
+4. **Every entry is one plain sentence:** "Firelite banned Steve", "Modder
+   muted Nova", "The server changed settings". The entry page no longer
+   shows codes like "mod.ban". Automod is named Automod, and the server "The
+   server", never "console".
+5. Chat and Commands stay as readable text, grouped by day, since a
+   conversation reads best run together.
+
+### Unchanged on purpose
+Who may read what: you only see what you could have been told, and anything
+you were part of. Undo still needs the action's own permission and the rank
+rules.
+
+### Not checked
+The new look hasn't been seen in game. The timeline, tabs and pills are new
+pieces of Admin+'s resource pack, and only a screenshot shows whether the game
+draws them right.
+
+### Checked
+`tests/logbook.test.js` (45, new): every action the scripts write has its own
+sentence with no codes in it; Default keeps the old screens; tabs, pills,
+pictures and day markers; one tap to an entry; the filters on every tab; the
+reading rules; pages. `tests/look.test.js` (225): the timeline frame worked
+out from its bindings, and every picture in the pack.
+
 ## 2.12.4 — 2026-11-13
 
 **Name effects is your own switch, in Personalization ▸ Settings. In Beta.**

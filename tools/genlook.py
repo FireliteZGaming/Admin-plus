@@ -168,7 +168,144 @@ ICONS = {
         "skkkkkks",
         "ssssssss",
         "........"]),
+    # The Logs timeline (2.12.5). Drawn in one colour on a round dot, so only
+    # the shape matters here.
+    "hammer": ({"g": "ffffff"}, [
+        "gggggg..",
+        "gggggg..",
+        "gggggg..",
+        "..gg....",
+        "..gg....",
+        "..gg....",
+        "..gg....",
+        "..gg...."]),
+    "bubble": ({"g": "ffffff"}, [
+        ".gggggg.",
+        "gggggggg",
+        "gggggggg",
+        "gggggggg",
+        ".gggggg.",
+        "..gg....",
+        ".gg.....",
+        "........"]),
+    "eye": ({"g": "ffffff"}, [
+        "........",
+        "..gggg..",
+        ".gg..gg.",
+        "gg.gg.gg",
+        "gg.gg.gg",
+        ".gg..gg.",
+        "..gggg..",
+        "........"]),
+    "sign": ({"g": "ffffff"}, [
+        "gggggggg",
+        "gggggggg",
+        "gggggggg",
+        "gggggggg",
+        "...gg...",
+        "...gg...",
+        "...gg...",
+        "........"]),
+    "block": ({"g": "ffffff"}, [
+        "gggggggg",
+        "g......g",
+        "g.g....g",
+        "g..g...g",
+        "g.g..g.g",
+        "g......g",
+        "gggggggg",
+        "........"]),
+    "down": ({"g": "ffffff"}, [
+        "...gg...",
+        "...gg...",
+        "...gg...",
+        "...gg...",
+        "gggggggg",
+        ".gggggg.",
+        "..gggg..",
+        "...gg..."]),
+    "up": ({"g": "ffffff"}, [
+        "...gg...",
+        "..gggg..",
+        ".gggggg.",
+        "gggggggg",
+        "...gg...",
+        "...gg...",
+        "...gg...",
+        "...gg..."]),
+    "undo": ({"g": "ffffff"}, [
+        "..g.....",
+        ".gg.....",
+        "gggggg..",
+        ".gg...g.",
+        "..g....g",
+        ".......g",
+        "......g.",
+        "..gggg.."]),
+    "bin": ({"g": "ffffff"}, [
+        "..gggg..",
+        "gggggggg",
+        ".gggggg.",
+        ".g.gg.g.",
+        ".g.gg.g.",
+        ".g.gg.g.",
+        ".g.gg.g.",
+        ".gggggg."]),
+    "search": ({"g": "ffffff"}, [
+        ".gggg...",
+        "gg..gg..",
+        "g....g..",
+        "g....g..",
+        "gg..gg..",
+        ".gggggg.",
+        "......gg",
+        ".......g"]),
 }
+
+# The Logs timeline's pictures (2.12.5): a dark round dot ringed in the kind's
+# colour, the icon inside in the same colour. Keys are what scripts pass
+# (core/look.js logIcon()); kinds match features/logbook.js KIND_ICON.
+LOG_ICONS = {
+    "moderation": ("hammer", RED),
+    "chatmod": ("bubble", PINK),
+    "people": ("crown", AQUA),
+    "staff": ("eye", GOLD),
+    "server": ("gear", STEEL),
+    "reports": ("alert", rgb("ffa94d")),
+    "land": ("shield", GREEN),
+    "signs": ("sign", rgb("d9b77e")),
+    "blocks": ("block", PURPLE),
+    "older": ("down", STEEL),
+    "newer": ("up", STEEL),
+    "undo": ("undo", GOLD),
+    "clear": ("bin", RED),
+    "search": ("search", AQUA),
+}
+
+# A dot is 32x32 and shows at 16x16, so it stays sharp: a ring 2 wide, then
+# the 8x8 icon at 2 pixels per pixel in the middle.
+DOT = 32
+
+
+def log_dot(key, icon, colour):
+    _palette, rows = ICONS[icon]
+    img = Image.new("RGBA", (DOT, DOT), CLEAR)
+    inside = blend(TILE, colour, 0.16)
+    middle = (DOT - 1) / 2
+    for x in range(DOT):
+        for y in range(DOT):
+            d = ((x - middle) ** 2 + (y - middle) ** 2) ** 0.5
+            if d <= 15.5:
+                img.putpixel((x, y), colour if d > 13.5 else inside)
+    left = top = (DOT - 16) // 2
+    for y, row in enumerate(rows):
+        for x, ch in enumerate(row):
+            if ch == ".":
+                continue
+            for dx in range(2):
+                for dy in range(2):
+                    img.putpixel((left + x * 2 + dx, top + y * 2 + dy), colour)
+    return save(img, f"log_{key}")
 
 # The tiles in Admin+'s own look. A tile's colour stripe is drawn into its
 # icon, so the stripe and the icon arrive together on one button image and
@@ -232,6 +369,8 @@ def main():
         made.append(tile_texture(key, icon, stripe))
     for key, colour in STRIPES.items():
         made.append(flat(rgb(colour), f"stripe_{key}"))
+    for key, (icon, colour) in LOG_ICONS.items():
+        made.append(log_dot(key, icon, colour))
     print(f"{len(made)} textures in {OUT}")
     for name in made:
         print(f"  {name}.png")
