@@ -1,5 +1,6 @@
 import { menu, modal, subtitle } from "../core/ui.js"
-import { hubTitle, COLOUR_CODE_TIP } from "../core/theme.js"
+import { hubTitle, hubEntry, COLOUR_CODE_TIP } from "../core/theme.js"
+import { LOOKS, look, setLook } from "../core/prefs.js"
 import { ok, err, info } from "../core/util.js"
 import { displayName, stripCodes, getNameColours, setNameColours } from "../core/identity.js"
 import { has, refreshNameTag } from "../core/ranks.js"
@@ -22,6 +23,12 @@ import { paint, rampFrom, NAME_COLOUR_CODE, NAME_COLOURS_MAX } from "../core/nam
 // names stay with staff for now, and protection beyond the exact-copy rule is
 // left to automod in 4.0.0.
 //
+// 2.12.4: the screen opens on Settings, the player's own switches, starting
+// with Name effects. It starts off and the editor stays hidden until they turn
+// it on: "If it's off you won't be able to see a way to change it until you
+// turn it on ... the rank settings give you the permission to do so." The
+// switch lives in core/prefs.js LOOKS, apart from My settings.
+//
 // A Beta feature (core/channel.js): on Default the button isn't there and
 // nobody's own colours show.
 
@@ -30,12 +37,22 @@ export function canPersonalize(player) {
     return isBeta() && !!player
 }
 
-/** May they choose their own name effect? Only with their rank's Name effect switch. */
+/** May they use name effects at all? Only with their rank's Name effect switch. */
 export function canChooseColours(player) {
     return isBeta() && has(player, "personalize.nameeffect")
 }
 
+/**
+ * Are their name effects on? Their rank allows it AND they turned it on
+ * themselves in Personalization ▸ Settings (2.12.4). The rank gives
+ * permission; the player decides.
+ */
+export function nameEffectsOn(player) {
+    return canChooseColours(player) && look(player, "name.effects")
+}
+
 const NOT_ON_RANK = "Name effects aren't switched on for your rank. Staff can switch them on in Ranks ▸ your rank ▸ Permissions ▸ Member ▸ Personalization."
+const TURN_ON_FIRST = "Your name effects are off. Turn them on in Personalization ▸ Settings first."
 
 /** The colour codes, each shown in its own colour, the way the rank editor shows them. */
 const COLOUR_ROW = "§0§§0 §1§§1 §2§§2 §3§§3 §4§§4 §5§§5 §6§§6 §7§§7 §8§§8 §9§§9 §a§§a §b§§b §c§§c §d§§d §e§§e §f§§f"
@@ -61,6 +78,17 @@ function describe(codes) {
     return `shifting through ${codes.length} colours`
 }
 
+/** What Settings holds, on its row: their switch, or why they have none. */
+function settingsLine(player) {
+    if (!canChooseColours(player)) return "Name effects · not switched on for your rank"
+    return `Name effects · ${look(player, "name.effects") ? "on" : "off"}`
+}
+
+/**
+ * Personalization: Settings first, then a way to change each thing that is
+ * switched on. 2.12.4, the user: "If it's off you won't be able to see a way
+ * to change it until you turn it on."
+ */
 export async function personalizeScreen(player, back) {
     if (!canPersonalize(player)) { err(player, "Personalization isn't open on this server yet."); return back?.() }
     const again = () => personalizeScreen(player, back)
@@ -69,14 +97,42 @@ export async function personalizeScreen(player, back) {
         title: hubTitle("chat", "Personalization"),
         body: subtitle("How you look to everyone else. Only you can change these."),
         buttons: [
+            { text: hubEntry("chat", "Settings", settingsLine(player)), run: () => personalizeSettingsScreen(player, again) },
             // Two lines, as every row has: the name, then their name in their colours.
-            canChooseColours(player)
+            nameEffectsOn(player)
                 ? { text: `§dName effect§r\n${preview(player, codes)} §8· ${describe(codes)}`, run: () => nameColoursScreen(player, again) }
-                // Shown, not hidden, so players know it exists: their rank decides.
-                : { text: "§8Name effect\n§8Not switched on for your rank", run: () => { info(player, NOT_ON_RANK); return again() } }
+                : null
         ],
         back
     })
+}
+
+/**
+ * Personalization ▸ Settings: the player's own switches. Name effects is one
+ * they may turn on only when their rank allows it; without that, the form
+ * says why instead of offering a switch that can't work.
+ */
+export async function personalizeSettingsScreen(player, back) {
+    if (!canPersonalize(player)) { err(player, "Personalization isn't open on this server yet."); return back?.() }
+    const allowed = canChooseColours(player)
+    const spec = LOOKS["name.effects"]
+    const values = await modal(player, hubTitle("chat", "Personalization settings"), [
+        allowed
+            ? { id: "nameEffects", type: "toggle", label: `${spec.label}\n§8${spec.help} Off hides them, and the way to change them.`, default: look(player, "name.effects") }
+            : { type: "label", label: `${spec.label}\n§8${NOT_ON_RANK}` }
+    ], { submit: "Save" })
+    if (!values) return back?.()
+    if (allowed && "nameEffects" in values) {
+        const now = !!values.nameEffects
+        if (now !== look(player, "name.effects")) {
+            setLook(player, "name.effects", now)
+            refreshNameTag(player)
+            ok(player, now ? "Name effects are on. Pick yours under Name effect." : "Name effects are off. Your name is plain again.")
+            return back?.()
+        }
+    }
+    info(player, "§7Nothing changed.")
+    return back?.()
 }
 
 /**
@@ -86,6 +142,7 @@ export async function personalizeScreen(player, back) {
  */
 export async function nameColoursScreen(player, back, typed) {
     if (!canChooseColours(player)) { err(player, NOT_ON_RANK); return back?.() }
+    if (!look(player, "name.effects")) { err(player, TURN_ON_FIRST); return back?.() }
     const shown = typed ?? getNameColours(player)
     const boxes = Array.from({ length: NAME_COLOURS_MAX }, (_, i) => i)
     const values = await modal(player, hubTitle("chat", "Name effect"), [

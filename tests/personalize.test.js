@@ -7,7 +7,9 @@ import {
 import { getNameColours, setNameColours } from "../Admin+ BP/scripts/core/identity.js"
 import { rampFrom, paint, currentFrame, STYLES } from "../Admin+ BP/scripts/core/nametag.js"
 import { openMenu } from "../Admin+ BP/scripts/features/menu.js"
-import { personalizeScreen, nameColoursScreen, canPersonalize, canChooseColours, colourCodeFrom } from "../Admin+ BP/scripts/features/personalize.js"
+import { personalizeScreen, personalizeSettingsScreen, nameColoursScreen, canPersonalize, canChooseColours, nameEffectsOn, colourCodeFrom } from "../Admin+ BP/scripts/features/personalize.js"
+import { PREFS, LOOKS, look, setLook } from "../Admin+ BP/scripts/core/prefs.js"
+import { readFileSync } from "node:fs"
 import { rankScreen, basicsScreen } from "../Admin+ BP/scripts/features/ranksUI.js"
 import { GROUPS, groupScreen } from "../Admin+ BP/scripts/features/settingsUI.js"
 import { stepNameAnimation } from "../Admin+ BP/scripts/features/nameanim.js"
@@ -43,6 +45,8 @@ const plain = s => String(s ?? "").replace(/§./g, "")
 const told = p => plain(p.said.at(-1)).replace(/^\[Admin\+\] /, "")
 const lastForm = () => __ui.shown[__ui.shown.length - 1]
 const buttonsOf = form => form.parts.filter(p => p[0] === "button").map(p => p[1])
+// The rows a menu offers, without its Back button.
+const rowsOf = form => buttonsOf(form).filter(t => !plain(t).startsWith("< Back"))
 const submit = (...formValues) => ({ canceled: false, formValues })
 const press = selection => ({ canceled: false, selection })
 // The game keeps a place in the answers for the form's label, so the boxes follow it.
@@ -95,24 +99,72 @@ console.log("\n— /menu, in Beta, for everyone —")
     await openMenu(pat)
     check("on Beta, everyone has it, switch or not", [canPersonalize(pat), buttonsOf(lastForm()).some(t => plain(t).includes("Personalization"))], [true, true])
     await personalizeScreen(pat, () => {})
-    check("without the switch, Name effect shows but says why it's off",
-        plain(buttonsOf(lastForm())[0]), "Name effect\nNot switched on for your rank")
-    __ui.answers.push(press(0))
-    await personalizeScreen(pat, () => {})
-    check("and tapping it says where staff switch it on", told(pat),
-        "Name effects aren't switched on for your rank. Staff can switch them on in Ranks ▸ your rank ▸ Permissions ▸ Member ▸ Personalization.")
+    // 2.12.4: it opens on Settings, the player's own switches.
+    check("Personalization opens on Settings, which says their rank hasn't switched name effects on",
+        plain(buttonsOf(lastForm())[0]), "Settings\nName effects · not switched on for your rank")
+    check("and offers no way to change a name effect", rowsOf(lastForm()).length, 1)
+    __ui.answers.push(submit(undefined))
+    await personalizeSettingsScreen(pat, () => {})
+    const settings = lastForm()
+    check("Settings says why instead of offering a switch that can't work",
+        [settings.parts.some(p => p[0] === "toggle"), settings.parts.some(p => p[0] === "label" && plain(p[1]).includes(
+            "Name effects aren't switched on for your rank. Staff can switch them on in Ranks ▸ your rank ▸ Permissions ▸ Member ▸ Personalization."))],
+        [false, true])
     __ui.answers.length = 0
     await nameColoursScreen(pat, () => {})
     check("the colour boxes stay closed to them", [canChooseColours(pat), told(pat).startsWith("Name effects aren't switched on")], [false, true])
 }
 
-console.log("\n— choosing colours, once the rank has the switch —")
+console.log("\n— Personalization ▸ Settings: their own Name effects switch —")
+// 2.12.4, the user: "for name it'll be Name Effects as a toggle. If it's off
+// you won't be able to see a way to change it until you turn it on. And this
+// toggle is basicly like if you wanted to turn it on and off yourself, the
+// rank settings give you the permission to do so."
+{
+    setBeta(true)
+    switchOn("member")
+    __ui.answers.length = 0
+    await personalizeScreen(pat, () => {})
+    check("with the rank switch, Settings shows their own switch, off to start", plain(buttonsOf(lastForm())[0]), "Settings\nName effects · off")
+    check("and while it's off there's still no way to change it", rowsOf(lastForm()).length, 1)
+    setNameColours(pat, ["c", "6"])
+    check("colours saved while it's off don't show", effectiveNameRamp(pat), "")
+    __ui.answers.push(submit(true))
+    await personalizeSettingsScreen(pat, () => {})
+    check("Settings has the Name effects switch",
+        lastForm().parts.filter(p => p[0] === "toggle").map(p => plain(p[1]).split("\n")[0]), ["Name effects"])
+    check("turning it on is kept", [look(pat, "name.effects"), nameEffectsOn(pat)], [true, true])
+    check("and said", told(pat), "Name effects are on. Pick yours under Name effect.")
+    check("their colours show now", effectiveNameRamp(pat), "cc66")
+    await personalizeScreen(pat, () => {})
+    check("and Name effect appears, to change them",
+        rowsOf(lastForm()).map(t => plain(t).split("\n")[0]), ["Settings", "Name effect"])
+    __ui.answers.push(submit(false))
+    await personalizeSettingsScreen(pat, () => {})
+    check("turning it off hides them again", [look(pat, "name.effects"), effectiveNameRamp(pat)], [false, ""])
+    check("but keeps the colours for next time", getNameColours(pat), ["c", "6"])
+    __ui.answers.length = 0
+    await nameColoursScreen(pat, () => {})
+    check("and the colour boxes say to turn it on first", told(pat), "Your name effects are off. Turn them on in Personalization ▸ Settings first.")
+    __ui.answers.push(submit(false))
+    await personalizeSettingsScreen(pat, () => {})
+    check("saving with no change says so", told(pat), "Nothing changed.")
+    check("it's Personalization's own, not one of My settings", Object.keys(PREFS).includes("name.effects"), false)
+    for (const [key, spec] of Object.entries(LOOKS)) {
+        const src = readFileSync(new URL(`../Admin+ BP/scripts/${spec.readBy}`, import.meta.url), "utf8")
+        check(`${key} is actually read by ${spec.readBy}`, src.includes(`"${key}"`), true)
+    }
+    setLook(pat, "name.effects", true)
+    setNameColours(pat, [])
+}
+
+console.log("\n— choosing colours, once both switches are on —")
 {
     setBeta(true)
     switchOn("member")
     __ui.answers.length = 0
     const from = __ui.shown.length
-    __ui.answers.push(press(0), colours("c", "§6", "", ""))
+    __ui.answers.push(press(1), colours("c", "§6", "", ""))
     await personalizeScreen(pat, () => {})
     const form = __ui.shown[from + 1]
     check("four boxes", form.parts.filter(p => p[0] === "text").map(p => plain(p[1])), ["Colour 1", "Colour 2", "Colour 3", "Colour 4"])

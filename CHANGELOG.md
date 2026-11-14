@@ -56,6 +56,33 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.12.4 — 2026-11-13
+
+**Name effects is your own switch, in Personalization ▸ Settings. In Beta.**
+
+The user: "in personalization, there's obviously 'settings' and you can toggle
+these on and off, for name it'll be Name Effects as a toggle. If it's off you
+won't be able to see a way to change it until you turn it on. And this toggle
+is basicly like if you wanted to turn it on and off yourself, the rank
+settings give you the permission to do so."
+
+1. **/menu ▸ Personalization opens on Settings**, your own switches. The first
+   is **Name effects**. It starts off.
+2. **While it's off there is no way to change your name effect**: the Name
+   effect button appears only once you turn it on. Turning it off again hides
+   your effect and the button, and keeps your colours for next time.
+3. **Your rank still decides whether you may.** Without the rank's Name
+   effect switch, Settings says it isn't switched on for your rank and where
+   staff switch it on, instead of offering a switch that can't work.
+4. **It isn't one of My settings.** Personalization keeps its own switches,
+   which start off; My settings keeps the ones about being reachable, which
+   start on.
+
+### Checked
+`tests/personalize.test.js` (61): Settings with and without the rank's
+switch, the editor hidden while off and shown while on, colours kept while
+off, and the switch read by the code that paints names.
+
 ## 2.12.3 — 2026-11-13
 
 **Name effect is a rank switch only, and /menu has a Profile card. In Beta.**

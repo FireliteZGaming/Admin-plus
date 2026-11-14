@@ -92,3 +92,50 @@ export function changedCount(playerOrId) {
 
 /** Testing seam. */
 export function __resetPrefs(playerOrId) { store.delete(idOf(playerOrId)) }
+
+// ---------------------------------------------------------------- looks
+// Personalization's own switches (2.12.4, Beta): how a player looks, turned
+// on and off by the player once their rank allows it. The user, 2026-11-13:
+// "in personalization, there's obviously 'settings' and you can toggle these
+// on and off, for name it'll be Name Effects as a toggle. If it's off you
+// won't be able to see a way to change it until you turn it on. And this
+// toggle is basicly like if you wanted to turn it on and off yourself, the
+// rank settings give you the permission to do so."
+//
+// Kept apart from PREFS on purpose. Those are about being reachable and all
+// start ON; these are about looks and start OFF, and "My settings" doesn't
+// list them: Personalization ▸ Settings does. The same honesty rule holds:
+// every switch names the file that reads it, and a test checks.
+
+const looks = new Table("looks", {})
+
+export const LOOKS = {
+    "name.effects": {
+        value: false,
+        label: "Name effects",
+        help: "Colours that move along your name, above your head and in chat.",
+        // The rank switch that lets a player turn this on (core/ranks.js).
+        needs: "personalize.nameeffect",
+        readBy: "core/ranks.js"
+    }
+}
+
+/** This player's own answer for a look switch, or its default (off). */
+export function look(playerOrId, key) {
+    const stored = looks.get(idOf(playerOrId))?.[key]
+    if (stored === undefined) return LOOKS[key]?.value ?? false
+    return stored === true || stored === "true"
+}
+
+/** Turn a look switch on or off. Only differences from the default are stored. */
+export function setLook(playerOrId, key, on) {
+    if (!(key in LOOKS)) return false
+    const id = idOf(playerOrId)
+    if (!id) return false
+    const held = { ...(looks.get(id) ?? {}) }
+    if (!!on === !!LOOKS[key].value) delete held[key]
+    else held[key] = !!on
+    if (Object.keys(held).length) looks.set(id, held)
+    else looks.delete(id)
+    return true
+}

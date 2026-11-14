@@ -5,6 +5,7 @@ import { displayName, nameTokens, stripCodes, hasNickname, getNameFont, setNameD
 import { render, renderTag, nameTagsEnabled, flag, setting } from "./settings.js"
 import { STYLES, STYLE_IDS, paint, currentFrame, rampFrom } from "./nametag.js"
 import { isBeta } from "./channel.js"
+import { look } from "./prefs.js"
 import { applyFont } from "./fonts.js"
 import { badgeFor, teamBadgeFor } from "./badges.js"
 
@@ -1527,10 +1528,13 @@ export function effectiveNametagStyle(player) {
  * A player's own name colours as a ramp to paint with, when they may show:
  * Personalization is a Beta feature (2.12.0), and choosing colours needs the
  * rank's Name effect switch (personalize.nameeffect, named Name colour until
- * 2.12.3), which starts off. "" when they have none or may not.
+ * 2.12.3), which starts off. Since 2.12.4 the player's own Name effects
+ * switch, "name.effects" in Personalization ▸ Settings (core/prefs.js LOOKS),
+ * must be on too: the rank gives permission, the player turns it on. "" when
+ * they have none or may not.
  */
 export function personalRamp(player) {
-    if (!isBeta() || !has(player, "personalize.nameeffect")) return ""
+    if (!isBeta() || !has(player, "personalize.nameeffect") || !look(player, "name.effects")) return ""
     return rampFrom(getNameColours(player))
 }
 

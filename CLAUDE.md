@@ -515,9 +515,15 @@ field, or (on a game that drew no labels) one per input.
   none, so only the switch and each player's own choice remain; the creator
   identity still paints. Default keeps the Basics dropdown and rank styles.
   Settings words that changed meaning in Beta use `betaLabel`/`betaHint`/
-  `betaDetail` (`inLook` in `features/settingsUI.js`). Display names stay
-  staff-only for now, and lookalike protection waits for automod in 4.0.0.
-  `tests/personalize.test.js`.
+  `betaDetail` (`inLook` in `features/settingsUI.js`). **Two switches since
+  2.12.4: the rank gives permission, the player decides.** Personalization
+  opens on Settings, the player's own switches (`LOOKS` in `core/prefs.js`,
+  a separate table from My settings' `PREFS`, starting OFF); Name effects
+  (`name.effects`) is one, offered only with the rank's switch, and the Name
+  effect editor shows only while it is on ("If it's off you won't be able to
+  see a way to change it until you turn it on"). `personalRamp` needs both.
+  Display names stay staff-only for now, and lookalike protection waits for
+  automod in 4.0.0. `tests/personalize.test.js`.
 - **The Profile card (2.12.3, Beta, the user: "in /menu, you can see your
   skin and then right by it it has your rank, and stuff").** A menu spec's
   `profile` text, with tiles, adds the PROFILE marker after TILES and becomes

@@ -149,8 +149,8 @@ export async function openMenu(player) {
     // Personalization (2.12.0, Beta): how you look to everyone else.
     if (canPersonalize(player)) {
         buttons.push({
-            text: hubButton("chat", "Personalization", "Your name effect · only you change it"),
-            tile: tile("personalize", "Personalization", "Name effect"),
+            text: hubButton("chat", "Personalization", "Your name effects · only you change them"),
+            tile: tile("personalize", "Personalization", "Name effects"),
             run: () => personalizeScreen(player, again)
         })
     }
