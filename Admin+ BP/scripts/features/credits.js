@@ -6,7 +6,7 @@ import { info } from "../core/util.js"
 import { tableReport } from "../core/storage.js"
 import { ladder } from "../core/ranks.js"
 import { detectServerPreset } from "../core/serverPresets.js"
-import { SERVER_PRESETS_SHOWN } from "../core/onhold.js"
+import { SERVER_PRESETS_ON_HOLD } from "../core/hold.js"
 import { ADMINPLUS_VERSION, CONFIG } from "../config.js"
 import { discordLine } from "../core/links.js"
 
@@ -104,9 +104,9 @@ export async function creditsScreen(player, back) {
             "",
             // Its own place, asked for on 2026-11-12: where to get help, hear
             // about updates and suggest presets. Presets are hidden since
-            // 2.12.9 (core/onhold.js), so the line doesn't ask for them.
+            // 2.12.9 (core/hold.js), so the line doesn't ask for them.
             "§fDiscord",
-            SERVER_PRESETS_SHOWN ? "§7Help, updates, and ideas for new presets:" : "§7Help, updates and ideas:",
+            SERVER_PRESETS_ON_HOLD ? "§7Help, updates and ideas:" : "§7Help, updates, and ideas for new presets:",
             `  ${discordLine()}`,
             "",
             "§fTesters and thanks",
@@ -190,11 +190,11 @@ command({
     description: "See which version of Admin+ is running",
     run: (player) => {
         info(player, `§l§bAdmin§d+§r §fv${ADMINPLUS_VERSION}`)
-        // While presets are hidden (core/onhold.js), naming one would point
+        // While presets are hidden (core/hold.js), naming one would point
         // at a screen nobody can open.
-        info(player, SERVER_PRESETS_SHOWN
-            ? `§7Preset: §f${detectServerPreset().label}§7, ${ladder().length} ranks`
-            : `§7Ranks: §f${ladder().length}`)
+        info(player, SERVER_PRESETS_ON_HOLD
+            ? `§7Ranks: §f${ladder().length}`
+            : `§7Preset: §f${detectServerPreset().label}§7, ${ladder().length} ranks`)
         info(player, `§7Storage: ${storageLine()}`)
         info(player, `§7Beta APIs: ${betaApis() ? "§aon" : "§coff (chat formatting and mutes need it)"}`)
         info(player, `§8When the game already has a command by that name, type §7/${CONFIG.ns}:§8<name>. §7/credits§8 shows who made Admin+.`)

@@ -73,8 +73,9 @@ own log.**
    4. `/version` says how many ranks there are, without naming a preset.
       Credits' Discord line says "Help, updates and ideas:".
    5. Nothing was deleted: the screen, the four presets, the permission and
-      /scriptevent are all still there. `SERVER_PRESETS_SHOWN` in
-      `core/onhold.js` brings every place back at once.
+      /scriptevent are all still there. `SERVER_PRESETS_ON_HOLD` in
+      `core/hold.js`, beside chat automod's hold, brings every place back at
+      once.
 2. **Logs ▸ Server** says "saved setups" in its hint, the name the panel uses,
    instead of "presets".
 

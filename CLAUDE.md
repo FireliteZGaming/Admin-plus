@@ -431,12 +431,12 @@ field, or (on a game that drew no labels) one per input.
   presets can return. The Discord link is `CONFIG.brand.discord`, printed by
   `core/links.js`; empty means "coming soon". **Hidden since 2.12.9** (the
   user: "since presets won't be here, not dropping it but hiding"):
-  `SERVER_PRESETS_SHOWN` in `core/onhold.js` is false, which takes away the
+  `SERVER_PRESETS_ON_HOLD` in `core/hold.js` is true, which takes away the
   Server button, the `presets.apply` switch (ranks keep the permission), its
   place in the Server shape set, the Manager card's tick, the `/version`
   preset line and Credits' "ideas for new presets". Flip it to bring them all
   back. `tests/ranks.test.js` lets `presets.apply` be checked without a switch
-  only while it is false. Anything else put on hold gets a flag there too.
+  only while it is true. Anything else put on hold gets a line there too.
 - **Nobody gives out a permission they don't have (2.8.7, the user asked for
   the rank gap to be fixed, 2026-11-12).** Switches, ready-made sets, "Also
   gets permissions from", a new rank's starting rank, and giving ranks are all

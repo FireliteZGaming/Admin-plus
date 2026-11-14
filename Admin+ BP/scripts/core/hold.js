@@ -14,3 +14,19 @@
  * screening greyed out, and its Checks screen leaves out Chat flooding.
  */
 export const CHAT_AUTOMOD_ON_HOLD = true
+
+/**
+ * Server presets, since 2.12.9. On hold since 2.8.6 (the screen asks for
+ * ideas on the Discord); the user, 2026-11-14, on its "coming soon" button:
+ * "since presets won't be here, not dropping it but hiding".
+ *
+ * Nothing was deleted. The screen (features/serverPresets.js), the four
+ * presets (core/serverPresets.js), the presets.apply permission that ranks
+ * already hold, and /scriptevent all stay. While this is true nobody sees:
+ *   /admin ▸ Server ▸ Server presets, and "presets" on the Server button
+ *   Ranks ▸ a rank ▸ Permissions ▸ Administrative ▸ Server settings ▸ server presets
+ *   the second permission in the Server shape ready-made set
+ *   the Manager template's "Server presets" tick
+ *   the "Preset:" line in /version, and "ideas for new presets" in Credits
+ */
+export const SERVER_PRESETS_ON_HOLD = true

@@ -19,7 +19,7 @@ function check(name, actual, expected) {
 // /admin ▸ Server, as the user laid it out on 2026-11-12: Settings (every
 // switch, in groups that say what they hold), Automod, and Advanced, plus
 // Server presets, which fits none of the three. Server presets is hidden since
-// 2.12.9 (core/onhold.js): "not dropping it but hiding".
+// 2.12.9 (core/hold.js): "not dropping it but hiding".
 
 const boss = {
     id: "set-boss", name: "Boss", nameTag: "Boss", commandPermissionLevel: 0,

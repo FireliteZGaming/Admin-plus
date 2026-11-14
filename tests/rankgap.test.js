@@ -96,7 +96,7 @@ console.log("\n— ready-made sets switch on only what the presser has —")
     check("its button says so first", buttonsOf(sets).some(b => b.startsWith("Everything") && b.includes("you don't have")), true)
 
     // A set Ally only partly has. Server shape (Settings and Presets) was the
-    // example until 2.12.9 hid presets (core/onhold.js), which left it holding
+    // example until 2.12.9 hid presets (core/hold.js), which left it holding
     // Settings alone. Tidying up is the example now, with /lagclear denied to
     // Ally's rank for this check only.
     check("while presets are hidden, Server shape is Settings alone", BUNDLES.shape.nodes, ["admin.settings"])

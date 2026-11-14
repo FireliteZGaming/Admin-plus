@@ -6,7 +6,7 @@ import { render, renderTag, nameTagsEnabled, flag, setting } from "./settings.js
 import { STYLES, STYLE_IDS, paint, currentFrame, rampFrom } from "./nametag.js"
 import { isBeta } from "./channel.js"
 import { isHidden } from "./hiding.js"
-import { SERVER_PRESETS_SHOWN } from "./onhold.js"
+import { SERVER_PRESETS_ON_HOLD } from "./hold.js"
 import { look } from "./prefs.js"
 import { applyFont } from "./fonts.js"
 import { badgeFor, teamBadgeFor } from "./badges.js"
@@ -182,9 +182,9 @@ export const PERMISSION_NODES = {
     "Pranks": ["admin.smite", "admin.sudo", "admin.disguise"],
     "Ranks and places": ["ranks.grant", "ranks.manage", "warp.manage", "spawn.set"],
     // presets.apply has no switch while Server presets are hidden (2.12.9,
-    // core/onhold.js): it would switch on nothing anyone can see. Ranks that
+    // core/hold.js): it would switch on nothing anyone can see. Ranks that
     // hold it keep it, because a group page rewrites only the switches it shows.
-    "Server settings": [...(SERVER_PRESETS_SHOWN ? ["presets.apply"] : []), "admin.commands", "admin.automod", "admin.allowlist", "admin.automation"]
+    "Server settings": [...(SERVER_PRESETS_ON_HOLD ? [] : ["presets.apply"]), "admin.commands", "admin.automod", "admin.allowlist", "admin.automation"]
 }
 
 /**
@@ -317,7 +317,7 @@ export const BUNDLES = {
     "warps":       { label: "Warp management",    nodes: ["warp.manage", "spawn.set"] },
     "upkeep":      { label: "Tidying up",         nodes: ["admin.clearchat", "admin.lagclear"] },
     "ranks":       { label: "Rank management",    nodes: ["ranks.view", "ranks.grant", "ranks.manage"] },
-    "shape":       { label: "Server shape",       nodes: ["admin.settings", ...(SERVER_PRESETS_SHOWN ? ["presets.apply"] : [])] },
+    "shape":       { label: "Server shape",       nodes: ["admin.settings", ...(SERVER_PRESETS_ON_HOLD ? [] : ["presets.apply"])] },
     "basics":      { label: "Everyone",            nodes: [...BASIC_PERMS] },
     "pranks":      { label: "Pranks (smite only)", nodes: ["admin.smite"] },
     "everything":  { label: "Everything (*)",     nodes: ["*"] }

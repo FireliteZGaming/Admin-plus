@@ -19,7 +19,7 @@ import { openLogs } from "./logbook.js"
 import { settingsScreen } from "./settingsUI.js"
 import { automodHubScreen } from "./automodUI.js"
 import { serverPresetsScreen } from "./serverPresets.js"
-import { SERVER_PRESETS_SHOWN } from "../core/onhold.js"
+import { SERVER_PRESETS_ON_HOLD } from "../core/hold.js"
 import { hologramsScreen } from "./holograms.js"
 import { creditsScreen } from "./credits.js"
 import { infoScreen } from "./info.js"
@@ -77,7 +77,7 @@ export async function openPanel(player) {
     }
     if (serverButtons(player, again).length) {
         buttons.push({
-            text: hubButton("settings", "Server", SERVER_PRESETS_SHOWN ? "Settings, automod, presets and advanced" : "Settings, automod, automation and advanced"),
+            text: hubButton("settings", "Server", SERVER_PRESETS_ON_HOLD ? "Settings, automod, automation and advanced" : "Settings, automod, presets and advanced"),
             tile: tile("server", "Server", "Settings, automod"),
             run: () => serverScreen(player, again)
         })
@@ -130,7 +130,7 @@ async function placesScreen(player, back) {
  * Server, as the user laid it out on 2026-11-12: Settings (every switch, in
  * groups that say what they hold), Automod, and Advanced. Server presets is the
  * one that fits none of those: it sets up the whole server in one step. It is
- * hidden since 2.12.9 (core/onhold.js).
+ * hidden since 2.12.9 (core/hold.js).
  */
 function serverButtons(player, back) {
     const settings = has(player, "admin.settings")
@@ -145,9 +145,9 @@ function serverButtons(player, back) {
         has(player, "admin.automation")
             ? { text: hubButton("settings", "Automation", "Automations that run by themselves, like Shortcuts"), run: () => automationScreen(player, back) }
             : null,
-        // Hidden, not dropped (2.12.9, core/onhold.js): "since presets won't
+        // Hidden, not dropped (2.12.9, core/hold.js): "since presets won't
         // be here, not dropping it but hiding".
-        SERVER_PRESETS_SHOWN && has(player, "presets.apply")
+        !SERVER_PRESETS_ON_HOLD && has(player, "presets.apply")
             ? { text: hubButton("presets", "Server presets", "Coming soon · suggest ideas on the Discord"), run: () => serverPresetsScreen(player, back) }
             : null,
         settings || canUseCode(player)
