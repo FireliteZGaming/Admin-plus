@@ -206,16 +206,8 @@ def plus(p):
     p.rect(1.2, 8.4, 20.8, 13.6, radius=1.2)
 
 
-def camera(p):
-    # A video camera, for the Admin+ Media team (2.12.1): a body, and the lens
-    # hood opening out to the right, the way the usual "video" sign is drawn.
-    p.rect(0.8, 4.8, 14.6, 17.2, radius=2.2)
-    p.poly([(13.6, 9.2), (21.2, 6.0), (21.2, 16.0), (13.6, 12.8)])
-
-
 SYMBOLS = {"crown": crown, "hammer": hammer, "sword": sword, "shield": shield, "star": star, "gem": gem,
-           "heart": heart, "bolt": bolt, "pickaxe": pickaxe, "flask": flask, "check": check, "plus": plus,
-           "camera": camera}
+           "heart": heart, "bolt": bolt, "pickaxe": pickaxe, "flask": flask, "check": check, "plus": plus}
 
 # The badges, in glyph order: (key, the name players see, classic colour,
 # Admin+ style colour). Admin+'s own mark uses the aqua-to-pink of its name.
@@ -232,7 +224,6 @@ BADGES = [
     ("flask", "Flask", "ae3ec9", "e599f7"),
     ("check", "Check", "228be6", "74c0fc"),
     ("plus", "Admin+", None, None),
-    ("camera", "Camera", "66a80f", "a9e34b"),
 ]
 
 
@@ -406,7 +397,7 @@ def preview(sheet, path, scale=3):
         text(img, 26, y, "§7General §8| {crown} §8| §8[§4§lOwner§r§8] §dMidnight§f: ay ts name thingy", row); y += line
         text(img, 26, y, "§8| {hammer} §8| §8[§aMod§8] §fWafflehouse9549 §8» §fdihi", row); y += line
         text(img, 26, y, "§7General §8| {shield} §8| §8[§6Admin§8] §fSteve§f: hi", row); y += line
-        text(img, 26, y, "§8| {camera} §8| §8[§bAdmin§d+ §e§lMedia§r§8] §fMaker§f: the Media team's camera", row); y += line
+        text(img, 26, y, "§8| {plus} §8| §8[§4§lOwner§r§8] §fTeamMate§f: the Admin+ team's badge, over the crown", row); y += line
         text(img, 26, y, "{tick} §fWarn, mute, kick   {tick} §fFreeze and vanish", row)
     img.save(path)
     print("preview:", path)

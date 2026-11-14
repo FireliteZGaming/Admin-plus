@@ -31,9 +31,7 @@ export const BADGES = Object.freeze([
     { key: "pickaxe", label: "Pickaxe" },
     { key: "flask", label: "Flask" },
     { key: "check", label: "Check" },
-    { key: "plus", label: "Admin+" },
-    // 2.12.1: for the Admin+ Media team; any rank may pick it, like the flask.
-    { key: "camera", label: "Camera" }
+    { key: "plus", label: "Admin+" }
 ])
 
 /** The first character of the glyph page. */
@@ -71,7 +69,7 @@ const DEFAULT_BADGES = Object.freeze({
     owner: "crown", coowner: "crown", manager: "star", admin: "shield",
     mod: "hammer", staff: "hammer",
     vip: "gem", vipplus: "gem", mvp: "star",
-    adminplus_creator: "plus", adminplus_dev: "plus", adminplus_tester: "flask", adminplus_media: "camera"
+    adminplus_creator: "plus", adminplus_dev: "plus", adminplus_tester: "plus", adminplus_media: "plus"
 })
 
 /**
@@ -95,12 +93,24 @@ export function canWearBadge(type) {
  * The Admin+ badge is the Admin+ team's own mark: the creator and the devs
  * (2.11.7). The user, 2026-11-13: "admin+ badge is specific only to me and
  * other devs now", after a player made a rank called "ADMIN+ CREATOR" and
- * could have given it the same badge. Testers wear the flask and the Media
- * team the camera (2.12.1). These are the pack's own team ranks (teamBadge in
- * core/ranks.js), named here by id so this file never imports ranks.js.
+ * could have given it the same badge.
+ *
+ * Since 2.12.2 the WHOLE team wears it, always: Creator, Dev, Tester and
+ * Media. The user, 2026-11-13: "no matter what, you will always get the admin
+ * + badge ... the admin+ badge marks who is a true cooperator of the admin+
+ * team. even if you have an owner tag you still get admin+ over the crown".
+ * So a team member's badge never comes from a world's rank (playerBadge in
+ * core/ranks.js), and the Media team's camera from 2.12.1 is gone ("the media
+ * badge should probably go"). These are the pack's own team ranks (teamBadge
+ * in core/ranks.js), named here by id so this file never imports ranks.js.
  */
 export const TEAM_BADGE = "plus"
-export const TEAM_RANKS = Object.freeze(["adminplus_creator", "adminplus_dev"])
+export const TEAM_RANKS = Object.freeze(["adminplus_creator", "adminplus_dev", "adminplus_tester", "adminplus_media"])
+
+/** The Admin+ badge as a team member wears it, or "" when badges are off. */
+export function teamBadgeFor() {
+    return badgesOn() ? badgeChar(TEAM_BADGE, badgeStyle()) : ""
+}
 
 /** May this rank wear the badge `key`? Every badge but the team's is for anyone. */
 export function mayWear(rank, key) {

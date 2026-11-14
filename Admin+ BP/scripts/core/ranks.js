@@ -6,7 +6,7 @@ import { render, renderTag, nameTagsEnabled, flag, setting } from "./settings.js
 import { STYLES, STYLE_IDS, paint, currentFrame, rampFrom } from "./nametag.js"
 import { isBeta } from "./channel.js"
 import { applyFont } from "./fonts.js"
-import { badgeFor } from "./badges.js"
+import { badgeFor, teamBadgeFor } from "./badges.js"
 
 // Admin+ rank engine — see RANKS_PLAN.md for the design rationale.
 //
@@ -696,8 +696,8 @@ export function testerGamertags() { return TESTERS }
  * MEDIA make Admin+'s videos and pictures, starting with the showcase video.
  * A badge and nothing else, like the testers': no permission, no weight and no
  * Creator & Dev console. Added at the user's request on 2026-11-13 for the
- * player helping make the video: "so like §bAdmin§d+ §l§eMedia ?". It wears the
- * camera badge in Beta (core/badges.js).
+ * player helping make the video: "so like §bAdmin§d+ §l§eMedia ?". In Beta it
+ * wears the Admin+ badge, like the whole team (2.12.2, core/badges.js).
  */
 const MEDIA = Object.freeze([
     "eXeinty404"
@@ -887,9 +887,20 @@ export function renderTags(playerOrId) {
  * A main rank whose name was blanked shows no tag, so it shows no badge
  * either: the badge goes with a tag, never alone. With rank tags switched off
  * there is no main tag, so there is no badge.
+ *
+ * The Admin+ team is the exception (2.12.2): Creator, Dev, Tester and Media
+ * always wear the Admin+ badge, over any rank's badge, the owner's crown
+ * included, and even when their main rank has none.
  */
 export function playerBadge(playerOrId) {
     if (!flag("feature.ranktags")) return ""
+    // **The Admin+ team ALWAYS wears the Admin+ badge** (2.12.2, the user:
+    // "no matter what, you will always get the admin + badge ... even if you
+    // have an owner tag you still get admin+ over the crown"). It replaces
+    // whatever badge their main rank would give, and shows even when that
+    // rank gives none. Badges off or rank tags off still hide it, as they
+    // hide everyone's.
+    if (packBadge(playerOrId)) return teamBadgeFor()
     const main = displayRanks(playerOrId).find(rank => rankType(rank) !== "cosmetic")
     if (!main || !renderTag(main)) return ""
     return badgeFor(main, rankType(main))

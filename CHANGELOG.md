@@ -56,6 +56,34 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.12.2 — 2026-11-13
+
+**The whole Admin+ team always wears the Admin+ badge, even over a rank's
+own. In Beta.**
+
+The user: "no matter what, you will always get the admin + badge ... the
+admin+ badge marks who is a true cooperator of the admin+ team. even if you
+have an owner tag you still get admin+ over the crown".
+
+1. **Creator, Dev, Tester and Media all wear the Admin+ badge.** Before, only
+   the creator and the devs did; testers wore the flask and Media the camera.
+2. **It wins over any rank's badge.** A team member who is an owner shows
+   "| (Admin+ badge) | [Owner]", not the crown. Their tags stay what the world
+   gave them; only the badge changes.
+3. **It shows even when their rank gives no badge**, such as VIP's gem being
+   replaced, or a rank whose tag was blanked.
+4. **The Badges switch and rank tags off still hide it**, as they hide
+   everyone's. On Default there are no badges at all.
+5. **The camera badge from 2.12.1 is gone** ("the media badge should probably
+   go"). It was the last picture on the badge page, so no other badge moved,
+   and the game's logs show 2.12.1 never ran in a world.
+6. The flask stays a badge any rank can pick; testers just don't wear it.
+
+### Checked
+`tests/badges.test.js` (97): the team badge over the crown and over VIP's gem,
+in chat, on a room line and in player lists, in both styles, and hidden by the
+Badges switch and by rank tags off. A non-team owner keeps the crown.
+
 ## 2.12.1 — 2026-11-13
 
 **Permissions is right under the Template cards again, and an Admin+ Media

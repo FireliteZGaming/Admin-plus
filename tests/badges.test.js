@@ -2,7 +2,7 @@ import { readFileSync, existsSync } from "node:fs"
 import { inflateSync } from "node:zlib"
 import { __test } from "@minecraft/server"
 import { __ui } from "@minecraft/server-ui"
-import { setRanks, onPlayerJoin, applyPreset, getRank, saveRank, renderTags, rankType, playerBadge, badgedTags } from "../Admin+ BP/scripts/core/ranks.js"
+import { setRanks, onPlayerJoin, applyPreset, getRank, saveRank, renderTags, rankType, playerBadge, badgedTags, mediaGamertags, testerGamertags } from "../Admin+ BP/scripts/core/ranks.js"
 import { setSetting, renderTag, render } from "../Admin+ BP/scripts/core/settings.js"
 import { BADGES, BADGE_PAGE, TICK, badgeChar, badgeOf, badgesOn, badgeLabel, canWearBadge, pickableBadges, mayWear, TEAM_RANKS } from "../Admin+ BP/scripts/core/badges.js"
 import { ranksScreen, rankScreen } from "../Admin+ BP/scripts/features/ranksUI.js"
@@ -99,8 +99,9 @@ console.log("\n— the pictures and the list agree —")
     check("its classic picture is one row down", badgeChar("crown", "classic"), "")
     check("the sword sits after the ban hammer", badgeChar("sword"), "")
     check("Admin+'s own mark is the twelfth", badgeChar("plus"), String.fromCharCode(0xEA0B))
-    // 2.12.1: added at the end, so no badge already in a world moved.
-    check("the camera is the thirteenth", badgeChar("camera"), String.fromCharCode(0xEA0C))
+    // 2.12.2: the Media team's camera from 2.12.1 is gone ("the media badge
+    // should probably go"), so Admin+'s mark is the last again.
+    check("there is no camera any more", [BADGES.length, badgeChar("camera")], [12, ""])
     check("an unknown badge draws nothing", badgeChar("dragon"), "")
 }
 
@@ -144,11 +145,13 @@ console.log("\n— which badge a rank wears —")
     check("a default rank like VIP keeps its gem", badgeOf({ id: "vip" }, "default"), "gem")
 
     // 2.11.7, the user: "admin+ badge is specific only to me and other devs
-    // now", after a player made a rank called "ADMIN+ CREATOR".
-    check("the Admin+ team's ranks wear the Admin+ badge", TEAM_RANKS.map(id => badgeOf({ id }, "default")), ["plus", "plus"])
-    check("testers keep the flask", badgeOf({ id: "adminplus_tester" }, "default"), "flask")
-    check("the Media team wears the camera", badgeOf({ id: "adminplus_media" }, "default"), "camera")
-    check("which any rank may pick, like the flask", [mayWear({ id: "youtuber" }, "camera"), pickableBadges().some(b => b.key === "camera")], [true, true])
+    // now", after a player made a rank called "ADMIN+ CREATOR". 2.12.2: the
+    // whole team, "the admin+ badge marks who is a true cooperator of the
+    // admin+ team".
+    check("the whole Admin+ team: Creator, Dev, Tester and Media", TEAM_RANKS,
+        ["adminplus_creator", "adminplus_dev", "adminplus_tester", "adminplus_media"])
+    check("all four team ranks wear the Admin+ badge", TEAM_RANKS.map(id => badgeOf({ id }, "default")), ["plus", "plus", "plus", "plus"])
+    check("the flask is a badge like any other now", mayWear({ id: "lab" }, "flask"), true)
     check("a world's own rank that picked it shows no badge", badgeOf({ id: "admin_creator", meta: { badge: "plus" } }, "default"), undefined)
     check("a staff rank that picked it goes back to the ban hammer", badgeOf({ id: "fake", meta: { badge: "plus" } }, "staff"), "hammer")
     check("it is not offered on a rank's Badge screen", pickableBadges().some(b => b.key === "plus"), false)
@@ -224,6 +227,35 @@ console.log("\n— on Beta, one badge per player, between bars —")
     setSetting("feature.ranktags", "false")
     check("with rank tags off there is no main tag, so no badge", playerBadge(boss), "")
     setSetting("feature.ranktags", "true")
+
+    // 2.12.2, the user: "no matter what, you will always get the admin +
+    // badge ... even if you have an owner tag you still get admin+ over the
+    // crown". The whole team: a tester and a Media member stand in for it.
+    const maker = player("bdg-media", mediaGamertags()[0], ["member"])
+    const tester = player("bdg-tester", testerGamertags()[0], ["member"])
+    check("a team member on the starting rank wears the Admin+ badge", [playerBadge(maker), playerBadge(tester)], [badgeChar("plus"), badgeChar("plus")])
+    check("in front of their team tag", plain(badgedTags(maker)), `| ${badgeChar("plus")} | [Admin+ Media]`)
+    setRanks(maker.id, ["owner"], maker.name)
+    check("as an owner they still wear the Admin+ badge, not the crown", playerBadge(maker), badgeChar("plus"))
+    check("in chat, in front of the owner's tag", line("format.chat", maker, "Maker"), `| ${badgeChar("plus")} | [Owner] Maker » hi`)
+    check("on a room line too", line("format.chatChannel", maker, "Maker", { CHANNEL: "General" }), `General | ${badgeChar("plus")} | [Owner] Maker: hi`)
+    check("while anyone else who is owner keeps the crown", playerBadge(boss), badgeChar("crown"))
+    setRanks(tester.id, ["vip"], tester.name)
+    check("over a default rank's badge too, like VIP's gem", playerBadge(tester), badgeChar("plus"))
+    saveRank("owner", { display: "" })
+    check("and even when their rank shows no tag", playerBadge(maker), badgeChar("plus"))
+    saveRank("owner", { display: ownerName })
+    setSetting("badge.classic", "true")
+    check("in the classic style, from the second row", playerBadge(maker), badgeChar("plus", "classic"))
+    setSetting("badge.classic", "false")
+    setSetting("feature.badges", "false")
+    check("the Badges switch still hides it, like everyone's", playerBadge(maker), "")
+    setSetting("feature.badges", "true")
+    setSetting("feature.ranktags", "false")
+    check("and so do rank tags off", playerBadge(maker), "")
+    setSetting("feature.ranktags", "true")
+    setRanks(maker.id, ["member"], maker.name)
+    setRanks(tester.id, ["member"], tester.name)
 
     await ranksScreen(boss, () => {})
     const rows = buttonsOf(lastForm())

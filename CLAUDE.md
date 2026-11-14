@@ -476,9 +476,14 @@ field, or (on a game that drew no labels) one per input.
   user: "specific only to me and other devs"):** only `TEAM_RANKS` (creator,
   dev) wear it; `pickableBadges()` leaves it off the Badge screen, `mayWear`
   refuses it, and a world's rank that had picked it falls back to its default.
-  Testers wear the flask and Admin+ Media (2.12.1, `MEDIA` in
-  `core/ranks.js`) the camera; anyone may pick those two. A new badge goes on
-  the END of the page, so no badge already in a world moves.
+  **Since 2.12.2 the WHOLE team (Creator, Dev, Tester, Media: `packBadge`)
+  ALWAYS wears it** (the user: "no matter what ... even if you have an owner
+  tag you still get admin+ over the crown"). `playerBadge` returns it before
+  looking at any rank, so it beats the crown and shows even when their rank
+  gives no badge; only the Badges switch and rank tags off hide it. The
+  2.12.1 camera badge for Media was removed ("the media badge should
+  probably go"). A new badge goes on the END of the page, so no badge
+  already in a world moves.
   `tests/badges.test.js`.
 - **+ New rank is short steps (2.11.4, the user's design, 2026-11-13).**
   New rank (Continue) ▸ Template (Staff only: Mod, Admin, Manager, Owner as
