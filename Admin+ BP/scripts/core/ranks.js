@@ -168,8 +168,10 @@ export const PERMISSION_NODES = {
     // 2.12.0, the user: the colour shift is "rank specific ... it would have
     // to be turned on for the rank, it is tagged under personalization and
     // 'Name Color'". Off until a rank has it; /menu ▸ Personalization is
-    // open to everyone (features/personalize.js).
-    "Personalization": ["personalize.namecolour"],
+    // open to everyone (features/personalize.js). 2.12.3: "let's change it
+    // to 'Name Effect'"; the id changed with it, safe because no 2.12 build
+    // had run in a world yet (the game's logs, 2026-11-13).
+    "Personalization": ["personalize.nameeffect"],
     "The panel": ["admin.panel", "admin.settings", "admin.logs", "ranks.view"],
     "Chat": ["chat.staff", "chat.viewall", "chat.manage", "chat.spy", "chat.codes", "admin.broadcast", "admin.clearchat"],
     "Staff tools": ["admin.staffmode", "admin.vanish", "admin.tp", "admin.gamemode", "admin.nickname", "admin.holograms", "admin.invsee", "admin.lagclear", "admin.claims", "admin.alerts", "admin.omnitool"],
@@ -225,7 +227,7 @@ export const PERMISSION_NODES = {
  * silently strip it from every rank already holding it.
  */
 const LABEL_OVERRIDES = {
-    "personalize.namecolour": "Name colour",
+    "personalize.nameeffect": "Name effect",
     "presets.apply": "server presets",
     "admin.omnitool": "Omnitool",
     "admin.automation": "Automation",
@@ -1491,6 +1493,10 @@ export function creatorIdentity(playerOrId) {
  * saying `none` deliberately beats a lower one saying `rainbow`.
  */
 export function nametagStyleFor(playerOrId) {
+    // In Beta a rank gives no name effect (2.12.3): Basics has no Name colour
+    // there, so a style saved on Default must not show with no way to clear
+    // it. Players choose their own (personalRamp), behind Name effect.
+    if (isBeta()) return "none"
     const id = String(meta(playerOrId, "nametag.style", "none"))
     return STYLES[id] ? id : "none"
 }
@@ -1520,11 +1526,11 @@ export function effectiveNametagStyle(player) {
 /**
  * A player's own name colours as a ramp to paint with, when they may show:
  * Personalization is a Beta feature (2.12.0), and choosing colours needs the
- * rank's Name colour switch (personalize.namecolour), which starts off. ""
- * when they have none or may not.
+ * rank's Name effect switch (personalize.nameeffect, named Name colour until
+ * 2.12.3), which starts off. "" when they have none or may not.
  */
 export function personalRamp(player) {
-    if (!isBeta() || !has(player, "personalize.namecolour")) return ""
+    if (!isBeta() || !has(player, "personalize.nameeffect")) return ""
     return rampFrom(getNameColours(player))
 }
 

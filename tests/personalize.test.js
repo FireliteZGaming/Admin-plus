@@ -8,7 +8,8 @@ import { getNameColours, setNameColours } from "../Admin+ BP/scripts/core/identi
 import { rampFrom, paint, currentFrame, STYLES } from "../Admin+ BP/scripts/core/nametag.js"
 import { openMenu } from "../Admin+ BP/scripts/features/menu.js"
 import { personalizeScreen, nameColoursScreen, canPersonalize, canChooseColours, colourCodeFrom } from "../Admin+ BP/scripts/features/personalize.js"
-import { rankScreen } from "../Admin+ BP/scripts/features/ranksUI.js"
+import { rankScreen, basicsScreen } from "../Admin+ BP/scripts/features/ranksUI.js"
+import { GROUPS, groupScreen } from "../Admin+ BP/scripts/features/settingsUI.js"
 import { stepNameAnimation } from "../Admin+ BP/scripts/features/nameanim.js"
 
 let passed = 0, failed = 0
@@ -46,8 +47,9 @@ const submit = (...formValues) => ({ canceled: false, formValues })
 const press = selection => ({ canceled: false, selection })
 // The game keeps a place in the answers for the form's label, so the boxes follow it.
 const colours = (...boxes) => submit(undefined, ...boxes)
-const switchOn = rankId => saveRank(rankId, { perms: [...getRank(rankId).perms.filter(n => n !== "personalize.namecolour"), "personalize.namecolour"] })
-const switchOff = rankId => saveRank(rankId, { perms: getRank(rankId).perms.filter(n => n !== "personalize.namecolour") })
+const NODE = "personalize.nameeffect"
+const switchOn = rankId => saveRank(rankId, { perms: [...getRank(rankId).perms.filter(n => n !== NODE), NODE] })
+const switchOff = rankId => saveRank(rankId, { perms: getRank(rankId).perms.filter(n => n !== NODE) })
 
 applyPreset("server")
 const pat = player("prs-pat", "Pat", ["member"])
@@ -64,13 +66,14 @@ check("bold and the like aren't colours", rampFrom(["l", "c"]), "c")
 check("a typed colour can be the letter, or the sign and the letter",
     ["c", "§C", " 6 ", "g", "x", "l", "cc", ""].map(colourCodeFrom), ["c", "c", "6", "g", "", "", "", ""])
 
-console.log("\n— the Name colour switch, under Personalization —")
+console.log("\n— the Name effect switch, under Personalization —")
+// 2.12.3, the user: "let's change it to 'Name Effect'". It was Name colour.
 check("a rank's permissions have a Personalization section", Object.keys(PERMISSION_NODES).includes("Personalization"), true)
-check("holding one switch", PERMISSION_NODES.Personalization, ["personalize.namecolour"])
-check("named Name colour", nodeLabels(PERMISSION_NODES.Personalization), ["Name colour"])
-check("it isn't one of the basics everyone gets", BASIC_PERMS.includes("personalize.namecolour"), false)
-check("so a member starts without it", has(pat, "personalize.namecolour"), false)
-check("an owner, holding everything, has it", has(boss, "personalize.namecolour"), true)
+check("holding one switch", PERMISSION_NODES.Personalization, [NODE])
+check("named Name effect", nodeLabels(PERMISSION_NODES.Personalization), ["Name effect"])
+check("it isn't one of the basics everyone gets", BASIC_PERMS.includes(NODE), false)
+check("so a member starts without it", has(pat, NODE), false)
+check("an owner, holding everything, has it", has(boss, NODE), true)
 {
     __ui.answers.length = 0
     const from = __ui.shown.length
@@ -79,7 +82,7 @@ check("an owner, holding everything, has it", has(boss, "personalize.namecolour"
     await rankScreen(boss, "member", () => {})
     const member = __ui.shown[from + 2]
     check("Permissions ▸ Member lists Personalization, off",
-        buttonsOf(member).map(plain).find(t => t.startsWith("Personalization")), "Personalization\nName colour · off")
+        buttonsOf(member).map(plain).find(t => t.startsWith("Personalization")), "Personalization\nName effect · off")
 }
 
 console.log("\n— /menu, in Beta, for everyone —")
@@ -92,15 +95,15 @@ console.log("\n— /menu, in Beta, for everyone —")
     await openMenu(pat)
     check("on Beta, everyone has it, switch or not", [canPersonalize(pat), buttonsOf(lastForm()).some(t => plain(t).includes("Personalization"))], [true, true])
     await personalizeScreen(pat, () => {})
-    check("without the switch, Name colours shows but says why it's off",
-        plain(buttonsOf(lastForm())[0]), "Name colours\nNot switched on for your rank")
+    check("without the switch, Name effect shows but says why it's off",
+        plain(buttonsOf(lastForm())[0]), "Name effect\nNot switched on for your rank")
     __ui.answers.push(press(0))
     await personalizeScreen(pat, () => {})
     check("and tapping it says where staff switch it on", told(pat),
-        "Name colours aren't switched on for your rank. Staff can switch them on in Ranks ▸ your rank ▸ Permissions ▸ Member ▸ Personalization.")
+        "Name effects aren't switched on for your rank. Staff can switch them on in Ranks ▸ your rank ▸ Permissions ▸ Member ▸ Personalization.")
     __ui.answers.length = 0
     await nameColoursScreen(pat, () => {})
-    check("the colour boxes stay closed to them", [canChooseColours(pat), told(pat).startsWith("Name colours aren't switched on")], [false, true])
+    check("the colour boxes stay closed to them", [canChooseColours(pat), told(pat).startsWith("Name effects aren't switched on")], [false, true])
 }
 
 console.log("\n— choosing colours, once the rank has the switch —")
@@ -135,22 +138,55 @@ console.log("\n— choosing colours, once the rank has the switch —")
     check("and asks again with what was typed", again?.parts.filter(p => p[0] === "text").map(p => p[3]?.defaultValue), ["c", "x", "", ""])
 }
 
-console.log("\n— their own colours, their rank's effect, and the switch —")
+console.log("\n— in Beta a rank gives no name effect, only the switch —")
+// 2.12.3, the user, seeing Name colour in a rank's Basics: "Wtf is name
+// colour doing here? It's supposed to be a toggle thing ... in permissions
+// under a personalization section". So in Beta a rank's saved style no
+// longer shows; players pick their own. Default works as before.
 {
+    setBeta(true)
     saveRank("member", { meta: { ...(getRank("member").meta ?? {}), "nametag.style": "fire" } })
+    setNameColours(pat, [])
+    check("a style the rank saved on Default doesn't show in Beta", effectiveNameRamp(pat), "")
     setNameColours(pat, ["c", "6"])
-    check("their own colours win over the rank's effect", effectiveNameRamp(pat), "cc66")
+    check("their own colours do", effectiveNameRamp(pat), "cc66")
     __ui.answers.push(colours("", "", "", ""))
     await nameColoursScreen(pat, () => {})
     check("all boxes empty turns them off", getNameColours(pat), [])
-    check("and the rank's effect shows again", effectiveNameRamp(pat), STYLES.fire.ramp)
+    check("and the name is plain again", effectiveNameRamp(pat), "")
+    check("they're told it's off", told(pat), "Your name effect is off.")
     setNameColours(pat, ["c", "6"])
     switchOff("member")
-    check("switched off for the rank, their colours stay saved but don't show", [getNameColours(pat), effectiveNameRamp(pat)], [["c", "6"], STYLES.fire.ramp])
+    check("switched off for the rank, their colours stay saved but don't show", [getNameColours(pat), effectiveNameRamp(pat)], [["c", "6"], ""])
     switchOn("member")
     setBeta(false)
-    check("and on Default nobody's own colours show", personalRamp(pat), "")
+    check("on Default nobody's own colours show", personalRamp(pat), "")
+    check("and a rank's effect works as before", effectiveNameRamp(pat), STYLES.fire.ramp)
     setBeta(true)
+}
+
+console.log("\n— a rank's Basics has no Name colour in Beta —")
+{
+    const nameColourIn = form => form.parts.some(p => p[0] === "dropdown" && plain(p[1]).startsWith("Name colour"))
+    __ui.answers.length = 0
+    setBeta(false)
+    await basicsScreen(boss, "member", () => {})
+    check("on Default, Basics still has the Name colour list", nameColourIn(lastForm()), true)
+    setBeta(true)
+    await basicsScreen(boss, "member", () => {})
+    check("in Beta it's gone", nameColourIn(lastForm()), false)
+    check("while chat colour stays", lastForm().parts.some(p => p[0] === "text" && plain(p[1]).startsWith("Chat colour")), true)
+
+    // The server switch for them reads Name effects in Beta, and keeps its
+    // Default words there.
+    const names = GROUPS.find(g => g.id === "names")
+    setBeta(false)
+    await groupScreen(boss, names, () => {})
+    check("on Default, Names and tags still says Name colours", buttonsOf(lastForm()).map(plain).some(t => t.startsWith("Name colours\n")), true)
+    setBeta(true)
+    await groupScreen(boss, names, () => {})
+    const row = buttonsOf(lastForm()).map(plain).find(t => t.startsWith("Name effects\n"))
+    check("in Beta it says Name effects, picked in /menu", row?.endsWith("Each player picks their own in /menu"), true)
 }
 
 console.log(`\n${passed} passed, ${failed} failed`)

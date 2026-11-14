@@ -14,8 +14,11 @@ import { paint, rampFrom, NAME_COLOUR_CODE, NAME_COLOURS_MAX } from "../core/nam
 // Who: Personalization is open to everyone ("everyone by default"), but the
 // colour shift is "rank specific, so it would have to be turned on for the
 // rank, it is tagged under personalization and 'Name Color'" (the user,
-// 2026-11-13): the Name colour switch, personalize.namecolour, in a rank's
-// Permissions ▸ Member ▸ Personalization, off until it's switched on. Display
+// 2026-11-13): the Name effect switch, personalize.nameeffect, in a rank's
+// Permissions ▸ Member ▸ Personalization, off until it's switched on. It was
+// called Name colour until 2.12.3 ("let's change it to 'Name Effect'"), when
+// a rank's own Name colour left Basics in Beta: a rank only switches this on,
+// and each player picks their own effect here. Display
 // names stay with staff for now, and protection beyond the exact-copy rule is
 // left to automod in 4.0.0.
 //
@@ -27,12 +30,12 @@ export function canPersonalize(player) {
     return isBeta() && !!player
 }
 
-/** May they choose their own name colours? Only with their rank's Name colour switch. */
+/** May they choose their own name effect? Only with their rank's Name effect switch. */
 export function canChooseColours(player) {
-    return isBeta() && has(player, "personalize.namecolour")
+    return isBeta() && has(player, "personalize.nameeffect")
 }
 
-const NOT_ON_RANK = "Name colours aren't switched on for your rank. Staff can switch them on in Ranks ▸ your rank ▸ Permissions ▸ Member ▸ Personalization."
+const NOT_ON_RANK = "Name effects aren't switched on for your rank. Staff can switch them on in Ranks ▸ your rank ▸ Permissions ▸ Member ▸ Personalization."
 
 /** The colour codes, each shown in its own colour, the way the rank editor shows them. */
 const COLOUR_ROW = "§0§§0 §1§§1 §2§§2 §3§§3 §4§§4 §5§§5 §6§§6 §7§§7 §8§§8 §9§§9 §a§§a §b§§b §c§§c §d§§d §e§§e §f§§f"
@@ -53,7 +56,7 @@ function preview(player, codes) {
 }
 
 function describe(codes) {
-    if (!codes.length) return "off, your rank's colour shows"
+    if (!codes.length) return "off"
     if (codes.length === 1) return "one still colour"
     return `shifting through ${codes.length} colours`
 }
@@ -68,9 +71,9 @@ export async function personalizeScreen(player, back) {
         buttons: [
             // Two lines, as every row has: the name, then their name in their colours.
             canChooseColours(player)
-                ? { text: `§dName colours§r\n${preview(player, codes)} §8· ${describe(codes)}`, run: () => nameColoursScreen(player, again) }
+                ? { text: `§dName effect§r\n${preview(player, codes)} §8· ${describe(codes)}`, run: () => nameColoursScreen(player, again) }
                 // Shown, not hidden, so players know it exists: their rank decides.
-                : { text: "§8Name colours\n§8Not switched on for your rank", run: () => { info(player, NOT_ON_RANK); return again() } }
+                : { text: "§8Name effect\n§8Not switched on for your rank", run: () => { info(player, NOT_ON_RANK); return again() } }
         ],
         back
     })
@@ -85,7 +88,7 @@ export async function nameColoursScreen(player, back, typed) {
     if (!canChooseColours(player)) { err(player, NOT_ON_RANK); return back?.() }
     const shown = typed ?? getNameColours(player)
     const boxes = Array.from({ length: NAME_COLOURS_MAX }, (_, i) => i)
-    const values = await modal(player, hubTitle("chat", "Name colours"), [
+    const values = await modal(player, hubTitle("chat", "Name effect"), [
         {
             type: "label",
             label: [
@@ -117,7 +120,7 @@ export async function nameColoursScreen(player, back, typed) {
     }
     const kept = setNameColours(player, codes)
     refreshNameTag(player)
-    if (!kept.length) ok(player, "Your name colours are off. Your rank's colour shows again.")
+    if (!kept.length) ok(player, "Your name effect is off.")
     else if (kept.length === 1) ok(player, `Your name is now ${preview(player, kept)}§a.`)
     else ok(player, `Your name now shifts through ${kept.length} colours: ${preview(player, kept)}§a.`)
     return back?.()

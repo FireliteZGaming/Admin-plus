@@ -2,11 +2,13 @@ import { readFileSync, existsSync, readdirSync } from "node:fs"
 import { __test } from "@minecraft/server"
 import { __ui } from "@minecraft/server-ui"
 import { setRanks, onPlayerJoin, applyPreset } from "../Admin+ BP/scripts/core/ranks.js"
-import { BETA_LOOK, TILES, TILE_LEFT, CARD, cardText, cardStripe, lift, lookTitle, tile, tileIcon, tileText, betaLook } from "../Admin+ BP/scripts/core/look.js"
+import { BETA_LOOK, TILES, TILE_LEFT, CARD, PROFILE, cardText, cardStripe, lift, lookTitle, tile, tileIcon, tileText, betaLook } from "../Admin+ BP/scripts/core/look.js"
 import { MULTILINE, hubTitle, hubButton, BRAND_PREFIX, COLOUR_CODE_TIP } from "../Admin+ BP/scripts/core/theme.js"
 import { menu, modal, confirm, drawsTiles, drawsCards, INCOMPLETE } from "../Admin+ BP/scripts/core/ui.js"
 import { openPanel } from "../Admin+ BP/scripts/features/panel.js"
-import { openMenu } from "../Admin+ BP/scripts/features/menu.js"
+import { openMenu, profileLines, statsLines } from "../Admin+ BP/scripts/features/menu.js"
+
+const plainText = s => String(s ?? "").replace(/§./g, "")
 import { panelsOf, shownFor, evaluate, visibleExpr } from "./jsonui.js"
 
 // Admin+'s own look, the UI overhaul (2.11.0). The user approved the concept on
@@ -214,6 +216,35 @@ console.log("\n— each tile shows in one column —")
     check("it spells no other marker", [MULTILINE, BETA_LOOK, TILES, ...CHEST].filter(m => TILE_LEFT.includes(m) || m.includes(TILE_LEFT)), [])
 }
 
+console.log("\n— a Profile card above the /menu tiles —")
+// 2.12.3: a "Profile" heading, the player's own model and the form's body
+// beside it, which nobody can press. Worked out from the bindings themselves.
+{
+    check("PROFILE prints nothing and restyles nothing", /^(?:§[0-9a-jmnpqstuv])+$/.test(PROFILE), true)
+    check("it spells no other marker",
+        [MULTILINE, BETA_LOOK, TILES, TILE_LEFT, CARD, ...CHEST].filter(m => PROFILE.includes(m) || m.includes(PROFILE)), [])
+    check("it only rides on tiles",
+        [lookTitle("x", { profile: true }).includes(PROFILE), lookTitle("x", { tiles: true, profile: true }).endsWith(TILES + PROFILE)], [false, true])
+    const scroll = panelsOf(LOOK.tile_scroll.controls)
+    check("the tile frame starts with the card, then the body, then the tiles",
+        scroll.map(p => p.name), ["profile", "intro", "padding", "wrapping_panel"])
+    const withCard = "§bMenu" + BETA_LOOK + TILES + PROFILE
+    const without = "§bAdmin" + BETA_LOOK + TILES
+    const shows = (expr, title) => evaluate(expr, { "#title_text": title })
+    const cardExpr = visibleExpr(LOOK.profile)
+    check("the card shows only when the title asks for it", [shows(cardExpr, withCard), shows(cardExpr, without)], [true, false])
+    check("and the plain body steps aside then, since the card shows it", [shows(scroll[1].expr, withCard), shows(scroll[1].expr, without)], [false, true])
+    const parts = Object.fromEntries(LOOK.profile.controls.map(c => Object.entries(c)[0]))
+    check("headed Profile", parts.heading.controls[0].text.text, "Profile")
+    const card = Object.fromEntries(parts.card.controls.map(c => Object.entries(c)[0]))
+    check("the player's own model, drawn the way the game's inventory draws it",
+        [LOOK.profile_skin.type, LOOK.profile_skin.renderer], ["custom", "live_player_renderer"])
+    check("in its own box at the left", Object.keys(card.model_box.controls[1])[0], "model_slot")
+    check("with the form's body beside it", card.text.text, "#form_text")
+    check("cut off before it runs out of the card", card.text.max_size[1] <= parts.card.size[1], true)
+    check("nothing on it can be pressed", JSON.stringify(LOOK.profile).match(/"button"|button_mappings|form_button_click/g), null)
+}
+
 console.log("\n— each card shows once, above the rows —")
 // 2.11.4: a button whose text ends in CARD is a card in the row across the top
 // of the list frame; every other button stays a row under it. Worked out from
@@ -413,8 +444,22 @@ console.log("\n— on Beta, Admin+ draws its own look —")
     onPlayerJoin(member)
     setRanks(member.id, ["member"], member.name)
     await openMenu(member)
-    check("/menu is drawn as tiles too", titleOf(lastForm()).endsWith(BETA_LOOK + TILES), true)
+    check("/menu is drawn as tiles too", titleOf(lastForm()).includes(BETA_LOOK + TILES), true)
     check("with a picture on every tile", partsOf(lastForm(), "button").every(p => typeof p[2] === "string"), true)
+
+    // 2.12.3, the user: "in /menu, you can see your skin and then right by it
+    // it has your rank, and stuff". A Profile card above the tiles.
+    check("/menu asks for a Profile card above its tiles", titleOf(lastForm()).endsWith(BETA_LOOK + TILES + PROFILE), true)
+    check("its body is the card's words", partsOf(lastForm(), "body")[0]?.[1], lift(profileLines(member).join("\n")))
+    check("starting with their name", plainText(profileLines(member)[0]), "Mia")
+    check("then their tag", profileLines(member).map(plainText).includes("[Member]"), true)
+    check("never more than the card holds", profileLines(member).length <= 6, true)
+    check("/admin has no card", titleOf(panel).includes(PROFILE), false)
+    setBeta(false)
+    await openMenu(member)
+    check("on Default, /menu has no card and the body it always had",
+        [titleOf(lastForm()).includes(PROFILE), partsOf(lastForm(), "body")[0]?.[1]], [false, statsLines(member).join("\n")])
+    setBeta(true)
 
     await modal(boss, hubTitle("ranks", "Basics"), [
         { id: "name", type: "text", label: "§8Name", placeholder: "§8Example: §eHelper", default: "§8Mod", tooltip: COLOUR_CODE_TIP },

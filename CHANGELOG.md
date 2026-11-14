@@ -56,6 +56,52 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.12.3 — 2026-11-13
+
+**Name effect is a rank switch only, and /menu has a Profile card. In Beta.**
+
+### Name effect
+The user, seeing a rank's Basics on the phone preview: "Wtf is name colour
+doing here? It's supposed to be a toggle thing, also let's change it to 'Name
+Effect' and it's supposed to be in permissions under a personalization
+section".
+1. **In Beta a rank's Basics has no Name colour any more.** A rank no longer
+   gives its players a colour or moving effect; its saved one stops showing in
+   Beta. Default keeps the list and works as before.
+2. **The rank switch is now called Name effect**, still under Permissions ▸
+   Member ▸ Personalization and still off until it's switched on. Players
+   with it pick their own effect in /menu ▸ Personalization ▸ Name effect.
+   The switch's id changed with its name, which is safe because no 2.12 build
+   had run in a world.
+3. **Server ▸ Settings ▸ Names and tags says Name effects in Beta**, and that
+   players pick their own in /menu. On Default it still says Name colours,
+   set in each rank's Basics.
+4. Your own name colours from the creator identity are untouched.
+
+### The Profile card
+The user: "in /menu, you can see your skin and then right by it it has your
+rank, and stuff".
+1. **/menu has a Profile card above its tiles**, under a "Profile" heading.
+   It can't be pressed.
+2. **On the left, your own player model**, drawn by the same piece of the
+   game that draws you in the inventory, so it should show your real skin,
+   its head following the cursor as it does there.
+3. **Beside it:** your name in your name effect, your gamertag if you go by
+   another name, your badge and tags, how long you've been here, and any
+   warnings or mute. Six lines at most.
+4. On Default /menu is exactly as it was.
+
+### Not checked
+The card has not been seen in game. Whether the game draws the model inside
+a form like this, and at what size, needs a screenshot.
+
+### Checked
+`tests/personalize.test.js` (46): the switch's new name, Basics without Name
+colour in Beta and with it on Default, a rank's effect hidden in Beta, the
+settings words in both looks. `tests/look.test.js` (200): the card shows only
+for /menu, hides the plain body, holds the model and the body, and has
+nothing to press; /menu on Default is unchanged.
+
 ## 2.12.2 — 2026-11-13
 
 **The whole Admin+ team always wears the Admin+ badge, even over a rank's

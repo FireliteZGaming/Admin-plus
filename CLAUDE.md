@@ -500,16 +500,32 @@ field, or (on a game that drew no labels) one per input.
   all fields nor the inputs alone returns `INCOMPLETE` and saves nothing.
   `tests/ranksui.test.js`, `tests/rankgap.test.js`.
 - **Personalization (2.12.0, Beta, the user's design, 2026-11-13).** /menu ▸
-  Personalization is open to everyone; for now it holds Name colours, up to
-  four codes (`rampFrom` in `core/nametag.js`, stored by
-  `getNameColours`/`setNameColours` in `core/identity.js`). Choosing colours
-  needs the rank's **Name colour** switch, `personalize.namecolour`, in the
-  Personalization section of PERMISSION_NODES (a member section, never
-  administrative), which starts OFF: "rank specific ... it would have to be
-  turned on for the rank". `effectiveNameRamp` in `core/ranks.js` is the one
-  answer for the nametag, the animation tick and chat; a player's own colours
-  beat the rank's effect. Display names stay staff-only for now, and lookalike
-  protection waits for automod in 4.0.0. `tests/personalize.test.js`.
+  Personalization is open to everyone; for now it holds Name effect, up to
+  four colour codes (`rampFrom` in `core/nametag.js`, stored by
+  `getNameColours`/`setNameColours` in `core/identity.js`). Choosing them
+  needs the rank's **Name effect** switch, `personalize.nameeffect` (called
+  Name colour, `personalize.namecolour`, until 2.12.3; renamed while no 2.12
+  build had run in a world), in the Personalization section of
+  PERMISSION_NODES (a member section, never administrative), which starts OFF:
+  "rank specific ... it would have to be turned on for the rank".
+  `effectiveNameRamp` in `core/ranks.js` is the one answer for the nametag,
+  the animation tick and chat. **In Beta a rank gives NO name effect (2.12.3,
+  the user: "Wtf is name colour doing here? It's supposed to be a toggle
+  thing"):** Basics has no Name colour there and `nametagStyleFor` answers
+  none, so only the switch and each player's own choice remain; the creator
+  identity still paints. Default keeps the Basics dropdown and rank styles.
+  Settings words that changed meaning in Beta use `betaLabel`/`betaHint`/
+  `betaDetail` (`inLook` in `features/settingsUI.js`). Display names stay
+  staff-only for now, and lookalike protection waits for automod in 4.0.0.
+  `tests/personalize.test.js`.
+- **The Profile card (2.12.3, Beta, the user: "in /menu, you can see your
+  skin and then right by it it has your rank, and stuff").** A menu spec's
+  `profile` text, with tiles, adds the PROFILE marker after TILES and becomes
+  the body; the tile frame then draws a "Profile" heading, the player's own
+  model (`live_player_renderer`, sized like the inventory's: a 28 by 28 slot
+  raised 13 in a 48 by 64 box) and the body beside it, and hides the plain
+  intro. Nothing on it can be pressed. Only /menu uses it (`profileLines` in
+  `features/menu.js`, at most 6 lines). Not yet seen in game.
 - **Chat automod is ON HOLD (2.9.2, the user, 2026-11-12: "a complete hold, so
   disabling it and graying out the button to inactive").** Chat screening and
   chat flooding both stop, whatever the settings say; ore alerts and fast

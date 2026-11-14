@@ -22,6 +22,13 @@ import { BRAND_PREFIX } from "./theme.js"
 
 export const BETA_LOOK = "§b§e§t§a"
 export const TILES = "§q§u§a§d"
+/**
+ * A Profile card above the tiles (2.12.3, the user: "in /menu, you can see
+ * your skin and then right by it it has your rank, and stuff"). Only after
+ * TILES: the tile frame draws a "Profile" heading, the player's own model
+ * and the form's body beside it, and nothing there can be pressed.
+ */
+export const PROFILE = "§p§f§i§5"
 
 /** True when Admin+'s own look is on. Asked once per form. */
 export function betaLook() { return isBeta() }
@@ -52,10 +59,10 @@ export function lift(text) {
  * A title for the Beta look. The frame draws "Admin+" itself, so the brand
  * prefix comes off and the screen's own name stays, in its hub colour.
  */
-export function lookTitle(title, { tiles = false } = {}) {
+export function lookTitle(title, { tiles = false, profile = false } = {}) {
     let text = String(title ?? "")
     if (text.startsWith(BRAND_PREFIX)) text = text.slice(BRAND_PREFIX.length)
-    return lift(text) + BETA_LOOK + (tiles ? TILES : "")
+    return lift(text) + BETA_LOOK + (tiles ? TILES : "") + (tiles && profile ? PROFILE : "")
 }
 
 /**

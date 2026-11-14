@@ -6,6 +6,7 @@ import { record } from "../core/logs.js"
 import { ok, err, info } from "../core/util.js"
 import { TICK, badgeChar, badgeFor, badgeLabel, badgeOf, badgeStyle, badgesOn, canWearBadge, pickableBadges, mayWear } from "../core/badges.js"
 import { cardStripe } from "../core/look.js"
+import { isBeta } from "../core/channel.js"
 import { STAFF_TEMPLATES, staffTemplate } from "../core/rankTemplates.js"
 import { stripCodes, displayName } from "../core/identity.js"
 import { STYLES, STYLE_IDS, paint } from "../core/nametag.js"
@@ -256,7 +257,8 @@ function previewLine(rank) {
     const own = type !== "cosmetic"
     const looks = own ? (rank.meta ?? {}) : {}
     const font = own && rank.font ? rank.font : "normal"
-    const style = STYLES[String(looks["nametag.style"] ?? "none")]
+    // In Beta a rank gives no name effect (2.12.3), so its preview shows none.
+    const style = isBeta() ? undefined : STYLES[String(looks["nametag.style"] ?? "none")]
     const base = applyFont("Steve", rank.fontName ? font : "normal")
     const name = style?.ramp ? paint(base, style.ramp, 0) : base
     const code = String(looks["chat.colour"] ?? "")
@@ -759,6 +761,12 @@ function makeRank(player, draft, back) {
  * unlisted rank has no tag to put a font on, and a cosmetic rank changes only
  * its own tag, so it has no name font, name colour or chat colour. A field
  * that is not shown keeps its saved value.
+ *
+ * In Beta there is no Name colour at all (2.12.3). The user, seeing it here:
+ * "Wtf is name colour doing here? It's supposed to be a toggle thing ... in
+ * permissions under a personalization section". A rank now only switches Name
+ * effect on or off (Permissions ▸ Member ▸ Personalization), and players pick
+ * their own in /menu ▸ Personalization. Default keeps the dropdown.
  */
 export async function basicsScreen(player, rankId, back) {
     const rank = getRank(rankId)
@@ -783,7 +791,7 @@ export async function basicsScreen(player, rankId, back) {
         type !== "cosmetic" ? { id: "fontName", type: "toggle", label: "Apply to their name", default: !!rank.fontName } : null,
         type !== "cosmetic" ? { id: "fontChat", type: "toggle", label: "Apply to their messages", default: !!rank.fontChat } : null,
         { id: "type", type: "dropdown", label: TYPE_HELP, options: TYPE_OPTIONS, default: RANK_TYPES.indexOf(type) },
-        type !== "cosmetic"
+        type !== "cosmetic" && !isBeta()
             ? { id: "nameColour", type: "dropdown", label: `Name colour\n§8The player's name, in chat and above their head${coloursOff}`, options: nameColourOptions(), default: styleAt }
             : null,
         type !== "cosmetic"
@@ -1012,7 +1020,7 @@ async function memberPermissionsScreen(player, rankId, back) {
                 const on = nodes.filter(node => holds(rank, node)).length
                 return {
                     text: group === "Personalization"
-                        ? hubEntry("ranks", "Personalization", `Name colour · ${on ? "on" : "off"}`)
+                        ? hubEntry("ranks", "Personalization", `Name effect · ${on ? "on" : "off"}`)
                         : hubEntry("ranks", "What they can use", `Warps, spawn, requests, reports, who is online · ${on} of ${nodes.length} on`),
                     run: () => nodeGroupScreen(player, rankId, group, again)
                 }

@@ -5,8 +5,8 @@ import { hubTitle, hubButton, hubEntry } from "../core/theme.js"
 import { tile } from "../core/look.js"
 import { ok, err, info } from "../core/util.js"
 import { flag } from "../core/settings.js"
-import { displayName } from "../core/identity.js"
-import { primaryRank, memberSince, isStaff, has } from "../core/ranks.js"
+import { displayName, stripCodes } from "../core/identity.js"
+import { primaryRank, memberSince, isStaff, has, badgedTags, chatNameFor } from "../core/ranks.js"
 import { warningCount } from "../core/warnings.js"
 import { muteRecord } from "../core/moderation.js"
 import { remainingLabel } from "../core/grants.js"
@@ -92,6 +92,26 @@ export function statsLines(player) {
     return lines
 }
 
+/** How many lines the Profile card holds beside the model. */
+const PROFILE_LINES = 6
+
+/**
+ * The Profile card's words, beside the player's own model, in Admin+'s own
+ * look (2.12.3). The user: "in /menu, you can see your skin and then right by
+ * it it has your rank, and stuff". Their name in their name effect, their
+ * gamertag when they go by another name, their badge and tags, then what the
+ * plain menu says. Never more than the card holds.
+ */
+export function profileLines(player) {
+    const shown = displayName(player)
+    const lines = [`§f${chatNameFor(player, shown)}§r`]
+    if (stripCodes(shown) !== player.name) lines.push(`§8${player.name}`)
+    const tags = badgedTags(player)
+    if (tags) lines.push(tags)
+    lines.push(...statsLines(player).slice(1))
+    return lines.slice(0, PROFILE_LINES)
+}
+
 export async function openMenu(player) {
     const again = () => openMenu(player)
     const buttons = []
@@ -129,8 +149,8 @@ export async function openMenu(player) {
     // Personalization (2.12.0, Beta): how you look to everyone else.
     if (canPersonalize(player)) {
         buttons.push({
-            text: hubButton("chat", "Personalization", "Your name's colours · only you change them"),
-            tile: tile("personalize", "Personalization", "Name colours"),
+            text: hubButton("chat", "Personalization", "Your name effect · only you change it"),
+            tile: tile("personalize", "Personalization", "Name effect"),
             run: () => personalizeScreen(player, again)
         })
     }
@@ -152,10 +172,12 @@ export async function openMenu(player) {
         })
     }
 
-    // Tiles in Admin+'s own look (Beta), like /admin. On Default nothing changes.
+    // Tiles in Admin+'s own look (Beta), like /admin, under a Profile card. On
+    // Default nothing changes: the body is the plain lines, as it always was.
     return menu(player, {
         title: hubTitle("ranks", "Menu"),
         body: statsLines(player).join("\n"),
+        profile: profileLines(player).join("\n"),
         buttons,
         layout: "tiles"
     })

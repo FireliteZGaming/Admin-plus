@@ -30,6 +30,17 @@ const sw = (key, label, detail) => ({ key, kind: "toggle", label, detail })
 /** A number on a slider. The shipped default must sit inside min and max. */
 const num = (key, label, detail, min, max, step = 1) => ({ key, kind: "slider", label, detail, min, max, step })
 
+/**
+ * A page's or a field's words in the look being shown. A thing whose meaning
+ * changed in Beta carries betaLabel, betaHint or betaDetail (2.12.3: name
+ * effects come from Personalization there, not from a rank's Basics); Default
+ * keeps its own words exactly.
+ */
+const inLook = (thing, key) => {
+    const beta = thing[`beta${key[0].toUpperCase()}${key.slice(1)}`]
+    return isBeta() && beta !== undefined ? beta : thing[key]
+}
+
 /** Where per-rank numbers live, for the pages whose limits are set on a rank. */
 const PER_RANK = "How many each rank gets is set on the rank: Ranks ▸ a rank ▸ Permissions ▸ Member ▸ Limits."
 
@@ -134,8 +145,13 @@ export const GROUPS = [
             { label: "Names above heads", hint: "Off leaves nametags to the game or another mod", fields: [sw("feature.nametags", "Names above heads", "Off: Admin+ never changes nametags, and puts every name back to the gamertag once")] },
             {
                 label: "Name colours", hint: "A colour or moving effect, set per rank",
+                betaLabel: "Name effects", betaHint: "Each player picks their own in /menu",
                 fields: [
-                    sw("feature.namecolour", "Name colours", "A colour or moving effect on names, set in each rank's Basics"),
+                    {
+                        ...sw("feature.namecolour", "Name colours", "A colour or moving effect on names, set in each rank's Basics"),
+                        betaLabel: "Name effects",
+                        betaDetail: "Colours that move along names. Players pick their own in /menu ▸ Personalization; a rank's Name effect switch decides who may."
+                    },
                     num("namecolour.speed", "Speed of moving colours", "1 is fastest, 10 is slow", 1, 10)
                 ]
             }
@@ -285,7 +301,7 @@ export async function groupScreen(player, group, back) {
         buttons: [
             // A Beta page (badges) shows only when the slider is on Beta.
             ...group.pages.filter(page => !page.beta || isBeta()).map(page => ({
-                text: hubEntry("settings", page.label, `${stateOf(page)}${page.hint}`),
+                text: hubEntry("settings", inLook(page, "label"), `${stateOf(page)}${inLook(page, "hint")}`),
                 run: () => pageScreen(player, page, again)
             })),
             ...(group.extra?.(player, again) ?? [])
@@ -303,13 +319,15 @@ export async function groupScreen(player, group, back) {
  */
 export async function pageScreen(player, page, back) {
     const fields = page.fields.map((field, i) => {
-        const extra = [field.detail ? `§8${field.detail}` : "", i === 0 && page.note ? `§8${page.note}` : ""].filter(Boolean)
-        const label = [field.label, ...extra].join("\n")
+        const detail = inLook(field, "detail")
+        const extra = [detail ? `§8${detail}` : "", i === 0 && page.note ? `§8${page.note}` : ""].filter(Boolean)
+        const label = [inLook(field, "label"), ...extra].join("\n")
         return field.kind === "toggle"
             ? { id: field.key, type: "toggle", label, default: flag(field.key) }
             : { id: field.key, type: "slider", label, min: field.min, max: field.max, step: field.step, default: shownNumber(field) }
     })
-    const values = await modal(player, hubTitle("settings", page.label), fields)
+    const title = inLook(page, "label")
+    const values = await modal(player, hubTitle("settings", title), fields)
     if (!values) return back()
 
     // What the settings were, so Logs can undo this like any other config edit.
@@ -324,13 +342,14 @@ export async function pageScreen(player, page, back) {
             setSetting(field.key, raw ? "true" : "false")
             // "Teleport requests: off", not "Teleport requests: Teleport requests off".
             const state = raw ? "§aon" : "§8off"
-            changed.push(field.label === page.label ? state : `${field.label} ${state}`)
+            const said = inLook(field, "label")
+            changed.push(said === title ? state : `${said} ${state}`)
         } else {
             // Unmoved means unchanged, even when the stored value sits outside
             // the slider and was shown clamped.
             if (Number(raw) === shownNumber(field)) continue
             setSetting(field.key, String(raw))
-            changed.push(`${field.label}: §f${raw}`)
+            changed.push(`${inLook(field, "label")}: §f${raw}`)
         }
     }
 
@@ -344,8 +363,8 @@ export async function pageScreen(player, page, back) {
         }
     }
 
-    record(player, "config.edit", undefined, `${page.label}: ${changed.join(", ").replace(/§./g, "")}`,
+    record(player, "config.edit", undefined, `${title}: ${changed.join(", ").replace(/§./g, "")}`,
         { kind: "config", overrides: previous })
-    ok(player, `${page.label}: §r${changed.join("§a, §r")}§a.`)
+    ok(player, `${title}: §r${changed.join("§a, §r")}§a.`)
     return back()
 }
