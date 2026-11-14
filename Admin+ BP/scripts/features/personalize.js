@@ -73,7 +73,8 @@ function preview(player, codes) {
 }
 
 function describe(codes) {
-    if (!codes.length) return "off"
+    // "off" belongs to the Settings switch; here it means none picked yet.
+    if (!codes.length) return "no colours yet"
     if (codes.length === 1) return "one still colour"
     return `shifting through ${codes.length} colours`
 }
