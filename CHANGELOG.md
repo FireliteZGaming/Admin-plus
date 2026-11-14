@@ -56,6 +56,80 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.12.7 — 2026-11-14
+
+**Server settings overhauled: one page per group, every setting in its place,
+and < Code > written as JavaScript. In Beta.**
+
+The user: "it just feels like an absurd list of buttons that can be edited,
+which is what confuses people and is what would need an Overhaul", and for
+< Code >: "we actually make that JavaScript too, instead of how it is now".
+Default keeps its Settings, Advanced and < Code > as they were, apart from the
+fixes at the end.
+
+1. **Each Settings group is one page.** Server ▸ Settings ▸ Chat (and every
+   other group) opens as one page with a bold section for each thing in it,
+   like + New rank's permissions, and a Save button. The way to the chat
+   rooms moved to the Settings list, because a page of settings can't hold a
+   button.
+2. **Every setting has one home.** The 36 settings only Every setting or
+   < Code > could change are on the page they belong to:
+   1. Chat: how a chat line, a broadcast, a private message, an emote, and
+      the join, leave and greeting lines look.
+   2. Names and tags: how a rank tag looks, its brackets, what goes between
+      two tags, the tag for a player with no rank, and the name above heads.
+   3. Moderation: how many chat lines and commands the logs keep, what lag
+      clear never clears, the staff action line, and the /invsee icon nudge.
+   4. Automod ▸ Checks: how far apart ores still count as one vein, how long
+      before a vein is reported, the watched ores, and the break rate. The
+      chat flooding numbers join them when chat automod comes off hold.
+   5. Automod ▸ Chat screening: the four word lists, the words never
+      flagged, and how many held messages are kept.
+   6. Three stay in < Code > alone: the creator's own name, the Creator & Dev
+      console, and the rank permission editor's style.
+3. **Every setting is gone** from Server ▸ Advanced, since it only repeated
+   the pages. Advanced is Saved setups, < Code > and Factory reset.
+4. **Realm, Strict and Quiet are gone, in both looks.** The user: "it even
+   has a preset somewhere like quiet, idk why we have that thing, shouldn't
+   actually exist". A world's own saved setups stay. In Beta, Vanilla is
+   **Back to defaults**: it counts the settings it will change and asks first.
+5. **< Code > is written as JavaScript:** `const settings = { spawn: {
+   radius: 16 } }`, one heading per group. Admin+ reads it and never runs it,
+   because code run there could do anything, past every rank rule. A mistake
+   names its line and saves nothing. The block's rules stay: a deleted line
+   goes back to its default, a value of the wrong kind keeps what it had and
+   names its line, an empty box saves nothing, and a name Admin+ doesn't use
+   asks first. Two are better than the block's: a chat line that lost {MSG}
+   keeps its own value instead of the default, and a group written twice in
+   one `{ }` is a mistake to fix, where JavaScript would drop the first.
+
+### Fixed, in both looks
+1. The gap between rank tags starts as one space, and a space read as the
+   number 0, so every save of Every setting ▸ Formatting or < Code > said
+   "Not a number, left as it was: format.tagJoin".
+2. The chat preview in Settings ▸ Chat showed `{BADGE}` and `{NICKNAME}` as
+   written.
+3. < Code >'s `preset =` line loaded nothing: the lines below it put every
+   value back. Checked against 2.12.6, where a setup with a 9-second warmup
+   left it at 2. Saying No to a name Admin+ doesn't use also no longer loads
+   the setup anyway, and Logs' undo goes back to before the setup.
+
+### Not checked
+Not seen in game. The long pages use the same labels and dividers as + New
+rank's permissions. The JavaScript is 3,889 characters, 11% longer than the
+block (3,507); the 2.0.0 playtest found the box slow at 7,467.
+
+### Checked
+1. `tests/settingspages.test.js` (62): every setting but the three has one
+   home; Default's pages are unchanged; Beta's pages, sections, Save, the
+   colour-code tip, saving, refusing a line without {MSG}, the space between
+   tags, a short reply saving nothing, Automod's sections, Advanced, Back to
+   defaults, and the fixed preview.
+2. `tests/jsconfig.test.js` (82): reading, text kept exactly, a line-numbered
+   message for each mistake, nothing ever run, the written document reading
+   back every setting exactly and fitting the editor, the save rules, setups,
+   and Default's block and its setup line.
+
 ## 2.12.6 — 2026-11-13
 
 **Admin+'s own look moves. In Beta.**

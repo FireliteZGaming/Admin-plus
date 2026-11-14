@@ -353,7 +353,8 @@ console.log("\n— the Badges page —")
     check("with the switch and the style", page?.fields.map(f => f.key), ["feature.badges", "badge.classic"])
     check("both settings can be changed from a page", ["feature.badges", "badge.classic"].every(k => settingKeys().includes(k)), true)
     await groupScreen(boss, names, () => {})
-    check("on Beta the page shows", buttonsOf(lastForm()).some(t => t.includes("Badges")), true)
+    // In Beta a group is one page in sections (2.12.7).
+    check("on Beta it is a section of the page", lastForm().parts.some(p => p[0] === "label" && String(p[1]).includes("§lBadges")), true)
     setBeta(false)
 }
 

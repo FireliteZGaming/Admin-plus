@@ -13,6 +13,7 @@ import { warpsScreen } from "./warps.js"
 import { claimsScreen } from "./claims.js"
 import { claimLimit } from "../core/claims.js"
 import { flag } from "../core/settings.js"
+import { isBeta } from "../core/channel.js"
 import { reportsScreen, reportsBadge, reportsTile } from "./reports.js"
 import { openLogs } from "./logbook.js"
 import { settingsScreen } from "./settingsUI.js"
@@ -146,7 +147,7 @@ function serverButtons(player, back) {
             ? { text: hubButton("presets", "Server presets", "Coming soon · suggest ideas on the Discord"), run: () => serverPresetsScreen(player, back) }
             : null,
         settings || canUseCode(player)
-            ? { text: hubButton("settings", "Advanced", "Every setting, saved setups and reset"), run: () => advancedScreen(player, back) }
+            ? { text: hubButton("settings", "Advanced", isBeta() ? "Saved setups, < Code > and reset" : "Every setting, saved setups and reset"), run: () => advancedScreen(player, back) }
             : null
     ].filter(Boolean)
 }
@@ -164,21 +165,28 @@ async function serverScreen(player, back) {
 // Fine-tuning that most servers never need, kept out of the way. Factory reset
 // also needs OPERATOR, because it wipes all of Admin+ (2.9.3); its own screen
 // checks again and asks twice.
+//
+// Beta has no Every setting (2.12.7, the user: "an absurd list of buttons that
+// can be edited, which is what confuses people"). Every setting it listed now
+// sits on its own page in Settings or Automod, so it only repeated them.
 async function advancedScreen(player, back) {
     const again = () => advancedScreen(player, back)
     const settings = has(player, "admin.settings")
+    const beta = isBeta()
     return menu(player, {
         title: hubTitle("settings", "Advanced"),
-        body: subtitle("For fine-tuning. Most servers never need these."),
+        body: subtitle(beta
+            ? "Saved setups, every setting as code, and a factory reset.\nMost servers never need these."
+            : "For fine-tuning. Most servers never need these."),
         buttons: [
-            settings
+            settings && !beta
                 ? { text: hubEntry("settings", "Every setting", "Change any setting, one at a time"), run: () => allValuesScreen(player, again) }
                 : null,
             settings
-                ? { text: hubEntry("presets", "Saved setups", "Save your settings, or load a saved set"), run: () => configPresetsScreen(player, again) }
+                ? { text: hubEntry("presets", "Saved setups", beta ? "Save your settings as a setup, load one, or go back to the defaults" : "Save your settings, or load a saved set"), run: () => configPresetsScreen(player, again) }
                 : null,
             canUseCode(player)
-                ? { text: hubEntry("code", "< Code >", "Edit every setting as text"), run: () => codeScreen(player, again) }
+                ? { text: hubEntry("code", "< Code >", beta ? "Every setting, written as JavaScript" : "Edit every setting as text"), run: () => codeScreen(player, again) }
                 : null,
             settings && hasOperator(player)
                 ? { text: hubEntry("actions", "Factory reset", "Wipe Admin+ and start over like new"), run: () => factoryResetScreen(player, again) }

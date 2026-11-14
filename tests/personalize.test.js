@@ -237,8 +237,11 @@ console.log("\n— a rank's Basics has no Name colour in Beta —")
     check("on Default, Names and tags still says Name colours", buttonsOf(lastForm()).map(plain).some(t => t.startsWith("Name colours\n")), true)
     setBeta(true)
     await groupScreen(boss, names, () => {})
-    const row = buttonsOf(lastForm()).map(plain).find(t => t.startsWith("Name effects\n"))
-    check("in Beta it says Name effects, picked in /menu", row?.endsWith("Each player picks their own in /menu"), true)
+    // In Beta a group is one page in sections (2.12.7).
+    const parts = lastForm().parts
+    check("in Beta its section says Name effects", parts.some(p => p[0] === "label" && plain(p[1]) === "Name effects"), true)
+    const toggle = parts.find(p => p[0] === "toggle" && plain(p[1]).startsWith("Name effects\n"))
+    check("and its switch says players pick their own in /menu", plain(toggle?.[1]).includes("Players pick their own in /menu"), true)
 }
 
 console.log(`\n${passed} passed, ${failed} failed`)

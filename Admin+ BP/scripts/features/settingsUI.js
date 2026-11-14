@@ -1,9 +1,10 @@
-import { world } from "@minecraft/server"
-import { menu, modal, subtitle } from "../core/ui.js"
+import { world, system } from "@minecraft/server"
+import { menu, modal, subtitle, INCOMPLETE } from "../core/ui.js"
 import { hubTitle, hubButton, hubEntry } from "../core/theme.js"
-import { ok, info } from "../core/util.js"
-import { setting, setSetting, flag, overrides, DEFAULTS } from "../core/settings.js"
-import { has } from "../core/ranks.js"
+import { ok, info, err } from "../core/util.js"
+import { flag, overrides } from "../core/settings.js"
+import { sw, num, txt, fieldFor, applyField } from "../core/settingFields.js"
+import { has, refreshNameTag } from "../core/ranks.js"
 import { record } from "../core/logs.js"
 import { channelsScreen } from "./chatUI.js"
 import { previewLine } from "./code.js"
@@ -18,17 +19,19 @@ import { isBeta } from "../core/channel.js"
 //
 // So each group's button lists what is inside it, and each thing has ONE page
 // holding everything about it: Teleport requests is its switch AND how long a
-// request lasts. The rarely touched values (text formats, log sizes, filter
-// word lists) stay in Server ▸ Advanced ▸ Every setting.
+// request lasts.
+//
+// In Default a group is a list of pages, and the rarely touched values (text
+// formats, log sizes, word lists) stay in Server ▸ Advanced ▸ Every setting.
+// In Beta (2.12.7, the user: "it just feels like an absurd list of buttons that
+// can be edited, which is what confuses people") a group is ONE page in
+// sections, like + New rank's permissions, and those values sit in the section
+// they belong to: how a chat line looks is in Chat. Fields and pages marked
+// `beta` show only there, so Default stays exactly as it was.
 //
 // A page only writes what was changed. A slider showing a value clamped into
 // its range writes nothing unless it was moved, so a number set out of range
 // in Advanced is never quietly rewritten by opening this page.
-
-/** A switch. */
-const sw = (key, label, detail) => ({ key, kind: "toggle", label, detail })
-/** A number on a slider. The shipped default must sit inside min and max. */
-const num = (key, label, detail, min, max, step = 1) => ({ key, kind: "slider", label, detail, min, max, step })
 
 /**
  * A page's or a field's words in the look being shown. A thing whose meaning
@@ -41,8 +44,18 @@ const inLook = (thing, key) => {
     return isBeta() && beta !== undefined ? beta : thing[key]
 }
 
+/** A field that shows only in Beta (2.12.7): it used to be in Every setting alone. */
+const beta = field => ({ ...field, beta: true })
+
 /** Where per-rank numbers live, for the pages whose limits are set on a rank. */
 const PER_RANK = "How many each rank gets is set on the rank: Ranks ▸ a rank ▸ Permissions ▸ Member ▸ Limits."
+
+/** What the words in braces mean, for the pages that hold chat lines. */
+const TOKENS = "Words in braces are filled in for each line: {NICKNAME} is the display name, {NAME} the gamertag, {TAG} the rank tags, {BADGE} the badge, {MSG} the message."
+
+/** The two rules a line must keep (settingProblem in core/settings.js). */
+const KEEPS_BOTH = "Must keep {MSG}, and {NAME} or {NICKNAME}."
+const KEEPS_NAME = "Must keep {NAME} or {NICKNAME}."
 
 export const GROUPS = [
     {
@@ -97,6 +110,7 @@ export const GROUPS = [
         id: "chat",
         label: "Chat",
         hint: "Admin+ chat, chat rooms, private messages, emotes, join and leave lines",
+        betaHint: "Admin+ chat, how chat lines look, chat rooms, private messages, emotes, join and leave",
         body: "What players type and read.",
         preview: true,
         pages: [
@@ -104,14 +118,40 @@ export const GROUPS = [
                 label: "Admin+ chat", hint: "Off hands chat to the game or another mod",
                 fields: [sw("feature.adminchat", "Admin+ chat", "Off: chat is left to the game or another mod. No chat rooms, tags or screening in chat. Mutes still work, and chat is still logged.")]
             },
+            {
+                label: "Chat lines", hint: "How a chat line and a broadcast look", beta: true, note: TOKENS,
+                fields: [
+                    txt("format.chat", "Chat line", `${KEEPS_BOTH} Also: {BADGE} {TAG} {RANK}`, true),
+                    txt("format.chatChannel", "Chat line for players who read several rooms", `{CHANNEL} is the room. ${KEEPS_BOTH}`, true),
+                    txt("format.broadcast", "Broadcast line", "{MSG} is the broadcast, {NICKNAME} who sent it", true)
+                ]
+            },
             { label: "Chat rooms", hint: "Off means one chat for everyone", fields: [sw("feature.chat", "Chat rooms", "Separate chats, such as one for staff. Off means one chat for everyone.")] },
-            { label: "Private messages", hint: "/pm, /r and /prchat", fields: [sw("feature.pm", "Private messages", "/pm, /r and /prchat")] },
-            { label: "Emotes", hint: "/emote", fields: [sw("feature.emote", "Emotes", "/emote: an action line, like * Steve waves")] },
+            {
+                label: "Private messages", hint: "/pm, /r and /prchat",
+                fields: [
+                    sw("feature.pm", "Private messages", "/pm, /r and /prchat"),
+                    beta(txt("format.pmOut", "A message you sent", `{NICKNAME} is who you sent it to. ${KEEPS_BOTH}`, true)),
+                    beta(txt("format.pmIn", "A message you received", `{NICKNAME} is who sent it. ${KEEPS_BOTH}`, true)),
+                    beta(txt("format.prchat", "A line in a private chat (/prchat)", "{PAIR} is both names, {NICKNAME} whoever spoke", true)),
+                    beta(txt("format.spy", "Social spy line", "Only staff with Social spy on see it. {FROM} sent {MSG} to {TO}", true))
+                ]
+            },
+            {
+                label: "Emotes", hint: "/emote",
+                fields: [
+                    sw("feature.emote", "Emotes", "/emote: an action line, like * Steve waves"),
+                    beta(txt("format.emote", "Emote line", KEEPS_BOTH, true))
+                ]
+            },
             {
                 label: "Join and leave", hint: "Who joined and left, and a hello for newcomers",
                 fields: [
                     sw("presence.announce", "Show join and leave lines", "Admin+ shows them instead of the game's"),
-                    sw("presence.greet", "Greet newcomers", "One line, a few seconds after they join, that only they see")
+                    beta(txt("format.join", "Join line", KEEPS_NAME, true)),
+                    beta(txt("format.leave", "Leave line", `/vanish shows it too, so vanishing looks like leaving. ${KEEPS_NAME}`, true)),
+                    sw("presence.greet", "Greet newcomers", "One line, a few seconds after they join, that only they see"),
+                    beta(txt("format.greeting", "Greeting line", "Empty sends nothing", true))
                 ]
             }
         ],
@@ -124,13 +164,20 @@ export const GROUPS = [
         id: "names",
         label: "Names and tags",
         hint: "Rank tags, cosmetic ranks, names above heads, name colours",
+        betaHint: "Rank tags and how they look, cosmetic ranks, badges, names above heads, name effects",
         body: "How names and rank tags look, in chat and above heads.",
+        betaPreview: true,
         pages: [
             {
                 label: "Rank tags", hint: "Tags like [Mod] in chat and above heads",
                 fields: [
                     sw("feature.ranktags", "Rank tags", "Off: no rank tags shown. Ranks still decide what people can use."),
-                    num("format.tagCount", "How many tags show at once", "0 shows every one they have", 0, 5)
+                    num("format.tagCount", "How many tags show at once", "0 shows every one they have", 0, 5),
+                    beta(txt("format.tag", "How one tag looks", "{OPEN} and {CLOSE} are the brackets below, {RANK} the rank's name", true)),
+                    beta(txt("bracket.open", "Opening bracket", "", true)),
+                    beta(txt("bracket.close", "Closing bracket", "", true)),
+                    beta(txt("format.tagJoin", "Between two tags", "A space to start with. Empty puts them side by side")),
+                    beta(txt("format.noRankTag", "Tag for a player with no rank", "Empty shows nothing", true))
                 ]
             },
             { label: "Cosmetic ranks", hint: "Show the tags of cosmetic ranks", fields: [sw("feature.tags", "Cosmetic ranks", "Show the tags of cosmetic ranks, beside the rank tag")] },
@@ -142,10 +189,16 @@ export const GROUPS = [
                     sw("badge.classic", "Classic style", "Coloured squares instead of Admin+'s dark tiles")
                 ]
             },
-            { label: "Names above heads", hint: "Off leaves nametags to the game or another mod", fields: [sw("feature.nametags", "Names above heads", "Off: Admin+ never changes nametags, and puts every name back to the gamertag once")] },
+            {
+                label: "Names above heads", hint: "Off leaves nametags to the game or another mod",
+                fields: [
+                    sw("feature.nametags", "Names above heads", "Off: Admin+ never changes nametags, and puts every name back to the gamertag once"),
+                    beta(txt("format.nameTag", "How a name above a head looks", `${KEEPS_NAME} Type \\n to put the tag on a line above the name.`, true))
+                ]
+            },
             {
                 label: "Name colours", hint: "A colour or moving effect, set per rank",
-                betaLabel: "Name effects", betaHint: "Each player picks their own in /menu",
+                betaLabel: "Name effects",
                 fields: [
                     {
                         ...sw("feature.namecolour", "Name colours", "A colour or moving effect on names, set in each rank's Basics"),
@@ -176,7 +229,13 @@ export const GROUPS = [
                     sw("vanish.nightVision", "Night vision while vanished", "")
                 ]
             },
-            { label: "Inventory viewing", hint: "How /invsee draws an inventory", fields: [sw("invsee.chestUI", "Show inventories as a chest grid", "Off gives a plain list")] },
+            {
+                label: "Inventory viewing", hint: "How /invsee draws an inventory",
+                fields: [
+                    sw("invsee.chestUI", "Show inventories as a chest grid", "Off gives a plain list"),
+                    beta(num("invsee.iconOffset", "Icon nudge", "Only if every icon in the grid is off by the same number of places. Too far right by 2: set -2.", -20, 20))
+                ]
+            },
             {
                 label: "Lag clear", hint: "What a lag clear removes",
                 fields: [
@@ -184,19 +243,28 @@ export const GROUPS = [
                     sw("cleanup.xp", "XP orbs", ""),
                     sw("cleanup.projectiles", "Spent arrows and tridents", ""),
                     sw("cleanup.fallingBlocks", "Falling sand and gravel", ""),
-                    num("cleanup.warn", "Countdown before it clears, in seconds", "0 clears at once", 0, 30)
+                    num("cleanup.warn", "Countdown before it clears, in seconds", "0 clears at once", 0, 30),
+                    beta(txt("cleanup.keep", "Items it never clears", "Separated by commas, and part of a name is enough. Empty keeps the built-in list of valuables."))
                 ]
             },
             {
                 label: "Logs", hint: "What gets written down",
                 fields: [
                     sw("logs.chat", "Chat log", ""),
+                    beta(num("logs.chatCap", "Chat lines kept", "The oldest go first", 50, 1000, 50)),
                     sw("logs.commands", "Command log", ""),
+                    beta(num("logs.commandCap", "Commands kept", "The oldest go first", 50, 1000, 50)),
                     sw("logs.signs", "What is written on signs", ""),
                     sw("logs.commandBlocks", "Who places and breaks command blocks", "")
                 ]
             },
-            { label: "Staff announcements", hint: "Staff see what other staff do", fields: [sw("audit.announce", "Announce staff actions", "Seen only by staff who outrank the target, never by the target")] },
+            {
+                label: "Staff announcements", hint: "Staff see what other staff do",
+                fields: [
+                    sw("audit.announce", "Announce staff actions", "Seen only by staff who outrank the target, never by the target"),
+                    beta(txt("format.command", "Staff action line", `{ACTION} is the whole sentence, like Banned Steve. ${KEEPS_NAME}`, true))
+                ]
+            },
             {
                 label: "Staff items and pranks", hint: "The Ender Eye, the knockback stick, smite",
                 fields: [
@@ -262,13 +330,9 @@ export function settingKeys() {
     return GROUPS.flatMap(group => group.pages.flatMap(page => page.fields.map(field => field.key)))
 }
 
-/** A number kept inside its slider's range, for showing on the slider. */
-function shownNumber(field) {
-    const stored = Number(setting(field.key))
-    const fallback = Number(DEFAULTS[field.key]?.value ?? field.min)
-    const value = Number.isFinite(stored) ? stored : fallback
-    return Math.min(field.max, Math.max(field.min, value))
-}
+/** The pages and fields shown in the look being shown: Beta ones only in Beta. */
+export const pagesIn = group => group.pages.filter(page => !page.beta || isBeta())
+export const fieldsIn = page => page.fields.filter(field => !field.beta || isBeta())
 
 /** On or off, for the page's button. Only pages led by a feature switch have one. */
 function stateOf(page) {
@@ -277,20 +341,35 @@ function stateOf(page) {
     return flag(first.key) ? "§aon§8 · " : "§coff§8 · "
 }
 
+/** A field's words: its label, then its detail in grey. */
+function labelOf(field, extra = []) {
+    const detail = inLook(field, "detail")
+    return [inLook(field, "label"), detail ? `§8${detail}` : "", ...extra].filter(Boolean).join("\n")
+}
+
 export async function settingsScreen(player, back) {
     const again = () => settingsScreen(player, back)
+    const beta = isBeta()
     return menu(player, {
         title: hubTitle("settings", "Settings"),
-        body: subtitle("Everything you can switch on or off, in groups.\nEach group says what is in it."),
-        buttons: GROUPS.map(group => ({
-            text: hubButton("settings", group.label, group.hint),
-            run: () => groupScreen(player, group, again)
-        })),
+        body: beta
+            ? subtitle("Every setting, in groups.\nEach group is one page, with a section for each thing in it.")
+            : subtitle("Everything you can switch on or off, in groups.\nEach group says what is in it."),
+        buttons: [
+            ...GROUPS.map(group => ({
+                text: hubButton("settings", group.label, inLook(group, "hint")),
+                run: () => groupScreen(player, group, again)
+            })),
+            // A group is one form in Beta, and a form holds no buttons, so the
+            // way to the chat rooms moves here.
+            ...(beta ? GROUPS.flatMap(group => group.extra?.(player, again) ?? []) : [])
+        ],
         back
     })
 }
 
 export async function groupScreen(player, group, back) {
+    if (isBeta()) return groupPageScreen(player, group, back)
     const again = () => groupScreen(player, group, back)
     return menu(player, {
         title: hubTitle("settings", group.label),
@@ -300,7 +379,7 @@ export async function groupScreen(player, group, back) {
         ].filter(Boolean).join("\n"),
         buttons: [
             // A Beta page (badges) shows only when the slider is on Beta.
-            ...group.pages.filter(page => !page.beta || isBeta()).map(page => ({
+            ...pagesIn(group).map(page => ({
                 text: hubEntry("settings", inLook(page, "label"), `${stateOf(page)}${inLook(page, "hint")}`),
                 run: () => pageScreen(player, page, again)
             })),
@@ -311,56 +390,88 @@ export async function groupScreen(player, group, back) {
 }
 
 /**
- * One thing and everything about it, as a form.
+ * One thing and everything about it, as a form. Default's page.
  *
  * A page's note (where its per-rank numbers live) rides on the first field's
  * label. A ModalForm label element would shift every answer after it by one,
- * which is why the forms in this pack never use one.
+ * which is why this page never uses one.
  */
 export async function pageScreen(player, page, back) {
-    const fields = page.fields.map((field, i) => {
-        const detail = inLook(field, "detail")
-        const extra = [detail ? `§8${detail}` : "", i === 0 && page.note ? `§8${page.note}` : ""].filter(Boolean)
-        const label = [inLook(field, "label"), ...extra].join("\n")
-        return field.kind === "toggle"
-            ? { id: field.key, type: "toggle", label, default: flag(field.key) }
-            : { id: field.key, type: "slider", label, min: field.min, max: field.max, step: field.step, default: shownNumber(field) }
-    })
+    const shown = fieldsIn(page)
+    const fields = shown.map((field, i) => fieldFor(field, labelOf(field, i === 0 && page.note ? [`§8${page.note}`] : [])))
     const title = inLook(page, "label")
     const values = await modal(player, hubTitle("settings", title), fields)
     if (!values) return back()
 
     // What the settings were, so Logs can undo this like any other config edit.
     const previous = overrides()
-    const changed = []
-    for (const field of page.fields) {
-        const raw = values[field.key]
-        // An unanswered field keeps what it had; see submittedValue in code.js.
-        if (raw === undefined) continue
-        if (field.kind === "toggle") {
-            if (!!raw === flag(field.key)) continue
-            setSetting(field.key, raw ? "true" : "false")
-            // "Teleport requests: off", not "Teleport requests: Teleport requests off".
-            const state = raw ? "§aon" : "§8off"
-            const said = inLook(field, "label")
-            changed.push(said === title ? state : `${said} ${state}`)
-        } else {
-            // Unmoved means unchanged, even when the stored value sits outside
-            // the slider and was shown clamped.
-            if (Number(raw) === shownNumber(field)) continue
-            setSetting(field.key, String(raw))
-            changed.push(`${inLook(field, "label")}: §f${raw}`)
-        }
+    const result = { moved: [], changed: [], refused: [] }
+    for (const field of shown) {
+        // "Teleport requests: off", not "Teleport requests: Teleport requests off".
+        const said = inLook(field, "label")
+        save(result, field, values[field.key], field.kind === "toggle" && said === title ? "" : said)
+    }
+    return saved(player, title, result, previous, back)
+}
+
+/** Save one answer into the running result. */
+function save(result, field, raw, said) {
+    const answer = applyField(field, raw, said)
+    if (answer.words) { result.moved.push(field); result.changed.push(answer.words) }
+    if (answer.refused) result.refused.push(answer.refused)
+}
+
+/**
+ * Beta's group page (2.12.7): every page of the group as a section of one
+ * form, the way + New rank lists its permissions. A bold label and a divider
+ * start each section; a section's note is a line of its own.
+ *
+ * `strict`: answers are matched to fields by position, so a reply that came
+ * back short would save the wrong values. It saves nothing instead.
+ */
+export async function groupPageScreen(player, group, back) {
+    const pages = pagesIn(group)
+    const preview = inLook(group, "preview")
+    const fields = [{ type: "label", label: [subtitle(group.body), preview ? `§8A chat line looks like this: §r${previewLine()}` : ""].filter(Boolean).join("\n") }]
+    for (const page of pages) {
+        fields.push({ type: "divider" })
+        fields.push({ type: "label", label: `§l${inLook(page, "label")}§r${page.note ? `\n§8${page.note}` : ""}` })
+        for (const field of fieldsIn(page)) fields.push(fieldFor(field, labelOf(field)))
     }
 
-    if (!changed.length) { info(player, "Nothing changed."); return back() }
+    const values = await modal(player, hubTitle("settings", group.label), fields, { strict: true, submit: "Save" })
+    if (values === undefined) return back()
+    if (values === INCOMPLETE) {
+        err(player, "Not every setting came back from the game, so nothing was saved. Try again.")
+        return back()
+    }
+
+    const previous = overrides()
+    const result = { moved: [], changed: [], refused: [] }
+    for (const field of pages.flatMap(fieldsIn)) save(result, field, values[field.key], inLook(field, "label"))
+    return saved(player, group.label, result, previous, back)
+}
+
+/** The end of every save: what was refused, what moved, and the log line. */
+function saved(player, title, { moved, changed, refused }, previous, back) {
+    if (refused.length) err(player, refused.join("\n"))
+    if (!changed.length) {
+        if (!refused.length) info(player, "Nothing changed.")
+        return back()
+    }
 
     // Handing nametags back: put every name back to the plain gamertag once,
-    // so the last thing Admin+ wrote does not stay up there for good.
-    if (page.fields.some(f => f.key === "feature.nametags") && values["feature.nametags"] === false && !flag("feature.nametags")) {
+    // so the last thing Admin+ wrote does not stay up there for good. Only
+    // when the switch itself went off: with it already off, another mod may
+    // be drawing them.
+    if (moved.some(f => f.key === "feature.nametags") && !flag("feature.nametags")) {
         for (const p of world.getAllPlayers()) {
             try { p.nameTag = p.name } catch { /* left mid-loop */ }
         }
+    }
+    // A new tag or name format shows at once, not on the next 5-second pass.
+    if (moved.some(f => f.kind === "text")) {
+        system.run(() => { for (const p of world.getAllPlayers()) refreshNameTag(p) })
     }
 
     record(player, "config.edit", undefined, `${title}: ${changed.join(", ").replace(/§./g, "")}`,

@@ -1,10 +1,12 @@
 import { world, system } from "@minecraft/server"
-import { modal } from "../core/ui.js"
+import { modal, INCOMPLETE } from "../core/ui.js"
 import { hubTitle } from "../core/theme.js"
 import { CHAT_AUTOMOD_ON_HOLD } from "../core/hold.js"
-import { ok, err } from "../core/util.js"
+import { ok, err, info } from "../core/util.js"
 import { has, isStaff } from "../core/ranks.js"
-import { setSetting, flag, setting } from "../core/settings.js"
+import { setSetting, flag, setting, overrides } from "../core/settings.js"
+import { sw, num, txt, fieldFor, applyField } from "../core/settingFields.js"
+import { isBeta } from "../core/channel.js"
 import { record } from "../core/logs.js"
 import {
     config, noteOre, noteBreak, noteChat, drainFinishedVeins,
@@ -258,8 +260,79 @@ export function shownChecks() {
     return CHECKS.filter(check => !(CHAT_AUTOMOD_ON_HOLD && check.id === "spam"))
 }
 
+/**
+ * Beta (2.12.7): each check is a section with its own numbers under its
+ * switch. They were in Server ▸ Advanced ▸ Every setting alone, which the
+ * user wanted gone. Each default sits inside its slider, on a step.
+ */
+export const CHECK_PAGES = {
+    ores: {
+        title: "Ore alerts",
+        fields: [
+            sw("automod.ores", "Ore alerts", "One alert per vein, whatever its size"),
+            num("automod.veinRadius", "Blocks apart that still count as one vein", "", 1, 16),
+            num("automod.veinIdle", "Seconds with no new find before a vein is reported", "", 2, 60),
+            txt("automod.oreThresholds", "Ores it watches, and how big a vein alerts", "Ore and size pairs, like diamond_ore:3, ancient_debris:2. Empty uses the built-in list.")
+        ]
+    },
+    breaks: {
+        title: "Fast breaking",
+        fields: [
+            sw("automod.breaks", "Fast breaking", "Flags mining faster than the number below"),
+            num("automod.breakRate", "Blocks a second before it flags", "Keep this high: TNT and Efficiency V break blocks fast without cheating", 5, 100, 5)
+        ]
+    },
+    spam: {
+        title: "Chat flooding",
+        fields: [
+            sw("automod.spam", "Chat flooding", "Counts messages, then warns and mutes"),
+            num("automod.spamRate", "Messages in 10 seconds before they're told they're typing fast", "No strike, and nothing is recorded", 2, 30),
+            num("automod.spamHard", "Messages in 10 seconds that count as spam", "Each strike is punished harder. Always at least one more than typing fast.", 3, 40),
+            txt("automod.spamLadder", "Mute for each strike, in seconds", "In order, separated by commas. 0 is a warning only, and the last one repeats."),
+            num("automod.spamForget", "Minutes with no strike before strikes go back to zero", "", 5, 240, 5)
+        ]
+    }
+}
+
+/** A field's words: its label, then its detail in grey. */
+const labelOf = field => [field.label, field.detail ? `§8${field.detail}` : ""].filter(Boolean).join("\n")
+
+/** Beta's Checks: one page, a section per check (CHECK_PAGES). */
+async function checksPageScreen(player, back) {
+    const pages = shownChecks().map(check => CHECK_PAGES[check.id])
+    const fields = []
+    for (const page of pages) {
+        if (fields.length) fields.push({ type: "divider" })
+        fields.push({ type: "label", label: `§l${page.title}§r` })
+        for (const field of page.fields) fields.push(fieldFor(field, labelOf(field)))
+    }
+    const values = await modal(player, hubTitle("settings", "Automod checks"), fields, { strict: true, submit: "Save" })
+    if (values === undefined) return back()
+    if (values === INCOMPLETE) {
+        err(player, "Not every setting came back from the game, so nothing was saved. Try again.")
+        return back()
+    }
+
+    const previous = overrides()
+    const changed = [], refused = []
+    for (const field of pages.flatMap(page => page.fields)) {
+        const answer = applyField(field, values[field.key], field.label)
+        if (answer.words) changed.push(answer.words)
+        if (answer.refused) refused.push(answer.refused)
+    }
+    if (refused.length) err(player, refused.join("\n"))
+    if (!changed.length) {
+        if (!refused.length) info(player, "Nothing changed.")
+        return back()
+    }
+    record(player, "automod.config", undefined, changed.join(" · ").replace(/§./g, ""), { kind: "config", overrides: previous })
+    ok(player, `Automod: §r${changed.join("§a, §r")}§a.`)
+    return back()
+}
+
 export async function automodScreen(player, back) {
     if (!has(player, "admin.automod")) { err(player, "You can't change automod."); return back() }
+    if (isBeta()) return checksPageScreen(player, back)
 
     const checks = shownChecks()
     const before = Object.fromEntries(checks.map(check => [check.id, flag(check.key)]))

@@ -294,6 +294,34 @@ field, or (on a game that drew no labels) one per input.
   (`GROUPS` in `features/settingsUI.js`). Each thing has ONE page with its
   switch and its numbers ("Tpa... covers all Tpa things"). A new feature switch
   gets a page there; `tests/config.test.js` fails until it does.
+- **The server settings overhaul (2.12.7, Beta, the user: "an absurd list of
+  buttons that can be edited, which is what confuses people").** In Beta a
+  Settings group is ONE page in sections (`groupPageScreen`: a bold label
+  and a divider per page, `strict`, Save), and every setting has one home:
+  the formats, word lists and fine-tuning numbers sit in their section as
+  fields marked `beta` (Default filters them out, so it stays as it was),
+  Automod ▸ Checks has `CHECK_PAGES`, Chat screening has `WORD_FIELDS` and
+  `HOLD_FIELD`. Only `creator.identity`, `creator.console` and
+  `ranks.permissionEditor` are < Code >-only. Beta's Advanced has no Every
+  setting, and Vanilla shows as "Back to defaults". Realm, Strict and Quiet
+  are gone in both looks ("shouldn't actually exist"). A switch, slider or
+  text box saves through `core/settingFields.js` (`fieldFor`, `applyField`:
+  unanswered keeps, unmoved writes nothing, a refused format says why, a
+  padded default such as the one-space `format.tagJoin` is never trimmed).
+  A new setting needs a home on a page; `tests/settingspages.test.js` fails
+  until it has one.
+- **< Code > is JavaScript in Beta (2.12.7, the user: "we actually make that
+  JavaScript too").** `const setup = "..."` and `const settings = { ... }`,
+  one heading per group (`toScript`/`fromScript` in `features/code.js`).
+  **It is read, never run:** `core/jsconfig.js` is a small reader (comments,
+  quotes, numbers, true/false, lists, objects, optional commas,
+  `settings.a.b = x`), and nothing in this pack may ever `eval`,
+  `new Function` or otherwise execute what a player typed, because it would
+  run with the pack's full power past every rank rule. A mistake names its
+  line and saves nothing; a name written twice in one `{ }` is a mistake
+  (JavaScript would drop the first). Save rules match the block's, and a
+  setup named in the document loads with changed lines on top
+  (`scriptResult`). Default keeps `key = value`. `tests/jsconfig.test.js`.
 - **A rank is Basics and Permissions (2.8.0, the user's own split, 2026-11-11),
   and it has a TYPE (2.8.1).** Basics: a TYPED name (`§` codes, never `&`: the user, 2026-11-12; Bold and
   Italic switches that read the codes and only rewrite them when flipped), a

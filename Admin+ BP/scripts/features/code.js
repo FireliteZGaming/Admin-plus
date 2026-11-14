@@ -4,9 +4,12 @@ import { canUseCode, hasOperator, DEV_TAG } from "../core/devgate.js"
 import { hubTitle, hubEntry, multilineTitle } from "../core/theme.js"
 import { ok, err, info } from "../core/util.js"
 import { refreshNameTag } from "../core/ranks.js"
-import { DEFAULTS, setting, overrides, replaceOverrides, settingProblem } from "../core/settings.js"
+import { DEFAULTS, setting, overrides, replaceOverrides, settingProblem, render, renderTag } from "../core/settings.js"
+import { typedText } from "../core/settingFields.js"
+import { readScript, writeScript } from "../core/jsconfig.js"
 import { allPresets, getPreset, detectPreset, applyPreset, savePresetFromCurrent } from "../core/configPresets.js"
 import { record } from "../core/logs.js"
+import { isBeta } from "../core/channel.js"
 import { factoryReset } from "./reset.js"
 
 // /admin ▸ < Code >
@@ -32,7 +35,8 @@ import { factoryReset } from "./reset.js"
 
 export async function codeScreen(player, back) {
     if (!canUseCode(player)) { err(player, "That section needs the Dev tag and operator status."); return back() }
-    return blockScreen(player, back)
+    // Beta writes the settings as JavaScript (2.12.7); Default keeps key = value.
+    return isBeta() ? scriptScreen(player, back) : blockScreen(player, back)
 }
 
 /** Custom is worth noticing, so it is the only one that is not grey. */
@@ -115,12 +119,14 @@ export function groupedKeys() {
  * Inferred rather than declared: the default never changes at runtime, so this
  * is stable, and it means the 39 entries in DEFAULTS did not all have to grow a
  * field to teach this screen something their default already says. A blank
- * default is text — "" is a legitimate empty list, not the number zero.
+ * default is text — "" is a legitimate empty list, not the number zero. So is
+ * one made of spaces (2.12.7): Number(" ") is 0 too, so the gap between two
+ * rank tags read as a number, and every save of it said "Not a number".
  */
 export function kindOf(key) {
     const value = DEFAULTS[key]?.value
     if (value === "true" || value === "false") return "bool"
-    if (value !== "" && value !== undefined && Number.isFinite(Number(value))) return "number"
+    if (value !== undefined && value.trim() !== "" && Number.isFinite(Number(value))) return "number"
     return "text"
 }
 
@@ -148,7 +154,7 @@ export function submittedValue(key, raw) {
 
     const text = kind === "bool"
         ? (raw ? "true" : "false")
-        : String(raw).trim()
+        : kind === "number" ? String(raw).trim() : typedText(key, raw)
 
     // A number that will not parse costs you that one number and nothing else.
     if (kind === "number" && !isNumeric(text)) {
@@ -240,6 +246,21 @@ async function groupScreen(player, group, keys, back) {
 
 // ------------------------------------------------------------------ presets
 
+/**
+ * How a setup is named on screen. Beta shows Vanilla as "Back to defaults"
+ * (2.12.7): with Realm, Strict and Quiet gone it is no longer one ready-made
+ * setup among others, only the way back to how Admin+ ships.
+ */
+export function shownSetup(id, preset) {
+    if (isBeta() && id === "vanilla") return { ...preset, label: "Back to defaults", description: "Every setting as Admin+ ships it" }
+    return preset
+}
+
+/** The setup in force, in words: "Defaults" in Beta, else its own name. */
+export function currentSetupName(current = detectPreset()) {
+    return isBeta() && current.id === "vanilla" ? "Defaults" : current.label
+}
+
 export async function configPresetsScreen(player, back) {
     const presets = allPresets()
     const current = detectPreset()
@@ -248,7 +269,7 @@ export async function configPresetsScreen(player, back) {
     return menu(player, {
         title: hubTitle("presets", "Saved setups"),
         body: [
-            `§fCurrently: §r${presetColour()}${current.label}`,
+            `§fCurrently: §r${presetColour()}${currentSetupName(current)}`,
             current.id === "custom"
                 ? "§8Custom means the settings match no saved setup."
                 : "§8Changing any setting makes this Custom.",
@@ -256,10 +277,13 @@ export async function configPresetsScreen(player, back) {
             "§8A setup only changes the settings it lists. The rest stay as they are."
         ].join("\n"),
         buttons: [
-            ...Object.entries(presets).map(([id, preset]) => ({
-                text: `${id === current.id ? "§a" : "§f"}${preset.label}${preset.custom ? " §8(saved here)" : ""}§r\n§8${preset.description}`,
-                run: () => applyScreen(player, id, again)
-            })),
+            ...Object.entries(presets).map(([id, raw]) => {
+                const preset = shownSetup(id, raw)
+                return {
+                    text: `${id === current.id ? "§a" : "§f"}${preset.label}${preset.custom ? " §8(saved here)" : ""}§r\n§8${preset.description}`,
+                    run: () => applyScreen(player, id, again)
+                }
+            }),
             { text: "§b+ Save the current settings as a setup", run: () => saveScreen(player, again) }
         ],
         back
@@ -269,6 +293,7 @@ export async function configPresetsScreen(player, back) {
 async function applyScreen(player, id, back) {
     const preset = getPreset(id)
     if (!preset) { err(player, "That setup no longer exists."); return back() }
+    if (isBeta() && id === "vanilla") return defaultsScreen(player, back)
 
     const keys = Object.keys(preset.values ?? {})
     const summary = keys.length
@@ -284,6 +309,29 @@ async function applyScreen(player, id, back) {
     restyleEveryone()
     record(player, "config.preset", undefined, `${preset.label} · ${touched} values`)
     ok(player, `Loaded §f${preset.label}§a. ${touched} setting${touched === 1 ? "" : "s"} changed.`)
+    return back()
+}
+
+/**
+ * Beta's Back to defaults. It says how many settings it will change, counted
+ * first: Vanilla's own line always said all 108 had changed.
+ */
+async function defaultsScreen(player, back) {
+    const differ = Object.keys(DEFAULTS).filter(key => setting(key) !== DEFAULTS[key].value)
+    if (!differ.length) { info(player, "Every setting is already at its default."); return back() }
+
+    const yes = await confirm(player, hubTitle("presets", "Back to defaults"), [
+        `Put ${differ.length === 1 ? "the 1 changed setting" : `all ${differ.length} changed settings`} back to how Admin+ ships them?`,
+        "",
+        "§8Your saved setups stay. Ranks, warps and everything else stay too."
+    ].join("\n"), "§ePut them back")
+    if (!yes) return back()
+
+    const previous = overrides()
+    applyPreset("vanilla")
+    restyleEveryone()
+    record(player, "config.preset", undefined, `Back to defaults · ${differ.length} values`, { kind: "config", overrides: previous })
+    ok(player, `Every setting is back to its default. §f${differ.length}§a had been changed.`)
     return back()
 }
 
@@ -315,15 +363,10 @@ async function saveScreen(player, back) {
  * shows you the answer before you commit to it.
  */
 export function previewLine() {
-    const tag = setting("format.tag")
-        .replaceAll("{OPEN}", setting("bracket.open"))
-        .replaceAll("{CLOSE}", setting("bracket.close"))
-        .replaceAll("{RANK}", "§cAdmin")
-    return setting("format.chat")
-        .replaceAll("{TAG}", tag)
-        .replaceAll("{RANK}", "§cAdmin")
-        .replaceAll("{NAME}", "Steve")
-        .replaceAll("{MSG}", "hello")
+    // Drawn the way chat draws it (2.12.7). The old copy replaced four tokens
+    // by hand, so {BADGE} and {NICKNAME}, both in the shipped chat line, showed
+    // as written.
+    return render("format.chat", { TAG: renderTag({ display: "§cAdmin" }), RANK: "§cAdmin", NAME: "Steve", NICKNAME: "Steve", MSG: "hello" })
 }
 
 // ------------------------------------------------------------- the big block
@@ -454,13 +497,10 @@ async function blockScreen(player, back) {
     // top to bottom would expect.
     const asked = String(parsed.values.preset ?? "").trim().toLowerCase()
     delete parsed.values.preset
-    if (asked && asked !== "custom" && asked !== detectPreset().id) {
-        if (!getPreset(asked)) {
-            err(player, `No saved setup called "§f${asked}§c". Saved: §f${Object.keys(allPresets()).join(", ")}`)
-            return back()
-        }
-        applyPreset(asked)
-        info(player, `Loaded the §f${getPreset(asked).label}§7 setup.`)
+    const loading = !!asked && asked !== "custom" && asked !== detectPreset().id
+    if (loading && !getPreset(asked)) {
+        err(player, `No saved setup called "§f${asked}§c". Saved: §f${Object.keys(allPresets()).join(", ")}`)
+        return back()
     }
 
     if (parsed.unknown.length) {
@@ -468,6 +508,16 @@ async function blockScreen(player, back) {
             `Admin+ doesn't use these:\n§7${parsed.unknown.join(", ")}\n\nSave anyway? They won't do anything.`,
             "§eSave")
         if (!yes) return back()
+    }
+
+    // Read before a setup loads (2.12.7): the setup used to load before the
+    // question above, so No still loaded it, and Logs' undo went back only to
+    // the setup.
+    const previous = overrides()
+    const before = Object.fromEntries(Object.keys(DEFAULTS).map(key => [key, setting(key)]))
+    if (loading) {
+        applyPreset(asked)
+        info(player, `Loaded the §f${getPreset(asked).label}§7 setup.`)
     }
 
     // Same rule as the field editor: a value the language cannot read keeps the
@@ -480,15 +530,21 @@ async function blockScreen(player, back) {
         let text = value
         if (DEFAULTS[key] && kindOf(key) === "number" && !isNumeric(text)) {
             rejected.push(`${key} = ${text || "(blank)"}`)
-            text = setting(key)
+            text = before[key]
         }
+        // A line can't carry spaces at its ends, so a value that is the same
+        // apart from them is unchanged: the gap between rank tags stays a space.
+        if (DEFAULTS[key] && kindOf(key) === "text" && text === before[key].trim()) text = before[key]
+        // Every line is written with the value it had, so with a setup just
+        // loaded an unchanged line would undo it (it did, before 2.12.7): an
+        // unchanged line takes the setup's value instead.
+        if (loading && DEFAULTS[key] && text === before[key]) text = setting(key)
         if (DEFAULTS[key] && DEFAULTS[key].value === text) continue
         store[key] = text
     }
     if (rejected.length) {
         err(player, `Not a number, left as it was:\n§7${rejected.join("\n")}`)
     }
-    const previous = overrides()
     const dropped = replaceOverrides(store)
     restyleEveryone()
     if (dropped.length) info(player, keptDefaultNote(dropped))
@@ -496,6 +552,200 @@ async function blockScreen(player, back) {
         `${Object.keys(store).length} value(s) differ from default`, { kind: "config", overrides: previous })
 
     const count = Object.keys(store).length
+    ok(player, count
+        ? `Saved. §f${count}§a ${count === 1 ? "setting differs" : "settings differ"} from the default.`
+        : "Saved. Every setting is back to its default.")
+    return back()
+}
+
+// --------------------------------------------------------- the JavaScript
+//
+// Beta's < Code > (2.12.7, the user: "we actually make that JavaScript too").
+// core/jsconfig.js reads the document; it is never run, because code run here
+// could do anything, past every rank rule. The rules are the block's:
+//   1. Nothing is saved unless the whole document reads.
+//   2. A deleted line puts its setting back to its default.
+//   3. A value of the wrong kind, or a chat line missing who or what, keeps
+//      the value it had, and the screen says which line.
+//   4. A document with no settings in it saves nothing (the empty-box guard).
+//   5. Names Admin+ doesn't use are saved only after a yes.
+
+const SCRIPT_INTRO = [
+    "Admin+ settings, written as JavaScript. Admin+ reads it and never runs it.",
+    "Text goes in \"quotes\". Switches are true or false. Numbers are plain, like 16.",
+    "Delete a line to put that setting back to its default."
+]
+const SETUP_NOTE = "A saved setup's name loads it first. \"defaults\" puts every setting back."
+
+/** A setting's value as the document writes it: a switch, a number or text. */
+function scriptValue(key) {
+    const value = setting(key)
+    const kind = kindOf(key)
+    if (kind === "bool" && (value === "true" || value === "false")) return value === "true"
+    if (kind === "number" && isNumeric(value.trim())) return Number(value)
+    return value
+}
+
+/** Every setting as one JavaScript document. */
+export function toScript() {
+    const current = detectPreset()
+    return writeScript({
+        intro: SCRIPT_INTRO,
+        setup: current.id === "vanilla" ? "defaults" : current.id,
+        setupNote: SETUP_NOTE,
+        groups: groupedKeys().map(([heading, keys]) => [heading, keys.map(key => [key, scriptValue(key)])])
+    })
+}
+
+/** A name that can be stored: plain names joined by dots, none of them special to JavaScript. */
+const SAFE_NAME = /^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)*$/
+const SPECIAL = new Set(["__proto__", "prototype", "constructor"])
+const storable = key => SAFE_NAME.test(key) && !key.split(".").some(name => SPECIAL.has(name))
+
+/** What one value becomes for a setting of this kind, or undefined when it can't be. */
+function asSetting(kind, value) {
+    if (kind === "bool") {
+        if (typeof value === "boolean") return value ? "true" : "false"
+        const word = typeof value === "string" ? value.trim().toLowerCase() : ""
+        return word === "true" || word === "false" ? word : undefined
+    }
+    if (kind === "number") {
+        if (typeof value === "number" && Number.isFinite(value)) return String(value)
+        return typeof value === "string" && isNumeric(value.trim()) ? value.trim() : undefined
+    }
+    if (Array.isArray(value)) return value.map(String).join(", ")
+    return typeof value === "string" ? value : String(value)
+}
+
+const KIND_WORDS = { bool: "a switch, so it takes true or false", number: "a number, like 16", text: "text in quotes" }
+
+/**
+ * Read the document. Returns { error } or { values, wrong, unknown, setup,
+ * empty }: `values` maps each setting written to the text it would store,
+ * `wrong` lists the lines whose value was the wrong kind (they keep what they
+ * had), and `empty` means no setting Admin+ uses was written at all.
+ */
+export function fromScript(text) {
+    const read = readScript(text)
+    if (read.error) return { error: read.error }
+    const values = new Map()
+    const wrong = new Map()
+    const unknown = []
+    for (const { key, value, line } of read.entries) {
+        if (!storable(key)) return { error: `Line ${line}: ${key} can't be the name of a setting.` }
+        if (!(key in DEFAULTS)) {
+            if (!unknown.includes(key)) unknown.push(key)
+            values.set(key, asSetting("text", value))
+            continue
+        }
+        const kind = kindOf(key)
+        const stored = asSetting(kind, value)
+        if (stored === undefined) { wrong.set(key, `Line ${line}: ${key} is ${KIND_WORDS[kind]}.`); values.delete(key); continue }
+        wrong.delete(key)
+        values.set(key, stored)
+    }
+    const empty = ![...values.keys(), ...wrong.keys()].some(key => key in DEFAULTS)
+    return { values, wrong, unknown, setup: read.setup, empty }
+}
+
+/** "defaults" is Beta's name for Vanilla; anything else is a setup's own id. */
+const setupId = name => {
+    const id = String(name ?? "").trim().toLowerCase()
+    return id === "defaults" ? "vanilla" : id
+}
+
+/**
+ * What every setting becomes. A setup named in the document loads first, and
+ * then only the lines that were changed apply on top of it: every line is
+ * written with the value it had, so an unchanged line would undo the setup.
+ * Without a new setup, a setting missing from the document goes back to its
+ * default, which is how a deleted line says so.
+ */
+export function scriptResult(parsed, setup) {
+    const before = Object.fromEntries(Object.keys(DEFAULTS).map(key => [key, setting(key)]))
+    const loading = setup
+        ? Object.fromEntries(Object.keys(DEFAULTS).map(key => [key,
+            Object.keys(setup.values ?? {}).length ? (key in setup.values ? String(setup.values[key]) : before[key]) : DEFAULTS[key].value]))
+        : undefined
+    const store = {}
+    const kept = []
+    for (const key of Object.keys(DEFAULTS)) {
+        let value
+        if (parsed.wrong.has(key)) value = before[key]
+        else if (parsed.values.has(key)) value = loading && parsed.values.get(key) === before[key] ? loading[key] : parsed.values.get(key)
+        else value = loading ? loading[key] : DEFAULTS[key].value
+        // A chat line that lost who is talking or what they said keeps its
+        // old value, rather than the default the block falls back to.
+        const problem = settingProblem(key, value)
+        if (problem) { kept.push(`${key} ${problem}`); value = before[key] }
+        if (value !== DEFAULTS[key].value) store[key] = value
+    }
+    for (const key of parsed.unknown) store[key] = parsed.values.get(key)
+    return { store, kept }
+}
+
+async function scriptScreen(player, back) {
+    const changed = Object.keys(overrides()).length
+    const values = await modal(player, multilineTitle("code", "< Code >"), [
+        {
+            id: "script",
+            type: "text",
+            label: [
+                `§8All ${Object.keys(DEFAULTS).length} settings, written as JavaScript. Setup: ${currentSetupName()}${changed ? `, ${changed} changed from default` : ""}.`,
+                "§8Admin+ reads it and never runs it. Submit to save, or close to change nothing."
+            ].join("\n"),
+            placeholder: "const settings = { }",
+            default: toScript()
+        }
+    ])
+    if (!values) return back()
+
+    const parsed = fromScript(values.script)
+    if (parsed.error) {
+        err(player, `${parsed.error}\n§8Nothing was saved.`)
+        return back()
+    }
+    if (parsed.empty) {
+        // The commonest cause: without the resource pack the box is one line,
+        // and the document comes back as one long comment.
+        err(player, "The box came back with no settings in it, so nothing was saved.")
+        info(player, [
+            "§7Was the box one line instead of a tall editor? Then the Admin+",
+            "§7§oresource§r§7 pack is not on in this world. It is what turns this",
+            "§7screen into an editor. Turn it on, or change settings on their pages in §fServer ▸ Settings§7.",
+            "§8To put every setting back on purpose: Server ▸ Advanced ▸ Saved setups ▸ Back to defaults."
+        ].join("\n"))
+        return back()
+    }
+
+    const asked = parsed.setup ? setupId(parsed.setup.value) : ""
+    let setup
+    if (asked && asked !== "custom" && asked !== detectPreset().id) {
+        setup = getPreset(asked)
+        if (!setup) {
+            const names = Object.keys(allPresets()).map(id => id === "vanilla" ? "defaults" : id)
+            err(player, `Line ${parsed.setup.line}: no saved setup called "§f${parsed.setup.value}§c". Saved: §f${names.join(", ")}§c.\n§8Nothing was saved.`)
+            return back()
+        }
+    }
+
+    if (parsed.unknown.length) {
+        const yes = await confirm(player, hubTitle("code", "Unknown settings"),
+            `Admin+ doesn't use these:\n§7${parsed.unknown.join(", ")}\n\nSave anyway? They won't do anything.`,
+            "§eSave")
+        if (!yes) return back()
+    }
+
+    const { store, kept } = scriptResult(parsed, setup)
+    if (parsed.wrong.size) err(player, `Kept as they were:\n§7${[...parsed.wrong.values()].join("\n")}`)
+    if (kept.length) info(player, `§7Kept as they were, because a line must show who is talking and what they said:\n§8${kept.join("\n")}`)
+
+    const previous = overrides()
+    replaceOverrides(store)
+    restyleEveryone()
+    if (setup) info(player, asked === "vanilla" ? "Started from the defaults, then saved your changes." : `Loaded the §f${setup.label}§7 setup.`)
+    const count = Object.keys(store).length
+    record(player, "config.edit", undefined, `${count} value(s) differ from default`, { kind: "config", overrides: previous })
     ok(player, count
         ? `Saved. §f${count}§a ${count === 1 ? "setting differs" : "settings differ"} from the default.`
         : "Saved. Every setting is back to its default.")

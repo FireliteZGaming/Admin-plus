@@ -17,50 +17,17 @@ const SAVED_KEY = "configPresets"
 
 const saved = new Table(SAVED_KEY, {})
 
-/** Shipped baselines. */
+/**
+ * Shipped baselines. Only Vanilla since 2.12.7: Realm, Strict and Quiet were
+ * early ready-made setups, and the user said they shouldn't exist ("it even has
+ * a preset somewhere like quiet, idk why we have that thing"). A world's own
+ * saved setups are untouched.
+ */
 export const BUILT_IN = {
     vanilla: {
         label: "Vanilla",
         description: "Every setting at its default.",
         values: {}          // empty means "no overrides at all"
-    },
-    realm: {
-        label: "Realm",
-        description: "For a small realm: protected spawn, fast teleports, alerts on.",
-        values: {
-            "spawn.protect": "true",
-            "spawn.radius": "24",
-            "teleport.warmup": "1",
-            "teleport.cooldown": "2",
-            "automod.ores": "true",
-            "automod.breaks": "true",
-            "automod.spam": "true",
-            "presence.announce": "true"
-        }
-    },
-    strict: {
-        label: "Strict",
-        description: "Long teleport waits, wide spawn protection, every alert on.",
-        values: {
-            "spawn.protect": "true",
-            "spawn.radius": "48",
-            "teleport.warmup": "5",
-            "teleport.cooldown": "15",
-            "staff.exemptCooldowns": "false",
-            "automod.ores": "true",
-            "automod.breaks": "true",
-            "automod.spam": "true"
-        }
-    },
-    quiet: {
-        label: "Quiet",
-        description: "No join or leave messages and no automod messages. For a quiet survival server.",
-        values: {
-            "presence.announce": "false",
-            "automod.ores": "false",
-            "automod.breaks": "false",
-            "automod.spam": "false"
-        }
     }
 }
 
