@@ -72,8 +72,8 @@ fixes at the end.
    like + New rank's permissions, and a Save button. The way to the chat
    rooms moved to the Settings list, because a page of settings can't hold a
    button.
-2. **Every setting has one home.** The 36 settings only Every setting or
-   < Code > could change are on the page they belong to:
+2. **Every setting has one home.** 39 settings could only be changed through
+   Every setting or < Code >. 36 of them are now on the page they belong to:
    1. Chat: how a chat line, a broadcast, a private message, an emote, and
       the join, leave and greeting lines look.
    2. Names and tags: how a rank tag looks, its brackets, what goes between
