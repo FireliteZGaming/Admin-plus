@@ -692,6 +692,21 @@ const TESTER_RANK = teamBadge("adminplus_tester", "Tester")
 /** The tester list as it stands. */
 export function testerGamertags() { return TESTERS }
 
+/**
+ * MEDIA make Admin+'s videos and pictures, starting with the showcase video.
+ * A badge and nothing else, like the testers': no permission, no weight and no
+ * Creator & Dev console. Added at the user's request on 2026-11-13 for the
+ * player helping make the video: "so like §bAdmin§d+ §l§eMedia ?". It wears the
+ * camera badge in Beta (core/badges.js).
+ */
+const MEDIA = Object.freeze([
+    "eXeinty404"
+])
+const MEDIA_RANK = teamBadge("adminplus_media", "Media")
+
+/** The Media list as it stands. */
+export function mediaGamertags() { return MEDIA }
+
 /** The gamertag behind either kind of argument these helpers accept. */
 function nameOf(playerOrId) {
     const name = typeof playerOrId === "string"
@@ -718,11 +733,18 @@ function isTester(playerOrId) {
     return TESTERS.some(tag => String(tag).toLowerCase() === name)
 }
 
-/** The pack badge this player wears, if any. Creator, then Dev, then Tester. */
+function isMedia(playerOrId) {
+    const name = nameOf(playerOrId)
+    if (!name) return false
+    return MEDIA.some(tag => String(tag).toLowerCase() === name)
+}
+
+/** The pack badge this player wears, if any. Creator, then Dev, then Tester, then Media. */
 function packBadge(playerOrId) {
     if (isCreator(playerOrId)) return CREATOR_RANK
     if (isTeamDeveloper(playerOrId)) return DEVELOPER_RANK
     if (isTester(playerOrId)) return TESTER_RANK
+    if (isMedia(playerOrId)) return MEDIA_RANK
     return undefined
 }
 
@@ -804,7 +826,7 @@ export function hiddenRanks(playerOrId) {
     return heldRankObjects(playerOrId).filter(rank => !shown.has(rank.id))
 }
 
-export { CREATOR_RANK, DEVELOPER_RANK, TESTER_RANK, isCreator, isTeamDeveloper, isTester, packBadge }
+export { CREATOR_RANK, DEVELOPER_RANK, TESTER_RANK, MEDIA_RANK, isCreator, isTeamDeveloper, isTester, isMedia, packBadge }
 
 /** The rank that shows as their tag: first in their display order. */
 export function primaryRank(playerOrId) { return displayRanks(playerOrId)[0] }

@@ -10,7 +10,7 @@ import {
     moveHeldRank, onPlayerJoin, defaultRank, displacedBy, cooldownFor, saveRank as saveR, knownHolders,
     CREATOR_GAMERTAG, CREATOR_RANK, allRanks, rankState, rankGrant,
     DEVELOPER_RANK, isTeamDeveloper, __setTeamDevelopers, nodeLabels, canTrollOn, onStaffLost,
-    TESTER_RANK, isTester, testerGamertags
+    TESTER_RANK, isTester, testerGamertags, MEDIA_RANK, isMedia, mediaGamertags
 } from "../Admin+ BP/scripts/core/ranks.js"
 import { CONFIG } from "../Admin+ BP/scripts/config.js"
 
@@ -650,6 +650,36 @@ __setTeamDevelopers([testerName])
 check("Dev outranks Tester when somebody is both", primaryRank(tester).id, "adminplus_dev")
 __setTeamDevelopers([])
 check("off the team, the Tester badge is back", primaryRank(tester).id, "adminplus_tester")
+
+
+console.log("\n— the Media badge —")
+// [Admin+ Media], for the people making Admin+'s videos. Added for eXeinty404,
+// who is helping make the showcase video, on 2026-11-13; the user: "so like
+// §bAdmin§d+ §l§eMedia ?". The same badge again, so the same promises.
+const mediaName = mediaGamertags()[0]
+const maker = fakePlayer(mediaName)
+check("eXeinty404 is on the list", mediaName, "eXeinty404")
+check("they wear it", primaryRank(maker).id, "adminplus_media")
+check("and it reads Admin+ Media", MEDIA_RANK.display.replace(/§./g, ""), "Admin+ Media")
+check("in the user's colours: Admin aqua, + pink, Media bold yellow", MEDIA_RANK.display, "§bAdmin§d+§r §e§lMedia")
+check("the same as the other three",
+    MEDIA_RANK.display.replace("Media", "X"),
+    CREATOR_RANK.display.replace("Creator", "X"))
+check("the name matches in any case", isMedia({ name: "EXEINTY404" }), true)
+check("a near miss does not", isMedia({ name: "eXeinty40" }), false)
+check("it grants NO panel access", has(maker, "admin.panel"), false)
+check("it is not staff", isStaff(maker), false)
+check("it carries no permissions at all", MEDIA_RANK.perms, [])
+check("it adds no authority", topWeight(maker), topWeight(stranger))
+check("it is not in the rank table", allRanks().some(r => r.id === "adminplus_media"), false)
+grantRank(maker.id, "mod", maker.name)
+check("a real rank replaces it", primaryRank(maker).id, "mod")
+revokeRank(maker.id, "mod")
+check("and giving it up brings the badge back", primaryRank(maker).id, "adminplus_media")
+__setTeamDevelopers([mediaName])
+check("Dev outranks Media when somebody is both", primaryRank(maker).id, "adminplus_dev")
+__setTeamDevelopers([])
+check("off the team, the Media badge is back", primaryRank(maker).id, "adminplus_media")
 
 
 console.log("\n— permission switches are labelled, not spelled out —")

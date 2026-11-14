@@ -143,6 +143,30 @@ console.log("\n— the Beta frames are all there —")
     check("the two columns share the width, with a 4px gap",
         [columns[0].size[0], columns[1].size[0], LOOK.tiles.controls[1].gap.size[0]], ["50% - 2px", "50% - 2px", 4])
 
+    // Side by side, a height of 100%c ADDS the children's heights; 100%cm is
+    // the tallest child, and the game's own files size a row that way 102
+    // times. 2.11.4's row of four Template cards came out 720 tall (4 x 180)
+    // and drew the cards in its top 180, so Permissions sat under 540 empty
+    // pixels (the user's screenshot, 2026-11-13: "you have to scroll really
+    // far to reach permissions"; its scroll bar measured 786 tall). Hidden
+    // entries took no room at all. The same goes for a column's width.
+    check("a row of cards is as tall as its tallest card", LOOK.cards.size, ["100%", "100%cm"])
+    check("the tiles are as tall as their taller column", LOOK.tiles.size, ["100%", "100%cm"])
+    const summed = []
+    for (const file of readdirSync(new URL("ui/", RP)).filter(f => f.endsWith(".json"))) {
+        const visit = (node, name) => {
+            if (Array.isArray(node)) return node.forEach(n => visit(n, name))
+            if (!node || typeof node !== "object") return
+            if (node.type === "stack_panel" && Array.isArray(node.size)) {
+                const across = node.orientation === "horizontal" ? node.size[1] : node.size[0]
+                if (/%c(?!m)/.test(String(across))) summed.push(`${file} ${name}`)
+            }
+            for (const [k, v] of Object.entries(node)) visit(v, k.split("@")[0])
+        }
+        visit(JSON.parse(readFileSync(new URL(`ui/${file}`, RP), "utf8")), "")
+    }
+    check("no stack of ours adds up its children across", summed, [])
+
     // Pictures keep their own shape unless told not to, which squashed 2.11.0's
     // panel into a square and its badge into a line (seen in game, 2026-11-13).
     // Every picture of ours that is stretched says so. Tile icons are drawn at

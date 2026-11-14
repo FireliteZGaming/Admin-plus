@@ -56,6 +56,43 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.12.1 — 2026-11-13
+
+**Permissions is right under the Template cards again, and an Admin+ Media
+badge.**
+
+### The Template screen (Beta)
+The user's screenshot of + New rank ▸ Template: "you have to scroll really far
+to reach permissions".
+1. **The row of cards was as tall as all four cards stacked.** A side-by-side
+   row sized `100%c` adds up its children's heights, so four 180-pixel cards
+   made a row 720 tall, drawn in its top 180, with 540 empty pixels before
+   Permissions. The screenshot's scroll bar measured the whole list at 786,
+   which is exactly that. The row is now as tall as its tallest card
+   (`100%cm`, which the game's own files use 102 times for this).
+2. **The tile menus had the same mistake** (/admin, /menu): the two columns'
+   heights were added, so a tile menu could scroll on past its last tile. Not
+   seen in a screenshot; it follows from the same rule.
+3. Hidden copies of buttons take no room, so cards and tiles are still made
+   the same way.
+
+### Admin+ Media
+1. **A new team badge, Admin+ Media**, for the people making Admin+'s videos,
+   in the same colours as Creator, Dev and Tester. The user's spelling:
+   "§bAdmin§d+ §l§eMedia".
+2. **The Media list in `core/ranks.js` holds one gamertag: `eXeinty404`**,
+   who is helping make the showcase video.
+3. Like the Tester badge, it gives no permissions, no weight and no Creator &
+   Dev console, and a world's own rank replaces it.
+4. **In Beta it wears a new camera badge**, added at the end of the badge
+   page so no badge already in a world moved. Any rank may pick the camera,
+   like the flask; only the Admin+ badge is the team's alone.
+
+### Checked
+`tests/look.test.js` (181, three new: no stack of ours adds up its children
+across), `tests/ranks.test.js` (280, the Media badge), `tests/badges.test.js`
+(87) and `tests/console.test.js` (26).
+
 ## 2.12.0 — 2026-11-13
 
 **Personalization in /menu: choose your own name colours. In Beta.**

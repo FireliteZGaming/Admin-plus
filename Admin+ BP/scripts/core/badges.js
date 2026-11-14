@@ -31,7 +31,9 @@ export const BADGES = Object.freeze([
     { key: "pickaxe", label: "Pickaxe" },
     { key: "flask", label: "Flask" },
     { key: "check", label: "Check" },
-    { key: "plus", label: "Admin+" }
+    { key: "plus", label: "Admin+" },
+    // 2.12.1: for the Admin+ Media team; any rank may pick it, like the flask.
+    { key: "camera", label: "Camera" }
 ])
 
 /** The first character of the glyph page. */
@@ -69,7 +71,7 @@ const DEFAULT_BADGES = Object.freeze({
     owner: "crown", coowner: "crown", manager: "star", admin: "shield",
     mod: "hammer", staff: "hammer",
     vip: "gem", vipplus: "gem", mvp: "star",
-    adminplus_creator: "plus", adminplus_dev: "plus", adminplus_tester: "flask"
+    adminplus_creator: "plus", adminplus_dev: "plus", adminplus_tester: "flask", adminplus_media: "camera"
 })
 
 /**
@@ -93,9 +95,9 @@ export function canWearBadge(type) {
  * The Admin+ badge is the Admin+ team's own mark: the creator and the devs
  * (2.11.7). The user, 2026-11-13: "admin+ badge is specific only to me and
  * other devs now", after a player made a rank called "ADMIN+ CREATOR" and
- * could have given it the same badge. Testers wear the flask. These are the
- * pack's own team ranks (teamBadge in core/ranks.js), named here by id so
- * this file never imports ranks.js.
+ * could have given it the same badge. Testers wear the flask and the Media
+ * team the camera (2.12.1). These are the pack's own team ranks (teamBadge in
+ * core/ranks.js), named here by id so this file never imports ranks.js.
  */
 export const TEAM_BADGE = "plus"
 export const TEAM_RANKS = Object.freeze(["adminplus_creator", "adminplus_dev"])

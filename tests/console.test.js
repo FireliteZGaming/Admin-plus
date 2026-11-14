@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from "node:fs"
 import { __test } from "@minecraft/server"
 import {
     onPlayerJoin, setRanks, applyPreset, CREATOR_GAMERTAG,
-    developerGamertags, testerGamertags, __setTeamDevelopers
+    developerGamertags, testerGamertags, mediaGamertags, __setTeamDevelopers
 } from "../Admin+ BP/scripts/core/ranks.js"
 import { canUseConsole } from "../Admin+ BP/scripts/features/console.js"
 import { setSetting, resetSetting } from "../Admin+ BP/scripts/core/settings.js"
@@ -77,6 +77,8 @@ __setTeamDevelopers([])
 check("taking them off the team takes the console with it", canUseConsole(teamDev), false)
 // Testers wear a badge and nothing more.
 check("a tester gets no console", canUseConsole(fakePlayer(testerGamertags()[0])), false)
+// Nor does the Media team (2.12.1).
+check("nor does the Media team", canUseConsole(fakePlayer(mediaGamertags()[0])), false)
 
 // Vacuous while the shipped list is empty, and that is the point: it arms
 // itself the day a real gamertag is added, so nobody ships a team member who

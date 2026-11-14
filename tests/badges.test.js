@@ -99,6 +99,8 @@ console.log("\n— the pictures and the list agree —")
     check("its classic picture is one row down", badgeChar("crown", "classic"), "")
     check("the sword sits after the ban hammer", badgeChar("sword"), "")
     check("Admin+'s own mark is the twelfth", badgeChar("plus"), String.fromCharCode(0xEA0B))
+    // 2.12.1: added at the end, so no badge already in a world moved.
+    check("the camera is the thirteenth", badgeChar("camera"), String.fromCharCode(0xEA0C))
     check("an unknown badge draws nothing", badgeChar("dragon"), "")
 }
 
@@ -145,6 +147,8 @@ console.log("\n— which badge a rank wears —")
     // now", after a player made a rank called "ADMIN+ CREATOR".
     check("the Admin+ team's ranks wear the Admin+ badge", TEAM_RANKS.map(id => badgeOf({ id }, "default")), ["plus", "plus"])
     check("testers keep the flask", badgeOf({ id: "adminplus_tester" }, "default"), "flask")
+    check("the Media team wears the camera", badgeOf({ id: "adminplus_media" }, "default"), "camera")
+    check("which any rank may pick, like the flask", [mayWear({ id: "youtuber" }, "camera"), pickableBadges().some(b => b.key === "camera")], [true, true])
     check("a world's own rank that picked it shows no badge", badgeOf({ id: "admin_creator", meta: { badge: "plus" } }, "default"), undefined)
     check("a staff rank that picked it goes back to the ban hammer", badgeOf({ id: "fake", meta: { badge: "plus" } }, "staff"), "hammer")
     check("it is not offered on a rank's Badge screen", pickableBadges().some(b => b.key === "plus"), false)

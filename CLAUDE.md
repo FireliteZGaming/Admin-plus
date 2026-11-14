@@ -84,8 +84,8 @@ user wants all of it, harassment included, to train moderation later
 
 These were each paid for with a playtest. Do not rediscover them.
 
-**Resource-pack menus: four things the first in-game test of Admin+'s own
-look taught (2.11.0, 2026-11-13, the user's screenshot).**
+**Resource-pack menus: what the in-game tests of Admin+'s own look taught
+(2.11.0 onward, 2026-11-13, the user's screenshots).**
 1. **A picture keeps its texture's shape unless it says `"keep_ratio":
    false`.** The flat-colour panel drew as a square, its fill as a thin strip
    and the BETA LOOK badge as a line through the words. The game's own files
@@ -102,6 +102,13 @@ look taught (2.11.0, 2026-11-13, the user's screenshot).**
    its text.
 4. **The content log shows no menu errors at all.** A broken menu is silent;
    only a screenshot tells.
+5. **Side by side, a `100%c` height ADDS the children's heights (2.12.1).**
+   The four Template cards made a row 720 tall and drew in its top 180; the
+   screenshot's scroll bar measured it. Size a horizontal stack's height, or
+   a vertical stack's width, with `100%cm` (the tallest child), as the
+   game's files do 102 times. Hidden children take no room at all, so the
+   made-in-both, shown-in-one trick is sound. `tests/look.test.js` checks
+   every stack of ours.
 
 **Font-page pictures draw at one game pixel per picture pixel, centred on
 the line, and are never shrunk (2.11.4, the user's screenshots).** A badge
@@ -469,6 +476,9 @@ field, or (on a game that drew no labels) one per input.
   user: "specific only to me and other devs"):** only `TEAM_RANKS` (creator,
   dev) wear it; `pickableBadges()` leaves it off the Badge screen, `mayWear`
   refuses it, and a world's rank that had picked it falls back to its default.
+  Testers wear the flask and Admin+ Media (2.12.1, `MEDIA` in
+  `core/ranks.js`) the camera; anyone may pick those two. A new badge goes on
+  the END of the page, so no badge already in a world moves.
   `tests/badges.test.js`.
 - **+ New rank is short steps (2.11.4, the user's design, 2026-11-13).**
   New rank (Continue) ▸ Template (Staff only: Mod, Admin, Manager, Owner as
