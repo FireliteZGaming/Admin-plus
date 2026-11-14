@@ -56,6 +56,38 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.12.6 — 2026-11-13
+
+**Admin+'s own look moves. In Beta.**
+
+The user: "the second one that has animations, I mean everyone loves
+animation right?"
+
+1. **The aqua-to-pink flows.** The bar along the top of every Admin+ menu
+   slowly drifts from aqua to pink and back, about once every five seconds.
+   The BETA LOOK badge, the Select chip on template cards and the open Logs
+   tab's underline flow with it.
+2. **Menus rise into place.** A menu slides up 10 pixels as it opens, over a
+   fifth of a second.
+3. **The day markers on the Logs timeline pulse** softly.
+
+### Built to fail safe
+Each animation copies a pattern the game's own menus use: the flow is a flip
+book like its loading bar, the rise a move like its pop-up messages, the
+pulse a fade like its titles. If one doesn't play, the menu still looks right:
+nothing fades in from invisible, and every move ends where the menu belongs.
+The game doesn't say whether a flip book steps across its picture or down, so
+the flowing picture works either way.
+
+### Not checked
+Not seen in game yet. A broken menu shows no error, so a screenshot will tell.
+
+### Checked
+`tests/look.test.js` (237): every animation used is defined and of a kind the
+game uses, the menu ends in place, nothing is left invisible, every
+aqua-to-pink picture flows, and the flowing picture holds every frame either
+way and loops without a jump.
+
 ## 2.12.5 — 2026-11-13
 
 **Logs, overhauled: a timeline with tabs and filters. In Beta.**

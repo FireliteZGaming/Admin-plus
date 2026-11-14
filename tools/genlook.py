@@ -282,6 +282,28 @@ LOG_ICONS = {
     "search": ("search", AQUA),
 }
 
+# The flowing aqua-to-pink (2.12.6): a flip book the menus step through, so the
+# bar on top of every Admin+ menu drifts. The game's flip books step by
+# frame_step pixels; whether it steps across or down is not written down
+# anywhere this tool can read, so the gradient runs DIAGONALLY: moving the
+# 128x2 window 4 pixels right or 4 pixels down shows the same next frame.
+# One loop is 64 frames of 4 pixels, which is one period of the gradient
+# (aqua to pink and back over 256 pixels), so it never jumps.
+FLOW_PERIOD, FLOW_STEP, FLOW_FRAMES, FLOW_WINDOW = 256, 4, 64, (128, 2)
+
+
+def flow_texture():
+    width = FLOW_WINDOW[0] + (FLOW_FRAMES - 1) * FLOW_STEP + FLOW_STEP
+    height = FLOW_WINDOW[1] + (FLOW_FRAMES - 1) * FLOW_STEP + FLOW_STEP
+    img = Image.new("RGBA", (width, height))
+    half = FLOW_PERIOD / 2
+    for x in range(width):
+        for y in range(height):
+            p = (x + y) % FLOW_PERIOD
+            img.putpixel((x, y), blend(AQUA, PINK, p / half if p < half else (FLOW_PERIOD - p) / half))
+    return save(img, "flow")
+
+
 # A dot is 32x32 and shows at 16x16, so it stays sharp: a ring 2 wide, then
 # the 8x8 icon at 2 pixels per pixel in the middle.
 DOT = 32
@@ -371,6 +393,7 @@ def main():
         made.append(flat(rgb(colour), f"stripe_{key}"))
     for key, (icon, colour) in LOG_ICONS.items():
         made.append(log_dot(key, icon, colour))
+    made.append(flow_texture())
     print(f"{len(made)} textures in {OUT}")
     for name in made:
         print(f"  {name}.png")

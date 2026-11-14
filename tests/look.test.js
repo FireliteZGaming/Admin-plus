@@ -279,9 +279,9 @@ console.log("\n— the Logs timeline frame —")
         check(`${what} shows as a ${expected.join(" and a ")}`, where(text), expected)
     }
     const underline = LOOK.log_tab_content.controls.map(c => Object.entries(c)[0]).find(([k]) => k === "underline")[1]
-    check("only the open tab is underlined, in Admin+'s gradient",
+    check("only the open tab is underlined, in Admin+'s flowing gradient",
         [evaluate(visibleExpr(underline), { "#form_button_text": tabText("A", true) }), evaluate(visibleExpr(underline), { "#form_button_text": tabText("B", false) }), underline.texture, underline.keep_ratio],
-        [true, false, "textures/ui/adminplus/gradient", false])
+        [true, false, "textures/ui/adminplus/flow", false])
     for (const [what, list] of [["the tabs", LOOK.log_tabs], ["the pills", LOOK.log_pills], ["the timeline", LOOK.log_rows]]) {
         check(`${what} are made from the form's buttons, like the game's list`,
             [list.collection_name, list.factory.name, list.bindings[0]],
@@ -299,6 +299,55 @@ console.log("\n— the Logs timeline frame —")
     const keys = ["moderation", "chatmod", "people", "staff", "server", "reports", "land", "signs", "blocks", "older", "newer", "undo", "clear", "search"]
     check("every timeline picture is in the pack", keys.map(logIcon).filter(t => !textureExists(t)), [])
     check("and drawn from scratch by the tool", keys.every(k => readFileSync(new URL("../tools/genlook.py", import.meta.url), "utf8").includes(`"${k}": (`)), true)
+}
+
+console.log("\n— Admin+'s look moves —")
+// 2.12.6, the user: "the second one that has animations, I mean everyone
+// loves animation right?". Built only from patterns the game's own menus use
+// (flip books like its loading bar, moves like its toasts, fades like its
+// titles), and so that if one doesn't play, the menu still looks right.
+{
+    const anims = Object.fromEntries(Object.entries(LOOK).filter(([, v]) => v && typeof v === "object" && "anim_type" in v))
+    const text = JSON.stringify(LOOK)
+    const used = [...new Set([...text.matchAll(/"@adminplus_beta\.(anim_\w+)"/g)].map(m => m[1]))]
+    check("every animation that is used is defined", used.filter(n => !anims[n]), [])
+    check("of kinds the game's own menus use", Object.values(anims).map(a => a.anim_type).filter(t => !["offset", "flip_book", "alpha"].includes(t)), [])
+    check("with easings the game's own menus use", Object.values(anims).map(a => a.easing).filter(e => e && !["out_cubic", "in_sine", "out_sine", "linear"].includes(e)), [])
+
+    const rise = anims.anim_frame_rise
+    check("a menu rises into place when it opens, ending where it belongs",
+        [LOOK.frame.anims, rise.anim_type, rise.to, rise.duration <= 0.3], [["@adminplus_beta.anim_frame_rise"], "offset", [0, 0], true])
+
+    const images = []
+    const walk = (node, name) => {
+        if (Array.isArray(node)) return node.forEach(n => walk(n, name))
+        if (!node || typeof node !== "object") return
+        if (node.type === "image" && typeof node.texture === "string") images.push([name, node])
+        for (const [k, v] of Object.entries(node)) walk(v, k.split("@")[0])
+    }
+    walk(LOOK, "")
+    check("no still gradient is left: every aqua-to-pink picture flows", images.filter(([, n]) => n.texture.endsWith("/gradient")).map(([k]) => k), [])
+    const flowing = images.filter(([, n]) => n.texture.endsWith("/flow"))
+    check("the bar, the BETA LOOK chip, a card's Select and the open tab flow",
+        flowing.map(([k, n]) => [k, n.uv, n.uv_size]).sort(),
+        [["bar", "@adminplus_beta.anim_flow", [128, 2]], ["chip", "@adminplus_beta.anim_flow", [128, 2]], ["chip", "@adminplus_beta.anim_flow", [128, 2]], ["underline", "@adminplus_beta.anim_flow", [128, 2]]])
+    // The flip book steps frame_step pixels a frame. Which way it steps isn't
+    // written down, so the texture holds every frame either way.
+    const png = readFileSync(new URL("flow.png", TEXTURES))
+    const [w, h] = [png.readUInt32BE(16), png.readUInt32BE(20)]
+    const flow = anims.anim_flow
+    const reach = (flow.frame_count - 1) * flow.frame_step
+    check("the flowing picture holds every frame, stepping across or down", [w >= 128 + reach, h >= 2 + reach], [true, true])
+    check("one loop is one whole gradient, so it never jumps", flow.frame_count * flow.frame_step, 256)
+    check("and it is drawn by the tool", readFileSync(new URL("../tools/genlook.py", import.meta.url), "utf8").includes("def flow_texture"), true)
+
+    const knot = LOOK.log_day.controls.map(c => Object.entries(c)[0]).find(([k]) => k.startsWith("knot"))[1]
+    const dim = anims.anim_knot_dim, bright = anims.anim_knot_bright
+    check("a day marker on the Logs timeline pulses, and keeps pulsing",
+        [knot.anims, dim.next, bright.next], [["@adminplus_beta.anim_knot_dim"], "@adminplus_beta.anim_knot_bright", "@adminplus_beta.anim_knot_dim"])
+    check("without ever disappearing", Math.min(dim.from, dim.to, bright.from, bright.to) > 0, true)
+    check("nothing fades in from nothing, so a menu is never left invisible",
+        Object.entries(anims).filter(([, a]) => a.anim_type === "alpha" && a.from === 0).map(([k]) => k), [])
 }
 
 console.log("\n— each card shows once, above the rows —")
@@ -337,8 +386,8 @@ console.log("\n— each card shows once, above the rows —")
         parts.stripe.bindings.some(b => b.binding_name === "#form_button_texture" && b.binding_name_override === "#texture"), true)
     check("its words wrap to the card's width", [parts.text.size, parts.text.text], [["100% - 8px", "default"], "#form_button_text"])
     const chip = parts.select.controls.map(c => Object.entries(c)[0][1])
-    check("Select sits at the bottom on Admin+'s gradient", [parts.select.anchor_to, chip[0].texture, chip[0].keep_ratio, chip[1].text],
-        ["bottom_middle", "textures/ui/adminplus/gradient", false, "Select"])
+    check("Select sits at the bottom on Admin+'s flowing gradient", [parts.select.anchor_to, chip[0].texture, chip[0].keep_ratio, chip[1].text],
+        ["bottom_middle", "textures/ui/adminplus/flow", false, "Select"])
     check("every template's strip is in the pack", ["mod", "admin", "manager", "owner"].map(cardStripe).filter(t => !textureExists(t)), [])
     // 2.11.5: the Owner card's words ran out of the bottom of a 160-tall card.
     check("a card is tall enough for the longest template, Owner", cardButton.size[1] >= 176, true)

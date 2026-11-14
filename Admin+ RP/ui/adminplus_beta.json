@@ -1,6 +1,40 @@
 {
 	"namespace": "adminplus_beta",
 
+	"anim_frame_rise": {
+		"anim_type": "offset",
+		"easing": "out_cubic",
+		"duration": 0.2,
+		"from": [ 0, 10 ],
+		"to": [ 0, 0 ]
+	},
+
+	"anim_flow": {
+		"anim_type": "flip_book",
+		"initial_uv": [ 0, 0 ],
+		"frame_count": 64,
+		"frame_step": 4,
+		"fps": 12
+	},
+
+	"anim_knot_dim": {
+		"anim_type": "alpha",
+		"easing": "in_sine",
+		"duration": 0.9,
+		"from": 1,
+		"to": 0.35,
+		"next": "@adminplus_beta.anim_knot_bright"
+	},
+
+	"anim_knot_bright": {
+		"anim_type": "alpha",
+		"easing": "out_sine",
+		"duration": 0.9,
+		"from": 0.35,
+		"to": 1,
+		"next": "@adminplus_beta.anim_knot_dim"
+	},
+
 	"fill": {
 		"type": "image",
 		"texture": "textures/ui/adminplus/white",
@@ -31,6 +65,7 @@
 		"max_size": "$frame_max_size",
 		"min_size": "$frame_min_size",
 		"layer": 2,
+		"anims": [ "@adminplus_beta.anim_frame_rise" ],
 		"controls": [
 			{ "shadow@adminplus_beta.fill": { "size": [ "100% + 2px", "100% + 2px" ], "color": [ 0.027, 0.031, 0.043 ], "layer": 0 } },
 			{ "edge@adminplus_beta.fill": { "color": [ 0.173, 0.196, 0.263 ], "layer": 1 } },
@@ -46,7 +81,9 @@
 			{
 				"bar": {
 					"type": "image",
-					"texture": "textures/ui/adminplus/gradient",
+					"texture": "textures/ui/adminplus/flow",
+					"uv": "@adminplus_beta.anim_flow",
+					"uv_size": [ 128, 2 ],
 					"keep_ratio": false,
 					"size": [ "100%", 2 ],
 					"anchor_from": "top_middle",
@@ -151,7 +188,9 @@
 						{
 							"chip": {
 								"type": "image",
-								"texture": "textures/ui/adminplus/gradient",
+								"texture": "textures/ui/adminplus/flow",
+								"uv": "@adminplus_beta.anim_flow",
+								"uv_size": [ 128, 2 ],
 								"keep_ratio": false,
 								"size": [ 56, 11 ],
 								"controls": [
@@ -644,7 +683,9 @@
 						{
 							"chip": {
 								"type": "image",
-								"texture": "textures/ui/adminplus/gradient",
+								"texture": "textures/ui/adminplus/flow",
+								"uv": "@adminplus_beta.anim_flow",
+								"uv_size": [ 128, 2 ],
 								"keep_ratio": false,
 								"size": [ "100%", "100%" ],
 								"layer": 2
@@ -911,7 +952,9 @@
 			{
 				"underline": {
 					"type": "image",
-					"texture": "textures/ui/adminplus/gradient",
+					"texture": "textures/ui/adminplus/flow",
+					"uv": "@adminplus_beta.anim_flow",
+					"uv_size": [ 128, 2 ],
 					"keep_ratio": false,
 					"size": [ "100% - 4px", 2 ],
 					"offset": [ 0, -1 ],
@@ -1103,7 +1146,7 @@
 		"size": [ "100%", 16 ],
 		"controls": [
 			{ "rail@adminplus_beta.fill": { "size": [ 2, "100%" ], "offset": [ 8, 0 ], "anchor_from": "top_left", "anchor_to": "top_left", "color": [ 0.173, 0.196, 0.263 ], "layer": 1 } },
-			{ "knot@adminplus_beta.fill": { "size": [ 6, 6 ], "offset": [ 6, 5 ], "anchor_from": "top_left", "anchor_to": "top_left", "color": [ 0.333, 1.0, 1.0 ], "layer": 2 } },
+			{ "knot@adminplus_beta.fill": { "size": [ 6, 6 ], "offset": [ 6, 5 ], "anchor_from": "top_left", "anchor_to": "top_left", "color": [ 0.333, 1.0, 1.0 ], "layer": 2, "anims": [ "@adminplus_beta.anim_knot_dim" ] } },
 			{
 				"text": {
 					"type": "label",

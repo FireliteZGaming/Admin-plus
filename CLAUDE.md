@@ -524,6 +524,17 @@ field, or (on a game that drew no labels) one per input.
   see a way to change it until you turn it on"). `personalRamp` needs both.
   Display names stay staff-only for now, and lookalike protection waits for
   automod in 4.0.0. `tests/personalize.test.js`.
+- **Admin+'s look moves (2.12.6, Beta, the user: "everyone loves animation
+  right?").** Only patterns the game's own menus use: the frame rises 10px
+  into place (`anim_frame_rise`, offset, 0.2s, like its toasts); every
+  aqua-to-pink picture flows (`anim_flow`, a flip book like its loading bar,
+  attached with `"uv": "@adminplus_beta.anim_flow"` and `uv_size [128, 2]`,
+  over `flow.png` from `tools/genlook.py`); the Logs day markers pulse
+  (`anim_knot_dim`/`_bright`, alpha 1 to 0.35 and back). The flip book's
+  stepping direction is undocumented, so `flow.png`'s gradient runs
+  diagonally and holds every frame across OR down. Rule: an animation that
+  fails to play must leave the menu looking right, so nothing fades in from
+  alpha 0 and moves end at their resting place. `tests/look.test.js`.
 - **The Logs timeline (2.12.5, Beta, the user: "do a complete overhaul on
   logs and do what you think is honestly best, in both style and layout ...
   something distinct ... not close to the template one").**
