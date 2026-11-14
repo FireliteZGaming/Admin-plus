@@ -1,0 +1,36 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "adminplus:disguise_squid",
+      "materials": {
+        "default": "squid"
+      },
+      "textures": {
+        "default": "textures/entity/squid",
+        "baby": "textures/entity/squid/squid_baby"
+      },
+      "geometry": {
+        "default": "geometry.squid",
+        "baby": "geometry.squid.baby"
+      },
+      "animations": {
+        "move": "animation.squid.move",
+        "squid_rotate": "animation.squid.rotate"
+      },
+      "render_controllers": [
+        "controller.render.squid.v2"
+      ],
+      "scripts": {
+        "animate": [
+          "move",
+          "squid_rotate"
+        ],
+        "scale": "query.is_baby ? 2.0 : 1.0",
+        "pre_animation": [
+          "variable.squid = 0.0;"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "adminplus:disguise_sheep",
+      "materials": {
+        "default": "sheep"
+      },
+      "textures": {
+        "default": "textures/entity/sheep/sheep",
+        "baby": "textures/entity/sheep/sheep_baby"
+      },
+      "geometry": {
+        "default": "geometry.sheep.v1.8",
+        "sheared": "geometry.sheep.sheared.v1.8",
+        "baby": "geometry.sheep.baby"
+      },
+      "animations": {
+        "grazing": "animation.sheep.grazing.v2",
+        "baby_grazing": "animation.sheep.baby_grazing",
+        "walk": "animation.quadruped.walk",
+        "look_at_target": "animation.common.look_at_target",
+        "move": "controller.animation.sheep.move"
+      },
+      "render_controllers": [
+        "controller.render.sheep.v2"
+      ],
+      "scripts": {
+        "animate": [
+          "look_at_target",
+          "move"
+        ],
+        "scale": "query.is_baby ? 2.0 : 1.0"
+      }
+    }
+  }
+}

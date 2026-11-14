@@ -4,6 +4,7 @@ import { wipeAll } from "../core/storage.js"
 import { onPlayerJoin } from "../core/ranks.js"
 import { inStaffMode } from "../core/staffmode.js"
 import { isVanished, unvanish } from "../core/vanish.js"
+import { endAllDisguises } from "./disguise.js"
 import { applyFrozen, syncMuteTag } from "../core/moderation.js"
 import { removeAll as removeAllHolograms } from "../core/holograms.js"
 import { record } from "../core/logs.js"
@@ -20,7 +21,8 @@ import { stopStaffMode } from "./staffmode.js"
 //   2. Staff mode inventories of players who are offline: KEPT, so they get
 //      their things back the next time they join. Deleting them would delete
 //      somebody's items, and no setting is worth that.
-//   3. Vanished players are shown again, and frozen players can move again.
+//   3. Vanished players are shown again, disguised players are themselves
+//      again (their mob bodies go), and frozen players can move again.
 //
 // One more table is kept, because it undoes something in the world rather
 // than configuring the pack: enderBlocks, the blocks an old version placed,
@@ -49,6 +51,7 @@ export function factoryReset(by) {
         returned++
     }
     for (const player of online) if (isVanished(player)) unvanish(player)
+    endAllDisguises()
     // Their entities go now rather than on the next sweep.
     const holograms = removeAllHolograms()
 

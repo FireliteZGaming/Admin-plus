@@ -5,6 +5,7 @@ import { displayName, nameTokens, stripCodes, hasNickname, getNameFont, setNameD
 import { render, renderTag, nameTagsEnabled, flag, setting } from "./settings.js"
 import { STYLES, STYLE_IDS, paint, currentFrame, rampFrom } from "./nametag.js"
 import { isBeta } from "./channel.js"
+import { isHidden } from "./hiding.js"
 import { look } from "./prefs.js"
 import { applyFont } from "./fonts.js"
 import { badgeFor, teamBadgeFor } from "./badges.js"
@@ -177,7 +178,7 @@ export const PERMISSION_NODES = {
     "Chat": ["chat.staff", "chat.viewall", "chat.manage", "chat.spy", "chat.codes", "admin.broadcast", "admin.clearchat"],
     "Staff tools": ["admin.staffmode", "admin.vanish", "admin.tp", "admin.gamemode", "admin.nickname", "admin.holograms", "admin.invsee", "admin.lagclear", "admin.claims", "admin.alerts", "admin.omnitool"],
     "Punishments": ["admin.warn", "admin.mute", "admin.kick", "admin.ban", "admin.banperm", "admin.freeze", "admin.tpatoggle", "admin.reports"],
-    "Pranks": ["admin.smite", "admin.sudo"],
+    "Pranks": ["admin.smite", "admin.sudo", "admin.disguise"],
     "Ranks and places": ["ranks.grant", "ranks.manage", "warp.manage", "spawn.set"],
     "Server settings": ["presets.apply", "admin.commands", "admin.automod", "admin.allowlist", "admin.automation"]
 }
@@ -1786,6 +1787,9 @@ function resyncAll() {
 
 export function refreshNameTag(player) {
     if (!nameTagsEnabled()) return
+    // A vanished or disguised player's name stays off (core/hiding.js blanks
+    // it every tick). Writing it here put it back for a tick every 5 seconds.
+    if (isHidden(player)) return
     try {
         const rank = primaryRank(player)
         const tokens = nameTokens(player)

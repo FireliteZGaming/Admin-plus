@@ -55,7 +55,8 @@ check("armour and held items are what it hides", true, true)   // see the RP ani
 // blend_out is a fade-OUT, not a fade-in: it is what keeps the pose alive
 // between one application and the next. Zero here is what made it flicker.
 check("a real blend-out bridges the gap to the next stamp", /none 0.5 "true"/.test(anim.at(-1)), true)
-const vanishSrc = readFileSync(new URL("../Admin+ BP/scripts/core/vanish.js", import.meta.url), "utf8")
+// Since 2.12.8 the stamping lives in core/hiding.js, shared with /disguise.
+const vanishSrc = readFileSync(new URL("../Admin+ BP/scripts/core/hiding.js", import.meta.url), "utf8")
 check("re-stamped every tick, not on a slow loop", /}, 1\)/.test(vanishSrc), true)
 check("vanishing twice is refused", vanish(admin).ok, false)
 

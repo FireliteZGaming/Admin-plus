@@ -34,7 +34,9 @@ python tools/release.py --alpha    # tag, GitHub pre-release, archived build
 - **Bump before deploying**, so the user can tell from the pack list what they
   are running.
 - After a Minecraft update, run `python tools/genicons.py` — item icons come
-  from texture paths read out of the installed game.
+  from texture paths read out of the installed game. Then
+  `python tools/gendisguise.py` (`--report` first): the 76 disguise look files
+  name the game's own models, textures and animations, read the same way.
 
 ## Releases have a channel, and it means how SURE, not how big
 
@@ -310,6 +312,32 @@ field, or (on a game that drew no labels) one per input.
   padded default such as the one-space `format.tagJoin` is never trimmed).
   A new setting needs a home on a page; `tests/settingspages.test.js` fails
   until it has one.
+- **Hiding is one layer (2.12.8, `core/hiding.js`).** Vanish and disguise
+  are each a REASON to hide a player; they show again only when no reason is
+  left, so coming out of vanish leaves a disguise on. Effects are BORROWED:
+  the invisibility and night vision a player had before (a potion) are given
+  back with the time they had left, never just removed (the user: "using
+  /vanish to disappear and appear should not affect your current effects or
+  invisibility"). The every-tick animation stamp and the blank nametag live
+  there, and `refreshNameTag` skips hidden players. Anything new that hides a
+  player is a new reason, not its own copy of the effects.
+- **/disguise (2.12.8, Beta, the user: "disguise as anything. Sorta like a
+  morph mod ... skip flying mobs").** `features/disguise.js`. The player is
+  hidden (reason `disguise`) and a BODY follows them: `adminplus:disguise_<mob>`,
+  Admin+'s own entity with no AI, no damage, no pushing, family
+  `adminplus_disguise`, a 0.01 hitbox so hits reach the player. Never a real
+  mob: a script can't switch a mob's AI off. The body is PUSHED to the player
+  every tick (`clearVelocity` + `applyImpulse`), because the game animates legs
+  from distance actually travelled and a teleport travels none; it is snapped
+  when more than 4 blocks away or behind for 5 ticks, remade if it vanishes,
+  and removed while its player is vanished. Bodies carry `ap:disguise:<id>`;
+  strays are swept. It ends with `off`, factory reset or leaving (`onJoin`
+  ends a disguise left on the books). The 76 mobs and their look files come
+  from `tools/gendisguise.py`, which reads the installed game: references to
+  the game's own models, textures, animations and render controllers, plus
+  the molang that feeds them; a `minecraft:*` property reads as the mob's
+  default, and engine-supplied variables start at rest. Flying mobs stay off
+  the list. `tests/disguise.test.js`.
 - **< Code > is JavaScript in Beta (2.12.7, the user: "we actually make that
   JavaScript too").** `const setup = "..."` and `const settings = { ... }`,
   one heading per group (`toScript`/`fromScript` in `features/code.js`).

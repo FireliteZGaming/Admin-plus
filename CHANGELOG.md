@@ -56,6 +56,68 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.12.8 — 2026-11-14
+
+**/disguise: become any mob that walks or swims. In Beta.**
+
+The user: "add a /disguise that lets you disguise as anything. Sorta like a
+morph mod, it uses the same technique as vanish, but without leaving the game
+... skip flying mobs."
+
+1. **`/disguise <mob>` turns you into a mob, and `/disguise off` turns you
+   back.** Add a player's name to disguise someone below you. Typed alone, it
+   shows the mobs as buttons, on land and in the water.
+2. **76 mobs:** every mob that walks or swims, from Armadillo to Zombie
+   Villager and from Cod to Zombie Nautilus. Flying mobs are left out, as
+   asked: allay, bat, bee, blaze, ender dragon, ghast, happy ghast, parrot,
+   phantom, vex and wither. A mob newer than the running game isn't offered.
+3. **How it works:** you're hidden the way vanish hides you (invisible,
+   armour and held items too, no name), with no "left the game" line. A body
+   that looks like the mob walks where you walk and turns where you look. It's
+   Admin+'s own entity: no AI, can't be hurt, pushes nobody, and no mob hunts
+   it. A real mob couldn't be used: a script can't switch a mob's AI off, so a
+   creeper would explode at people, and hostile mobs don't exist on Peaceful.
+4. **The look:** each body names the game's own model, textures and
+   animations; no Mojang model, texture or animation file is copied into
+   Admin+. `tools/gendisguise.py` writes the 76 look files from the installed
+   game. The copper golem shows its plain, unoxidized look, because its own
+   look reads state only the game's mobs can have.
+5. **Vanish and disguise together:** vanishing while disguised hides the body
+   too, and coming out of vanish leaves you in your disguise.
+6. **Its own switch:** Ranks ▸ the rank ▸ Permissions ▸ Administrative ▸
+   Pranks ▸ disguise. Owner and Manager already have it, through every admin
+   permission.
+7. **It ends** with `/disguise off`, a factory reset, or leaving the game. It
+   stays through death and dimension changes. Staff read lines like "Disguised
+   Steve as a Pig", and Logs show them under Moderation.
+
+### Fixed, in both looks
+1. **Vanish keeps your own effects.** Coming out of vanish removed
+   invisibility and night vision outright, so a potion drunk before vanishing
+   was lost. They now come back with the time they had left. The user: "using
+   /vanish to disappear and appear should not affect your current effects or
+   invisibility".
+2. A vanished player's name came back for one tick every 5 seconds: the
+   nametag refresh wrote it, and the vanish loop blanked it again.
+
+### Not checked
+Nothing has run in game. To see: the body walks in step (its legs should
+move, because it is pushed along rather than teleported), turns with you,
+keeps up when you sprint, jump and fall, and follows you into the Nether. A
+hit on the mob reaches you inside it where the hit lands within a player's
+width. The content log will show any of the 76 look files the game rejects.
+
+### Checked
+1. `tests/disguise.test.js` (67): vanish gives effects back; Beta only and its
+   own switch; no flying mob; every mob has a body and a look with matching
+   names, no AI, no damage, no pushing, a hit-through hitbox, no game-only
+   property, every variable set; the body appears, is pushed along, snaps when
+   far, follows dimensions and is remade; vanish and disguise together;
+   switching, off, another player, outranked, leaving, strays and factory
+   reset; the mob buttons.
+2. 68 test files, 3,703 checks. Verifier: 0 problems, all 79 entities have a
+   look file.
+
 ## 2.12.7 — 2026-11-14
 
 **Server settings overhauled: one page per group, every setting in its place,

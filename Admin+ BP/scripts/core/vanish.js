@@ -1,6 +1,7 @@
 import { world, system } from "@minecraft/server"
 import { Table } from "./storage.js"
 import { flag } from "./settings.js"
+import { hide, unhide, isHidden, HIDDEN_TAG, HIDING_ANIMATION } from "./hiding.js"
 
 // Vanish — actually unrendered, armour and held items included.
 //
@@ -17,10 +18,20 @@ import { flag } from "./settings.js"
 // stashed equipment into the player's inventory: it worked, but it could fail
 // on a full inventory and had to be unwound correctly after a crash. This has
 // no such state to lose.
+//
+// TWO things have to be true together or the armour flickers: re-stamp EVERY
+// TICK, and give it half a second of BLEND_OUT. That is a fade-OUT time, not a
+// fade-in: how long the pose survives after being told to stop, the only thing
+// bridging the gap to the next stamp. It flickered at ten ticks with a 0.2
+// blend, and worse at one tick with a 0 blend, read wrongly as a fade-in.
+//
+// Since 2.12.8 the hiding itself lives in core/hiding.js, shared with
+// /disguise: vanish is one REASON to be hidden, and the effects a player had
+// before vanishing (a potion of invisibility, night vision) come back when
+// they reappear, instead of being removed.
 
 const VANISH_KEY = "vanished"
-const ANIMATION = "animation.adminplus.vanish"
-const TAG = "ap:vanished"
+const REASON = "vanish"
 
 const vanished = new Table(VANISH_KEY, {})
 
@@ -39,108 +50,34 @@ export function vanishedCount() { return vanished.ids().length }
 export function vanish(player) {
     if (isVanished(player)) return { ok: false, reason: "You're already vanished." }
     vanished.set(player.id, { name: player.name, at: Date.now() })
-    apply(player)
+    hide(player, REASON, { nightVision: flag("vanish.nightVision") })
     return { ok: true }
 }
 
-/** Bring a player back. */
+/**
+ * Bring a player back. `visible` says whether they show now: a disguised
+ * player stays hidden inside the disguise.
+ */
 export function unvanish(player) {
     if (!isVanished(player)) return { ok: false, reason: "You aren't vanished." }
     vanished.delete(player.id)
-    clear(player)
-    return { ok: true }
+    return { ok: true, visible: unhide(player, REASON) }
 }
 
 export function toggle(player) {
     return isVanished(player) ? unvanish(player) : vanish(player)
 }
 
-// ------------------------------------------------------------------ effects
-
-function apply(player) {
-    try {
-        player.addTag(TAG)
-        player.addEffect("invisibility", 20000000, { amplifier: 0, showParticles: false })
-        if (flag("vanish.nightVision")) {
-            player.addEffect("night_vision", 20000000, { amplifier: 0, showParticles: false })
-        }
-        player.nameTag = ""
-        playVanishAnimation(player)
-    } catch (e) {
-        console.warn(`[Admin+] vanish failed for ${player.name}: ${e}`)
-    }
-}
-
-function clear(player) {
-    try {
-        player.removeTag(TAG)
-        player.removeEffect("invisibility")
-        if (flag("vanish.nightVision")) player.removeEffect("night_vision")
-        // The animation is not stopped explicitly: it lapses once nothing
-        // re-applies it, which is one less thing to get wrong.
-    } catch { /* player left */ }
-}
-
-/** How long the animation takes to fade out once it stops. NOT a fade-in. */
-const BLEND_OUT = 0.5
-
-function playVanishAnimation(player) {
-    try {
-        // Run from the DIMENSION, not the player: player.runCommand inherits the
-        // player's own permission level, so a staff member with admin.vanish but
-        // no operator status could not hide themselves.
-        player.dimension.runCommand(
-            `playanimation "${player.name}" ${ANIMATION} none ${BLEND_OUT} "true"`)
-    } catch {
-        // The animation lives in the resource pack. Without it the player is
-        // still invisible — just with their armour showing — so this is a
-        // degraded state, not a broken one.
-    }
-}
-
 /**
- * Re-stamp every tick, and on join.
- *
- * TWO things have to be true together or the armour flickers, and getting one
- * of them right is not enough:
- *
- *   1. Re-apply EVERY TICK. The stop expression is "true", so each application
- *      is told to stop at once; the loop is what keeps it going at all.
- *   2. Give it a real BLEND_OUT. That is a fade-OUT time, not a fade-in — it is
- *      how long the pose survives after being told to stop, and it is the only
- *      thing bridging the gap to the next application.
- *
- * This flickered twice. First at ten ticks with a 0.2 blend: too slow, and the
- * pose lapsed between stamps. Then at one tick with a 0 blend, on a misreading
- * of that parameter as a fade-in — which removed the bridge entirely and made
- * it worse. Every tick plus half a second of blend is what the working
- * reference does, and the two numbers only work as a pair.
+ * On join. core/hiding.js puts the hiding back on anyone it has a record for;
+ * this covers a player who vanished before that layer existed (2.12.8), whose
+ * invisibility is Admin+'s own already, so nothing of theirs is remembered.
  */
 export function installVanish() {
     world.afterEvents.playerSpawn.subscribe(({ player, initialSpawn }) => {
-        if (!initialSpawn) return
-        if (isVanished(player)) { system.run(() => apply(player)); return }
-        // Hidden by Admin+ with no record behind it: a factory reset while they
-        // were away, or a record lost some other way. Show them again, rather
-        // than leave them invisible with nothing that could bring them back.
-        let tagged = false
-        try { tagged = player.hasTag(TAG) } catch { /* left */ }
-        if (tagged) system.run(() => clear(player))
+        if (!initialSpawn || !isVanished(player) || isHidden(player, REASON)) return
+        system.run(() => hide(player, REASON, { nightVision: flag("vanish.nightVision"), keep: false }))
     })
-
-    system.runInterval(() => {
-        // Nobody hidden is the normal state of a server, and this runs twenty
-        // times a second forever. Checking a count first turns the common case
-        // into one lookup instead of walking every player and reading their
-        // tags. The re-stamping below is unchanged — its timing is load-bearing
-        // and confirmed in play.
-        if (!vanishedCount()) return
-        for (const player of world.getAllPlayers()) {
-            if (!isVanished(player)) continue
-            playVanishAnimation(player)
-            player.nameTag = ""
-        }
-    }, 1)
 }
 
-export { TAG as VANISH_TAG, ANIMATION as VANISH_ANIMATION }
+export { HIDDEN_TAG as VANISH_TAG, HIDING_ANIMATION as VANISH_ANIMATION }

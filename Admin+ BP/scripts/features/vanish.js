@@ -32,7 +32,10 @@ command({
             if (!result.ok) { err(player, result.reason); continue }
 
             const nowHidden = !wasVanished
-            if (!nowHidden) refreshNameTag(target)
+            // Out of vanish but still disguised (2.12.8): the disguise keeps
+            // them hidden, so their name stays off too.
+            const stillDisguised = !nowHidden && result.visible === false
+            if (!nowHidden && !stillDisguised) refreshNameTag(target)
 
             // The same line the game would print for a real disconnect, from
             // the same code — so vanishing reads as leaving unless someone is
@@ -43,10 +46,10 @@ command({
             if (target.id === player.id) {
                 ok(player, nowHidden
                     ? "§7You're invisible, armour and held items too."
-                    : "§7You're visible again.")
+                    : stillDisguised ? "§7You're out of vanish. Your disguise is still on." : "§7You're visible again.")
             } else {
-                ok(player, `${displayName(target)} is now §f${nowHidden ? "hidden" : "visible"}§a.`)
-                info(target, nowHidden ? "§7Staff made you invisible." : "§7You were made visible again.")
+                ok(player, `${displayName(target)} is now §f${nowHidden ? "hidden" : stillDisguised ? "out of vanish, still disguised" : "visible"}§a.`)
+                info(target, nowHidden ? "§7Staff made you invisible." : stillDisguised ? "§7Staff took you out of vanish. Your disguise is still on." : "§7You were made visible again.")
             }
 
             record(player, nowHidden ? "admin.vanish" : "admin.unvanish", target,

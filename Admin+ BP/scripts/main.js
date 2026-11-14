@@ -38,6 +38,8 @@ import { installPresence } from "./features/presence.js"
 import { installSignLog } from "./features/signlog.js"
 import { installNameAnimation } from "./features/nameanim.js"
 import { installVanish } from "./core/vanish.js"
+import { installHiding } from "./core/hiding.js"
+import { installDisguise } from "./features/disguise.js"
 import "./features/reports.js"
 import "./features/warn.js"
 import "./features/nick.js"
@@ -163,7 +165,9 @@ system.runInterval(() => {
 installModeration()
 installSpawnProtection()
 installAutomod()
+installHiding()
 installVanish()
+installDisguise()
 installPresence()
 installSignLog()
 installNameAnimation()

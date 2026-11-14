@@ -132,7 +132,8 @@ for f in fns:
 
 # ------------------------------------------------------------------ entities
 head("entities & assets")
-for f in sorted(BP.glob("entities/*.json")):
+# rglob: the game loads entity files from subfolders too (entities/disguise/).
+for f in sorted(BP.rglob("entities/**/*.json")):
     d = json.load(io.open(f, encoding="utf-8"))
     ident = d["minecraft:entity"]["description"]["identifier"]
     used = any(ident in io.open(j, encoding="utf-8").read() for j in js)
@@ -156,7 +157,7 @@ for f in ui_files:
 # Holograms shipped that way from the day they were written: the whole feature
 # was invisible and nothing anywhere said so.
 bp_ids = set()
-for path in glob.glob("Admin+ BP/entities/*.json"):
+for path in glob.glob("Admin+ BP/entities/**/*.json", recursive=True):
     try:
         data = json.load(io.open(path, encoding="utf-8"))
         ident = data.get("minecraft:entity", {}).get("description", {}).get("identifier")
@@ -166,7 +167,7 @@ for path in glob.glob("Admin+ BP/entities/*.json"):
         fail(f"{os.path.basename(path)} is not readable JSON: {e}")
 
 rp_ids = set()
-for path in glob.glob("Admin+ RP/entity/*.json"):
+for path in glob.glob("Admin+ RP/entity/**/*.json", recursive=True):
     try:
         data = json.load(io.open(path, encoding="utf-8"))
         ident = data.get("minecraft:client_entity", {}).get("description", {}).get("identifier")

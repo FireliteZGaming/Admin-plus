@@ -148,7 +148,7 @@ const LOG_PHRASES = {
 }
 
 /** Sentences whose words already hold the detail, so it isn't said twice. */
-const DETAIL_IN_SENTENCE = new Set(["rank.grant", "rank.revoke", "rank.set", "mod.gamemode", "name.set", "name.clear", "automation.rank", "dev.mode"])
+const DETAIL_IN_SENTENCE = new Set(["rank.grant", "rank.revoke", "rank.set", "mod.gamemode", "name.set", "name.clear", "automation.rank", "dev.mode", "troll.disguise", "troll.undisguise"])
 
 const plain = s => String(s ?? "").replace(/§./g, "")
 const lowerFirst = s => s ? s[0].toLowerCase() + s.slice(1) : s
