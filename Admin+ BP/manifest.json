@@ -1,13 +1,13 @@
 {
     "format_version": 2,
     "header": {
-        "name": "§bAdmin§d+§r §7v2.12.11 §8[BP]",
+        "name": "§bAdmin§d+§r §7v2.12.12 §8[BP]",
         "description": "§bAdmin§d+§r: admin tools, ranks, warps and TPA. Behavior pack. §eNeeds §9Beta APIs§e turned on in the world settings. §8© 2026 Axiomation Syndicate",
         "uuid": "e5f86caf-097d-4d8d-86ac-efa4a6103dc2",
         "version": [
             2,
             12,
-            11
+            12
         ],
         "min_engine_version": [
             1,
@@ -22,7 +22,7 @@
             "version": [
                 2,
                 12,
-                11
+                12
             ]
         },
         {
@@ -33,7 +33,7 @@
             "version": [
                 2,
                 12,
-                11
+                12
             ]
         }
     ],
@@ -43,7 +43,7 @@
             "version": [
                 2,
                 12,
-                11
+                12
             ]
         },
         {

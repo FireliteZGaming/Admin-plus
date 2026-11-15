@@ -56,6 +56,23 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.12.12 — 2026-11-14
+
+**A new pack icon: the Admin+ plus.**
+
+The user: "the icon shouldn't be the panel but it should be the plus, so no
+line on top but the + is centered in the middle too. And a bit more around
+... slap an Axiomation Syndicate below on the bottom of the pack icon".
+
+1. **Both packs' `pack_icon.png`:** the five-tile plus (aqua, violet and pink
+   tiles you could press) dead centre, on a stage in front of a faint wall of
+   tiles, with a few loose tiles around it, and Axiomation Syndicate's mark and
+   name along the bottom. It replaces the shield with the crown.
+2. The old icon is kept in Obsidian, Admin+ ▸ Branding ▸ Old pack icon.
+
+### Not checked
+1. In game: how the icon looks in the pack lists and the world settings.
+
 ## 2.12.11 — 2026-11-14
 
 **Axiomation Syndicate's name on Admin+.**
