@@ -113,13 +113,77 @@
 			{
 				"content": {
 					"type": "panel",
-					"size": [ "100% - 10px", "100% - 32px" ],
+					"size": [ "100% - 10px", "100% - 45px" ],
 					"offset": [ 0, 29 ],
 					"anchor_from": "top_middle",
 					"anchor_to": "top_middle",
 					"layer": 4,
 					"controls": [
 						{ "inner@$frame_content": {} }
+					]
+				}
+			},
+			{
+				"foot_rule@adminplus_beta.fill": {
+					"size": [ "100% - 2px", 1 ],
+					"offset": [ 0, -13 ],
+					"anchor_from": "bottom_middle",
+					"anchor_to": "bottom_middle",
+					"color": [ 0.173, 0.196, 0.263 ],
+					"layer": 4
+				}
+			},
+			{
+				"foot@adminplus_beta.foot": {
+					"size": [ "100% - 12px", 12 ],
+					"offset": [ 0, -1 ],
+					"anchor_from": "bottom_middle",
+					"anchor_to": "bottom_middle",
+					"layer": 4
+				}
+			}
+		]
+	},
+
+	"foot": {
+		"type": "stack_panel",
+		"orientation": "horizontal",
+		"controls": [
+			{
+				"mark_slot": {
+					"type": "panel",
+					"size": [ 11, "100%" ],
+					"controls": [
+						{
+							"mark": {
+								"type": "image",
+								"texture": "textures/ui/adminplus/axiomation",
+								"keep_ratio": false,
+								"size": [ 8, 8 ],
+								"color": [ 0.545, 0.573, 0.651 ],
+								"anchor_from": "left_middle",
+								"anchor_to": "left_middle"
+							}
+						}
+					]
+				}
+			},
+			{
+				"credit_slot": {
+					"type": "panel",
+					"size": [ "fill", "100%" ],
+					"controls": [
+						{
+							"credit": {
+								"type": "label",
+								"text": "Axiomation Syndicate © 2026",
+								"color": [ 0.545, 0.573, 0.651 ],
+								"shadow": false,
+								"size": [ "default", 10 ],
+								"anchor_from": "left_middle",
+								"anchor_to": "left_middle"
+							}
+						}
 					]
 				}
 			}

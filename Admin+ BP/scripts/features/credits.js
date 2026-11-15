@@ -96,7 +96,7 @@ export async function creditsScreen(player, back) {
             // The user, 2026-11-14: "Axiomation Syndicate is what we slap on our thing".
             "§fAn Axiomation Syndicate project",
             "§8The part of Overhang Studio that makes in-game mods,",
-            "§8mostly for Minecraft.",
+            "§8mostly for Minecraft. © 2026 Axiomation Syndicate.",
             "",
             "§fIncludes code from",
             ...INCLUDED.map(entry => `§8· §f${entry.pack}§8, ${entry.licence}`),
@@ -195,6 +195,7 @@ command({
     description: "See which version of Admin+ is running",
     run: (player) => {
         info(player, `§l§bAdmin§d+§r §fv${ADMINPLUS_VERSION}`)
+        info(player, "§8Axiomation Syndicate © 2026")
         // While presets are hidden (core/hold.js), naming one would point
         // at a screen nobody can open.
         info(player, SERVER_PRESETS_ON_HOLD

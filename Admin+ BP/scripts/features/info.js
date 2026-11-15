@@ -268,6 +268,7 @@ async function aboutScreen(player, back) {
         title: hubTitle("about", "About"),
         body: [
             `§l§bAdmin§d+§r §8v${ADMINPLUS_VERSION}`,
+            "§8Axiomation Syndicate © 2026",
             "",
             `§7Menus: §f${menusName()}`,
             "§8Switch between Admin+ menus and Minecraft's own in the",

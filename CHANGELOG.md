@@ -56,6 +56,31 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.12.11 — 2026-11-14
+
+**Axiomation Syndicate's name on Admin+.**
+
+The user: "that is what we slap on everywhere, especially in the Admin+
+Menus, so it says Axiomation Syndicate (C) 2026 or something like that."
+
+1. **Every Admin+ menu** (Admin+ menus on the pack slider) has a footer:
+   Axiomation Syndicate's mark and "Axiomation Syndicate © 2026", in the
+   frame's quiet grey, under a thin rule. The content area is 13 pixels
+   shorter to make room.
+2. **About** and **/version** say "Axiomation Syndicate © 2026". **Credits**
+   adds the year to its Axiomation Syndicate lines.
+3. **The pack list:** both packs' descriptions end with "© 2026 Axiomation
+   Syndicate".
+4. The mark is a new texture, `textures/ui/adminplus/axiomation.png`, drawn
+   with strokes thick enough for a few pixels.
+
+### Not checked
+1. In game: the footer's place and size in every menu, including tiles,
+   forms and the tall text editor, and that © draws in the game's font.
+
+### Checked
+1. The menu file still parses; tests and the verifier below.
+
 ## 2.12.10 — 2026-11-14
 
 **Beta is everyone's, and the pack slider picks the menus.**
