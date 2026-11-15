@@ -5,7 +5,6 @@ import { canTrollOn, refreshNameTag } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
 import { trollBlockedBy, DISGUISE } from "../core/trollgate.js"
 import { record } from "../core/logs.js"
-import { isBeta } from "../core/channel.js"
 import { Table } from "../core/storage.js"
 import { hide, unhide } from "../core/hiding.js"
 import { isVanished } from "../core/vanish.js"
@@ -296,9 +295,6 @@ command({
     mandatory: [{ name: mobEnum, type: CustomCommandParamType.Enum, label: "Which mob?", ask: pickDisguise }],
     optional: [{ name: "player", type: CustomCommandParamType.PlayerSelector }],
     run: (player, [mobId, selected]) => {
-        if (!isBeta()) {
-            return err(player, "Disguises are in Beta. Set Admin+ BP's pack setting to Beta: the gear beside it in the world's Behavior Packs.")
-        }
         const shut = trollBlockedBy(player, DISGUISE)
         if (shut) return err(player, shut)
 

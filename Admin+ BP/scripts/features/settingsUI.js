@@ -8,7 +8,6 @@ import { has, refreshNameTag } from "../core/ranks.js"
 import { record } from "../core/logs.js"
 import { channelsScreen } from "./chatUI.js"
 import { previewLine } from "./code.js"
-import { isBeta } from "../core/channel.js"
 
 // /admin ▸ Server ▸ Settings
 //
@@ -41,7 +40,7 @@ import { isBeta } from "../core/channel.js"
  */
 const inLook = (thing, key) => {
     const beta = thing[`beta${key[0].toUpperCase()}${key.slice(1)}`]
-    return isBeta() && beta !== undefined ? beta : thing[key]
+    return beta !== undefined ? beta : thing[key]
 }
 
 /** A field that shows only in Beta (2.12.7): it used to be in Every setting alone. */
@@ -331,8 +330,8 @@ export function settingKeys() {
 }
 
 /** The pages and fields shown in the look being shown: Beta ones only in Beta. */
-export const pagesIn = group => group.pages.filter(page => !page.beta || isBeta())
-export const fieldsIn = page => page.fields.filter(field => !field.beta || isBeta())
+export const pagesIn = group => group.pages
+export const fieldsIn = page => page.fields
 
 /** On or off, for the page's button. Only pages led by a feature switch have one. */
 function stateOf(page) {
@@ -349,7 +348,7 @@ function labelOf(field, extra = []) {
 
 export async function settingsScreen(player, back) {
     const again = () => settingsScreen(player, back)
-    const beta = isBeta()
+    const beta = true // Beta's pages are everyone's since 2.12.10
     return menu(player, {
         title: hubTitle("settings", "Settings"),
         body: beta
@@ -369,7 +368,7 @@ export async function settingsScreen(player, back) {
 }
 
 export async function groupScreen(player, group, back) {
-    if (isBeta()) return groupPageScreen(player, group, back)
+    return groupPageScreen(player, group, back)
     const again = () => groupScreen(player, group, back)
     return menu(player, {
         title: hubTitle("settings", group.label),

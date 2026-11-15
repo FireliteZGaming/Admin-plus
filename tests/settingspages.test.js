@@ -99,17 +99,16 @@ console.log("\n— every setting has one home in Beta —")
     }).map(f => f.key), [])
 }
 
-console.log("\n— Default stays as it was —")
+console.log("\n— Minecraft's menus get the same pages (2.12.10) —")
 {
-    setBeta(false)
+    setBeta(true)
     __ui.answers.length = 0
     await groupScreen(boss, group("chat"), () => {})
-    check("Chat is still a list of pages", buttonsOf(lastForm()), ["Admin+ chat", "Chat rooms", "Private messages", "Emotes", "Join and leave", "Manage chat rooms", "< Back"])
-    const pm = group("chat").pages.find(p => p.label === "Private messages")
-    await pageScreen(boss, pm, () => {})
-    check("and its Private messages page is one switch", inputsOf(lastForm()).map(p => p[0]), ["toggle"])
-    await settingsScreen(boss, () => {})
-    check("Settings has no chat rooms button of its own", buttonsOf(lastForm()).includes("Manage chat rooms"), false)
+    const styled = inputsOf(lastForm()).map(p => p[0])
+    setBeta(false)
+    await groupScreen(boss, group("chat"), () => {})
+    check("Chat is the same one page with either menus", inputsOf(lastForm()).map(p => p[0]), styled)
+    setBeta(true)
 }
 
 console.log("\n— in Beta a group is one page in sections —")
@@ -208,7 +207,8 @@ console.log("\n— Automod in Beta —")
     setBeta(false)
     __ui.answers.length = 0
     await automodScreen(boss, () => {})
-    check("Default's Checks are still switches alone", inputsOf(lastForm()).map(p => p[0]), ["toggle", "toggle"])
+    check("Minecraft's menus get the Checks pages too", inputsOf(lastForm()).length > 2, true)
+    setBeta(true)
 }
 
 console.log("\n— Advanced and Saved setups in Beta —")
@@ -225,7 +225,7 @@ console.log("\n— Advanced and Saved setups in Beta —")
         return buttonsOf(lastForm())
     }
     setBeta(false)
-    check("Default keeps Every setting", (await advanced()).includes("Every setting"), true)
+    check("Minecraft's menus have no Every setting either", (await advanced()).includes("Every setting"), false)
     setBeta(true)
     check("Beta's Advanced: setups, < Code > and reset", await advanced(), ["Saved setups", "< Code >", "Factory reset", "< Back"])
 
@@ -252,7 +252,8 @@ console.log("\n— Advanced and Saved setups in Beta —")
     setBeta(false)
     __ui.answers.length = 0
     await configPresetsScreen(boss, () => {})
-    check("Default still calls it Vanilla", buttonsOf(lastForm())[0], "Vanilla")
+    check("Minecraft's menus call it Back to defaults too", String(buttonsOf(lastForm())[0]).startsWith("Back to defaults"), true)
+    setBeta(true)
 }
 
 console.log("\n— a setting that starts as a space is text —")

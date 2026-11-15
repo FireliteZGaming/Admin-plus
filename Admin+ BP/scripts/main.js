@@ -29,7 +29,7 @@ import { installBack } from "./features/back.js"
 import { installClaims } from "./features/claims.js"
 import { installWorldTools } from "./features/worldtools.js"
 import { installAutomation } from "./features/automation.js"
-import { channelName } from "./core/channel.js"
+import { menusName } from "./core/channel.js"
 import { installAutomod } from "./features/automod.js"
 import "./features/cleanup.js"
 import "./features/vanish.js"
@@ -190,7 +190,7 @@ installAllowlist()
 
 world.afterEvents.worldLoad.subscribe(() => {
     console.log(`[Admin+] v${ADMINPLUS_VERSION} loaded — command namespace "${NS}:"`)
-    console.log(`[Admin+] features: ${channelName()} (the pack settings slider)`)
+    console.log(`[Admin+] menus: ${menusName()} (the pack settings slider)`)
 
     // Say what shape the world came up in. "The preset did not stick after a
     // rejoin" was impossible to answer from the log before this: nothing

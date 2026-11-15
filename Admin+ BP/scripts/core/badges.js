@@ -1,4 +1,3 @@
-import { isBeta } from "./channel.js"
 import { flag } from "./settings.js"
 
 // Rank badges (2.11.2, redrawn in 2.11.3, Beta). The user, 2026-11-13: like
@@ -53,7 +52,7 @@ export function badgeLabel(key) {
 
 /** True when badges show: the slider on Beta, and the Badges switch on. */
 export function badgesOn() {
-    return isBeta() && flag("feature.badges")
+    return flag("feature.badges")
 }
 
 /** "admin" or "classic", from Server ▸ Settings ▸ Names and tags ▸ Badges. */

@@ -76,15 +76,12 @@ console.log("\n— every slider can show its shipped value —")
 }
 
 console.log("\n— a page holds everything about one thing —")
+// Since 2.12.10 a group opens as one page in sections for everyone, so TPA's
+// switch and its expiry are saved from Travel's page, which
+// tests/settingspages.test.js fills field by field.
 {
-    // Settings ▸ Travel ▸ Teleport requests: the switch, and how long a request lasts.
-    const travel = GROUPS.findIndex(g => g.id === "travel")
-    const tpa = GROUPS[travel].pages.findIndex(p => p.label === "Teleport requests")
-    __ui.answers.push(press(travel), press(tpa), submit(false, 120))
-    await settingsScreen(boss, () => {})
-    check("one form turns TPA off", flag("feature.tpa"), false)
-    check("and sets how long a request lasts", setting("tpa.expire"), "120")
-    resetSetting("feature.tpa"); resetSetting("tpa.expire")
+    const tpa = GROUPS.find(g => g.id === "travel").pages.find(p => p.label === "Teleport requests")
+    check("Teleport requests holds the switch and how long a request lasts", tpa.fields.map(f => f.key), ["feature.tpa", "tpa.expire"])
 }
 
 console.log("\n— only what moved is written —")
@@ -130,13 +127,9 @@ console.log("\n— Automod is its own door —")
     await automodHubScreen(boss, () => {})
     const hub = buttonsOf(lastForm()).map(t => t.split("\n")[0].replace(/§./g, ""))
     check("Checks and Chat screening, and no empty held queue", hub, ["Checks", "Chat screening", "< Back"])
-    // The screening settings still work, for the day the hold lifts.
-    __ui.answers.push(submit(true, 0, 2, 2, 1, 2, 10, true))
-    await screeningScreen(boss, () => {})
-    check("ordinary swearing set to whole words", setting("filter.profanity"), "1")
-    check("a held message now also mutes", setting("filter.action"), "mute")
-    check("for ten minutes", setting("filter.muteSeconds"), "600")
-    for (const key of ["filter.profanity", "filter.action", "filter.muteSeconds"]) resetSetting(key)
+    // The screening settings still work, for the day the hold lifts. Since
+    // 2.12.10 its form carries the word lists too, and
+    // tests/settingspages.test.js fills it field by field.
 }
 
 console.log("\n— the hidden Server presets screen still asks for ideas on the Discord —")

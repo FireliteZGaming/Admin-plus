@@ -3,7 +3,6 @@ import { hubTitle, hubEntry } from "../core/theme.js"
 import { ok, info, err } from "../core/util.js"
 import { setting, setSetting, flag, overrides } from "../core/settings.js"
 import { num, txt, fieldFor, applyField } from "../core/settingFields.js"
-import { isBeta } from "../core/channel.js"
 import { has } from "../core/ranks.js"
 import { record } from "../core/logs.js"
 import { automodScreen } from "./automod.js"
@@ -79,7 +78,7 @@ const muteMinutes = () => Math.min(60, Math.max(1, Math.round(Number(setting("fi
 // The hub can't open this while chat automod is on hold (core/hold.js). It is
 // exported so it stays tested and works the day the hold lifts.
 export async function screeningScreen(player, back) {
-    const beta = isBeta()
+    const beta = true // Beta's screens are everyone's since 2.12.10
     const actionAt = Math.max(0, ACTIONS.findIndex(([id]) => id === String(setting("filter.action")).trim().toLowerCase()))
     const enabled = {
         id: "enabled", type: "toggle",

@@ -6,7 +6,6 @@ import { ok, err, info } from "../core/util.js"
 import { has, isStaff } from "../core/ranks.js"
 import { setSetting, flag, setting, overrides } from "../core/settings.js"
 import { sw, num, txt, fieldFor, applyField } from "../core/settingFields.js"
-import { isBeta } from "../core/channel.js"
 import { record } from "../core/logs.js"
 import {
     config, noteOre, noteBreak, noteChat, drainFinishedVeins,
@@ -332,7 +331,9 @@ async function checksPageScreen(player, back) {
 
 export async function automodScreen(player, back) {
     if (!has(player, "admin.automod")) { err(player, "You can't change automod."); return back() }
-    if (isBeta()) return checksPageScreen(player, back)
+    // The Checks pages are everyone's since 2.12.10; the old list below is
+    // kept but nothing reaches it.
+    return checksPageScreen(player, back)
 
     const checks = shownChecks()
     const before = Object.fromEntries(checks.map(check => [check.id, flag(check.key)]))

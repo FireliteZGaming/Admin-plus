@@ -13,7 +13,6 @@ import { warpsScreen } from "./warps.js"
 import { claimsScreen } from "./claims.js"
 import { claimLimit } from "../core/claims.js"
 import { flag } from "../core/settings.js"
-import { isBeta } from "../core/channel.js"
 import { reportsScreen, reportsBadge, reportsTile } from "./reports.js"
 import { openLogs } from "./logbook.js"
 import { settingsScreen } from "./settingsUI.js"
@@ -151,7 +150,7 @@ function serverButtons(player, back) {
             ? { text: hubButton("presets", "Server presets", "Coming soon · suggest ideas on the Discord"), run: () => serverPresetsScreen(player, back) }
             : null,
         settings || canUseCode(player)
-            ? { text: hubButton("settings", "Advanced", isBeta() ? "Saved setups, < Code > and reset" : "Every setting, saved setups and reset"), run: () => advancedScreen(player, back) }
+            ? { text: hubButton("settings", "Advanced", "Saved setups, < Code > and reset"), run: () => advancedScreen(player, back) }
             : null
     ].filter(Boolean)
 }
@@ -176,7 +175,7 @@ async function serverScreen(player, back) {
 async function advancedScreen(player, back) {
     const again = () => advancedScreen(player, back)
     const settings = has(player, "admin.settings")
-    const beta = isBeta()
+    const beta = true // Beta's Advanced is everyone's since 2.12.10
     return menu(player, {
         title: hubTitle("settings", "Advanced"),
         body: subtitle(beta

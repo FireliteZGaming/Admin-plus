@@ -1,7 +1,9 @@
 import { __test } from "@minecraft/server"
 import "../Admin+ BP/scripts/main.js"
 import { setSetting, resetSetting, render } from "../Admin+ BP/scripts/core/settings.js"
-import { setRanks, saveRank, getRank, RANK_VALUES, nametagStyleFor, effectiveNametagStyle, refreshNameTag, creatorIdentity, CREATOR_GAMERTAG } from "../Admin+ BP/scripts/core/ranks.js"
+import { setRanks, saveRank, getRank, RANK_VALUES, nametagStyleFor, effectiveNametagStyle, effectiveNameRamp, refreshNameTag, creatorIdentity, CREATOR_GAMERTAG } from "../Admin+ BP/scripts/core/ranks.js"
+import { setNameColours } from "../Admin+ BP/scripts/core/identity.js"
+import { setLook } from "../Admin+ BP/scripts/core/prefs.js"
 import { setNickname, displayName, nameTokens, creatorStill, stripCodes } from "../Admin+ BP/scripts/core/identity.js"
 import { STYLES, STYLE_IDS, paint, currentFrame, advanceFrame, __resetFrames } from "../Admin+ BP/scripts/core/nametag.js"
 import { stepNameAnimation } from "../Admin+ BP/scripts/features/nameanim.js"
@@ -194,7 +196,9 @@ console.log("\n— resolving the style off the rank —")
     check("nothing set means none", nametagStyleFor(player), "none")
 
     saveRank("member", { meta: { ...getRank("member")?.meta, "nametag.style": "rainbow" } })
-    check("a rank that names one gives it", nametagStyleFor(player), "rainbow")
+    // Since 2.12.10 (2.12.3 in Beta) a rank gives no name effect: players
+    // choose their own, behind the rank's Name effect switch.
+    check("a rank that names one no longer gives it", nametagStyleFor(player), "none")
 
     // A rank naming a style that no longer exists must not paint §undefined.
     saveRank("member", { meta: { ...getRank("member")?.meta, "nametag.style": "chartreuse" } })
@@ -203,6 +207,10 @@ console.log("\n— resolving the style off the rank —")
 }
 
 console.log("\n— it reaches the nametag —")
+// The player's own colours: how a name gets an effect since 2.12.10.
+saveRank("member", { perms: [...(getRank("member")?.perms ?? []), "personalize.nameeffect"] })
+setNameColours(player, ["c", "6", "e", "a"])
+setLook(player, "name.effects", true)
 {
     setSetting("feature.namecolour", "true")
     __resetFrames()
@@ -251,13 +259,13 @@ console.log("\n— the tick only pays for players wearing one —")
     // reported 2 and looked like a bug in the tick. It was a bug in the setup.
     saveRank("member", { meta: { ...getRank("member")?.meta, "nametag.style": "none" } })
     saveRank("shiny", {
-        id: "shiny", display: "§dShiny", weight: 20, inherits: [], perms: [],
-        staff: false, meta: { "nametag.style": "rainbow" }
+        id: "shiny", display: "§dShiny", weight: 20, inherits: [], perms: ["personalize.nameeffect"],
+        staff: false, meta: {}
     })
     setRanks(player.id, ["shiny"], player.name)
     setRanks(plain.id, ["member"], plain.name)
-    check("one wears a style and the other does not",
-        [nametagStyleFor(player), nametagStyleFor(plain)], ["rainbow", "none"])
+    check("one wears their own colours and the other does not",
+        [!!effectiveNameRamp(player), !!effectiveNameRamp(plain)], [true, false])
 
     plain.nameTag = "Nobody"
     check("only the styled player is repainted",
@@ -489,9 +497,11 @@ console.log("\n— the creator's name actually MOVES, which it did not —")
     }
     __test.players.push(other)
     saveRank("glow", { id: "glow", display: "", weight: 5, inherits: ["member"],
-                       perms: [], staff: false, meta: { "nametag.style": "rainbow" } })
+                       perms: ["personalize.nameeffect"], staff: false, meta: {} })
     setRanks(other.id, ["glow"], other.name)
-    check("a rank-given style still animates", effectiveNametagStyle(other), "rainbow")
+    setNameColours(other, ["b", "d", "e", "a"])
+    setLook(other, "name.effects", true)
+    check("a player's own colours animate", !!effectiveNameRamp(other), true)
     refreshNameTag(other)
     const theirs = new Set()
     for (let i = 0; i < 6; i++) { stepNameAnimation([other]); theirs.add(other.nameTag) }

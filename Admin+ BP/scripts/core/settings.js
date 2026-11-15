@@ -355,11 +355,11 @@ export const DEFAULTS = {
     // Rank badges (2.11.2): Beta only, see core/badges.js.
     "feature.badges": {
         value: "true", label: "Badges",
-        help: "true / false · Beta only: a small picture before each rank's tag, in chat and above heads, and on rank buttons instead of the word staff"
+        help: "true / false · A small picture before each rank's tag, in chat and above heads, and on rank buttons instead of the word staff"
     },
     "badge.classic": {
         value: "false", label: "Classic badges",
-        help: "true / false · Beta only: badges as coloured squares instead of Admin+'s dark tiles"
+        help: "true / false · Badges as coloured squares instead of Admin+'s dark tiles"
     },
     "creator.console": {
         value: "true",

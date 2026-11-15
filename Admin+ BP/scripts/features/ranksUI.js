@@ -6,7 +6,6 @@ import { record } from "../core/logs.js"
 import { ok, err, info } from "../core/util.js"
 import { TICK, badgeChar, badgeFor, badgeLabel, badgeOf, badgeStyle, badgesOn, canWearBadge, pickableBadges, mayWear } from "../core/badges.js"
 import { cardStripe } from "../core/look.js"
-import { isBeta } from "../core/channel.js"
 import { STAFF_TEMPLATES, staffTemplate } from "../core/rankTemplates.js"
 import { stripCodes, displayName } from "../core/identity.js"
 import { STYLES, STYLE_IDS, paint } from "../core/nametag.js"
@@ -258,7 +257,7 @@ function previewLine(rank) {
     const looks = own ? (rank.meta ?? {}) : {}
     const font = own && rank.font ? rank.font : "normal"
     // In Beta a rank gives no name effect (2.12.3), so its preview shows none.
-    const style = isBeta() ? undefined : STYLES[String(looks["nametag.style"] ?? "none")]
+    const style = undefined // ranks give no name effect since 2.12.10
     const base = applyFont("Steve", rank.fontName ? font : "normal")
     const name = style?.ramp ? paint(base, style.ramp, 0) : base
     const code = String(looks["chat.colour"] ?? "")
@@ -397,13 +396,14 @@ export async function rankScreen(player, rankId, back) {
             // the rank looks and what type it is; Permissions is what it can
             // do, split into Member and Administrative.
             { text: hubEntry("ranks", "Basics", "Name, font, type and colours"), run: () => basicsScreen(player, rankId, again) },
-            // Badges show only in Beta (core/badges.js), so the button does too,
-            // and only Staff and Default ranks wear one (2.11.4).
-            badgesOn() && canWearBadge(type)
-                ? { text: hubEntry("ranks", "Badge", badgeLine(rank)), run: () => badgeScreen(player, rankId, again) }
-                : null,
             type !== "cosmetic"
                 ? { text: hubEntry("ranks", "Permissions", type === "staff" ? "Member and administrative" : "What players with it can do"), run: () => permissionsScreen(player, rankId, again) }
+                : null,
+            // Badge comes after the two doors (2.12.10). It shows while the
+            // Badges switch is on (core/badges.js), and only Staff and Default
+            // ranks wear one (2.11.4).
+            badgesOn() && canWearBadge(type)
+                ? { text: hubEntry("ranks", "Badge", badgeLine(rank)), run: () => badgeScreen(player, rankId, again) }
                 : null,
             canMoveUp ? { text: `§8▲ Move up · above ${nameOf(rows[index - 1])}`, run: () => moveAndReturn(player, rankId, -1, again) } : null,
             canMoveDown ? { text: `§8▼ Move down · below ${nameOf(rows[index + 1])}`, run: () => moveAndReturn(player, rankId, 1, again) } : null,
@@ -791,9 +791,6 @@ export async function basicsScreen(player, rankId, back) {
         type !== "cosmetic" ? { id: "fontName", type: "toggle", label: "Apply to their name", default: !!rank.fontName } : null,
         type !== "cosmetic" ? { id: "fontChat", type: "toggle", label: "Apply to their messages", default: !!rank.fontChat } : null,
         { id: "type", type: "dropdown", label: TYPE_HELP, options: TYPE_OPTIONS, default: RANK_TYPES.indexOf(type) },
-        type !== "cosmetic" && !isBeta()
-            ? { id: "nameColour", type: "dropdown", label: `Name colour\n§8The player's name, in chat and above their head${coloursOff}`, options: nameColourOptions(), default: styleAt }
-            : null,
         type !== "cosmetic"
             ? { id: "chatColour", type: "text", label: CHAT_HELP, placeholder: "Example: §e", tooltip: COLOUR_CODE_TIP, default: chatCode ? `§${chatCode}` : "" }
             : null,

@@ -56,6 +56,52 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.12.10 — 2026-11-14
+
+**Beta is everyone's, and the pack slider picks the menus.**
+
+The user: Beta "should become the default look yes, but we have to add a
+switch that can switch it to normal".
+
+1. **Every feature that was Beta-only is on in every world:** badges,
+   Personalization in /menu, Settings as one page per group, < Code > as
+   JavaScript, Automod's Checks pages, /disguise, and Back to defaults in
+   Saved setups.
+2. **The slider picks the menus.** Behavior Packs ▸ Admin+ BP ▸ the gear
+   reads "Minecraft menus ——— Admin+ menus". New worlds start on Admin+
+   menus. A world keeps what it had: one that was on Beta has Admin+ menus,
+   and one that was on Default has Minecraft's menus, now with every feature.
+3. **Minecraft menus** are the game's own. What only Admin+'s menus can draw
+   falls back: Logs shows its list instead of the timeline, + New rank shows
+   rows instead of cards, and /menu has no Profile card.
+4. **A rank's Basics has no Name colour for anyone.** Players choose their
+   own colours in /menu, behind the rank's Name effect switch. A Name colour
+   a rank had saved no longer shows.
+5. **A rank's screen is Basics, Permissions, then Badge,** after the two
+   main doors.
+6. The badge on Admin+'s panel says ADMIN+ instead of BETA LOOK. About says
+   which menus are on.
+7. **Credits:** "An Axiomation Syndicate project", the part of Overhang
+   Studio that makes in-game mods.
+8. **Why one slider:** a script can read only the behaviour pack's slider.
+   Mojang's pack settings screen allows many switches, but for a behaviour
+   pack it is still experimental (Microsoft's docs, checked 2026-11-14). So a
+   Beta channel comes back after 3.0.0, once there is something new to put
+   in it.
+
+### Not checked
+1. In game: both menus, a new world starting on Admin+ menus, and an
+   existing world keeping its menus.
+2. In game: every feature in Minecraft's menus, which only the tests have
+   seen.
+
+### Checked
+1. The tests that checked Default's old screens now check that Minecraft's
+   menus get the same features: badges, Personalization, Settings pages,
+   JavaScript < Code >, the Checks pages and /disguise. Badges are tested
+   with their own switch off instead.
+2. 68 test files, 3,705 checks. Verifier: 0 problems.
+
 ## 2.12.9 — 2026-11-14
 
 **Server presets is hidden, and the disguise looks are fixed from the game's

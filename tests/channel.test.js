@@ -1,12 +1,13 @@
 import { readFileSync, existsSync } from "node:fs"
 import { __test } from "@minecraft/server"
-import { isBeta, channelName } from "../Admin+ BP/scripts/core/channel.js"
+import { isBeta, adminMenus, menusName } from "../Admin+ BP/scripts/core/channel.js"
 
-// The Default ↔ Beta slider (2.10.1). The user asked for "a little slider ...
-// (Default ——— Beta)" like the RTX packs. It is the behavior pack's subpacks,
-// which the game shows as a slider in the pack's settings; the Lifesteal pack
-// on this PC does the same. Each subpack adds a hidden marker item, which is
-// how scripts tell them apart.
+// The pack settings slider. Default and Beta from 2.10.1; since 2.12.10 it
+// picks the menus, Admin+'s own or Minecraft's (the user: Beta "should become
+// the default look yes, but we have to add a switch that can switch it to
+// normal"). It is the behaviour pack's subpacks, which the game shows as a
+// slider in the pack's settings; each adds a hidden marker item, which is how
+// scripts tell them apart.
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -20,11 +21,11 @@ const manifest = JSON.parse(readFileSync(new URL("manifest.json", bp), "utf8"))
 
 console.log("\n— the slider —")
 const subpacks = manifest.subpacks ?? []
-// 2.10.1 listed Default first on a higher memory_tier, and the user's world
-// started on Beta (2026-11-13). The game now picks by memory_performance_tier,
-// which needs manifest version 3, so ours tie, and Microsoft's docs: "In the
-// case of a tie, the system selects the last subpack listed of that tier."
-check("two subpacks, with Default last", subpacks.map(s => s.name), ["Beta", "Default"])
+// The game picks a new world's subpack by memory_performance_tier, which needs
+// manifest version 3, so ours tie, and Microsoft's docs: "In the case of a tie,
+// the system selects the last subpack listed of that tier."
+check("two subpacks, with Admin+ menus last, so new worlds start on it", subpacks.map(s => s.name), ["Minecraft menus", "Admin+ menus"])
+check("the folders keep their old names, so a world keeps its menus", subpacks.map(s => s.folder_name), ["default", "beta"])
 check("on the same tier, so they tie and the game starts on the last one",
     subpacks.map(s => s.memory_tier), [0, 0])
 check("no tier the game could rank them by instead",
@@ -41,11 +42,12 @@ for (const s of subpacks) {
 }
 
 console.log("\n— scripts can tell which one is on —")
-check("with no Beta marker, it's Default", [isBeta(), channelName()], [false, "Default"])
+check("with no marker, Minecraft's menus", [adminMenus(), menusName()], [false, "Minecraft menus"])
 __test.itemTypes.push({ id: "adminplus:channel_beta" })
-check("with the Beta marker, it's Beta", [isBeta(), channelName()], [true, "Beta"])
+check("with the marker, Admin+ menus", [adminMenus(), menusName()], [true, "Admin+ menus"])
 __test.itemTypes.splice(__test.itemTypes.findIndex(t => t.id === "adminplus:channel_beta"), 1)
-check("and back", isBeta(), false)
+check("and back", adminMenus(), false)
+check("no feature is Beta-only since 2.12.10", isBeta(), false)
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed) process.exit(1)

@@ -154,9 +154,11 @@ console.log("\n— name colour and chat colour, from the rank —")
 {
     saveRank("member", { meta: { "chat.colour": "e", "nametag.style": "colour_aqua" } })
     check("the chat colour comes from the rank", chatColourFor(alex), "§e")
-    check("the name is painted in the name colour", chatNameFor(alex, "Alex"), "§bA§bl§be§bx")
+    // A rank paints no name since 2.12.10 (2.12.3 in Beta): players choose
+    // their own colours, behind the rank's Name effect switch.
+    check("a rank's name colour no longer paints the name", chatNameFor(alex, "Alex"), "Alex")
     const line = formatChatLine(alex, "hi", undefined, false)
-    check("a chat line carries both", line.includes("§bA§bl§be§bx") && line.includes("§ehi"), true)
+    check("a chat line carries the chat colour", line.includes("§ehi"), true)
 
     setSetting("feature.namecolour", "false")
     check("with name colours off the name is left alone", chatNameFor(alex, "Alex"), "Alex")

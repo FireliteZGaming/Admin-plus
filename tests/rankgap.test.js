@@ -173,7 +173,9 @@ setRanks(chief.id, ["lead", "muzzle", "admin"], chief.name)
     const from = __ui.shown.length
     __ui.answers.push(press(1))
     await playerRankScreen(chief, chief.id, "Chief", () => {})
-    const offered = buttonsOf(formTitled("Take a rank away", from))
+    // A rank button leads with its badge (a private-use glyph) since badges
+    // became everyone's in 2.12.10, so the names are read without it.
+    const offered = buttonsOf(formTitled("Take a rank away", from)).map(b => b.replace(/[-]\s*/g, "").trim())
     check("Muzzle is not offered", offered.some(b => b.startsWith("Muzzle")), false)
     check("Admin still is", offered.some(b => b.startsWith("Admin")), true)
 }

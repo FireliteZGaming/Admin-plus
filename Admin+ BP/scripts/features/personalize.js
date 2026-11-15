@@ -4,7 +4,6 @@ import { LOOKS, look, setLook } from "../core/prefs.js"
 import { ok, err, info } from "../core/util.js"
 import { displayName, stripCodes, getNameColours, setNameColours } from "../core/identity.js"
 import { has, refreshNameTag } from "../core/ranks.js"
-import { isBeta } from "../core/channel.js"
 import { paint, rampFrom, NAME_COLOUR_CODE, NAME_COLOURS_MAX } from "../core/nametag.js"
 
 // /menu ▸ Personalization (2.12.0, the user's idea, 2026-11-13: "a
@@ -34,12 +33,12 @@ import { paint, rampFrom, NAME_COLOUR_CODE, NAME_COLOURS_MAX } from "../core/nam
 
 /** May this player open Personalization? Anyone, in the Beta look. */
 export function canPersonalize(player) {
-    return isBeta() && !!player
+    return !!player
 }
 
 /** May they use name effects at all? Only with their rank's Name effect switch. */
 export function canChooseColours(player) {
-    return isBeta() && has(player, "personalize.nameeffect")
+    return has(player, "personalize.nameeffect")
 }
 
 /**

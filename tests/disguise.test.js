@@ -87,14 +87,18 @@ console.log("\n— vanish lends effects and gives them back —")
     resetSetting("vanish.nightVision")
 }
 
-console.log("\n— Beta only, and behind its own switch —")
+console.log("\n— for everyone, behind its own switch —")
 {
+    // Beta-only until 2.12.10; Minecraft's menus don't stop it now.
     setBeta(false)
     owner.heard.length = 0
     __test.invoke(full("disguise"), owner, "creeper")
     await settle()
-    check("Default says it's in Beta", owner.heard.some(m => m.includes("Disguises are in Beta")), true)
-    check("and makes nothing", bodiesOf(owner).length, 0)
+    check("with Minecraft's menus it works too", owner.heard.some(m => m.includes("Disguises are in Beta")), false)
+    check("and makes the body", bodiesOf(owner).length, 1)
+    __test.invoke(full("disguise"), owner, "off")
+    await settle()
+    check("off takes it away again", bodiesOf(owner).length, 0)
     setBeta(true)
     check("it's a Pranks switch on the rank", whereToGrant("admin.disguise"), "Ranks ▸ the rank ▸ Permissions ▸ Administrative ▸ Pranks ▸ disguise")
     const before = __test.spawned.length

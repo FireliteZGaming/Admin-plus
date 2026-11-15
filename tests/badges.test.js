@@ -163,9 +163,10 @@ console.log("\n— which badge a rank wears —")
     check("every badge has a name players read", BADGES.every(b => badgeLabel(b.key) === b.label), true)
 }
 
-console.log("\n— on Default, nothing changes —")
+console.log("\n— with the Badges switch off, nothing changes —")
 {
-    setBeta(false)
+    // Badges are everyone's since 2.12.10; their own switch still turns them off.
+    setSetting("feature.badges", "false")
     check("badges are off", badgesOn(), false)
     check("tags carry no picture", [boss, moddy, newbie].map(p => PRIVATE_USE.test(renderTags(p))), [false, false, false])
     await ranksScreen(boss, () => {})
@@ -178,6 +179,7 @@ console.log("\n— on Default, nothing changes —")
     const names = GROUPS.find(g => g.id === "names")
     await groupScreen(boss, names, () => {})
     check("and Names and tags shows no Badges page", buttonsOf(lastForm()).some(t => t.includes("Badges")), false)
+    setSetting("feature.badges", "true")
 }
 
 console.log("\n— on Beta, one badge per player, between bars —")

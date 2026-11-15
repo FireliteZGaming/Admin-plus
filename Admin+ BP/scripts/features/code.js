@@ -9,7 +9,6 @@ import { typedText } from "../core/settingFields.js"
 import { readScript, writeScript } from "../core/jsconfig.js"
 import { allPresets, getPreset, detectPreset, applyPreset, savePresetFromCurrent } from "../core/configPresets.js"
 import { record } from "../core/logs.js"
-import { isBeta } from "../core/channel.js"
 import { factoryReset } from "./reset.js"
 
 // /admin ▸ < Code >
@@ -36,7 +35,7 @@ import { factoryReset } from "./reset.js"
 export async function codeScreen(player, back) {
     if (!canUseCode(player)) { err(player, "That section needs the Dev tag and operator status."); return back() }
     // Beta writes the settings as JavaScript (2.12.7); Default keeps key = value.
-    return isBeta() ? scriptScreen(player, back) : blockScreen(player, back)
+    return scriptScreen(player, back)
 }
 
 /** Custom is worth noticing, so it is the only one that is not grey. */
@@ -85,7 +84,7 @@ export const GROUPS = {
     namecolour: "Name colour effects",
     omni: "Omnitool",
     automation: "Automation",
-    badge: "Badges (Beta)",
+    badge: "Badges",
     ranks: "Ranks",
     staff: "Staff"
 }
@@ -252,13 +251,13 @@ async function groupScreen(player, group, keys, back) {
  * setup among others, only the way back to how Admin+ ships.
  */
 export function shownSetup(id, preset) {
-    if (isBeta() && id === "vanilla") return { ...preset, label: "Back to defaults", description: "Every setting as Admin+ ships it" }
+    if (id === "vanilla") return { ...preset, label: "Back to defaults", description: "Every setting as Admin+ ships it" }
     return preset
 }
 
 /** The setup in force, in words: "Defaults" in Beta, else its own name. */
 export function currentSetupName(current = detectPreset()) {
-    return isBeta() && current.id === "vanilla" ? "Defaults" : current.label
+    return current.id === "vanilla" ? "Defaults" : current.label
 }
 
 export async function configPresetsScreen(player, back) {
@@ -293,7 +292,7 @@ export async function configPresetsScreen(player, back) {
 async function applyScreen(player, id, back) {
     const preset = getPreset(id)
     if (!preset) { err(player, "That setup no longer exists."); return back() }
-    if (isBeta() && id === "vanilla") return defaultsScreen(player, back)
+    if (id === "vanilla") return defaultsScreen(player, back)
 
     const keys = Object.keys(preset.values ?? {})
     const summary = keys.length

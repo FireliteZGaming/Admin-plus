@@ -2,8 +2,7 @@ import { menu, pagedMenu, modal, confirm, subtitle } from "../core/ui.js"
 import { hubTitle } from "../core/theme.js"
 import { ok, info, formatDuration } from "../core/util.js"
 import { has } from "../core/ranks.js"
-import { isBeta } from "../core/channel.js"
-import { tabText, pillText, logIcon } from "../core/look.js"
+import { tabText, pillText, logIcon, betaLook } from "../core/look.js"
 import { phraseFor, PHRASES } from "../core/audit.js"
 import { recent, getEntry, canUndo, branch } from "../core/logs.js"
 import { recentChat, recentSigns, chatLogSize, clearChatLog } from "../core/chatlog.js"
@@ -36,7 +35,8 @@ import {
 
 /** Open Logs: the timeline in Admin+'s own look, the old screens on Default. */
 export function openLogs(player, back) {
-    return isBeta() ? logbookScreen(player, back) : logsScreen(player, back)
+    // The timeline is drawn by Admin+'s own menus; Minecraft's get the list.
+    return betaLook() ? logbookScreen(player, back) : logsScreen(player, back)
 }
 
 const TABS = [

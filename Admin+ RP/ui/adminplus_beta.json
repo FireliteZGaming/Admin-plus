@@ -197,7 +197,7 @@
 									{
 										"chip_text": {
 											"type": "label",
-											"text": "BETA LOOK",
+											"text": "ADMIN+",
 											"color": [ 0.043, 0.051, 0.071 ],
 											"shadow": false,
 											"layer": 1,

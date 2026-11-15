@@ -173,6 +173,10 @@ console.log("\n— every rank they wear shows, not just the first —")
 // which is displayRanks()[0] — so the second rank was invisible everywhere, and
 // a grant looked like it had silently failed.
 {
+    // These check tag stacking. Badges are everyone's since 2.12.10 and add
+    // "| (badge) |" in front, so they are off here; tests/badges.test.js
+    // covers them.
+    setSetting("feature.badges", "false")
     saveRank("boss", { display: "§4Boss", weight: 100, staff: true })
     // Cosmetic since 2.10.0: only cosmetic ranks add tags beside the main
     // one ("Cosmetic is what you would make if you want extra tags").
@@ -243,6 +247,7 @@ console.log("\n— every rank they wear shows, not just the first —")
     setRanks(twoStaff.id, ["helper", "boss"], twoStaff.name)
     check("two staff ranks put one tag on the line, the higher one",
         clean(formatChatLine(twoStaff, "hi", getChannel("general"), false)), "[Boss] TwoStaff » hi")
+    resetSetting("feature.badges")
 }
 
 console.log(`\n${passed} passed, ${failed} failed\n`)

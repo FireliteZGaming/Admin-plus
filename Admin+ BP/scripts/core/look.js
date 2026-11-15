@@ -1,7 +1,7 @@
-import { isBeta } from "./channel.js"
+import { adminMenus } from "./channel.js"
 import { BRAND_PREFIX } from "./theme.js"
 
-// Admin+'s own look, the UI overhaul (2.11.0, Beta only). The user approved
+// Admin+'s own look, the UI overhaul (2.11.0 in Beta; everyone's since 2.12.10). The user approved
 // the concept on 2026-11-13: "Yes the UI is perfect, we can start on that."
 // Design and images: Obsidian > Admin+ > UI Overhaul.
 //
@@ -12,8 +12,8 @@ import { BRAND_PREFIX } from "./theme.js"
 // the buttons are drawn as tiles, two to a row, each with an icon and a
 // coloured stripe.
 //
-// Scripts add these markers only when the pack settings slider is on Beta
-// (core/channel.js). On Default every form is exactly what it was.
+// Scripts add these markers only when the pack settings slider is on Admin+
+// menus (core/channel.js). On Minecraft menus every form is the game's own.
 //
 // The markers are written like MULTILINE and the chest grid's: a § before
 // each letter, so the game draws nothing, placed at the END of a title so
@@ -31,7 +31,7 @@ export const TILES = "§q§u§a§d"
 export const PROFILE = "§p§f§i§5"
 
 /** True when Admin+'s own look is on. Asked once per form. */
-export function betaLook() { return isBeta() }
+export function betaLook() { return adminMenus() }
 
 // Text chosen for the game's light grey buttons uses black (§0) and dark grey
 // (§8). On the dark panel those all but vanish, so the Beta look lifts them:

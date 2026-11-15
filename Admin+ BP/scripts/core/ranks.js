@@ -4,7 +4,6 @@ import { Table, cleanId } from "./storage.js"
 import { displayName, nameTokens, stripCodes, hasNickname, getNameFont, setNameDecorator, getNameColours } from "./identity.js"
 import { render, renderTag, nameTagsEnabled, flag, setting } from "./settings.js"
 import { STYLES, STYLE_IDS, paint, currentFrame, rampFrom } from "./nametag.js"
-import { isBeta } from "./channel.js"
 import { isHidden } from "./hiding.js"
 import { SERVER_PRESETS_ON_HOLD } from "./hold.js"
 import { look } from "./prefs.js"
@@ -1499,12 +1498,11 @@ export function creatorIdentity(playerOrId) {
  * saying `none` deliberately beats a lower one saying `rainbow`.
  */
 export function nametagStyleFor(playerOrId) {
-    // In Beta a rank gives no name effect (2.12.3): Basics has no Name colour
-    // there, so a style saved on Default must not show with no way to clear
-    // it. Players choose their own (personalRamp), behind Name effect.
-    if (isBeta()) return "none"
-    const id = String(meta(playerOrId, "nametag.style", "none"))
-    return STYLES[id] ? id : "none"
+    // A rank gives no name effect (2.12.3 in Beta, everyone since 2.12.10):
+    // Basics has no Name colour, so a style saved before must not show with
+    // no way to clear it. Players choose their own (personalRamp), behind
+    // Name effect.
+    return "none"
 }
 
 /**
@@ -1539,7 +1537,7 @@ export function effectiveNametagStyle(player) {
  * they have none or may not.
  */
 export function personalRamp(player) {
-    if (!isBeta() || !has(player, "personalize.nameeffect") || !look(player, "name.effects")) return ""
+    if (!has(player, "personalize.nameeffect") || !look(player, "name.effects")) return ""
     return rampFrom(getNameColours(player))
 }
 

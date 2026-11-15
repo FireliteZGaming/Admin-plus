@@ -1,28 +1,36 @@
 import { ItemTypes } from "@minecraft/server"
 
-// The Default ↔ Beta slider (2.10.1). The user, 2026-11-12: like the RTX packs,
-// "a little slider ... where it says (Default ——— Beta) so Beta type stuff is
-// in Beta, such as the UI".
+// The pack settings slider: the gear beside Admin+ BP in a world's Behavior
+// Packs. It began as Default and Beta (2.10.1, the user: "a little slider ...
+// so Beta type stuff is in Beta, such as the UI").
 //
-// The slider is the behavior pack's SUBPACKS, which the game shows as a slider
-// in the pack's settings (the gear beside Admin+ BP in a world's Behavior
-// Packs). Proven on this PC by the Lifesteal pack, which does the same. Each
-// subpack adds one hidden marker item, and that is how a script can tell which
-// one is on: scripts can't read the subpack itself, but they can ask whether
-// an item type exists.
+// **Since 2.12.10 it picks the MENUS, and every Beta feature is everyone's.**
+// The user, 2026-11-14: Beta "should become the default look yes, but we
+// have to add a switch that can switch it to normal".
+//   Admin+ menus      Admin+'s own look (core/look.js): the dark frame, tiles,
+//                     template cards and the Logs timeline. The default.
+//   Minecraft menus   the game's own menus, with every feature still on.
 //
-// **Default is listed LAST (2.11.1).** 2.10.1 listed Default first on a higher
-// memory_tier, and the user's world started on Beta anyway (2026-11-13). The
-// game now picks the starting subpack by `memory_performance_tier`, which
-// needs manifest version 3 (still experimental), so every Admin+ subpack ties,
-// and Microsoft's docs say: "In the case of a tie, the system selects the last
-// subpack listed of that tier." So the slider reads Beta ——— Default and new
-// worlds start on Default. Both stay on memory_tier 0 so the tie holds on
-// every device.
+// The slider is the behaviour pack's SUBPACKS. Each subpack adds one hidden
+// marker item, and that is how a script tells them apart: scripts can't read
+// the subpack, but they can ask whether an item type exists. The folders keep
+// their old names (beta = Admin+ menus, default = Minecraft menus), so every
+// world keeps the menus it already had.
 //
-// Every Beta feature asks isBeta(). Admin+'s own look (2.11.0) is the first.
+// **Admin+ menus is listed LAST.** The game picks a new world's subpack by
+// `memory_performance_tier`, which needs manifest version 3 (still
+// experimental), so Admin+'s subpacks tie, and on a tie "the system selects
+// the last subpack listed of that tier". Both stay on memory_tier 0.
+//
+// **A script can read one slider per pack, no more.** Subpacks give a pack one
+// slider, and nothing in a script can read the resource pack's. Mojang's pack
+// settings screen allows many toggles and sliders, but for a behaviour pack it
+// is still experimental and needs manifest version 3 (Microsoft's docs,
+// checked 2026-11-14). So a Beta channel for what comes after 3.0.0 returns
+// there once it is finished, or as a switch in Server > Advanced. Until then
+// isBeta() is false and nothing asks it.
 
-const BETA_MARKER = "adminplus:channel_beta"
+const ADMIN_MENUS_MARKER = "adminplus:channel_beta"
 
 function hasItemType(id) {
     try {
@@ -31,8 +39,11 @@ function hasItemType(id) {
     } catch { return false }
 }
 
-/** True when the pack settings slider is on Beta. */
-export function isBeta() { return hasItemType(BETA_MARKER) }
+/** True when the pack settings slider is on Admin+ menus. */
+export function adminMenus() { return hasItemType(ADMIN_MENUS_MARKER) }
 
-/** "Default" or "Beta", for screens. */
-export function channelName() { return isBeta() ? "Beta" : "Default" }
+/** "Admin+ menus" or "Minecraft menus", for screens. */
+export function menusName() { return adminMenus() ? "Admin+ menus" : "Minecraft menus" }
+
+/** Beta features: none since 2.12.10, when Beta became everyone's (see above). */
+export function isBeta() { return false }

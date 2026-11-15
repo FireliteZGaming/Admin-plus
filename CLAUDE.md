@@ -502,17 +502,31 @@ field, or (on a game that drew no labels) one per input.
   the old display name (2.11.6, `lineFor` in `core/audit.js`): a lookalike
   name can't hide who chose it.
   `tests/exploits.test.js`.
-- **Beta features check `isBeta()` (`core/channel.js`).** The slider is the
-  BP's subpacks (Default listed LAST, both on memory tier 0, so new worlds
-  start on Default; see the subpack rule above); the Beta subpack adds the
-  hidden item `adminplus:channel_beta`,
-  which is how scripts know. Proven on this PC by the Lifesteal pack.
-- **Admin+'s own look is Beta (2.11.0, the user approved the concept on
-  2026-11-13: "Yes the UI is perfect, we can start on that").** `core/look.js`
-  adds `BETA_LOOK` (and `TILES`) to the END of a title only when `isBeta()`;
+- **Beta is everyone's, and the slider picks the MENUS (2.12.10, the user:
+  Beta "should become the default look yes, but we have to add a switch that
+  can switch it to normal").** The BP's subpacks read "Minecraft menus ———
+  Admin+ menus" (Admin+ menus listed LAST, both on memory tier 0, so new
+  worlds start on it; the folders keep their old names `default` and `beta`,
+  so a world keeps what it had). The `beta` folder's hidden item
+  `adminplus:channel_beta` is how scripts know: `adminMenus()` in
+  `core/channel.js`. Every feature that was Beta-only is on in both menus;
+  only what needs Admin+'s resource pack to draw asks `betaLook()` (the
+  frame, tiles, template cards, the Logs timeline, the Profile card) and has
+  a plain fallback. `isBeta()` is false and nothing asks it: a script can
+  read only the BP's slider, and Mojang's pack settings screen (many
+  switches) is still experimental for behaviour packs (checked 2026-11-14),
+  so a Beta channel comes back after 3.0.0, there or in Server ▸ Advanced.
+  Until it does, a new feature reaches everyone, so it needs the user's OK
+  first. The old Default paths (key = value < Code >, Every setting, the
+  Settings list, a rank's Name colour) are kept in code but unreachable.
+- **Admin+'s own look (2.11.0, the user approved the concept on
+  2026-11-13: "Yes the UI is perfect, we can start on that"; the default
+  since 2.12.10).** `core/look.js`
+  adds `BETA_LOOK` (and `TILES`) to the END of a title only when `betaLook()`
+  (Admin+ menus on the slider);
   `Admin+ RP/ui/server_form.json` then draws Admin+'s frame from
-  `ui/adminplus_beta.json` instead of the game's. Rules: Default must stay
-  byte-for-byte what it was; every form goes through `core/ui.js`, which
+  `ui/adminplus_beta.json` instead of the game's. Rules: Minecraft menus must stay
+  the game's own forms; every form goes through `core/ui.js`, which
   does the marking; `lift()` turns §0 and §8 light on the dark panel but
   NEVER touches a text box's value (that is what gets saved), and drop-down
   choices keep their colours (the game draws them on its own light widget in

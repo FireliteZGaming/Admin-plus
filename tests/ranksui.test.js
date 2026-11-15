@@ -276,12 +276,13 @@ console.log("\n— the same name twice, and a blank one —")
 }
 
 // Basics on a rank in the order, in field order: name, bold, italic, font,
-// apply to tag, apply to name, apply to messages, type, name colour, chat
-// colour, new players get it.
+// apply to tag, apply to name, apply to messages, type, chat colour, new
+// players get it. No Name colour since 2.12.10 (2.12.3 in Beta): players
+// choose their own in /menu, behind the rank's Name effect switch.
 const basics = (o = {}) => submit(
     o.name ?? "§eHelper", o.bold ?? false, o.italic ?? false, o.font ?? 0,
     o.fontTag ?? true, o.fontName ?? false, o.fontChat ?? false,
-    o.type ?? TYPE.default, o.nameColour ?? 0, o.chat ?? "", o.isDefault ?? false)
+    o.type ?? TYPE.default, o.chat ?? "", o.isDefault ?? false)
 
 console.log("\n— Basics: the name, its switches and its font —")
 {
@@ -329,24 +330,21 @@ console.log("\n— Basics: the name, its switches and its font —")
     check("on the tag, the tag's letters change", getRank("helper")?.display, `§c${applyFont("Helpers", "circled")}`)
 }
 
-console.log("\n— Basics: name colour and chat colour —")
+console.log("\n— Basics: the chat colour, and no name colour —")
 {
-    const aqua = STYLE_IDS.indexOf("colour_aqua")
-    const rainbow = STYLE_IDS.indexOf("rainbow")
-    __ui.answers.push(basics({ nameColour: aqua, chat: "§e" }))
+    __ui.answers.push(basics({ chat: "§e" }))
     await basicsScreen(boss, "helper", () => {})
-    check("a plain name colour is stored as a still style", getRank("helper")?.meta?.["nametag.style"], "colour_aqua")
+    const form = __ui.shown[__ui.shown.length - 1]
+    check("Basics has no Name colour since 2.12.10", form.parts.some(p => String(p[1] ?? "").includes("Name colour")), false)
     check("the chat colour is typed as a code", getRank("helper")?.meta?.["chat.colour"], "e")
 
-    __ui.answers.push(basics({ nameColour: rainbow, chat: "b" }))
+    __ui.answers.push(basics({ chat: "b" }))
     await basicsScreen(boss, "helper", () => {})
-    check("a moving effect is the same list, further down", getRank("helper")?.meta?.["nametag.style"], "rainbow")
     check("the letter alone works too", getRank("helper")?.meta?.["chat.colour"], "b")
 
     __ui.answers.push(basics({ chat: "§l" }))
     await basicsScreen(boss, "helper", () => {})
     check("bold is not a colour, so it clears the chat colour", "chat.colour" in (getRank("helper")?.meta ?? {}), false)
-    check("and Default name colour removes the value", "nametag.style" in (getRank("helper")?.meta ?? {}), false)
 }
 
 console.log("\n— Basics: the type —")
@@ -390,7 +388,10 @@ console.log("\n— the rank list is split in two —")
     const firstCosmetic = buttons.findIndex(text => text.includes("cosmetic ·"))
     const lastRanked = buttons.map(text => /^§8\d+\. /.test(text)).lastIndexOf(true)
     check("every ranked button comes before every cosmetic one", lastRanked < firstCosmetic, true)
-    check("each button says its type", buttons[0].includes("\n§8staff"), true)
+    // Badges are on for everyone since 2.12.10, and a staff rank wears its
+    // badge (a private-use glyph) instead of the word staff.
+    check("each button says its type, in words or by its badge",
+        buttons[0].includes("\n§8staff") || /[\uE000-\uF8FF]/.test(buttons[0]), true)
     // The sections are not buttons, so the first button is still rank 1.
     check("pressing the first button opens the strongest rank", lastForm().parts.find(p => p[0] === "title")?.[1]?.includes("Owner"), true)
 }
@@ -459,13 +460,20 @@ console.log("\n— \"switch it on here\" names the real buttons —")
         check(`${group}: every node points at its button`, wrong, [])
     }
 
-    // And the buttons really are called that. A rank ▸ Permissions ▸ Member:
-    __ui.answers.push(press(1), press(0))
+    // And the buttons really are called that. A rank ▸ Permissions ▸ Member.
+    // Found by name: a Badge button joins the rank screen when badges are on
+    // (everyone's since 2.12.10), which moves Permissions down one.
+    const permissionsAt = async rankId => {
+        __ui.answers.push({ canceled: true })
+        await rankScreen(boss, rankId, () => {})
+        return partsOf(lastForm(), "button").findIndex(b => b.includes("Permissions"))
+    }
+    __ui.answers.push(press(await permissionsAt("member")), press(0))
     await rankScreen(boss, "member", () => {})
     check("Permissions ▸ Member opens on What they can use",
         partsOf(lastForm(), "button")[0].includes("What they can use"), true)
     // A staff rank ▸ Permissions ▸ Administrative:
-    __ui.answers.push(press(1), press(1))
+    __ui.answers.push(press(await permissionsAt("mod")), press(1))
     await rankScreen(boss, "mod", () => {})
     const groups = partsOf(lastForm(), "button")
     check("Permissions ▸ Administrative lists every staff group",

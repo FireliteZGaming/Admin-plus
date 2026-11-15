@@ -93,6 +93,11 @@ export async function creditsScreen(player, back) {
             "§7TPA, chat rooms and automod. No economy and no shop:",
             "§7the §f+§7 means essentials.",
             "",
+            // The user, 2026-11-14: "Axiomation Syndicate is what we slap on our thing".
+            "§fAn Axiomation Syndicate project",
+            "§8The part of Overhang Studio that makes in-game mods,",
+            "§8mostly for Minecraft.",
+            "",
             "§fIncludes code from",
             ...INCLUDED.map(entry => `§8· §f${entry.pack}§8, ${entry.licence}`),
             "",

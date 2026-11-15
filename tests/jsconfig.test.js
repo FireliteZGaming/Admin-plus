@@ -226,29 +226,13 @@ console.log("\n— < Code > in Beta saves by the same rules as the block —")
     check("and lists the ones that do", said.some(m => plain(m).includes("no saved setup called \"nope\"") && plain(m).includes("defaults, quietcamp")), true)
     deletePreset("quietcamp")
 
+    // Since 2.12.10 < Code > is JavaScript with either menus; the old
+    // key = value block is kept in code.js but nothing opens it.
     setBeta(false)
     __ui.answers.length = 0
     await codeScreen(dev, () => {})
-    check("Default keeps key = value", String(lastForm().parts.find(p => p[0] === "text")?.[3]?.defaultValue).startsWith("# Admin+ settings."), true)
-
-    // The block's setup line, fixed in 2.12.7: every line below it put its
-    // old value back, so typing a setup's name loaded nothing.
-    replaceOverrides({})
-    setSetting("teleport.warmup", "9")
-    savePresetFromCurrent("blocktest", "Block test", "test")
-    replaceOverrides({})
-    const asking = toBlock().replace("preset = vanilla", "preset = blocktest")
-    __ui.answers.length = 0
-    __ui.answers.push({ canceled: false, formValues: [`${asking}\nfeature.spwan = false`] }, { canceled: false, selection: 0 })
-    await codeScreen(dev, () => {})
-    check("No to a name Admin+ doesn't use loads no setup either", setting("teleport.warmup"), DEFAULTS["teleport.warmup"].value)
-    __ui.answers.length = 0
-    __ui.answers.push({ canceled: false, formValues: [asking.replace("teleport.cooldown = 3", "teleport.cooldown = 5")] })
-    await codeScreen(dev, () => {})
-    check("Default's setup line loads the setup", setting("teleport.warmup"), "9")
-    check("with a line changed below it on top", setting("teleport.cooldown"), "5")
-    check("and Logs can undo back to before it", recent(1)[0]?.undo?.overrides?.["teleport.warmup"], undefined)
-    deletePreset("blocktest")
+    check("< Code > is JavaScript with Minecraft's menus too", String(lastForm().parts.find(p => p[0] === "text")?.[3]?.defaultValue).includes("const settings"), true)
+    setBeta(true)
 }
 
 replaceOverrides({})
