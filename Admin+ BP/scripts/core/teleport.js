@@ -112,9 +112,19 @@ export function queueTeleport(player, label, action, key = "tpCooldown") {
 
         if (flag("teleport.cancelOnMove") && moved(player, from)) {
             cancelTeleport(player, "§cTeleport cancelled because you moved.")
+            showBar(player, "§cTeleport cancelled. You moved.")
             return
         }
-        if (Date.now() < job.until) return
+        if (Date.now() < job.until) {
+            // The countdown on the action bar (2.12.13), once a second. The
+            // chat line said the wait once and then scrolled away.
+            const left = Math.ceil((job.until - Date.now()) / 1000)
+            if (left !== job.shown) {
+                job.shown = left
+                showBar(player, `§7Teleporting to §f${label}§7 in §f${left}§7... Don't move.`)
+            }
+            return
+        }
         if (isFrozen(player)) {
             cancelTeleport(player, "§cTeleport cancelled because you were frozen.")
             return
@@ -132,6 +142,11 @@ export function queueTeleport(player, label, action, key = "tpCooldown") {
 
     pending.set(player.id, { runner, until: Date.now() + ticks * 50, from })
     return true
+}
+
+/** The action bar is a nicety: a player who just left must not break the teleport. */
+function showBar(player, text) {
+    try { player.onScreenDisplay.setActionBar(text) } catch { /* nobody to show */ }
 }
 
 function moved(player, from) {

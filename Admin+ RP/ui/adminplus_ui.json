@@ -230,6 +230,9 @@
 				"inventory_button_amount@adminplus_ui.inventory_button_amount": {}
 			},
 			{
+				"item_visual@adminplus_ui.item_visual": {}
+			},
+			{
 				"default@adminplus_ui.default_control": {}
 			},
 			{
@@ -296,23 +299,7 @@
 			16
 		],
 		"layer": 3,
-		"controls": [
-			{
-				"item@beacon.item_renderer": {
-					"size": [
-						16,
-						16
-					],
-					"bindings": "$texture_bindings"
-				}
-			},
-			{
-				"durability_bar@adminplus_ui.durability_bar": {}
-			},
-			{
-				"non_renderer_item@adminplus_ui.non_renderer_item": {}
-			}
-		]
+		"controls": []
 	},
 	"hover_control": {
 		"type": "panel",
@@ -354,33 +341,6 @@
 							}
 						},
 						{
-							"item_block@beacon.item_renderer": {
-								"size": [
-									16,
-									16
-								],
-								"bindings": "$texture_bindings",
-								"layer": 3,
-								"offset": [
-									1,
-									1
-								]
-							}
-						},
-						{
-							"durability_bar@adminplus_ui.durability_bar": {
-								"offset": [
-									0,
-									-2.5
-								]
-							}
-						},
-						{
-							"non_renderer_item@adminplus_ui.non_renderer_item": {
-								"layer": 3
-							}
-						},
-						{
 							"highlight_slot": {
 								"type": "image",
 								"size": [
@@ -413,9 +373,20 @@
 			18,
 			18
 		],
+		"controls": []
+	},
+	"item_visual": {
+		"type": "panel",
+		"size": [
+			16,
+			16
+		],
+		"anchor_from": "center",
+		"anchor_to": "center",
+		"layer": 3,
 		"controls": [
 			{
-				"item_block@beacon.item_renderer": {
+				"item@beacon.item_renderer": {
 					"size": [
 						16,
 						16

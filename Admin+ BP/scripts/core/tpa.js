@@ -30,11 +30,57 @@ function expired(request) {
     return Date.now() - request.at > expirySeconds() * 1000
 }
 
-/** Drop anything that has lapsed. Called before every read. */
+/**
+ * Drop anything that has expired. Called before every read.
+ *
+ * Expired requests are kept aside for takeLapsed() rather than thrown away, so
+ * both people can be told (2.12.13). Before, a request just vanished: the
+ * sender kept waiting and the player asked never learnt it was gone.
+ */
 function prune() {
     for (const [id, request] of outgoing) {
-        if (expired(request)) outgoing.delete(id)
+        if (expired(request)) {
+            outgoing.delete(id)
+            if (lapsed.length < 100) lapsed.push(request)
+        }
     }
+}
+
+const lapsed = []
+
+/** Requests that expired since the last call, oldest first. */
+export function takeLapsed() {
+    prune()
+    return lapsed.splice(0)
+}
+
+// ------------------------------------------------------------- asking again
+//
+// Requests pop up on screen since 2.12.13, and a pop-up anybody can trigger as
+// often as they like is a way to pester somebody. So asking the same player
+// again waits ASK_AGAIN_S, and REFUSED_S after they said no. Kept apart from
+// createRequest() so the request store stays a plain store.
+
+export const ASK_AGAIN_S = 10
+export const REFUSED_S = 30
+
+/** "fromId>toId" -> { at, refused } */
+const asked = new Map()
+
+/** Seconds before `from` may ask `to` again, or 0. */
+export function askWait(from, to) {
+    const note = asked.get(`${from.id}>${to.id}`)
+    if (!note) return 0
+    const left = (note.refused ? REFUSED_S : ASK_AGAIN_S) * 1000 - (Date.now() - note.at)
+    return left > 0 ? Math.ceil(left / 1000) : 0
+}
+
+export function noteAsked(from, to) {
+    asked.set(`${from.id}>${to.id}`, { at: Date.now(), refused: false })
+}
+
+export function noteRefused(fromId, toId) {
+    asked.set(`${fromId}>${toId}`, { at: Date.now(), refused: true })
 }
 
 export function outgoingFrom(player) {

@@ -1,8 +1,10 @@
-import { menu } from "../core/ui.js"
+import { menu, modal, subtitle } from "../core/ui.js"
 import { hubTitle } from "../core/theme.js"
 import { command } from "../core/registry.js"
 import { has, primaryRank, isStaff, whereToGrant } from "../core/ranks.js"
-import { registeredCommands } from "../core/registry.js"
+import { registeredCommands, commandSpecs } from "../core/registry.js"
+import { specFor, runPackCommand } from "../core/dispatch.js"
+import { err } from "../core/util.js"
 import { flag } from "../core/settings.js"
 import { CHAT_AUTOMOD_ON_HOLD } from "../core/hold.js"
 import { displayName } from "../core/identity.js"
@@ -28,7 +30,7 @@ import { menusName } from "../core/channel.js"
 // The topics are separate screens rather than one long wall, because a wall is
 // what people close.
 
-/** A line per command, only if they can run it. */
+/** A line per command, only if they can run it. The staff guide still uses it. */
 function lines(player, rows) {
     return rows
         .filter(row => !row.need || has(player, row.need))
@@ -53,51 +55,247 @@ const BASICS = [
     { cmd: "/emote waves", what: "Say what you are doing: \"§oSteve waves§r\".", on: "feature.emote" }
 ]
 
+// ------------------------------------------------------------- the help, 2.12.13
+//
+// The user, 2026-11-18: "make help way 100% better". Help used to be pages of
+// text to read. Now it can be ASKED: search it by what you want to do, browse
+// it by topic, and open a page per command with real examples and, when the
+// command needs nothing typed after it, a button that does it for you.
+//
+// The pages below say what each command is for in a player's words. The LIST
+// comes from the commands themselves (core/registry.js): a command added later
+// appears under "More commands" before anybody writes its page, a page for a
+// command that does not exist is never shown, and only commands this player
+// can run are offered at all.
+
+const TOPICS = [
+    { id: "travel", label: "Getting around", hint: "Spawn, warps, homes, teleports" },
+    { id: "talk", label: "Talking", hint: "Private messages and chat rooms" },
+    { id: "you", label: "Your things", hint: "Your menu, settings and items" },
+    { id: "rules", label: "Rules and reports", hint: "Reporting players, warnings" },
+    { id: "staff", label: "Staff tools", hint: "What your staff tools do" },
+    { id: "more", label: "More commands", hint: "Everything else you can use" }
+]
+
+/** Pages written by hand. `cmd` is the command's own name; `words` help the search find it. */
+const PAGES = [
+    { cmd: "spawn", topic: "travel", what: "Go back to the world's starting point.", how: ["/spawn"], words: "start beginning hub", on: "feature.spawn" },
+    { cmd: "warp", topic: "travel", what: "Go to a place the staff set up. Leave the name off to see the list.", how: ["/warp", "/warp shop"], words: "places shop hub", on: "feature.warps" },
+    { cmd: "home", topic: "travel", what: "Your own saved places. Go to one, or save where you stand. Only you can see them.", how: ["/home"], words: "house base bed save sethome", on: "feature.homes" },
+    { cmd: "back", topic: "travel", what: "Go back to where you were before a teleport, or where you died.", how: ["/back"], words: "died death return undo", on: "feature.back" },
+    { cmd: "rtp", topic: "travel", what: "Go to a random place far away. Set a home first so you can get back.", how: ["/rtp"], words: "random wild explore wilderness", on: "feature.rtp" },
+    { cmd: "tpa", topic: "travel", what: "Ask a player if you can teleport to them. It pops up on their screen so they can accept or refuse.", how: ["/tpa Steve"], words: "teleport go friend visit join", on: "feature.tpa" },
+    { cmd: "tpahere", topic: "travel", what: "Ask a player to teleport to you.", how: ["/tpahere Steve"], words: "teleport bring summon come here", on: "feature.tpa" },
+    { cmd: "tpaccept", topic: "travel", what: "Say yes to a teleport request. With several waiting, it asks which.", how: ["/tpaccept", "/tpaccept Steve"], words: "teleport yes allow accept", on: "feature.tpa" },
+    { cmd: "tpadeny", topic: "travel", what: "Say no to a teleport request.", how: ["/tpadeny", "/tpadeny Steve"], words: "teleport no refuse deny", on: "feature.tpa" },
+    { cmd: "tpacancel", topic: "travel", what: "Take back the teleport request you sent.", how: ["/tpacancel"], words: "teleport cancel undo take back", on: "feature.tpa" },
+    { cmd: "tpatoggle", topic: "travel", what: "Turn teleport requests to you off, or back on.", how: ["/tpatoggle"], words: "teleport block stop off on ignore", on: "feature.tpa" },
+    { cmd: "pm", topic: "talk", what: "Send a private message only that player sees.", how: ["/pm Steve hello"], words: "message whisper dm tell private msg", on: "feature.pm" },
+    { cmd: "r", topic: "talk", what: "Reply to whoever messaged you last.", how: ["/r hi back"], words: "reply answer message", on: "feature.pm" },
+    { cmd: "prchat", topic: "talk", what: "Start a private two-person chat. Everything you type goes to them until you leave.", how: ["/prchat Steve"], words: "private chat conversation dm talk", on: "feature.pm", note: "Typed on its own, /prchat leaves the private chat." },
+    { cmd: "praccept", topic: "talk", what: "Say yes to a private chat request.", how: ["/praccept"], words: "private chat yes accept", on: "feature.pm" },
+    { cmd: "prdeny", topic: "talk", what: "Say no to a private chat request.", how: ["/prdeny"], words: "private chat no refuse", on: "feature.pm" },
+    { cmd: "prexit", topic: "talk", what: "Leave the private chat you are in.", how: ["/prexit"], words: "private chat leave exit stop", on: "feature.pm" },
+    { cmd: "emote", topic: "talk", what: "Say what you are doing, like \"Steve waves\".", how: ["/emote waves"], words: "action me roleplay", on: "feature.emote" },
+    { cmd: "chat", topic: "talk", what: "Pick which chat room you talk in.", how: ["/chat"], words: "room channel staff general switch" },
+    { cmd: "menu", topic: "you", what: "Your own menu: travel, people, land claims, settings and help.", how: ["/menu"], words: "settings options profile personalize" },
+    { cmd: "online", topic: "you", what: "See who else is playing right now.", how: ["/online"], words: "players list who" },
+    { cmd: "info", topic: "you", what: "This help.", how: ["/info"], words: "help guide commands" },
+    { cmd: "report", topic: "rules", what: "Tell the staff about a player. They see it right away.", how: ["/report Steve griefing"], words: "grief hack cheat abuse staff complain", on: "feature.reports" },
+    { cmd: "warnings", topic: "rules", what: "See if you have any warnings on your record.", how: ["/warnings"], words: "warn record strikes" },
+    { cmd: "admin", topic: "staff", what: "The panel, with almost every staff tool.", how: ["/admin"], words: "panel staff tools" },
+    { cmd: "mm", topic: "staff", what: "Staff mode: you get your tools and go invisible.", how: ["/mm"], words: "staff mode moderate" },
+    { cmd: "items", topic: "staff", what: "The admin item chest. A locked item says what it needs.", how: ["/items"], words: "tools hammer compass eye" },
+    { cmd: "vanish", topic: "staff", what: "Disappear. Nobody sees you or your armour.", how: ["/vanish"], words: "invisible hide" },
+    { cmd: "warn", topic: "staff", what: "Put a warning on a player's record.", how: ["/warn Steve spamming"], words: "warning strike" },
+    { cmd: "mute", topic: "staff", what: "Stop a player talking for a while.", how: ["/mute Steve 10m"], words: "silence quiet" },
+    { cmd: "ban", topic: "staff", what: "Remove a player until someone unbans them.", how: ["/ban Steve"], words: "remove kick" },
+    { cmd: "invsee", topic: "staff", what: "Look inside a player's inventory, and take things out.", how: ["/invsee Steve"], words: "inventory items look" },
+    { cmd: "broadcast", topic: "staff", what: "Send an announcement to everyone, or to one chat room.", how: ["/broadcast all Server restarting soon"], words: "announce message everyone" }
+]
+
+function topicOf(id) { return TOPICS.find(t => t.id === id) }
+
+/** Can this player run it right now? */
+function usable(player, spec) {
+    return !!spec && !spec.hidden && (!spec.perm || has(player, spec.perm))
+}
+
+/** Every command this player can use: the written pages first, then the rest from the registry. */
+function entriesFor(player) {
+    const written = new Set(PAGES.map(page => page.cmd))
+    const out = []
+    for (const page of PAGES) {
+        const spec = specFor(page.cmd)
+        if (!usable(player, spec) || (page.on && !flag(page.on))) continue
+        out.push({ ...page, spec })
+    }
+    const rest = commandSpecs()
+        .filter(spec => !written.has(spec.name) && usable(player, spec))
+        .sort((a, b) => a.name.localeCompare(b.name))
+    for (const spec of rest) {
+        out.push({
+            cmd: spec.name,
+            topic: String(spec.perm ?? "").startsWith("admin.") ? "staff" : "more",
+            what: spec.description ?? "",
+            how: [],
+            words: "",
+            spec
+        })
+    }
+    return out
+}
+
+/** "/tpa <player>", from the command itself, so it can never go stale. */
+function usageOf(spec) {
+    const bare = param => String(param.name).replace(/^[a-z0-9_]+:/i, "")
+    return [
+        `/${spec.name}`,
+        ...(spec.mandatory ?? []).map(param => `<${bare(param)}>`),
+        ...(spec.optional ?? []).map(param => `[${bare(param)}]`)
+    ].join(" ")
+}
+
+function entryButton(entry) {
+    const what = entry.what.length > 40 ? `${entry.what.slice(0, 38).trimEnd()}...` : entry.what
+    return `§f/${entry.cmd}\n§8${what || "Tap to see how it works"}`
+}
+
+function runIt(player, name) {
+    const result = runPackCommand(player, name)
+    if (result && !result.ok) err(player, result.reason)
+}
+
 async function infoScreen(player, back = () => {}) {
     const rank = primaryRank(player)
     const again = () => infoScreen(player, back)
+    const count = entriesFor(player).length
     return menu(player, {
         title: hubTitle("about", "Help"),
         body: [
             `§7You are §r${displayName(player)}§7.`,
             rank ? `§7Your rank is ${rank.display}§r§7.` : "§7You do not have a rank yet.",
             "",
-            "§7This world runs §l§bAdmin§d+§r§7, which adds ranks,",
-            "§7teleports, private messages and tools for staff.",
+            "§7This world runs §l§bAdmin§d+§r§7: ranks, teleports,",
+            "§7private messages and tools for staff.",
             "",
-            "§8Tap something to learn about it."
+            `§7Search for what you want to do, or browse the §f${count}§7`,
+            "§7commands you can use."
         ].join("\n"),
         buttons: [
-            { text: "§bCommands you can use\n§8The ones that work for you right now", run: () => commandsScreen(player, again) },
-            { text: "§bWhat a rank is\n§8Why some people have coloured names", run: () => ranksScreen(player, again) },
-            { text: "§bChat\n§8Chat rooms, private messages and mutes", run: () => chatScreen(player, again) },
+            { text: "§bSearch\n§8Type what you want to do", run: () => searchScreen(player, again) },
+            { text: "§bBrowse commands\n§8Every command you can use", run: () => topicsScreen(player, again) },
+            { text: "§bHow chat works\n§8Chat rooms, private messages, mutes", run: () => chatScreen(player, again) },
             isStaff(player)
-                ? { text: "§6Staff tools\n§8What your staff tools do", run: () => staffScreen(player, again) }
-                : { text: "§8What the staff can do\n§8So you know what to expect", run: () => aboutStaffScreen(player, again) },
-            { text: "§8About Admin+\n§8Version and who made it", run: () => aboutScreen(player, again) }
+                ? { text: "§6Staff guide\n§8What your staff tools do", run: () => staffScreen(player, again) }
+                : { text: "§bWhat the staff can do\n§8So you know what to expect", run: () => aboutStaffScreen(player, again) },
+            { text: "§bHow ranks work\n§8Why some people have coloured names", run: () => ranksScreen(player, again) },
+            { text: "§bAbout Admin+\n§8Version and who made it", run: () => aboutScreen(player, again) }
         ],
         back
     })
 }
 
-async function commandsScreen(player, back) {
-    const usable = lines(player, BASICS)
+async function topicsScreen(player, back) {
+    const again = () => topicsScreen(player, back)
+    const all = entriesFor(player)
     return menu(player, {
         title: hubTitle("about", "Commands"),
         body: [
-            "§7Type these in the chat box, exactly as written.",
-            "§7Swap the name for whoever you mean.",
-            "§7Or leave the rest off: §f/tpa§7 on its own shows a",
-            "§7list to pick from, and §f/pm§7 opens a box to type in.",
-            "",
-            ...usable,
-            "",
-            "§8Anything you type that starts with / is a command,",
-            "§8and nobody else sees it."
+            "§7Pick a topic, then a command, to see how it works.",
+            "§7Leave anything off when you type a command, and it",
+            "§7asks you for it."
         ].join("\n"),
         buttons: [
-            { text: "§bWho a command is for\n§8The part that names a player",
-              run: () => targetsScreen(player, () => commandsScreen(player, back)) }
+            ...TOPICS.map(topic => ({ topic, list: all.filter(entry => entry.topic === topic.id) }))
+                .filter(({ list }) => list.length)
+                .map(({ topic, list }) => ({
+                    text: `§b${topic.label}\n§8${list.length} · ${topic.hint}`,
+                    run: () => topicScreen(player, topic, again)
+                })),
+            { text: "§bWho a command is for\n§8The part that names a player", run: () => targetsScreen(player, again) }
+        ],
+        back
+    })
+}
+
+async function topicScreen(player, topic, back) {
+    const again = () => topicScreen(player, topic, back)
+    const list = entriesFor(player).filter(entry => entry.topic === topic.id)
+    return menu(player, {
+        title: hubTitle("about", topic.label),
+        body: [
+            `§7${topic.hint}. Tap one to see how it works.`,
+            ...(topic.id === "staff" ? [
+                "",
+                "§7You can't use these on anyone ranked above you.",
+                "§7Everything you do is logged with your name: §f/admin§7 ▸ Logs."
+            ] : [])
+        ].join("\n"),
+        buttons: list.map(entry => ({ text: entryButton(entry), run: () => commandPage(player, entry, again) })),
+        back
+    })
+}
+
+async function commandPage(player, entry, back) {
+    const spec = entry.spec
+    const free = !(spec.mandatory ?? []).length
+    return menu(player, {
+        title: hubTitle("about", `/${entry.cmd}`),
+        body: [
+            `§f${entry.what || spec.description || ""}`,
+            "",
+            "§7Type it like this:",
+            `§f  ${usageOf(spec)}`,
+            ...(entry.how?.length ? ["", "§7For example:", ...entry.how.map(line => `§f  ${line}`)] : []),
+            ...(entry.note ? ["", `§7${entry.note}`] : []),
+            "",
+            "§8Leave anything in < > off and it asks you for it."
+        ].join("\n"),
+        buttons: free ? [{ text: "§aDo it now\n§8Runs it for you", run: () => runIt(player, entry.cmd) }] : [],
+        back
+    })
+}
+
+async function searchScreen(player, back) {
+    const values = await modal(player, hubTitle("about", "Search help"), [
+        { id: "text", type: "text", label: "What do you want to do?", placeholder: "go home, message a friend, report" }
+    ])
+    const query = String(values?.text ?? "").trim()
+    if (!query) return back()
+    return resultsScreen(player, query, back)
+}
+
+/** The best matches for what was typed, by the command's name, its words and its page. */
+function findCommands(player, query) {
+    const words = query.toLowerCase().split(/[^a-z0-9+]+/).filter(word => word.length > 1)
+    if (!words.length) return []
+    return entriesFor(player)
+        .map(entry => {
+            const hay = `${entry.cmd} ${entry.what} ${entry.words ?? ""} ${topicOf(entry.topic)?.label ?? ""}`.toLowerCase()
+            const score = words.reduce((sum, word) => sum + (entry.cmd === word.replace(/^\//, "") ? 3 : 0) + (hay.includes(word) ? 1 : 0), 0)
+            return { entry, score }
+        })
+        .filter(found => found.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 12)
+        .map(found => found.entry)
+}
+
+async function resultsScreen(player, query, back) {
+    const again = () => resultsScreen(player, query, back)
+    const found = findCommands(player, query)
+    return menu(player, {
+        title: hubTitle("about", "Search help"),
+        body: found.length
+            ? subtitle(`${found.length} found for "${query}".`)
+            : [
+                `§7Nothing matched "${query}".`,
+                "§7Try one word, like §fhome§7, §fmessage§7 or §freport§7."
+            ].join("\n"),
+        buttons: [
+            ...found.map(entry => ({ text: entryButton(entry), run: () => commandPage(player, entry, again) })),
+            { text: "§bSearch again\n§8Try other words", run: () => searchScreen(player, back) }
         ],
         back
     })

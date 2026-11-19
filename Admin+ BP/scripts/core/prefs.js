@@ -32,6 +32,13 @@ export const PREFS = {
         off: "isn't accepting teleport requests.",
         readBy: "features/tpa.js"
     },
+    "tpa.popup": {
+        value: true,
+        label: "Teleport request pop-ups",
+        help: "Show teleport requests on your screen with Accept and Refuse, not only in chat.",
+        off: "doesn't get pop-ups for teleport requests.",
+        readBy: "features/tpa.js"
+    },
     "prchat.accept": {
         value: true,
         label: "Private chat invites",

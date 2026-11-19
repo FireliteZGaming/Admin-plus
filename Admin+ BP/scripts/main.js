@@ -54,7 +54,7 @@ import "./features/troll.js"
 import "./features/mode.js"
 import { installAllowlist } from "./features/allowlist.js"
 import { installPrivateChat } from "./features/privatechat.js"
-import "./features/tpa.js"
+import { installTpa } from "./features/tpa.js"
 import { installModeration } from "./core/moderation.js"
 import { installChat } from "./features/chat.js"
 import { installHealthCheck } from "./core/health.js"
@@ -183,6 +183,7 @@ installHolograms()
 installHealthCheck()
 installChat()
 installPrivateChat()
+installTpa()
 installGrants()
 installEnderView()
 installEnderBlocks()

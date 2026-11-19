@@ -371,14 +371,19 @@ export function routePrivate(player, message) {
         return true
     }
 
+    // The message goes in as itself, the way room chat does it. It used to go in
+    // as a "\u0000" placeholder swapped for the words afterwards, but render()
+    // uses that same character for its own gap marker and strips every one, so
+    // every private line ended at the colon with no message (seen in the
+    // 2026-11-18 recording). render() already keeps a message exactly as typed.
     const line = render("format.prchat", {
         PAIR: pairLabel(player, partner),
         BADGE: playerBadge(player),
         TAG: renderTags(player),
         RANK: primaryRank(player)?.display ?? "",
         ...nameTokens(player),
-        MSG: "\u0000"
-    }).replace(/ {2,}/g, " ").replace("\u0000", message)
+        MSG: message
+    }).replace(/^ +/, "")
     player.sendMessage(line)
     partner.sendMessage(line)
     rememberExchange(player, partner)

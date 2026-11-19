@@ -4,7 +4,8 @@ import { setSetting, resetSetting } from "../Admin+ BP/scripts/core/settings.js"
 import { setTpaClosed } from "../Admin+ BP/scripts/core/moderation.js"
 import {
     createRequest, cancelRequest, takeIncoming, takeIncomingById, clearIncoming,
-    incomingFor, outgoingFrom, secondsLeft
+    incomingFor, outgoingFrom, secondsLeft,
+    askWait, noteAsked, noteRefused, takeLapsed, ASK_AGAIN_S, REFUSED_S
 } from "../Admin+ BP/scripts/core/tpa.js"
 
 let passed = 0, failed = 0
@@ -124,6 +125,27 @@ check("by exact name", takeIncoming(alex, "Nova").fromName, "Nova")
 check("leaving the other", incomingFor(alex).map(r => r.fromName), ["Sam"])
 check("a name nobody sent under matches nothing", takeIncoming(alex, "Nobody"), undefined)
 clearIncoming(alex)
+
+console.log("\n— asking again waits, and longer after a refusal (2.12.13) —")
+{
+    check("nobody waits before asking", askWait(sam, nova), 0)
+    noteAsked(sam, nova)
+    check("asking the same player again waits", askWait(sam, nova) > 0 && askWait(sam, nova) <= ASK_AGAIN_S, true)
+    check("but only for that player", askWait(sam, alex), 0)
+    noteRefused(sam.id, nova.id)
+    check("after a refusal the wait is longer", askWait(sam, nova) > ASK_AGAIN_S && askWait(sam, nova) <= REFUSED_S, true)
+}
+
+console.log("\n— an expired request is handed over once, so both sides can be told —")
+{
+    takeLapsed()
+    const made = createRequest(sam, alex, "to")
+    check("the request was made", made.ok, true)
+    made.request.at -= 3600 * 1000
+    check("it comes back once it expires", takeLapsed().map(r => `${r.fromName}>${r.toName}`), ["Sam>Alex"])
+    check("and only once", takeLapsed().length, 0)
+    check("and it is gone from the inbox", incomingFor(alex).length, 0)
+}
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

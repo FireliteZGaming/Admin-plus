@@ -12,7 +12,7 @@ import { muteRecord } from "../core/moderation.js"
 import { remainingLabel } from "../core/grants.js"
 import { isVanished } from "../core/vanish.js"
 import { prefsOf, setPref, changedCount, PREFS } from "../core/prefs.js"
-import { requestTo, requestHere } from "./tpa.js"
+import { requestTo, requestHere, requestsScreen } from "./tpa.js"
 import { askPrivateChat } from "./privatechat.js"
 import { reportForm } from "./reports.js"
 import { warpListScreen } from "./warps.js"
@@ -210,6 +210,9 @@ function travelButtons(player, back) {
             : null,
         flag("feature.rtp")
             ? { text: hubEntry("warps", "Random place", "Somewhere safe and far away"), run: () => run("rtp") }
+            : null,
+        flag("feature.tpa") && has(player, "tpa.use")
+            ? { text: hubEntry("warps", "Teleport requests", "Answer them, or turn them off"), run: () => requestsScreen(player, back) }
             : null
     ].filter(Boolean)
 }

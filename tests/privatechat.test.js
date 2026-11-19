@@ -217,5 +217,28 @@ console.log("\n— and the chat log only gives back rooms you could enter —")
         code.includes("Public chat only"), false)
 }
 
+console.log("\n— a private chat line carries the message (2.12.13, from the recording) —")
+{
+    const { routePrivate } = await import("../Admin+ BP/scripts/features/privatechat.js")
+    const { startPair, endPair } = await import("../Admin+ BP/scripts/core/privatechat.js")
+    const make = name => {
+        const p = {
+            id: `pr-${name}`, name, nameTag: name, inbox: [], commandPermissionLevel: 0,
+            location: { x: 0, y: 64, z: 0 }, dimension: { id: "minecraft:overworld" },
+            getTags: () => [], addTag() {}, removeTag() {}, sendMessage: m => p.inbox.push(String(m))
+        }
+        __test.players.push(p)
+        onPlayerJoin(p)
+        return p
+    }
+    const kai = make("Kai"), lou = make("Lou")
+    startPair(kai, lou)
+    const plain = s => String(s ?? "").replace(/§./g, "")
+    check("the line is handled as private", routePrivate(kai, "meet at the farm   ok"), true)
+    check("the sender sees the words, spaces and all", plain(kai.inbox.at(-1)).endsWith("meet at the farm   ok"), true)
+    check("and so does the partner", plain(lou.inbox.at(-1)).endsWith("meet at the farm   ok"), true)
+    endPair(kai)
+}
+
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)
