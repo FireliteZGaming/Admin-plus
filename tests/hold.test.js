@@ -2,7 +2,9 @@ import { readFileSync, readdirSync } from "node:fs"
 import { __test } from "@minecraft/server"
 import { __ui } from "@minecraft/server-ui"
 import { onPlayerJoin, setRanks, applyPreset } from "../Admin+ BP/scripts/core/ranks.js"
-import { CHAT_AUTOMOD_ON_HOLD } from "../Admin+ BP/scripts/core/hold.js"
+import { CHAT_AUTOMOD_ON_HOLD, AUTOMOD_ON_HOLD, DISGUISE_ON_HOLD } from "../Admin+ BP/scripts/core/hold.js"
+import { commandSpecs } from "../Admin+ BP/scripts/core/registry.js"
+import "../Admin+ BP/scripts/features/disguise.js"
 import { screen } from "../Admin+ BP/scripts/core/chatfilter.js"
 import { heldCount, clearHeld } from "../Admin+ BP/scripts/core/heldchat.js"
 import { noteChat } from "../Admin+ BP/scripts/core/automod.js"
@@ -57,6 +59,10 @@ setRanks(boss.id, ["owner"], boss.name)
 
 console.log("\n— chat automod is on hold —")
 check("the hold is on", CHAT_AUTOMOD_ON_HOLD, true)
+// 2.12.14, the user: "just put a hold on automod and /disguise since those aren't working".
+check("all of automod is on hold too", AUTOMOD_ON_HOLD, true)
+check("and /disguise is on hold", DISGUISE_ON_HOLD, true)
+check("so /disguise isn't a command in game", commandSpecs().some(spec => spec.name === "disguise"), false)
 installChat()
 installAutomod()
 

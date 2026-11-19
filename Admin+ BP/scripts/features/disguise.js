@@ -4,6 +4,7 @@ import { ok, err, info } from "../core/util.js"
 import { canTrollOn, refreshNameTag } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
 import { trollBlockedBy, DISGUISE } from "../core/trollgate.js"
+import { DISGUISE_ON_HOLD } from "../core/hold.js"
 import { record } from "../core/logs.js"
 import { Table } from "../core/storage.js"
 import { hide, unhide } from "../core/hiding.js"
@@ -288,7 +289,7 @@ async function pickDisguise(player) {
     })
 }
 
-command({
+const DISGUISE_COMMAND = {
     name: "disguise",
     description: "Disguise yourself or another player as a mob",
     perm: DISGUISE,
@@ -334,7 +335,20 @@ command({
         }
         if (blocked.length) err(player, `Skipped because they outrank you: §f${blocked.join(", ")}`)
     }
-})
+}
+
+// On hold since 2.12.14 (core/hold.js): not registered, so /disguise doesn't
+// exist in game. installDisguise still ends a disguise left on the books when
+// its player joins, and still sweeps stray bodies, so nobody stays a mob.
+if (!DISGUISE_ON_HOLD) command(DISGUISE_COMMAND)
+
+/**
+ * For tests/disguise.test.js only: registers the command while it's on hold.
+ * Call it before startup. The engine stays tested for the day it comes back.
+ */
+export function registerDisguiseCommandForTests() {
+    if (DISGUISE_ON_HOLD) command(DISGUISE_COMMAND)
+}
 
 export function installDisguise() {
     world.afterEvents.playerSpawn.subscribe(({ player, initialSpawn }) => {

@@ -1,7 +1,7 @@
 import { world, system } from "@minecraft/server"
 import { modal, INCOMPLETE } from "../core/ui.js"
 import { hubTitle } from "../core/theme.js"
-import { CHAT_AUTOMOD_ON_HOLD } from "../core/hold.js"
+import { CHAT_AUTOMOD_ON_HOLD, AUTOMOD_ON_HOLD } from "../core/hold.js"
 import { ok, err, info } from "../core/util.js"
 import { has, isStaff } from "../core/ranks.js"
 import { setSetting, flag, setting, overrides } from "../core/settings.js"
@@ -163,6 +163,9 @@ function punishSpam(player, count) {
 }
 
 export function installAutomod() {
+    // All of automod is on hold since 2.12.14 (core/hold.js): nothing listens,
+    // so no ore alert, break-rate alert or chat strike can happen.
+    if (AUTOMOD_ON_HOLD) return
     const breakEvent = world.afterEvents?.playerBreakBlock
     if (breakEvent?.subscribe) {
         breakEvent.subscribe(eventData => {

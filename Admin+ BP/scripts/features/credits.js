@@ -6,7 +6,7 @@ import { info } from "../core/util.js"
 import { tableReport } from "../core/storage.js"
 import { ladder } from "../core/ranks.js"
 import { detectServerPreset } from "../core/serverPresets.js"
-import { SERVER_PRESETS_ON_HOLD } from "../core/hold.js"
+import { SERVER_PRESETS_ON_HOLD, AUTOMOD_ON_HOLD } from "../core/hold.js"
 import { ADMINPLUS_VERSION, CONFIG } from "../config.js"
 import { discordLine } from "../core/links.js"
 
@@ -90,7 +90,7 @@ export async function creditsScreen(player, back) {
             `§fBuilt by §d§l${AUTHOR}§r`,
             "",
             "§7Admin tools for Bedrock: ranks, moderation, warps,",
-            "§7TPA, chat rooms and automod. No economy and no shop:",
+            AUTOMOD_ON_HOLD ? "§7TPA and chat rooms. No economy and no shop:" : "§7TPA, chat rooms and automod. No economy and no shop:",
             "§7the §f+§7 means essentials.",
             "",
             // The user, 2026-11-14: "Axiomation Syndicate is what we slap on our thing".

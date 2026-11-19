@@ -8,6 +8,7 @@ import { openPanel } from "../Admin+ BP/scripts/features/panel.js"
 import { creditsScreen } from "../Admin+ BP/scripts/features/credits.js"
 import { serverPresetsScreen } from "../Admin+ BP/scripts/features/serverPresets.js"
 import { CONFIG } from "../Admin+ BP/scripts/config.js"
+import { AUTOMOD_ON_HOLD } from "../Admin+ BP/scripts/core/hold.js"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -47,7 +48,11 @@ console.log("\n— Server holds Settings, Automod, Automation and Advanced —")
     await openPanel(boss)
     const server = buttonsOf(lastForm()).map(text => text.split("\n")[0].replace(/§./g, ""))
     // Automation joined Server in 2.10.0 (the user: "our own automation setting under server").
-    check("those four, in that order", server, ["Settings", "Automod", "Automation", "Advanced", "< Back"])
+    // Automod is hidden while it's on hold (2.12.14, core/hold.js).
+    check("those buttons, in that order", server,
+        ["Settings", ...(AUTOMOD_ON_HOLD ? [] : ["Automod"]), "Automation", "Advanced", "< Back"])
+    check("and the Server button doesn't mention automod while it's on hold",
+        panel[serverAt].replace(/§./g, "").includes("automod"), !AUTOMOD_ON_HOLD)
 }
 
 console.log("\n— the groups say what they hold —")

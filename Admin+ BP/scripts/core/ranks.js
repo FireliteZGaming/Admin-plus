@@ -5,7 +5,7 @@ import { displayName, nameTokens, stripCodes, hasNickname, getNameFont, setNameD
 import { render, renderTag, nameTagsEnabled, flag, setting } from "./settings.js"
 import { STYLES, STYLE_IDS, paint, currentFrame, rampFrom } from "./nametag.js"
 import { isHidden } from "./hiding.js"
-import { SERVER_PRESETS_ON_HOLD } from "./hold.js"
+import { SERVER_PRESETS_ON_HOLD, AUTOMOD_ON_HOLD, DISGUISE_ON_HOLD } from "./hold.js"
 import { look } from "./prefs.js"
 import { applyFont } from "./fonts.js"
 import { badgeFor, teamBadgeFor } from "./badges.js"
@@ -178,12 +178,13 @@ export const PERMISSION_NODES = {
     "Chat": ["chat.staff", "chat.viewall", "chat.manage", "chat.spy", "chat.codes", "admin.broadcast", "admin.clearchat"],
     "Staff tools": ["admin.staffmode", "admin.vanish", "admin.tp", "admin.gamemode", "admin.nickname", "admin.holograms", "admin.invsee", "admin.lagclear", "admin.claims", "admin.alerts", "admin.omnitool"],
     "Punishments": ["admin.warn", "admin.mute", "admin.kick", "admin.ban", "admin.banperm", "admin.freeze", "admin.tpatoggle", "admin.reports"],
-    "Pranks": ["admin.smite", "admin.sudo", "admin.disguise"],
+    // /disguise is on hold (2.12.14, core/hold.js), so its switch is gone with it.
+    "Pranks": ["admin.smite", "admin.sudo", ...(DISGUISE_ON_HOLD ? [] : ["admin.disguise"])],
     "Ranks and places": ["ranks.grant", "ranks.manage", "warp.manage", "spawn.set"],
     // presets.apply has no switch while Server presets are hidden (2.12.9,
     // core/hold.js): it would switch on nothing anyone can see. Ranks that
     // hold it keep it, because a group page rewrites only the switches it shows.
-    "Server settings": [...(SERVER_PRESETS_ON_HOLD ? [] : ["presets.apply"]), "admin.commands", "admin.automod", "admin.allowlist", "admin.automation"]
+    "Server settings": [...(SERVER_PRESETS_ON_HOLD ? [] : ["presets.apply"]), "admin.commands", ...(AUTOMOD_ON_HOLD ? [] : ["admin.automod"]), "admin.allowlist", "admin.automation"]
 }
 
 /**
@@ -306,7 +307,7 @@ export function whereToGrant(node) {
 /** Checkbox-sized groupings for the rank editor form. */
 export const BUNDLES = {
     "mod_light":   { label: "Moderation, light", nodes: ["admin.panel", "ranks.view", "admin.warn", "admin.kick", "admin.mute", "admin.freeze", "admin.tpatoggle", "admin.reports"] },
-    "mod_full":    { label: "Moderation, full",  nodes: ["admin.panel", "ranks.view", "admin.warn", "admin.kick", "admin.mute", "admin.freeze", "admin.staffmode", "admin.tpatoggle", "admin.reports", "admin.automod", "admin.ban", "admin.invsee", "admin.logs"] },
+    "mod_full":    { label: "Moderation, full",  nodes: ["admin.panel", "ranks.view", "admin.warn", "admin.kick", "admin.mute", "admin.freeze", "admin.staffmode", "admin.tpatoggle", "admin.reports", ...(AUTOMOD_ON_HOLD ? [] : ["admin.automod"]), "admin.ban", "admin.invsee", "admin.logs"] },
     "staff_tools": { label: "Staff tools",        nodes: ["admin.tp", "admin.vanish", "admin.gamemode"] },
     "holograms":   { label: "Floating text",      nodes: ["admin.holograms"] },
     "identity":    { label: "Names and voice",      nodes: ["admin.nickname"] },

@@ -18,7 +18,7 @@ import { openLogs } from "./logbook.js"
 import { settingsScreen } from "./settingsUI.js"
 import { automodHubScreen } from "./automodUI.js"
 import { serverPresetsScreen } from "./serverPresets.js"
-import { SERVER_PRESETS_ON_HOLD } from "../core/hold.js"
+import { SERVER_PRESETS_ON_HOLD, AUTOMOD_ON_HOLD } from "../core/hold.js"
 import { hologramsScreen } from "./holograms.js"
 import { creditsScreen } from "./credits.js"
 import { infoScreen } from "./info.js"
@@ -76,8 +76,9 @@ export async function openPanel(player) {
     }
     if (serverButtons(player, again).length) {
         buttons.push({
-            text: hubButton("settings", "Server", SERVER_PRESETS_ON_HOLD ? "Settings, automod, automation and advanced" : "Settings, automod, presets and advanced"),
-            tile: tile("server", "Server", "Settings, automod"),
+            text: hubButton("settings", "Server", `Settings, ${[AUTOMOD_ON_HOLD ? null : "automod", "automation", SERVER_PRESETS_ON_HOLD ? null : "presets"].filter(Boolean).join(", ")} and advanced`),
+            // A tile's second line fits about 18 letters, so not "Settings, automation".
+            tile: tile("server", "Server", AUTOMOD_ON_HOLD ? "Settings and more" : "Settings, automod"),
             run: () => serverScreen(player, again)
         })
     }
@@ -137,7 +138,8 @@ function serverButtons(player, back) {
         settings
             ? { text: hubButton("settings", "Settings", "Switch things on and off: travel, chat, names, moderation, extras, Omnitool, Automation"), run: () => settingsScreen(player, back) }
             : null,
-        has(player, "admin.automod")
+        // Hidden, not dropped (2.12.14, core/hold.js): "temp removing automod entirely".
+        !AUTOMOD_ON_HOLD && has(player, "admin.automod")
             ? { text: hubButton("settings", "Automod", "Ore alerts and fast breaking · chat automod is on hold"), run: () => automodHubScreen(player, back) }
             : null,
         // The user, 2026-11-12: "we can have our own automation setting under server".

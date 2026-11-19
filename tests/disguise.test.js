@@ -10,8 +10,9 @@ import { vanish, unvanish, isVanished } from "../Admin+ BP/scripts/core/vanish.j
 import { DISGUISES, DISGUISE_PREFIX } from "../Admin+ BP/scripts/core/disguises.js"
 import {
     disguise, undisguise, disguiseOf, followAll, sweep, onJoin, onLeave, endAllDisguises,
-    availableDisguises, aMob, DISGUISE_TAG
+    availableDisguises, aMob, DISGUISE_TAG, registerDisguiseCommandForTests
 } from "../Admin+ BP/scripts/features/disguise.js"
+import { DISGUISE_ON_HOLD } from "../Admin+ BP/scripts/core/hold.js"
 import { phraseOf } from "../Admin+ BP/scripts/features/logbook.js"
 import { recent } from "../Admin+ BP/scripts/core/logs.js"
 
@@ -37,6 +38,9 @@ function setBeta(on) {
     if (on && at < 0) __test.itemTypes.push(BETA_ITEM)
     if (!on && at >= 0) __test.itemTypes.splice(at, 1)
 }
+// /disguise is on hold (core/hold.js), so main.js doesn't register it. The
+// engine stays tested: these tests register it themselves, before startup.
+registerDisguiseCommandForTests()
 __test.runStartup()
 applyRankPreset("server")
 
@@ -100,7 +104,9 @@ console.log("\n— for everyone, behind its own switch —")
     await settle()
     check("off takes it away again", bodiesOf(owner).length, 0)
     setBeta(true)
-    check("it's a Pranks switch on the rank", whereToGrant("admin.disguise"), "Ranks ▸ the rank ▸ Permissions ▸ Administrative ▸ Pranks ▸ disguise")
+    // On hold (core/hold.js), its switch is gone with the command.
+    check("it's a Pranks switch on the rank, unless it's on hold",
+        whereToGrant("admin.disguise") === "Ranks ▸ the rank ▸ Permissions ▸ Administrative ▸ Pranks ▸ disguise", !DISGUISE_ON_HOLD)
     const before = __test.spawned.length
     __test.invoke(full("disguise"), steve, "creeper")
     await settle()
