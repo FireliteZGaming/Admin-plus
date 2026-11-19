@@ -28,11 +28,18 @@ command({
     name: "report",
     description: "Report a player to staff",
     perm: "report.use",
-    // Everything optional, so bare /report opens the form. Someone who has just
-    // been griefed should not have to get a selector and a quoted string right
-    // before they can say so.
+    // Bare /report asks WHO first, from the same player list every command
+    // uses (2.12.15, the user: "you only have to type /report and it pops up
+    // with the playerlist if you don't select a player"). The list leaves you
+    // off, since nobody reports themselves. Then the form asks what kind and
+    // what happened. Someone who has just been griefed still never has to get
+    // a selector or a quoted string right before they can say so.
+    mandatory: [{
+        name: "player", type: CustomCommandParamType.PlayerSelector,
+        label: "Who are you reporting?",
+        empty: "There is nobody else here to report."
+    }],
     optional: [
-        { name: "player", type: CustomCommandParamType.PlayerSelector },
         { name: "reason", type: CustomCommandParamType.String },
         { name: categoryEnum, type: CustomCommandParamType.Enum }
     ],
@@ -41,6 +48,7 @@ command({
         const targets = selected ?? []
         if (!targets.length) return reportForm(player)
         if (targets.length > 1) return err(player, "Report one player at a time.")
+        if (targets[0].id === player.id) return err(player, "You can't report yourself.")
 
         const text = String(reason ?? "").trim().slice(0, 200)
         if (!text) return reportForm(player, targets[0])
@@ -75,17 +83,22 @@ export async function reportForm(player, preset, error) {
         return err(player, "There is nobody else here to report.")
     }
 
+    // Picked already (the player list, or a name typed after /report): the form
+    // names them instead of asking again. Otherwise it keeps its own dropdown.
+    const fixed = preset ? others.find(p => p.id === preset.id) : undefined
     const names = others.map(p => displayName(p))
-    const startAt = Math.max(0, preset ? others.findIndex(p => p.id === preset.id) : 0)
+    const lead = error ? "§c" + error + "\n§r" : ""
 
     const values = await modal(player, hubTitle("actions", "Report a player"), [
-        {
-            id: "who",
-            type: "dropdown",
-            label: `${error ? "§c" + error + "\n§r" : ""}Who`,
-            options: names,
-            default: startAt
-        },
+        fixed
+            ? { type: "label", label: `${lead}Reporting §f${displayName(fixed)}` }
+            : {
+                id: "who",
+                type: "dropdown",
+                label: `${lead}Who`,
+                options: names,
+                default: 0
+            },
         {
             id: "category",
             type: "dropdown",
@@ -102,12 +115,13 @@ export async function reportForm(player, preset, error) {
     ])
     if (!values) return
 
+    const chosen = fixed ?? others[values.who ?? 0]
     const detail = String(values.detail ?? "").trim().slice(0, 200)
     if (!detail) {
-        return reportForm(player, others[values.who ?? 0], "Fill in what happened before sending.")
+        return reportForm(player, chosen, "Fill in what happened before sending.")
     }
 
-    const target = others[values.who ?? 0]
+    const target = chosen && world.getAllPlayers().find(p => p.id === chosen.id)
     if (!target) return err(player, "That player left before you sent it.")
 
     const category = CATEGORIES[values.category ?? 0] ?? "other"
