@@ -5,8 +5,11 @@ import {
     setReplyTarget, replyTarget, rememberExchange, clearReplyTarget,
     isSpying, setSpying, toggleSpying, spyIds,
     pairedWith, inPair, startPair, endPair,
-    invite, inviteFrom, pendingInvites, takeInvite, clearInvites, forgetPlayer, INVITE_SECONDS
+    invite, inviteFrom, pendingInvites, takeInvite, clearInvites, forgetPlayer, INVITE_SECONDS, takeExpired
 } from "../Admin+ BP/scripts/core/privatechat.js"
+import { askPrivateChat, routePrivate, announceExpired } from "../Admin+ BP/scripts/features/privatechat.js"
+import { load } from "../Admin+ BP/scripts/core/storage.js"
+import { setSetting, resetSetting } from "../Admin+ BP/scripts/core/settings.js"
 import { setting } from "../Admin+ BP/scripts/core/settings.js"
 
 let passed = 0, failed = 0
@@ -78,12 +81,18 @@ check("the leaver is out", inPair(sam), false)
 check("and so is the other one — no half-open session", inPair(alex), false)
 check("leaving twice is not an error", endPair(sam), undefined)
 
-console.log("\n— opening a second session closes the first —")
-startPair(alex, sam)
-startPair(alex, mod)
-check("the new partner is set", pairedWith(alex), mod.id)
-check("and the abandoned one is genuinely free", inPair(sam), false)
+// 2.12.16: this used to replace the first session silently, which left the
+// first partner out of it without a word, so their next line went to the
+// whole room believing it was private. A second session is now refused.
+console.log("\n— a second session is refused, never opened over the first —")
+check("the first one opens", startPair(alex, sam), true)
+check("a second one with somebody new is refused", startPair(alex, mod), false)
+check("the first partner is still the partner", pairedWith(alex), sam.id)
+check("and is still in it", inPair(sam), true)
+check("the one who asked second is free", inPair(mod), false)
+check("joining an existing session from the other side is refused too", startPair(mod, sam), false)
 endPair(alex)
+check("ending it frees both", [inPair(alex), inPair(sam)], [false, false])
 
 console.log("\n— invites —")
 check("inviting works", invite(alex, sam), true)
@@ -238,6 +247,68 @@ console.log("\n— a private chat line carries the message (2.12.13, from the re
     check("the sender sees the words, spaces and all", plain(kai.inbox.at(-1)).endsWith("meet at the farm   ok"), true)
     check("and so does the partner", plain(lou.inbox.at(-1)).endsWith("meet at the farm   ok"), true)
     endPair(kai)
+}
+
+// ------------------------------------------------------------ 2.12.16 fixes
+console.log("\n— a session is saved, so a script reload doesn't drop it —")
+{
+    for (const p of [alex, sam, mod]) endPair(p)
+    startPair(alex, sam)
+    const saved = load("privateChats", {})
+    check("both directions are saved", [saved[alex.id], saved[sam.id]], [sam.id, alex.id])
+    endPair(sam)
+    const after = load("privateChats", {})
+    check("and both go when it ends", [after[alex.id], after[sam.id]], [undefined, undefined])
+}
+
+console.log("\n— a request names the bare commands, which work for any gamertag —")
+{
+    for (const p of [alex, sam, mod]) { endPair(p); clearInvites(p) }
+    sam.heard.length = 0
+    askPrivateChat(alex, sam)
+    const line = sam.heard.join("\n")
+    check("it says /praccept and /prdeny", line.includes("/praccept§8 to accept") && line.includes("/prdeny§8"), true)
+    check("without a name after /praccept, which a space would break", line.includes("/praccept Alex"), false)
+}
+
+console.log("\n— accepting can't open a session over somebody else's —")
+{
+    for (const p of [alex, sam, mod]) { endPair(p); clearInvites(p) }
+    startPair(alex, mod)
+    invite(sam, alex)                                   // Sam asked Alex earlier
+    alex.heard.length = 0
+    askPrivateChat(alex, sam)                           // pointing back at Sam is how you accept
+    check("refused, because Alex is already in one", alex.heard.at(-1)?.includes("already in a private chat"), true)
+    check("Alex's session with Mod is untouched", pairedWith(alex), mod.id)
+    check("and Mod is still in it", pairedWith(mod), alex.id)
+    endPair(alex)
+}
+
+console.log("\n— a request that runs out is announced to both —")
+{
+    for (const p of [alex, sam, mod]) { endPair(p); clearInvites(p) }
+    invite(alex, sam)
+    const real = Date.now
+    Date.now = () => real() + (INVITE_SECONDS + 1) * 1000
+    alex.heard.length = 0; sam.heard.length = 0
+    announceExpired()
+    Date.now = real
+    check("the one who asked is told", alex.heard.some(l => l.includes("request to") && l.includes("expired")), true)
+    check("and the one who was asked", sam.heard.some(l => l.includes("from") && l.includes("expired")), true)
+    check("once only", takeExpired().length, 0)
+}
+
+console.log("\n— private chat switched off mid-session: closed, and the line stays private —")
+{
+    for (const p of [alex, sam, mod]) { endPair(p); clearInvites(p) }
+    startPair(alex, sam)
+    setSetting("feature.pm", "false")
+    alex.heard.length = 0; sam.heard.length = 0
+    check("the line is handled here, not passed to the room", routePrivate(alex, "my secret"), true)
+    resetSetting("feature.pm")
+    check("the session closed", inPair(alex), false)
+    check("the line reached nobody", [...alex.heard, ...sam.heard].some(l => l.includes("my secret")), false)
+    check("Alex is told it wasn't sent", alex.heard.some(l => l.includes("wasn't sent")), true)
 }
 
 console.log(`\n${passed} passed, ${failed} failed\n`)

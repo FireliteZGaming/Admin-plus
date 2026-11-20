@@ -3,6 +3,7 @@ import { command, defineEnum } from "../core/registry.js"
 import { ok, err, info } from "../core/util.js"
 import { canActOn, onStaffLost } from "../core/ranks.js"
 import { record } from "../core/logs.js"
+import { gamemodeComingBack } from "../core/grants.js"
 
 // Gamemode, shaped the way people already type it.
 //
@@ -106,6 +107,9 @@ for (const [name, mode] of [["gmc", GameMode.Creative], ["gms", GameMode.Surviva
  * somebody in creative is never overruled — they never stopped being staff.
  */
 onStaffLost(player => {
+    // A timed grant ending puts back the exact gamemode they had before it
+    // (features/grant.js, 2.12.16). Survival here would come first and win.
+    if (gamemodeComingBack(player.id)) return
     let mode
     try { mode = player.getGameMode?.() } catch { mode = undefined }
     if (mode !== GameMode.Creative && mode !== GameMode.Spectator) return

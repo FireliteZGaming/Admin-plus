@@ -58,10 +58,13 @@ const KEEPS_NAME = "Must keep {NAME} or {NICKNAME}."
 
 export const GROUPS = [
     {
+        // "Teleportation" since 2.12.16 (the user: "make sure theres a server
+        // settings for Teleportation and it covers all of tp including rtp").
+        // The id stays "travel", so nothing saved moves.
         id: "travel",
-        label: "Travel",
-        hint: "Spawn, warps, homes, /back, random teleport, teleport requests",
-        body: "Every way players get around, and how long they wait.\nThe same things players find in /menu ▸ Travel.",
+        label: "Teleportation",
+        hint: "Spawn, warps, homes, /back, /rtp, /tpa, and wait times for all of them",
+        body: "Every way players teleport, and how long they wait.\nPlayers find these in /menu ▸ Travel.",
         pages: [
             {
                 label: "Spawn", hint: "/spawn, and protecting the area around it",
@@ -94,12 +97,15 @@ export const GROUPS = [
                 ]
             },
             {
-                label: "Wait times", hint: "Warmup and cooldown, for every way of travelling",
-                note: "A rank can set its own cooldowns: Ranks ▸ a rank ▸ Permissions ▸ Member ▸ Cooldowns.",
+                label: "Wait times", hint: "Warmup and cooldowns for every teleport, /rtp included",
+                note: "A rank can set its own cooldowns: Ranks ▸ a rank ▸ Permissions ▸ Member ▸ Cooldowns. These are for ranks that set none.",
                 fields: [
-                    num("teleport.warmup", "Warmup: seconds to stand still before a teleport", "0 is instant", 0, 15),
+                    num("teleport.warmup", "Warmup: seconds to stand still before a teleport", "Every teleport: spawn, warps, homes, /back, /rtp, /tpa. 0 is instant", 0, 15),
                     sw("teleport.cancelOnMove", "Moving cancels a teleport", ""),
-                    num("teleport.cooldown", "Cooldown: seconds between teleports", "For ranks that set none of their own", 0, 60),
+                    num("teleport.cooldown", "Cooldown for spawn, warps and /tpa, in seconds", "", 0, 60),
+                    num("teleport.homeCooldown", "Cooldown for /home, in seconds", "", 0, 120),
+                    num("teleport.backCooldown", "Cooldown for /back, in seconds", "", 0, 300),
+                    num("teleport.rtpCooldown", "Cooldown for /rtp, in seconds", "Usually the longest, since the walk back is long", 0, 600, 5),
                     sw("staff.exemptCooldowns", "Staff skip warmups and cooldowns", "")
                 ]
             }

@@ -228,6 +228,14 @@ worlds for six versions. Retry on the first tick, and never seed on a guess.
 no model, no nametag - while every script call reports success. Holograms were
 invisible from the day they were written for exactly this.
 
+**A script can't read a block that isn't loaded, and ground far away isn't
+loaded until a player is near it (2.12.16).** /rtp searched from where the
+player stood, so with its defaults (256 to 4,000 blocks out) nearly every
+spot was unloaded and it almost always said it couldn't find anywhere. It
+now moves the player high over the spot with slow falling, waits for the
+ground to load, and lands them (`features/rtp.js`). Anything that needs to
+read a far place goes there first.
+
 **Nothing can kick the world host.** They are the server. `ban()` returns
 `{ok, kicked}` so callers can say so honestly instead of looking broken.
 
@@ -298,9 +306,11 @@ field, or (on a game that drew no labels) one per input.
 - **Server is Settings, Automod, Automation, Server presets, Advanced** (2.8.3,
   the user's layout, 2026-11-12; Automation added in 2.10.0 because the user
   asked for "our own automation setting under server"; Server presets hidden
-  since 2.12.9, see below). Settings is every switch, in five groups whose buttons
-  list what they hold: Travel, Chat, Names and tags, Moderation, Player extras
-  (`GROUPS` in `features/settingsUI.js`). Each thing has ONE page with its
+  since 2.12.9, see below). Settings is every switch, in groups whose buttons
+  list what they hold: Teleportation (id `travel`, renamed from Travel in
+  2.12.16), Chat, Names and tags, Moderation, Player extras, Omnitool,
+  Automation (`GROUPS` in `features/settingsUI.js`). Teleportation ▸ Wait
+  times covers every teleport, /rtp included. Each thing has ONE page with its
   switch and its numbers ("Tpa... covers all Tpa things"). A new feature switch
   gets a page there; `tests/config.test.js` fails until it does.
 - **The server settings overhaul (2.12.7, Beta, the user: "an absurd list of
@@ -464,6 +474,14 @@ field, or (on a game that drew no labels) one per input.
   screen (with its optional password) come first. New features land behind
   the Default/Beta slider (see Beta features below). Plan: Obsidian ▸ Admin+
   ▸ Before 3.0.0.
+- **Timed grants give things back (2.12.16, the user's design).** When a timed
+  grant ends they ALWAYS go back to the gamemode they had; two switches on the
+  Grant screen add their inventory from right before the rank and a trip to
+  spawn (the world's spawn when none is set). It keeps across leaving: owed
+  actions wait in `grantDue` until they join. What they had is noted in
+  `grantKeep` (the real items in memory too, like staff mode). Taken away
+  early counts as ending; staff mode makes it wait; the staff-lost survival
+  rule steps aside (`gamemodeComingBack`). `tests/grantend.test.js`.
 - **No economy or shop**, ever. The `+` means essentials.
 - **Fly, god, heal, feed: dropped.** Removed on purpose, not missing. Do not
   build them unasked. Three things came OFF this list because the user asked

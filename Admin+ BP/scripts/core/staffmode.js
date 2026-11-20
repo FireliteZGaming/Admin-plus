@@ -154,7 +154,8 @@ export function countItems(snapshot) {
 
 // --------------------------------------------------------------- writing back
 
-function writeInventory(player, slots, worn) {
+/** Every slot and worn item at once. Shared with timed grants (features/grant.js). */
+export function writeInventory(player, slots, worn) {
     const container = containerOf(player)
     if (!container) return false
     const size = Number(container.size) || DEFAULT_SIZE

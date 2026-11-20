@@ -136,6 +136,9 @@ console.log("\n— which badge a rank wears —")
     check("the owner wears the crown", badgeOf(getRank("owner"), "staff"), "crown")
     check("a mod wears the ban hammer, the Admin+ answer to Twitch's mod badge", badgeOf(getRank("mod"), "staff"), "hammer")
     check("any other staff rank wears the ban hammer too", badgeOf(getRank("guard"), rankType(getRank("guard"))), "hammer")
+    // The user, 2026-11-19: "members shouldn't get a badge ... its the default
+    // setting when you first launch the mod". A badge only if somebody picks one.
+    check("Member, out of the box, wears no badge", badgeOf(getRank("member"), rankType(getRank("member"))), undefined)
     check("the starting rank wears none", badgeOf(getRank("member"), "default"), undefined)
     check("a cosmetic rank wears none", badgeOf(getRank("builder"), "cosmetic"), undefined)
     // 2.11.4, the user: badges are for staff and default ranks.

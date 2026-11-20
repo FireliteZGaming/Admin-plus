@@ -62,7 +62,37 @@ check("nothing left pending", isTeleporting(member), false)
 console.log("\n— warmup defers instead —")
 setSetting("teleport.warmup", "3")
 check("staff skip the warmup entirely", queueTeleport(modder, "spawn", () => fired++) && fired, 2)
+
+// 2.12.16: "Staff skip warmups and cooldowns" covered only the cooldown; the
+// warmup read a built-in constant, so switching it off still let staff skip it.
+console.log("\n— the staff switch covers the warmup too —")
+setSetting("staff.exemptCooldowns", "false")
+check("with it off, staff wait like everyone else", queueTeleport(modder, "spawn", () => fired++) && fired, 2)
+check("their teleport is pending", isTeleporting(modder), true)
+cancelTeleport(modder)
+setSetting("staff.exemptCooldowns", "true")
 resetSetting("teleport.warmup")
+
+console.log("\n— /home, /back and /rtp have server-wide cooldowns too —")
+{
+    saveRank("member", { meta: {} })
+    check("the old built-in numbers are the defaults", ["teleport.homeCooldown", "teleport.backCooldown", "teleport.rtpCooldown"].map(k => setting(k)), ["3", "10", "60"])
+    setSetting("teleport.rtpCooldown", "120")
+    markUsed(member, "rtp.cooldown")
+    check("a rank with no /rtp cooldown of its own takes the server's", cooldownLeft(member, "rtp.cooldown"), 120)
+    saveRank("member", { meta: { "rtp.cooldown": 30 } })
+    check("a rank's own number still wins", cooldownLeft(member, "rtp.cooldown"), 30)
+    saveRank("member", { meta: {} })
+    setSetting("teleport.homeCooldown", "15")
+    markUsed(member, "home.cooldown")
+    check("/home follows its own setting", cooldownLeft(member, "home.cooldown"), 15)
+    setSetting("teleport.backCooldown", "45")
+    markUsed(member, "back.cooldown")
+    check("and /back its own", cooldownLeft(member, "back.cooldown"), 45)
+    markUsed(modder, "rtp.cooldown")
+    check("staff still skip them", cooldownLeft(modder, "rtp.cooldown"), 0)
+    for (const k of ["teleport.homeCooldown", "teleport.backCooldown", "teleport.rtpCooldown"]) resetSetting(k)
+}
 resetSetting("teleport.cooldown")
 resetSetting("staff.exemptCooldowns")
 

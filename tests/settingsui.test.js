@@ -57,7 +57,10 @@ console.log("\n— Server holds Settings, Automod, Automation and Advanced —")
 
 console.log("\n— the groups say what they hold —")
 {
-    check("seven groups", GROUPS.map(g => g.label), ["Travel", "Chat", "Names and tags", "Moderation", "Player extras", "Omnitool", "Automation"])
+    // "Travel" became "Teleportation" in 2.12.16 (the user asked for a
+    // Teleportation section covering every teleport); its id stays "travel".
+    check("seven groups", GROUPS.map(g => g.label), ["Teleportation", "Chat", "Names and tags", "Moderation", "Player extras", "Omnitool", "Automation"])
+    check("the teleport group keeps its id, so saved settings stay put", GROUPS[0].id, "travel")
     // A group's button text is its hint. Every page inside should be named in
     // it, or near enough, so nobody has to open a group to find out.
     check("every group and page has a hint", GROUPS.flatMap(g => [g, ...g.pages]).filter(x => !x.hint).map(x => x.label), [])

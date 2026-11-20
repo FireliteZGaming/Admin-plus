@@ -100,6 +100,33 @@ export function landingY(dimension, x, z) {
     return undefined
 }
 
+/** Is this column loaded yet? An unloaded chunk reads as undefined rather than throwing. */
+export function columnLoaded(dimension, x, z) {
+    try { return dimension.getBlock({ x, y: 0, z }) !== undefined } catch { return false }
+}
+
+/**
+ * Where a player waits while the ground under a far spot loads (2.12.16).
+ *
+ * **Chunks far away are not loaded until somebody is near them,** and a script
+ * can't read a block that isn't loaded. /rtp used to search only from where the
+ * player stood, so with the defaults (256 to 4,000 blocks out) nearly every spot
+ * it tried was unloaded and it answered "Couldn't find a safe place" almost
+ * every time. Now the player is moved high over the spot, the game loads the
+ * area around them, and they land once the ground can be read. In the Nether
+ * they wait just above the bedrock roof, since anywhere under it could be rock.
+ */
+export function skyHeight(dimension) {
+    if (ROOFED.has(String(dimension?.id ?? ""))) return 129
+    const max = Number(dimension?.heightRange?.max)
+    return Number.isFinite(max) && max > 32 ? Math.min(max - 10, 310) : 200
+}
+
+/** How many far spots to fly over before giving up: each costs up to two seconds. */
+export function flyTries() {
+    return Math.min(rtpTries(), 8)
+}
+
 /**
  * Find somewhere to drop this player. Returns `{x, y, z}` or undefined.
  *

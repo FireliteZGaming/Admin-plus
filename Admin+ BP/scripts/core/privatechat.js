@@ -1,3 +1,4 @@
+import { world, system } from "@minecraft/server"
 import { Table } from "./storage.js"
 
 // Private chat: one-off messages, and standing two-person sessions.
@@ -10,8 +11,12 @@ import { Table } from "./storage.js"
 //   SPIES         who reads other people's private messages. PERSISTED: staff
 //                 turn it on as a posture, not for one session, and an oversight
 //                 tool that quietly switches itself off is worse than none.
-//   PAIRS         who is in a /prchat session. In memory — a session is two
-//                 people who are both here, and logging off ends it.
+//   PAIRS         who is in a /prchat session. Logging off ends it. SAVED since
+//                 2.12.16 all the same: a script reload (/reload) used to empty
+//                 the map while both people were still here, so the next thing
+//                 either typed, still believing it was private, went to the
+//                 whole room. Now a session comes back after a reload if both
+//                 people are still online, and is dropped if either is gone.
 //
 // Honesty note that belongs next to the code rather than in a README: NOTHING
 // here is private from staff holding chat.spy, and nothing is private from the
@@ -25,6 +30,28 @@ const replyTo = new Map()
 
 /** playerId -> playerId they are paired with. Symmetric; both keys are set. */
 const pairs = new Map()
+
+/** The same pairs, saved: playerId -> partnerId. */
+const savedPairs = new Table("privateChats", {})
+let restored = false
+
+/**
+ * Bring sessions back after a reload, once storage can be read. Reads only,
+ * because the chat hook asks from a before-event, where nothing may be
+ * written; tidying the saved copy is scheduled for the next tick.
+ */
+function restore() {
+    if (restored || savedPairs.pendingRead) return
+    restored = true
+    let here
+    try { here = new Set(world.getAllPlayers().map(p => p.id)) } catch { restored = false; return }
+    let stale = false
+    for (const [id, partner] of savedPairs.entries()) {
+        if (here.has(id) && here.has(partner) && savedPairs.get(partner) === id) pairs.set(id, partner)
+        else stale = true
+    }
+    if (stale) system.run(() => { for (const id of savedPairs.ids()) if (!pairs.has(id)) savedPairs.delete(id) })
+}
 
 /** invitedId -> { from, at } */
 const invites = new Map()
@@ -73,18 +100,23 @@ export function spyIds() { return spies.ids() }
 // ------------------------------------------------------------------- sessions
 
 /** The id this player is paired with, or undefined. */
-export function pairedWith(playerOrId) { return pairs.get(idOf(playerOrId)) }
+export function pairedWith(playerOrId) { restore(); return pairs.get(idOf(playerOrId)) }
 
-export function inPair(playerOrId) { return pairs.has(idOf(playerOrId)) }
+export function inPair(playerOrId) { restore(); return pairs.has(idOf(playerOrId)) }
 
-/** Open a session. Both sides are written, so either can end it. */
+/**
+ * Open a session. Both sides are written, so either can end it. Refuses when
+ * either is already in one: ending somebody's session silently here would leave
+ * their partner typing into the room believing it was still private.
+ */
 export function startPair(a, b) {
     const idA = idOf(a), idB = idOf(b)
     if (!idA || !idB || idA === idB) return false
-    endPair(idA)
-    endPair(idB)
+    restore()
+    if (pairs.has(idA) || pairs.has(idB)) return false
     pairs.set(idA, idB)
     pairs.set(idB, idA)
+    try { savedPairs.set(idA, idB); savedPairs.set(idB, idA) } catch { /* the session still works until a reload */ }
     return true
 }
 
@@ -93,11 +125,13 @@ export function startPair(a, b) {
  * @returns {string|undefined} the partner's id, so the caller can tell them
  */
 export function endPair(playerOrId) {
+    restore()
     const id = idOf(playerOrId)
     const partner = pairs.get(id)
     if (!partner) return undefined
     pairs.delete(id)
     pairs.delete(partner)
+    try { savedPairs.delete(id); savedPairs.delete(partner) } catch { /* tidied on the next restore */ }
     return partner
 }
 
@@ -117,15 +151,30 @@ export function invite(from, to) {
     return true
 }
 
-/** Unexpired invites for this player, newest first. Prunes as it reads. */
+/** Invites that ran out, waiting to be announced: { to, from, fromName }. */
+const expired = []
+
+/** Unexpired invites for this player, newest first. Prunes as it reads, and
+ *  keeps what it prunes so both sides can be told it ran out. */
 function live(toId) {
     const held = invites.get(toId) ?? []
     const fresh = held.filter(i => Date.now() - i.at <= INVITE_MS)
     if (fresh.length !== held.length) {
+        for (const gone of held) if (!fresh.includes(gone)) expired.push({ to: toId, from: gone.from, fromName: gone.fromName })
         if (fresh.length) invites.set(toId, fresh)
         else invites.delete(toId)
     }
     return fresh
+}
+
+/**
+ * Every invite that has run out since the last call, and forget them. Before
+ * 2.12.16 a request just vanished after a minute: the person who asked was
+ * never told, the same silence teleport requests had until 2.12.13.
+ */
+export function takeExpired() {
+    for (const toId of [...invites.keys()]) live(toId)
+    return expired.splice(0)
 }
 
 export function pendingInvites(toOrId) { return live(idOf(toOrId)) }

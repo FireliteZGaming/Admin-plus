@@ -414,7 +414,27 @@ export const DEFAULTS = {
     "teleport.cooldown": {
         value: "3",
         label: "Default teleport cooldown (seconds)",
-        help: "Used when a rank sets no cooldown of its own · staff are exempt unless that is turned off"
+        help: "Warps, spawn and teleport requests · used when a rank sets no cooldown of its own · staff are exempt unless that is turned off"
+    },
+    // The other three cooldowns had a per-rank number and nothing for the
+    // server as a whole (2.12.16, the user: Teleportation "covers all of tp
+    // including rtp"). A rank's own number still wins; these are what everyone
+    // else gets. They match the old built-in fallbacks, so nothing changes
+    // until somebody moves one.
+    "teleport.homeCooldown": {
+        value: "3",
+        label: "Default /home cooldown (seconds)",
+        help: "Used when a rank sets no /home cooldown of its own"
+    },
+    "teleport.backCooldown": {
+        value: "10",
+        label: "Default /back cooldown (seconds)",
+        help: "Used when a rank sets no /back cooldown of its own"
+    },
+    "teleport.rtpCooldown": {
+        value: "60",
+        label: "Default /rtp cooldown (seconds)",
+        help: "Used when a rank sets no /rtp cooldown of its own"
     },
     "tpa.expire": {
         value: "60",
@@ -428,8 +448,8 @@ export const DEFAULTS = {
     },
     "staff.exemptCooldowns": {
         value: "true",
-        label: "Staff ignore cooldowns",
-        help: "true / false · staff don't wait between warps, spawn and TPA"
+        label: "Staff skip warmups and cooldowns",
+        help: "true / false · staff teleport at once and don't wait between teleports, /rtp included"
     },
     "format.noRankTag": {
         value: "",

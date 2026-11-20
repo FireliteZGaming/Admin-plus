@@ -1551,11 +1551,25 @@ export function effectiveNameRamp(player) {
     return personalRamp(player) || STYLES[effectiveNametagStyle(player)]?.ramp || ""
 }
 
+/**
+ * The server-wide number a cooldown falls back to when no rank sets one
+ * (Server ▸ Settings ▸ Teleportation ▸ Wait times). `tpCooldown` has always had
+ * one (`teleport.cooldown`, read by cooldownFor); these three got theirs in
+ * 2.12.16.
+ */
+const SERVER_COOLDOWN = {
+    "home.cooldown": "teleport.homeCooldown",
+    "back.cooldown": "teleport.backCooldown",
+    "rtp.cooldown": "teleport.rtpCooldown"
+}
+
 export function valueFor(playerOrId, key) {
     const spec = RANK_VALUES[key]
     if (!spec) return undefined
     if (spec.kind === "cooldown" && exemptFromCooldowns(playerOrId)) return 0
-    const raw = Number(meta(playerOrId, key, spec.fallback))
+    const server = SERVER_COOLDOWN[key] ? Number(setting(SERVER_COOLDOWN[key])) : NaN
+    const fallback = Number.isFinite(server) && server >= 0 ? server : spec.fallback
+    const raw = Number(meta(playerOrId, key, fallback))
     if (!Number.isFinite(raw)) return spec.fallback
     return Math.max(spec.min, Math.min(spec.max, raw))
 }

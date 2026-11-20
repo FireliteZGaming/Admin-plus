@@ -19,6 +19,24 @@ import { heldRankIds, revokeRank, getRank } from "./ranks.js"
 
 const grants = new Table("grants", {})
 
+// WHAT TO GIVE BACK when a timed grant ends (2.12.16, the user: "they always
+// will return to there original gamemode ... you can choose to have them return
+// to there original inv right before they got the rank, it keeps even if they
+// leave and reconnect ... you can also put them at spawn").
+//
+//   keep  per player, per rank: the gamemode they had and, if asked, their
+//         inventory, taken the moment the rank was given. `pending` means they
+//         weren't here (or were in staff mode, with their real things stowed),
+//         so it is taken the first time they are seen while the grant runs.
+//   due   per player: end actions waiting for them to be here, because the
+//         grant ended while they were offline. Applied when they next join.
+//
+// Their own tables, for the same reason grants has one: nothing in the rank
+// code can clobber them, and an inventory is big enough to keep out of the
+// small grant records the panel reads all the time.
+const keep = new Table("grantKeep", {})
+const due = new Table("grantDue", {})
+
 /**
  * What the dropdown offers.
  *
@@ -54,10 +72,12 @@ function recordFor(playerId) {
  * record rather than as a flag — so re-granting a timed rank permanently really
  * does clear the clock instead of leaving one behind to fire later.
  */
-export function setExpiry(playerId, rankId, ms, by) {
+export function setExpiry(playerId, rankId, ms, by, end) {
     if (!playerId || !rankId) return false
     const held = recordFor(playerId)
     if (!ms || ms <= 0) {
+        // Permanent now, so it never ends and there is nothing to give back.
+        takeKeep(playerId, rankId)
         if (!(rankId in held)) return true
         delete held[rankId]
     } else {
@@ -65,7 +85,8 @@ export function setExpiry(playerId, rankId, ms, by) {
             until: Date.now() + ms,
             at: Date.now(),
             by: by?.id ?? "",
-            byName: by?.name ?? ""
+            byName: by?.name ?? "",
+            ...(end && (end.inventory || end.spawn) ? { end: { inventory: !!end.inventory, spawn: !!end.spawn } } : {})
         }
     }
     if (Object.keys(held).length) grants.set(playerId, held)
@@ -97,19 +118,26 @@ export function timedGrants(playerId) {
  * expiry that is recorded but never acted on is worse than no expiry at all,
  * because the panel would show a countdown that means nothing.
  *
- * @returns {{playerId: string, rankId: string, display: string}[]} what ended
+ * `removed`, when given, collects the grants that ended EARLY because somebody
+ * took the rank away by hand: nothing is revoked for those, but a grant with
+ * end actions still has them to run, since the grant is over either way.
+ *
+ * @returns {{playerId: string, rankId: string, display: string, end?: object}[]} what ended
  */
-export function sweep(now = Date.now()) {
+export function sweep(now = Date.now(), removed) {
     const ended = []
     for (const [playerId, held] of grants.entries()) {
         const remaining = {}
         for (const [rankId, info] of Object.entries(held ?? {})) {
             // A record for a rank they no longer hold is stale — somebody
-            // revoked it by hand. Drop it quietly; there is nothing to take.
-            if (!heldRankIds(playerId).includes(rankId)) continue
+            // revoked it by hand. Nothing to take; it is reported to `removed`.
+            if (!heldRankIds(playerId).includes(rankId)) {
+                removed?.push({ playerId, rankId, display: getRank(rankId)?.display ?? rankId, end: info?.end })
+                continue
+            }
             if (info?.until && info.until <= now) {
                 revokeRank(playerId, rankId)
-                ended.push({ playerId, rankId, display: getRank(rankId)?.display ?? rankId })
+                ended.push({ playerId, rankId, display: getRank(rankId)?.display ?? rankId, end: info?.end })
                 continue
             }
             remaining[rankId] = info
@@ -134,7 +162,68 @@ export function remainingLabel(until, now = Date.now()) {
     return plural(Math.floor(hours / 24), "day")
 }
 
+// ------------------------------------------------------- what to give back
+
+/** What was noted for this grant: { gm, inv, at } or { pending: true, at }. */
+export function keepOf(playerId, rankId) {
+    return keep.get(playerId)?.[rankId]
+}
+
+/** Every note for this player, by rank. */
+export function keepsOf(playerId) {
+    return { ...(keep.get(playerId) ?? {}) }
+}
+
+/**
+ * Has a timed grant just ended with a gamemode to put back? True while a note
+ * remains for a rank they no longer hold, which is the moment between the rank
+ * coming off and features/grant.js giving back what was noted. The staff-lost
+ * rule (features/gamemode.js) steps aside then: "the gamemode they had" beats
+ * "survival".
+ */
+export function gamemodeComingBack(playerId) {
+    const held = new Set(heldRankIds(playerId))
+    return Object.entries(keepsOf(playerId)).some(([rankId, noted]) => !held.has(rankId) && noted?.gm && !noted.pending)
+}
+
+export function setKeep(playerId, rankId, value) {
+    if (!playerId || !rankId) return false
+    keep.set(playerId, { ...(keep.get(playerId) ?? {}), [rankId]: value })
+    return true
+}
+
+/** Remove one and hand it back. */
+export function takeKeep(playerId, rankId) {
+    const row = { ...(keep.get(playerId) ?? {}) }
+    const value = row[rankId]
+    if (value === undefined) return undefined
+    delete row[rankId]
+    if (Object.keys(row).length) keep.set(playerId, row)
+    else keep.delete(playerId)
+    return value
+}
+
+/** End actions waiting for this player. */
+export function dueFor(playerId) {
+    return due.get(playerId) ?? []
+}
+
+export function addDue(playerId, entry) {
+    if (!playerId || !entry) return false
+    due.set(playerId, [...dueFor(playerId), entry])
+    return true
+}
+
+/** Take them all, to apply now. */
+export function takeDue(playerId) {
+    const list = dueFor(playerId)
+    if (list.length) due.delete(playerId)
+    return list
+}
+
 /** Testing seam: forget everything, without touching ranks. */
 export function __resetGrants() {
     for (const [id] of grants.entries()) grants.delete(id)
+    for (const [id] of keep.entries()) keep.delete(id)
+    for (const [id] of due.entries()) due.delete(id)
 }

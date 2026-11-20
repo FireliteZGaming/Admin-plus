@@ -3,8 +3,10 @@ import "../Admin+ BP/scripts/main.js"
 import { setSetting, resetSetting } from "../Admin+ BP/scripts/core/settings.js"
 import { setRanks, saveRank, getRank, RANK_VALUES, valueFor } from "../Admin+ BP/scripts/core/ranks.js"
 import {
-    candidate, landingY, findSpot, rtpRange, rtpMinimum, rtpTries
+    candidate, landingY, findSpot, rtpRange, rtpMinimum, rtpTries, columnLoaded, skyHeight, flyTries
 } from "../Admin+ BP/scripts/core/rtp.js"
+import { startSearch } from "../Admin+ BP/scripts/features/rtp.js"
+import { cooldownLeft, markUsed } from "../Admin+ BP/scripts/core/teleport.js"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -216,6 +218,69 @@ console.log("\n— the cooldown is a rank value like the others —")
         RANK_VALUES["rtp.cooldown"].fallback >= RANK_VALUES["home.cooldown"].fallback, true)
     saveRank("member", { meta: { ...getRank("member")?.meta, "rtp.cooldown": 90 } })
     check("it resolves off the rank", valueFor(player, "rtp.cooldown"), 90)
+}
+
+// 2.12.16: far chunks aren't loaded until somebody is near them, so /rtp flies
+// the player out over a spot, waits for the ground to load, and lands them.
+console.log("\n— where they wait while the ground loads —")
+check("high over the overworld", skyHeight({ id: "minecraft:overworld", heightRange: { min: -64, max: 320 } }), 310)
+check("just above the Nether's roof, never under it", skyHeight({ id: "minecraft:nether", heightRange: { min: 0, max: 128 } }), 129)
+check("under the End's limit", skyHeight({ id: "minecraft:the_end", heightRange: { min: 0, max: 256 } }), 246)
+check("200 when the game doesn't say", skyHeight({ id: "minecraft:overworld" }), 200)
+check("at most eight far spots, since each can take two seconds", flyTries() <= 8, true)
+check("an unloaded column says so", columnLoaded(fakeWorld({ ground: () => 70, loaded: () => false }), 5000, 5000), false)
+check("a loaded one says so", columnLoaded(fakeWorld({ ground: () => 70 }), 5000, 5000), true)
+
+function flyer(dimension) {
+    const p = {
+        id: `fly${Math.random()}`, name: "Flyer", nameTag: "Flyer", location: { x: 0, y: 64, z: 0 }, dimension,
+        inbox: [], hops: [], effects: new Set(), isValid: true, commandPermissionLevel: 0,
+        getTags: () => [], addTag: () => true, removeTag: () => false, sendMessage: m => p.inbox.push(String(m)),
+        teleport(at) { p.hops.push({ x: at.x, y: at.y, z: at.z }); p.location = { ...at } },
+        tryTeleport(at) { p.landed = { x: at.x, y: at.y, z: at.z }; p.location = { ...at }; return true },
+        addEffect: id => p.effects.add(id), removeEffect: id => p.effects.delete(id), getEffect: () => undefined,
+        onScreenDisplay: { setActionBar: t => { p.bar = t } }
+    }
+    return p
+}
+
+console.log("\n— far away: fly over, wait for the ground, land —")
+{
+    // Nothing is loaded until the player has been moved over it.
+    const near = new Set()
+    const world = fakeWorld({ ground: () => 72, loaded: (x, z) => near.has(`${x},${z}`) })
+    const p = flyer(world)
+    __test.timers.length = 0
+    startSearch(p, world)
+    check("nothing nearby was loaded, so they were moved high over a spot", p.hops.length, 1)
+    check("high up", p.hops[0].y, 200)
+    check("with slow falling, so nobody drops", p.effects.has("slow_falling"), true)
+    check("and told what's happening", String(p.bar).includes("Looking for a safe place"), true)
+    // The game loads the ground around them.
+    near.add(`${Math.floor(p.hops[0].x)},${Math.floor(p.hops[0].z)}`)
+    __test.runTimers()
+    check("once the ground loaded they landed on it", p.landed?.y, 73)
+    check("over the spot they flew to", [p.landed?.x, p.landed?.z], [p.hops[0].x, p.hops[0].z])
+    check("the cushion came off", p.effects.has("slow_falling"), false)
+    check("and they were told where", p.inbox.at(-1).includes("Sent you to"), true)
+}
+
+console.log("\n— water everywhere: every spot fails, so they go back and keep their cooldown —")
+{
+    const ocean = fakeWorld({ ground: () => undefined })      // loaded, nowhere to stand
+    const p = flyer(ocean)
+    __test.players.push(p)
+    setRanks(p.id, ["member"], p.name)
+    markUsed(p, "rtp.cooldown")
+    __test.timers.length = 0
+    startSearch(p, ocean)
+    __test.runTimers()
+    check("it tried several spots", p.hops.length > 2, true)
+    check("but never more than it should", p.hops.length <= flyTries() + 1, true)
+    check("and put them back where they started", p.hops.at(-1), { x: 0, y: 64, z: 0 })
+    check("nothing landed them anywhere", p.landed, undefined)
+    check("the cooldown was given back", cooldownLeft(p, "rtp.cooldown"), 0)
+    check("and they were told", p.inbox.at(-1).includes("back where you started"), true)
 }
 
 console.log(`\n${passed} passed, ${failed} failed\n`)

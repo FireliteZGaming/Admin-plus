@@ -1,6 +1,6 @@
 import { system } from "@minecraft/server"
 import { CONFIG } from "../config.js"
-import { cooldownFor, isStaff, valueFor } from "./ranks.js"
+import { cooldownFor, exemptFromCooldowns, valueFor } from "./ranks.js"
 import { setting, flag } from "./settings.js"
 import { err, info } from "./util.js"
 import { mark } from "./back.js"
@@ -21,8 +21,14 @@ function warmupTicks() {
     return Number.isFinite(value) && value >= 0 ? Math.round(value * 20) : CONFIG.teleport.warmupTicks
 }
 
+/**
+ * Staff skip the warmup when "Staff skip warmups and cooldowns" is on (Server ▸
+ * Settings ▸ Teleportation ▸ Wait times). Before 2.12.16 the warmup read only a
+ * built-in constant, so turning that switch off still let staff skip warmups;
+ * the cooldown half already followed it.
+ */
 function exemptFromWait(player) {
-    return CONFIG.teleport.staffInstant && isStaff(player)
+    return CONFIG.teleport.staffInstant !== false && exemptFromCooldowns(player)
 }
 
 /**
@@ -59,6 +65,12 @@ export function markUsed(player, key = "tpCooldown") {
     const mine = lastUsed.get(player.id) ?? {}
     mine[key] = Date.now()
     lastUsed.set(player.id, mine)
+}
+
+/** Give a cooldown back, for a teleport that didn't happen in the end (/rtp found nowhere). */
+export function clearUsed(player, key = "tpCooldown") {
+    const mine = lastUsed.get(player.id)
+    if (mine) delete mine[key]
 }
 
 export function cancelTeleport(player, reason) {

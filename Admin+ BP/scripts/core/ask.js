@@ -2,7 +2,7 @@ import { world, CustomCommandParamType as P } from "@minecraft/server"
 import { menu, pagedMenu, modal, subtitle } from "./ui.js"
 import { hubTitle } from "./theme.js"
 import { info } from "./util.js"
-import { has, renderTags, badgedTags } from "./ranks.js"
+import { has, renderTags, badgedTags, knownHolders } from "./ranks.js"
 import { displayName, getNickname, stripCodes } from "./identity.js"
 import { isVanished } from "./vanish.js"
 import { by } from "./logs.js"
@@ -78,14 +78,16 @@ const SEARCH_FROM = 8
  * @returns {Promise<import("@minecraft/server").Player | undefined>}
  */
 export async function pickPlayer(viewer, options = {}) {
-    const { title = "Pick a player", body, self = false, only, empty, filter = "" } = options
+    const { title = "Pick a player", body, self = false, only, empty, filter = "", offline = false } = options
     const seesVanished = has(viewer, "admin.vanish")
     const everyone = world.getAllPlayers()
         .filter(p => p.id === viewer.id ? self : (seesVanished || !isVanished(p)))
         .filter(p => !only || only(p, viewer))
         .map(p => ({ online: true, id: p.id, name: p.name, player: p }))
 
-    if (!everyone.length) {
+    // `offline` adds "Everyone seen", for a command that can reach a player who
+    // isn't here (/grant). The engine's own list only ever offers who is online.
+    if (!everyone.length && !offline) {
         info(viewer, empty ?? "Nobody else is online.")
         return undefined
     }
@@ -104,6 +106,7 @@ export async function pickPlayer(viewer, options = {}) {
     else if (everyone.length >= SEARCH_FROM) {
         extra.push({ text: "§8Search§r\n§8Find a player by gamertag or display name", run: search })
     }
+    if (offline) extra.push({ text: "§8Everyone seen§r\n§8Includes players who are offline", run: () => pickSeen(viewer, title) })
 
     return pagedMenu(viewer, {
         title: hubTitle("actions", title),
@@ -118,6 +121,24 @@ export async function pickPlayer(viewer, options = {}) {
         },
         onPick: row => row.player,
         extra
+    })
+}
+
+/**
+ * Everyone Admin+ has seen, online or not. Resolves to the Player when they are
+ * here, or to `{ id, name, offline: true }` when they are not, so a handler can
+ * act on an id without the player in the world (setRanks writes by id).
+ */
+async function pickSeen(viewer, title) {
+    const holders = knownHolders()
+    if (!holders.length) { info(viewer, "Nobody has been seen yet."); return undefined }
+    const online = new Map(world.getAllPlayers().map(p => [p.id, p]))
+    return pagedMenu(viewer, {
+        title: hubTitle("actions", title),
+        body: subtitle("Everyone Admin+ has seen. §a•§7 means online."),
+        items: holders,
+        render: holder => ({ text: `§9${holder.name || "§8(unknown)"}§r${online.has(holder.id) ? " §a•" : ""}` }),
+        onPick: holder => online.get(holder.id) ?? { id: holder.id, name: holder.name ?? "", offline: true }
     })
 }
 
@@ -182,7 +203,8 @@ export async function askFor(player, spec, param, enumValues) {
 
     if (param.type === P.PlayerSelector) {
         const picked = await pickPlayer(player, {
-            title, body: param.label, self: !!param.self, only: param.only, empty: param.empty
+            title: param.title ?? title, body: param.label, self: !!param.self, only: param.only, empty: param.empty,
+            offline: !!param.offline
         })
         return picked ? [picked] : undefined
     }

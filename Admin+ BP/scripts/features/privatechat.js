@@ -1,4 +1,4 @@
-import { world, CustomCommandParamType } from "@minecraft/server"
+import { world, system, CustomCommandParamType } from "@minecraft/server"
 import { command } from "../core/registry.js"
 import { CONFIG } from "../config.js"
 import { ok, err, info } from "../core/util.js"
@@ -12,11 +12,11 @@ import {
     rememberExchange, replyTarget, isSpying, toggleSpying, spyIds,
     pairedWith, inPair, startPair, endPair,
     invite, inviteFrom, pendingInvites, takeInvite,
-    INVITE_SECONDS, forgetPlayer
+    INVITE_SECONDS, forgetPlayer, takeExpired
 } from "../core/privatechat.js"
 import { menu, subtitle } from "../core/ui.js"
 import { hubTitle } from "../core/theme.js"
-import { askText } from "../core/ask.js"
+import { askText, pickPlayer } from "../core/ask.js"
 
 // /pm <player> <message>   one message, to one person
 // /r <message>             answer whoever spoke to you last
@@ -171,13 +171,39 @@ command({
         if (!flag("feature.pm")) return err(player, "Private chat is turned off on this server.")
         const targets = selected ?? []
 
-        // No argument is the exit, exactly as asked for.
-        if (!targets.length) return leave(player)
+        // No argument: the exit while you're in a session, exactly as asked
+        // for; otherwise it asks, like every other command (2.12.16).
+        if (!targets.length) return inPair(player) ? leave(player) : prchatMenu(player)
         if (targets.length > 1) return err(player, "Pick one player.")
 
         return askPrivateChat(player, targets[0])
     }
 })
+
+/**
+ * Bare /prchat when you aren't in a session: the requests waiting for you, and
+ * a way to ask somebody. With nothing waiting it goes straight to the shared
+ * player list.
+ */
+async function prchatMenu(player) {
+    const waiting = pendingInvites(player)
+    const askSomeone = async () => {
+        const target = await pickPlayer(player, { title: "/prchat", body: "Who do you want a private chat with?" })
+        if (target) askPrivateChat(player, target)
+    }
+    if (!waiting.length) return askSomeone()
+    return menu(player, {
+        title: hubTitle("chat", "Private chat"),
+        body: subtitle(`${waiting.length} waiting. Accept one, or ask someone else.`),
+        buttons: [
+            ...waiting.map(held => ({
+                text: `§f${held.fromName}\n§8wants a private chat · tap to accept`,
+                run: () => acceptInvite(player, held.from)
+            })),
+            { text: "§8Ask someone else", run: askSomeone }
+        ]
+    })
+}
 
 /**
  * Ask somebody for a private chat -- or accept theirs, since pointing it at a
@@ -198,6 +224,19 @@ export function askPrivateChat(player, target) {
     }
     if (isMuted(player)) return err(player, "You are muted.")
 
+    if (pairedWith(player) === target.id) {
+        return info(player, `§7You are already in a private chat with §f${displayName(target)}§7.`)
+    }
+    // Checked BEFORE accepting too (2.12.16). Accepting used to open the new
+    // session over an old one, which ended it without a word to the old
+    // partner, whose next line then went to the whole room.
+    if (inPair(player)) {
+        return err(player, "You're already in a private chat. Use /prexit to leave it first.")
+    }
+    if (inPair(target)) {
+        return err(player, `§f${displayName(target)}§c is already in a private chat.`)
+    }
+
     // Pointing it at somebody who has already asked YOU is how you accept.
     // No second command to remember, and it reads the same either way round.
     if (inviteFrom(player, target)) {
@@ -206,25 +245,18 @@ export function askPrivateChat(player, target) {
         return
     }
 
-    if (pairedWith(player) === target.id) {
-        return info(player, `§7You are already in a private chat with §f${displayName(target)}§7.`)
-    }
-    if (inPair(player)) {
-        return err(player, "You're already in a private chat. Use /prexit to leave it first.")
-    }
-    if (inPair(target)) {
-        return err(player, `§f${displayName(target)}§c is already in a private chat.`)
-    }
-
     if (inviteFrom(target, player)) {
         return info(player, `§7Already asked. Waiting for §f${displayName(target)}§7 to answer.`)
     }
 
     invite(player, target)
     ok(player, `Asked §f${displayName(target)}§a for a private chat. It expires in §f${INVITE_SECONDS}s§a.`)
+    // The bare commands, not "/praccept <name>": a gamertag with a space in it
+    // needs quotes there, and bare /praccept takes the newest request or asks
+    // which when there are several.
     target.sendMessage([
         `${CONFIG.brand.prefix}§d${displayName(player)}§7 wants a private chat.`,
-        `§8§f/praccept ${player.name}§8 to accept · §f/prdeny§8 to turn it down · expires in ${INVITE_SECONDS}s`
+        `§8§f/praccept§8 to accept · §f/prdeny§8 to turn it down · expires in ${INVITE_SECONDS}s`
     ].join("\n"))
 }
 
@@ -282,6 +314,7 @@ function waitingNames(player) {
 }
 
 function acceptInvite(player, fromId) {
+    if (inPair(player)) return err(player, "You're already in a private chat. Use /prexit to leave it first.")
     const held = takeInvite(player, fromId)
     if (!held) return err(player, `No request from that player. Waiting: §f${waitingNames(player)}`)
 
@@ -327,7 +360,9 @@ async function whichInvite(player, mode) {
 }
 
 function open(a, b) {
-    startPair(a, b)
+    if (!startPair(a, b)) {
+        return err(a, `§f${displayName(b)}§c is already in a private chat.`)
+    }
     for (const [self, other] of [[a, b], [b, a]]) {
         self.sendMessage([
             `${CONFIG.brand.prefix}§dPrivate chat open with §f${displayName(other)}§d.`,
@@ -370,6 +405,15 @@ export function routePrivate(player, message) {
         player.sendMessage(`${CONFIG.brand.prefix}§7They left, so the private chat closed.`)
         return true
     }
+    // Private chat switched off mid-session (Server ▸ Settings ▸ Chat): close
+    // it, and DON'T post this line to the room, since it was typed as private.
+    if (!flag("feature.pm")) {
+        endPair(player)
+        const note = `${CONFIG.brand.prefix}§7Private chat was turned off, so your private chat closed.`
+        player.sendMessage(`${note} §8Your last message wasn't sent.`)
+        partner.sendMessage(note)
+        return true
+    }
 
     // The message goes in as itself, the way room chat does it. It used to go in
     // as a "\u0000" placeholder swapped for the words afterwards, but render()
@@ -400,5 +444,18 @@ export function installPrivateChat() {
         if (partner) info(partner, "§7They left, so the private chat closed.")
     })
 
+    // Requests that ran out: both sides are told, once.
+    system.runInterval(() => announceExpired(), 20)
+
     console.log("[Admin+] private chat ready")
+}
+
+export function announceExpired() {
+    const here = new Map(world.getAllPlayers().map(p => [p.id, p]))
+    for (const gone of takeExpired()) {
+        const asker = here.get(gone.from)
+        const asked = here.get(gone.to)
+        if (asker) info(asker, `§7Your private chat request to §f${asked ? displayName(asked) : "them"}§7 expired.`)
+        if (asked) info(asked, `§7The private chat request from §f${gone.fromName}§7 expired.`)
+    }
 }
