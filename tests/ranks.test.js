@@ -13,7 +13,7 @@ import {
     TESTER_RANK, isTester, testerGamertags, MEDIA_RANK, isMedia, mediaGamertags
 } from "../Admin+ BP/scripts/core/ranks.js"
 import { CONFIG } from "../Admin+ BP/scripts/config.js"
-import { SERVER_PRESETS_ON_HOLD, AUTOMOD_ON_HOLD, DISGUISE_ON_HOLD } from "../Admin+ BP/scripts/core/hold.js"
+import { SERVER_PRESETS_ON_HOLD, AUTOMOD_SECTION_ON_HOLD, DISGUISE_ON_HOLD } from "../Admin+ BP/scripts/core/hold.js"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -322,15 +322,15 @@ for (const match of CODE.matchAll(nodePattern)) checked.add(match[1])
 // its switch is gone, since it would switch on nothing anyone can see.
 const ON_HOLD = [
     ...(SERVER_PRESETS_ON_HOLD ? ["presets.apply"] : []),
-    ...(AUTOMOD_ON_HOLD ? ["admin.automod"] : []),
+    ...(AUTOMOD_SECTION_ON_HOLD ? ["admin.automod"] : []),
     ...(DISGUISE_ON_HOLD ? ["admin.disguise"] : [])
 ]
 const undeclared = [...checked].filter(node => !declared.includes(node) && !node.startsWith("chat.") && !ON_HOLD.includes(node))
 check("and nothing is checked without being declared", undeclared, [])
 check("while presets are hidden, their permission has no switch", declared.includes("presets.apply"), !SERVER_PRESETS_ON_HOLD)
 check("but the panel still checks it, ready for their return", CODE.includes(`has(player, "presets.apply")`), true)
-check("while automod is on hold, its permission has no switch", declared.includes("admin.automod"), !AUTOMOD_ON_HOLD)
-check("nor is it in a ready-made set", Object.values(BUNDLES).some(b => b.nodes.includes("admin.automod")), !AUTOMOD_ON_HOLD)
+check("while automod is on hold, its permission has no switch", declared.includes("admin.automod"), !AUTOMOD_SECTION_ON_HOLD)
+check("nor is it in a ready-made set", Object.values(BUNDLES).some(b => b.nodes.includes("admin.automod")), !AUTOMOD_SECTION_ON_HOLD)
 check("while /disguise is on hold, its permission has no switch", declared.includes("admin.disguise"), !DISGUISE_ON_HOLD)
 
 check("no node is listed in two groups at once",

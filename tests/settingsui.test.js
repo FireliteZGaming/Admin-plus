@@ -8,7 +8,7 @@ import { openPanel } from "../Admin+ BP/scripts/features/panel.js"
 import { creditsScreen } from "../Admin+ BP/scripts/features/credits.js"
 import { serverPresetsScreen } from "../Admin+ BP/scripts/features/serverPresets.js"
 import { CONFIG } from "../Admin+ BP/scripts/config.js"
-import { AUTOMOD_ON_HOLD } from "../Admin+ BP/scripts/core/hold.js"
+import { AUTOMOD_SECTION_ON_HOLD } from "../Admin+ BP/scripts/core/hold.js"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -50,9 +50,9 @@ console.log("\n— Server holds Settings, Automod, Automation and Advanced —")
     // Automation joined Server in 2.10.0 (the user: "our own automation setting under server").
     // Automod is hidden while it's on hold (2.12.14, core/hold.js).
     check("those buttons, in that order", server,
-        ["Settings", ...(AUTOMOD_ON_HOLD ? [] : ["Automod"]), "Automation", "Advanced", "< Back"])
+        ["Settings", ...(AUTOMOD_SECTION_ON_HOLD ? [] : ["Automod"]), "Automation", "Advanced", "< Back"])
     check("and the Server button doesn't mention automod while it's on hold",
-        panel[serverAt].replace(/§./g, "").includes("automod"), !AUTOMOD_ON_HOLD)
+        panel[serverAt].replace(/§./g, "").includes("automod"), !AUTOMOD_SECTION_ON_HOLD)
 }
 
 console.log("\n— the groups say what they hold —")
@@ -134,7 +134,7 @@ console.log("\n— Automod is its own door —")
     __ui.answers.length = 0
     await automodHubScreen(boss, () => {})
     const hub = buttonsOf(lastForm()).map(t => t.split("\n")[0].replace(/§./g, ""))
-    check("Checks and Chat screening, and no empty held queue", hub, ["Checks", "Chat screening", "< Back"])
+    check("3.0.1: bot detection first, then the held checks, and no empty held queue", hub, ["Bot detection", "Possible bots (0)", "Ore alerts and fast breaking", "Chat screening", "< Back"])
     // The screening settings still work, for the day the hold lifts. Since
     // 2.12.10 its form carries the word lists too, and
     // tests/settingspages.test.js fills it field by field.

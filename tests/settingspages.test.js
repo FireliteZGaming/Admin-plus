@@ -5,6 +5,7 @@ import { setRanks, onPlayerJoin, applyPreset as applyRankPreset } from "../Admin
 import { GROUPS, settingsScreen, groupScreen, pageScreen } from "../Admin+ BP/scripts/features/settingsUI.js"
 import { CHECK_PAGES, automodScreen } from "../Admin+ BP/scripts/features/automod.js"
 import { WORD_FIELDS, HOLD_FIELD, screeningScreen } from "../Admin+ BP/scripts/features/automodUI.js"
+import { BOT_FIELDS } from "../Admin+ BP/scripts/features/bots.js"
 import { openPanel } from "../Admin+ BP/scripts/features/panel.js"
 import { configPresetsScreen, kindOf, submittedValue, previewLine, fromBlock, toBlock } from "../Admin+ BP/scripts/features/code.js"
 import { savePresetFromCurrent, deletePreset } from "../Admin+ BP/scripts/core/configPresets.js"
@@ -85,7 +86,8 @@ console.log("\n— every setting has one home in Beta —")
         ...GROUPS.flatMap(g => g.pages.flatMap(p => p.fields.map(f => f.key))),
         ...Object.values(CHECK_PAGES).flatMap(page => page.fields.map(f => f.key)),
         ...screening,
-        ...WORD_FIELDS.map(f => f.key), HOLD_FIELD.key
+        ...WORD_FIELDS.map(f => f.key), HOLD_FIELD.key,
+        ...BOT_FIELDS.map(f => f.key)
     ]
     const nowhere = Object.keys(DEFAULTS).filter(key => !homes.includes(key))
     // The three technical ones stay in < Code > alone, on purpose.

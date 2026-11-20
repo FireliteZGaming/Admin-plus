@@ -48,6 +48,18 @@ export const SERVER_PRESETS_ON_HOLD = true
 export const AUTOMOD_ON_HOLD = true
 
 /**
+ * The Automod SECTION, back in 3.0.1 for bot detection. The user,
+ * 2026-11-20: "this would fit into automod, as a 'bot detection' and as a
+ * /automod command ... the first semi-introduction to automod, an emergency
+ * introduction basicly". AUTOMOD_ON_HOLD still holds the old checks (ore
+ * alerts, fast breaking, chat flooding); this one says whether people see
+ * Server ▸ Automod, /automod's screens, the admin.automod switch, and
+ * automod in the "Moderation, full" set and in Credits. Bot detection
+ * (core/botcheck.js, features/bots.js) runs whatever AUTOMOD_ON_HOLD says.
+ */
+export const AUTOMOD_SECTION_ON_HOLD = false
+
+/**
  * /disguise, since 2.12.14 (built in 2.12.8). The user, 2026-11-19: "just put
  * a hold on automod and /disguise since those aren't working".
  *

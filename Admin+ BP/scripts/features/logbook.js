@@ -108,6 +108,10 @@ const LOG_PHRASES = {
     "automation.error": () => "stopped after 3 problems in a row",
     "automod.spam": (t, d) => d.startsWith("muted") ? `muted ${t} for spam` : `warned ${t} for spam`,
     "automod.ore": t => `flagged ${t} for mining ore`,
+    "automod.bot": (t, d) => String(d ?? "").startsWith("banned") ? `banned ${t} as a likely bot`
+        : String(d ?? "").startsWith("kicked") ? `kicked ${t} as a likely bot`
+        : String(d ?? "").startsWith("cleared") ? `took ${t} off the possible bots list`
+        : `couldn't kick ${t}, a likely bot`,
     "automod.breaks": t => `flagged ${t} for breaking blocks fast`,
     "automod.config": () => "changed automod settings",
     "chat.approve": t => `let a held message from ${t} through`,

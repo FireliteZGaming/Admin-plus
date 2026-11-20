@@ -31,6 +31,7 @@ import { installWorldTools } from "./features/worldtools.js"
 import { installAutomation } from "./features/automation.js"
 import { menusName } from "./core/channel.js"
 import { installAutomod } from "./features/automod.js"
+import { installBotDetection } from "./features/bots.js"
 import { installCleanup } from "./features/cleanup.js"
 import "./features/vanish.js"
 import "./features/online.js"
@@ -165,6 +166,7 @@ system.runInterval(() => {
 installModeration()
 installSpawnProtection()
 installAutomod()
+installBotDetection()
 installHiding()
 installVanish()
 installDisguise()

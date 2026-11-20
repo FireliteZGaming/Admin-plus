@@ -6,8 +6,11 @@ import { num, txt, fieldFor, applyField } from "../core/settingFields.js"
 import { has } from "../core/ranks.js"
 import { record } from "../core/logs.js"
 import { automodScreen } from "./automod.js"
-import { CHAT_AUTOMOD_ON_HOLD } from "../core/hold.js"
+import { CHAT_AUTOMOD_ON_HOLD, AUTOMOD_ON_HOLD } from "../core/hold.js"
 import { heldScreen, heldWaiting } from "./heldUI.js"
+import { command } from "../core/registry.js"
+import { botsOn, actAt } from "../core/botcheck.js"
+import { botSettingsScreen, botListScreen, possibleBots, actionWord } from "./bots.js"
 
 // /admin ▸ Server ▸ Automod
 //
@@ -21,18 +24,26 @@ const CHECK_KEYS = CHAT_AUTOMOD_ON_HOLD
     : ["automod.ores", "automod.breaks", "automod.spam"]
 const CHECK_NAMES = CHAT_AUTOMOD_ON_HOLD ? "Ore alerts, fast breaking" : "Ore alerts, fast breaking, chat flooding"
 
+/**
+ * /automod, and /admin ▸ Server ▸ Automod (3.0.1). Automod comes back one
+ * check at a time, bot detection first; the held checks stay in view,
+ * greyed out, so the shape of what's coming is already there.
+ */
 export async function automodHubScreen(player, back) {
-    if (!has(player, "admin.automod")) { err(player, "You can't change automod."); return back() }
+    if (!has(player, "admin.automod")) { err(player, "You can't change automod."); return back?.() }
     const again = () => automodHubScreen(player, back)
     const waiting = heldWaiting()
     const checksOn = CHECK_KEYS.filter(key => flag(key)).length
+    const bots = possibleBots().length
     return menu(player, {
         title: hubTitle("settings", "Automod"),
-        body: CHAT_AUTOMOD_ON_HOLD
-            ? subtitle("Checks alert staff to ore veins and fast breaking.\nChat automod is on hold: chat isn't screened, and nobody\nis muted for spam.")
-            : subtitle("Checks alert staff to what they find. Chat screening holds\nflagged messages until staff look at them."),
+        body: subtitle("Automod is coming back one check at a time. Bot detection is\nfirst: it spots accounts that join but never enter the world,\nlike the ad bots. The other checks are on hold for now."),
         buttons: [
-            { text: hubEntry("settings", "Checks", `${CHECK_NAMES} · ${checksOn} of ${CHECK_KEYS.length} on`), run: () => automodScreen(player, again) },
+            { text: hubEntry("settings", "Bot detection", botsOn() ? `§aon§8 · at ${actAt()}%: ${actionWord()}` : "§coff§8 · spots accounts that never enter the world"), run: () => botSettingsScreen(player, again) },
+            { text: hubEntry("settings", `Possible bots (${bots})`, bots ? "Look at each one: kick, ban, or clear" : "Nobody right now"), run: () => botListScreen(player, again) },
+            AUTOMOD_ON_HOLD
+                ? { text: "§7Ore alerts and fast breaking\n§8On hold", run: () => { info(player, "Ore alerts and fast breaking are on hold for now."); return again() } }
+                : { text: hubEntry("settings", "Checks", `${CHECK_NAMES} · ${checksOn} of ${CHECK_KEYS.length} on`), run: () => automodScreen(player, again) },
             // Greyed out and inactive while on hold, as the user asked: pressing
             // it opens nothing and only says why.
             CHAT_AUTOMOD_ON_HOLD
@@ -45,6 +56,13 @@ export async function automodHubScreen(player, back) {
         back
     })
 }
+
+command({
+    name: "automod",
+    description: "Bot detection and the possible bots list",
+    perm: "admin.automod",
+    run: player => automodHubScreen(player)
+})
 
 /** The four kinds of message the screen looks for, and how hard it looks. */
 const KINDS = [

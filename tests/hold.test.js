@@ -88,7 +88,7 @@ console.log("\n— Server ▸ Automod: Chat screening is greyed out —")
 {
     __ui.answers.length = 0
     __ui.shown.length = 0
-    __ui.answers.push(press(1))
+    __ui.answers.push(press(3))   // 3.0.1: Bot detection, Possible bots, Ore alerts, then Chat screening
     await automodHubScreen(boss, () => {})
     const hub = __ui.shown[0]
     const buttons = partsOf(hub, "button").map(p => p[1])
@@ -98,8 +98,8 @@ console.log("\n— Server ▸ Automod: Chat screening is greyed out —")
     check("and it says it is on hold", clean(screening ?? "").includes("On hold"), true)
     check("the Checks button no longer lists chat flooding",
         clean(buttons[0]).includes("chat flooding"), false)
-    check("the screen says chat automod is on hold",
-        clean(partsOf(hub, "body")[0]?.[1] ?? "").includes("Chat automod is on hold"), true)
+    check("the screen says the other checks are on hold",
+        clean(partsOf(hub, "body")[0]?.[1] ?? "").includes("other checks are on hold"), true)
     const after = __ui.shown[1]
     check("pressing it opens no settings: the hub comes back",
         !!after && partsOf(after, "toggle").length === 0 && partsOf(after, "button").length > 0, true)

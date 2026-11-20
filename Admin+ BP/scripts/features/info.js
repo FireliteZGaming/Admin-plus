@@ -105,6 +105,7 @@ const PAGES = [
     { cmd: "warnings", topic: "rules", what: "See if you have any warnings on your record.", how: ["/warnings"], words: "warn record strikes" },
     { cmd: "admin", topic: "staff", what: "The panel, with almost every staff tool.", how: ["/admin"], words: "panel staff tools" },
     { cmd: "mm", topic: "staff", what: "Staff mode: you get your tools and go invisible.", how: ["/mm"], words: "staff mode moderate" },
+    { cmd: "automod", topic: "staff", what: "Automod: bot detection and the possible bots list.", how: ["/automod"], words: "automod bots bot detection spam ads" },
     { cmd: "items", topic: "staff", what: "The admin item chest. A locked item says what it needs.", how: ["/items"], words: "tools hammer compass eye" },
     { cmd: "vanish", topic: "staff", what: "Disappear. Nobody sees you or your armour.", how: ["/vanish"], words: "invisible hide" },
     { cmd: "warn", topic: "staff", what: "Put a warning on a player's record.", how: ["/warn Steve spamming"], words: "warning strike" },

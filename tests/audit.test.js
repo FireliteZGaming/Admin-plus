@@ -228,7 +228,7 @@ for (const file of scriptFiles("Admin+ BP/scripts")) {
 // they are called, because there is no actor (automod fires itself) or no
 // target (a warp is not a person). They are log entries only.
 const NO_AUDIENCE = new Set([
-    "automod.ore", "automod.breaks", "automod.spam", "automod.config",
+    "automod.ore", "automod.breaks", "automod.spam", "automod.config", "automod.bot",
     "admin.clearchat", "admin.lagclear", "chat.broadcast", "dev.banhammer",
     // Taking a barrier out of the panel is done to the world, not to a person.
     // It is logged so there is a record of who has them.

@@ -127,6 +127,19 @@ export const DEFAULTS = {
     "cleanup.mobCap": {
         value: "0", label: "Lag clear: most of one farm animal or monster per chunk", help: "0 is no limit · named, tamed, leashed and ridden mobs are never removed"
     },
+    // 3.0.1: bot detection, the first part of Automod back (core/botcheck.js).
+    "automod.bots": {
+        value: "true", label: "Automod: bot detection", help: "true / false · flags accounts that join but never enter the world"
+    },
+    "automod.botAction": {
+        value: "none", label: "Automod: what to do with a likely bot", help: "none / kick / ban · none only flags it"
+    },
+    "automod.botActAt": {
+        value: "80", label: "Automod: act at this bot score (%)", help: "50 to 100"
+    },
+    "automod.botGrace": {
+        value: "120", label: "Automod: seconds before judging a new player", help: "So nobody still loading in is judged"
+    },
     "automod.ores": {
         value: "true", label: "Automod: ore alerts", help: "true / false · finds are grouped and reported when the player stops mining"
     },

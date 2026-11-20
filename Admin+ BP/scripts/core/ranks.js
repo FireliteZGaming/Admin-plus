@@ -5,7 +5,7 @@ import { displayName, nameTokens, stripCodes, hasNickname, getNameFont, setNameD
 import { render, renderTag, nameTagsEnabled, flag, setting } from "./settings.js"
 import { STYLES, STYLE_IDS, paint, currentFrame, rampFrom } from "./nametag.js"
 import { isHidden } from "./hiding.js"
-import { SERVER_PRESETS_ON_HOLD, AUTOMOD_ON_HOLD, DISGUISE_ON_HOLD } from "./hold.js"
+import { SERVER_PRESETS_ON_HOLD, AUTOMOD_SECTION_ON_HOLD, DISGUISE_ON_HOLD } from "./hold.js"
 import { look } from "./prefs.js"
 import { applyFont } from "./fonts.js"
 import { badgeFor, teamBadgeFor } from "./badges.js"
@@ -184,7 +184,7 @@ export const PERMISSION_NODES = {
     // presets.apply has no switch while Server presets are hidden (2.12.9,
     // core/hold.js): it would switch on nothing anyone can see. Ranks that
     // hold it keep it, because a group page rewrites only the switches it shows.
-    "Server settings": [...(SERVER_PRESETS_ON_HOLD ? [] : ["presets.apply"]), "admin.commands", ...(AUTOMOD_ON_HOLD ? [] : ["admin.automod"]), "admin.allowlist", "admin.automation"]
+    "Server settings": [...(SERVER_PRESETS_ON_HOLD ? [] : ["presets.apply"]), "admin.commands", ...(AUTOMOD_SECTION_ON_HOLD ? [] : ["admin.automod"]), "admin.allowlist", "admin.automation"]
 }
 
 /**
@@ -307,7 +307,7 @@ export function whereToGrant(node) {
 /** Checkbox-sized groupings for the rank editor form. */
 export const BUNDLES = {
     "mod_light":   { label: "Moderation, light", nodes: ["admin.panel", "ranks.view", "admin.warn", "admin.kick", "admin.mute", "admin.freeze", "admin.tpatoggle", "admin.reports"] },
-    "mod_full":    { label: "Moderation, full",  nodes: ["admin.panel", "ranks.view", "admin.warn", "admin.kick", "admin.mute", "admin.freeze", "admin.staffmode", "admin.tpatoggle", "admin.reports", ...(AUTOMOD_ON_HOLD ? [] : ["admin.automod"]), "admin.ban", "admin.invsee", "admin.logs"] },
+    "mod_full":    { label: "Moderation, full",  nodes: ["admin.panel", "ranks.view", "admin.warn", "admin.kick", "admin.mute", "admin.freeze", "admin.staffmode", "admin.tpatoggle", "admin.reports", ...(AUTOMOD_SECTION_ON_HOLD ? [] : ["admin.automod"]), "admin.ban", "admin.invsee", "admin.logs"] },
     "staff_tools": { label: "Staff tools",        nodes: ["admin.tp", "admin.vanish", "admin.gamemode"] },
     "holograms":   { label: "Floating text",      nodes: ["admin.holograms"] },
     "identity":    { label: "Names and voice",      nodes: ["admin.nickname"] },

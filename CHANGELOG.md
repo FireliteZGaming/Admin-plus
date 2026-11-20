@@ -22,6 +22,24 @@ tag, same file, only the claim about it changes.
 
 ---
 
+## 3.0.1 — 2026-11-20
+
+**Bot detection, the first part of Automod to come back, with /automod.** GitHub only for now.
+
+The user, 2026-11-20: "this would fit into automod, as a 'bot detection' and as a /automod command ... you can have it flag you, or you can have it both flag you and kick (or ban) the person ... No Action, Kick, Ban. and it adds them to a possible bot list as well. theres a percentage to these things too ... an emergency introduction basicly, and won't be released to curseforge, only github". It answers the ad bot from the 3.0.0 playtest (Obsidian: Admin+ ▸ Ad bot (2026-11-20)).
+
+- **What it looks for:** an account that joins but never enters the world. That is what the ad bot did: it sat in the player list, no selector could find it, and it still posted.
+- **Never judged:** a player still loading in (nothing is judged for the first 2 minutes, a setting), and anyone who has entered the world, including a player on the death screen with instant respawn off (the user's warning).
+- **The score:** never entered after the wait 60%, still not after two and a half waits +20, chatted without entering +15, posted a link +10, a name like Xbox's made-up ones +5, at most 100.
+- **What happens:** staff are always told, once per step, in Automod's voice, and the account goes on the possible bots list. At the limit (80%, a setting) it does what the server chose: No action (just flag, the default), Kick or Ban. Kicks and bans go by name, because the bot has no player object. An account that later enters the world comes off the list by itself.
+- **/automod** (and /admin ▸ Server ▸ Automod): Bot detection, Possible bots (each with Kick, Ban and Not a bot), then ore alerts and fast breaking, and chat screening, greyed out and on hold. It needs the rank's Automod permission (`admin.automod`), which is back on the Server settings list.
+- **The hold, split:** `AUTOMOD_ON_HOLD` still holds the old checks; the new `AUTOMOD_SECTION_ON_HOLD` (false) decides whether the section shows.
+- Settings: `automod.bots` (on), `automod.botAction` (none), `automod.botActAt` (80), `automod.botGrace` (120 seconds).
+- **Not verified in game:** the check rests on the game reporting a join (`playerJoin`) for an account that never spawns, and no first spawn for it. Both fit what the ad bot did, but only a bot or a test account can confirm them.
+- Tests: `tests/bots.test.js` (new, 30 checks), plus updates to `hold`, `settingsui`, `settingspages`, `readable`, `audit` and `ranks`. 72 suites.
+
+---
+
 ## 3.0.0 — 2026-11-20
 
 **The 3.0.0 milestone: Admin+'s own menus, a rebuilt rank system, one page per settings group, and a lag clear that thinks before it removes.**

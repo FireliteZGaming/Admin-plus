@@ -59,9 +59,9 @@ function scripts(dir) {
 // asked for there, and its "On hold" line underneath is readable.
 const greyButtons = scripts(bp).flatMap(([name, text]) => text.split("\n")
     .filter(line => /text:\s*["`]§7/.test(line))
-    .filter(line => !line.includes("§7Chat screening\\n§8On hold"))
+    .filter(line => !/§7[^§"`]*\\n§8On hold/.test(line))
     .map(line => `${name}: ${line.trim().slice(0, 60)}`))
-check("none, apart from the greyed-out Chat screening", greyButtons, [])
+check("none, apart from greyed-out buttons that are on hold", greyButtons, [])
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed) process.exit(1)

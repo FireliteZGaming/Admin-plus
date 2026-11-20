@@ -504,6 +504,17 @@ field, or (on a game that drew no labels) one per input.
   never seen counts as new; slow-server clears back off (`nextSlowLevel`);
   bring back keeps the newest 3,000 across clears and the real ItemStacks
   in memory, like staff mode.
+- **Bot detection is Automod's first check back (3.0.1, the user: "the
+  first semi-introduction to automod, an emergency introduction").**
+  `core/botcheck.js` scores an account that JOINED but never had a first
+  spawn: the 2026-11-20 ad bot sat in the player list where no selector
+  could find it. Nothing is judged inside `automod.botGrace` (a player
+  loading in), and anyone who spawned, a player on the death screen
+  included, can't match. Staff are always told; at `automod.botActAt` it
+  does `automod.botAction` (none by default, kick or ban) by NAME, through
+  moderation.js's server route. `AUTOMOD_ON_HOLD` still holds the old
+  checks; `AUTOMOD_SECTION_ON_HOLD` shows the section and /automod.
+  Unverified: that playerJoin fires for such an account. `tests/bots.test.js`.
 - **No economy or shop**, ever. The `+` means essentials.
 - **Fly, god, heal, feed: dropped.** Removed on purpose, not missing. Do not
   build them unasked. Three things came OFF this list because the user asked
