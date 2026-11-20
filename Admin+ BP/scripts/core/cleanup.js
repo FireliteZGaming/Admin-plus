@@ -10,6 +10,30 @@ import { setting, flag } from "./settings.js"
 // So this is a WHITELIST. It can only remove entity types that are named here.
 // Anything unknown — including entities belonging to other packs — is left
 // alone by construction, not by remembering to exclude it.
+//
+// 2.12.17 (the user: "upgrade lag-clear to make insanely better ... super
+// complex and advanced behind the scenes while simple to use"). This file is the
+// thinking, and it touches no game object, so every decision is tested without a
+// world; features/cleanup.js does the work. What it decides:
+//
+//   AGE        items that dropped in the last `cleanup.minAge` seconds stay, so
+//              nobody loses what they just dropped. Ages come from the spawn
+//              event; something seen before Admin+ loaded counts as old.
+//   DEATHS     what a player drops when they die is theirs for
+//              `cleanup.deathKeep` minutes, wherever it lands.
+//   KEEPERS    named, renamed, enchanted, valuable, or tagged to keep: never.
+//   MERGING    identical plain drops lying close together become full stacks
+//              before anything is removed. Lossless: 300 cobblestone entities
+//              become five, with every block still there.
+//   LOAD       a cost per entity, summed per chunk, so the report can say WHERE
+//              the server is struggling and what is doing it.
+//   MOB LIMIT  optional: at most `cleanup.mobCap` of one farm animal or monster
+//              per chunk. A short whitelist, and never a named, tamed, leashed
+//              or ridden mob.
+//   SPEED      ticks per second from real tick timing, the honest measure of
+//              "the server is lagging".
+//   AUTO       when to clear by itself: lots of clutter, or a slow server with
+//              clutter to blame, and never more than once in five minutes.
 
 /** The only things that can ever be removed, grouped so each can be switched off. */
 export const GROUPS = {
@@ -26,11 +50,13 @@ export const GROUPS = {
     projectiles: {
         key: "cleanup.projectiles",
         label: "Spent projectiles",
+        // Not here, on purpose (2.12.17): a thrown trident is somebody's
+        // trident, an ender pearl can be waiting in a stasis chamber, and a
+        // fishing hook belongs to someone fishing, AFK farms included.
         types: [
             "minecraft:arrow", "minecraft:snowball", "minecraft:egg",
-            "minecraft:thrown_trident", "minecraft:fishing_hook",
             "minecraft:splash_potion", "minecraft:lingering_potion",
-            "minecraft:experience_bottle", "minecraft:ender_pearl"
+            "minecraft:experience_bottle"
         ]
     },
     fallingBlocks: {
@@ -49,6 +75,19 @@ const DEFAULT_VALUABLES = [
     "dragon_egg", "beacon", "heart_of_the_sea", "nether_star", "trident", "mace"
 ]
 
+/**
+ * Items whose details live where the script API can't read them (a map's id, a
+ * firework's flight, a tipped arrow's effect, a banner's pattern, a bundle's
+ * contents). "Bring back the last clear" could only return a plain copy, so a
+ * lag clear leaves them alone.
+ */
+export const HIDDEN_DATA_ITEMS = new Set([
+    "minecraft:filled_map", "minecraft:firework_rocket", "minecraft:firework_star", "minecraft:banner",
+    "minecraft:arrow", "minecraft:ominous_bottle", "minecraft:written_book", "minecraft:writable_book",
+    "minecraft:potion", "minecraft:splash_potion", "minecraft:lingering_potion", "minecraft:suspicious_stew",
+    "minecraft:goat_horn", "minecraft:bundle", "minecraft:shield", "minecraft:crossbow", "minecraft:lodestone_compass"
+])
+
 export function valuables() {
     const raw = String(setting("cleanup.keep") ?? "").trim()
     if (!raw) return [...DEFAULT_VALUABLES]
@@ -65,10 +104,105 @@ export function removableTypes() {
     return activeGroups().flatMap(g => g.types)
 }
 
-export function warnSeconds() {
-    const value = Number(setting("cleanup.warn"))
-    return Number.isFinite(value) && value >= 0 ? Math.round(value) : 5
+function numberSetting(key, fallback, min = 0) {
+    const value = Number(setting(key))
+    return Number.isFinite(value) && value >= min ? value : fallback
 }
+
+export function warnSeconds() { return Math.round(numberSetting("cleanup.warn", 5)) }
+export function minAgeSeconds() { return numberSetting("cleanup.minAge", 30) }
+export function deathKeepMinutes() { return numberSetting("cleanup.deathKeep", 5) }
+export function autoAt() { return Math.round(numberSetting("cleanup.autoAt", 1500, 50)) }
+export function mobCap() { return Math.round(numberSetting("cleanup.mobCap", 0)) }
+
+// ------------------------------------------------------------------ age
+
+/** entity id -> when it was first seen, ms. */
+const seen = new Map()
+
+export function noteSeen(id, at = Date.now()) {
+    if (id && !seen.has(id)) seen.set(id, at)
+}
+
+/** Carry an age over to a new entity (a merged stack keeps the oldest age). */
+export function setSeen(id, at) { if (id) seen.set(id, at) }
+
+/** Ms on the ground, or Infinity for something seen before Admin+ was watching. */
+export function ageOf(id, now = Date.now()) {
+    const at = seen.get(id)
+    return at === undefined ? Infinity : Math.max(0, now - at)
+}
+
+export function firstSeen(id) { return seen.get(id) }
+
+/** Forget entities that are gone, so the map never grows past what exists. */
+export function forgetMissing(liveIds) {
+    const keep = new Set(liveIds)
+    for (const id of [...seen.keys()]) if (!keep.has(id)) seen.delete(id)
+    for (const id of [...shielded.keys()]) if (!keep.has(id)) shielded.delete(id)
+}
+
+// --------------------------------------------------------------- deaths
+
+/** Recent player deaths: { dimension, x, y, z, at }. */
+const deaths = []
+/** entity id -> protected until, ms. */
+const shielded = new Map()
+
+/** How far from where somebody died their things can land, and how long after. */
+const DEATH_RADIUS = 8
+const DEATH_WINDOW_MS = 3000
+
+/**
+ * Drops that appeared in the last few seconds. Nothing documents whether the
+ * game reports a player's death before or after the items it drops, so a
+ * death checks these as well, and the order doesn't matter.
+ */
+const recentDrops = []
+
+function nearDeath(death, drop) {
+    return death.dimension === drop.dimension && Math.abs(drop.at - death.at) <= DEATH_WINDOW_MS
+        && Math.hypot(drop.x - death.x, drop.y - death.y, drop.z - death.z) <= DEATH_RADIUS
+}
+
+/** A player died here. Shields anything already dropped around them; returns how many. */
+export function noteDeath(dimension, location, at = Date.now()) {
+    const death = { dimension, x: location.x, y: location.y, z: location.z, at }
+    deaths.push(death)
+    while (deaths.length > 50) deaths.shift()
+    const minutes = deathKeepMinutes()
+    if (!minutes) return 0
+    let caught = 0
+    for (const drop of recentDrops) {
+        if (nearDeath(death, drop)) { shielded.set(drop.id, drop.at + minutes * 60 * 1000); caught++ }
+    }
+    return caught
+}
+
+/**
+ * Something droppable appeared (an item or an XP orb): did a death just
+ * happen beside it? Then it is shielded for `cleanup.deathKeep` minutes.
+ */
+export function shieldIfDeathDrop(id, dimension, location, at = Date.now()) {
+    const minutes = deathKeepMinutes()
+    if (!id || !minutes) return false
+    const drop = { id, dimension, x: location.x, y: location.y, z: location.z, at }
+    recentDrops.push(drop)
+    while (recentDrops.length && (at - recentDrops[0].at > DEATH_WINDOW_MS || recentDrops.length > 2000)) recentDrops.shift()
+    const hit = deaths.some(d => nearDeath(d, drop))
+    if (hit) shielded.set(id, at + minutes * 60 * 1000)
+    return hit
+}
+
+export function shieldUntil(id) { return shielded.get(id) }
+export function setShield(id, until) { if (id && until) shielded.set(id, until) }
+
+export function isShielded(id, now = Date.now()) {
+    const until = shielded.get(id)
+    return until !== undefined && until > now
+}
+
+// ---------------------------------------------------------------- judging
 
 /**
  * Decide whether one entity may be removed.
@@ -79,7 +213,7 @@ export function warnSeconds() {
  * @param {object} entity a real Entity, or a plain object in tests
  * @returns {{remove: boolean, reason: string}}
  */
-export function judge(entity) {
+export function judge(entity, now = Date.now()) {
     if (!entity) return { remove: false, reason: "gone" }
 
     const typeId = entity.typeId ?? ""
@@ -96,13 +230,23 @@ export function judge(entity) {
         return { remove: false, reason: "tagged to keep" }
     }
 
+    if (isShielded(entity.id, now)) return { remove: false, reason: "from a death" }
+
     if (typeId === "minecraft:item") {
         const stack = safeStack(entity)
         if (stack?.nameTag) return { remove: false, reason: "renamed item" }
+        if (enchantsOf(stack).length) return { remove: false, reason: "enchanted" }
+        if (loreOf(stack).length) return { remove: false, reason: "has lore" }
+        if (HIDDEN_DATA_ITEMS.has(stack?.typeId)) return { remove: false, reason: "can't be brought back exactly" }
         const id = String(stack?.typeId ?? "").replace("minecraft:", "")
         if (id && valuables().some(v => id.includes(v))) {
             return { remove: false, reason: "valuable" }
         }
+    }
+
+    // Falling blocks are mid-fall; age means nothing for them.
+    if (typeId !== "minecraft:falling_block" && ageOf(entity.id, now) < minAgeSeconds() * 1000) {
+        return { remove: false, reason: "just dropped" }
     }
 
     return { remove: true, reason: "clutter" }
@@ -112,28 +256,281 @@ function safeTags(entity) {
     try { return entity.getTags?.() ?? [] } catch { return [] }
 }
 
-function safeStack(entity) {
+export function safeStack(entity) {
     try { return entity.getComponent?.("minecraft:item")?.itemStack } catch { return undefined }
 }
+
+function enchantsOf(stack) {
+    try { return stack?.getComponent?.("minecraft:enchantable")?.getEnchantments?.() ?? [] } catch { return [] }
+}
+
+function loreOf(stack) {
+    try { return stack?.getLore?.() ?? [] } catch { return [] }
+}
+
+/** Why things were kept, counted: { "just dropped": 12, valuable: 3 }. */
+export function keptReasons(entities, now = Date.now()) {
+    const out = {}
+    for (const entity of entities) {
+        const verdict = judge(entity, now)
+        if (!verdict.remove) out[verdict.reason] = (out[verdict.reason] ?? 0) + 1
+    }
+    return out
+}
+
+// ---------------------------------------------------------------- merging
+
+/** The cube merged stacks share, in blocks: close enough that nobody notices. */
+export const MERGE_CELL = 4
+
+/**
+ * What makes two stacks the same, or null when a stack must never be merged:
+ * named, enchanted, with lore, damaged, or one that doesn't stack.
+ */
+export function stackSignature(stack) {
+    if (!stack?.typeId) return null
+    const max = Number(stack.maxAmount ?? 64)
+    if (!(max > 1)) return null
+    if (stack.nameTag) return null
+    if (enchantsOf(stack).length || loreOf(stack).length) return null
+    let damage = 0
+    try { damage = Number(stack.getComponent?.("minecraft:durability")?.damage ?? 0) } catch { damage = 0 }
+    if (damage > 0) return null
+    return stack.typeId
+}
+
+/**
+ * Plan merges. `items`: [{ id, dimension, x, y, z, typeId, amount, max, sig }].
+ * Returns one plan per group worth merging:
+ *   { dimension, at: {x, y, z}, typeId, stacks: [amount, ...], remove: [ids], ids }
+ * where `stacks` are the new full stacks (the last may be partial). A group is
+ * merged only when it would end with fewer entities than it has.
+ */
+export function planMerges(items) {
+    const groups = new Map()
+    for (const item of items) {
+        if (!item?.sig || !(item.amount > 0)) continue
+        const key = [item.dimension, Math.floor(item.x / MERGE_CELL), Math.floor(item.y / MERGE_CELL),
+            Math.floor(item.z / MERGE_CELL), item.sig].join("|")
+        if (!groups.has(key)) groups.set(key, [])
+        groups.get(key).push(item)
+    }
+    const plans = []
+    for (const members of groups.values()) {
+        if (members.length < 2) continue
+        const max = Math.max(1, Math.min(...members.map(m => m.max || 64)))
+        const total = members.reduce((sum, m) => sum + m.amount, 0)
+        const needed = Math.ceil(total / max)
+        if (needed >= members.length) continue
+        const stacks = []
+        for (let left = total; left > 0; left -= max) stacks.push(Math.min(max, left))
+        const at = {
+            x: members.reduce((s, m) => s + m.x, 0) / members.length,
+            y: Math.max(...members.map(m => m.y)),
+            z: members.reduce((s, m) => s + m.z, 0) / members.length
+        }
+        plans.push({ dimension: members[0].dimension, at, typeId: members[0].typeId, stacks, remove: members.map(m => m.id) })
+    }
+    return plans
+}
+
+// ------------------------------------------------------------------- load
+
+/**
+ * Roughly what one entity costs the server, in "dropped items". Mobs think and
+ * pathfind every tick, so they cost several times an item; a villager, which
+ * also searches for beds and work, costs more again.
+ */
+const COST = {
+    "minecraft:item": 1, "minecraft:xp_orb": 0.5, "minecraft:arrow": 0.8, "minecraft:falling_block": 2,
+    "minecraft:tnt": 8, "minecraft:minecart": 2, "minecraft:hopper_minecart": 4, "minecraft:chest_minecart": 3,
+    "minecraft:tnt_minecart": 6, "minecraft:boat": 1.5, "minecraft:chest_boat": 2, "minecraft:armor_stand": 1,
+    "minecraft:item_frame": 0.4, "minecraft:glow_frame": 0.4, "minecraft:painting": 0.2,
+    "minecraft:villager": 8, "minecraft:villager_v2": 8, "minecraft:iron_golem": 4, "minecraft:wandering_trader": 6
+}
+
+/** Cost of one entity. `isMob` says whether it has health (it thinks, so it costs). */
+export function costOf(typeId, isMob = false) {
+    if (typeId in COST) return COST[typeId]
+    return isMob ? 4 : 1.5
+}
+
+const DIMENSION_NAMES = { "minecraft:overworld": "Overworld", "minecraft:nether": "Nether", "minecraft:the_end": "The End" }
+export function dimensionName(id) { return DIMENSION_NAMES[id] ?? String(id ?? "").replace("minecraft:", "") }
+
+/**
+ * The busiest chunks. `entities`: [{ dimension, x, z, typeId, isMob }].
+ * Returns [{ dimension, cx, cz, load, count, center: {x, z}, top: [{type, count}] }],
+ * heaviest first.
+ */
+export function hotspots(entities, limit = 5) {
+    const chunks = new Map()
+    for (const e of entities) {
+        const cx = Math.floor(e.x / 16), cz = Math.floor(e.z / 16)
+        const key = `${e.dimension}|${cx}|${cz}`
+        let chunk = chunks.get(key)
+        if (!chunk) {
+            chunk = { dimension: e.dimension, cx, cz, load: 0, count: 0, sx: 0, sz: 0, types: new Map() }
+            chunks.set(key, chunk)
+        }
+        chunk.load += costOf(e.typeId, e.isMob)
+        chunk.count++
+        chunk.sx += e.x
+        chunk.sz += e.z
+        const type = String(e.typeId ?? "unknown").replace("minecraft:", "")
+        chunk.types.set(type, (chunk.types.get(type) ?? 0) + 1)
+    }
+    return [...chunks.values()]
+        .sort((a, b) => b.load - a.load)
+        .slice(0, limit)
+        .map(c => ({
+            dimension: c.dimension, cx: c.cx, cz: c.cz, load: Math.round(c.load), count: c.count,
+            center: { x: Math.round(c.sx / c.count), z: Math.round(c.sz / c.count) },
+            top: [...c.types.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([type, count]) => ({ type, count }))
+        }))
+}
+
+// -------------------------------------------------------------- mob limit
+
+/**
+ * The only mobs a limit can ever thin out: farm animals and common monsters.
+ * Not here, never touched: villagers, golems, traders, pets, horses, bees,
+ * axolotls, anything rare, and every mob another pack adds.
+ */
+export const MOB_LIMIT_TYPES = new Set([
+    "minecraft:chicken", "minecraft:cow", "minecraft:pig", "minecraft:sheep", "minecraft:rabbit",
+    "minecraft:mooshroom", "minecraft:goat",
+    "minecraft:zombie", "minecraft:husk", "minecraft:drowned", "minecraft:skeleton", "minecraft:stray",
+    "minecraft:creeper", "minecraft:spider", "minecraft:cave_spider", "minecraft:slime", "minecraft:magma_cube",
+    "minecraft:zombie_pigman", "minecraft:enderman", "minecraft:guardian", "minecraft:blaze", "minecraft:witch",
+    "minecraft:phantom", "minecraft:silverfish", "minecraft:endermite"
+])
+
+/**
+ * Which mobs to remove so no chunk holds more than `cap` of one type.
+ * `mobs`: [{ id, dimension, x, z, typeId, keep }], `keep` true for named,
+ * tamed, leashed, ridden or tagged mobs: those count toward the limit but are
+ * never removed.
+ */
+export function planMobLimit(mobs, cap) {
+    if (!(cap > 0)) return []
+    const groups = new Map()
+    for (const mob of mobs) {
+        if (!MOB_LIMIT_TYPES.has(mob.typeId)) continue
+        const key = `${mob.dimension}|${Math.floor(mob.x / 16)}|${Math.floor(mob.z / 16)}|${mob.typeId}`
+        if (!groups.has(key)) groups.set(key, [])
+        groups.get(key).push(mob)
+    }
+    const out = []
+    for (const members of groups.values()) {
+        let excess = members.length - cap
+        if (excess <= 0) continue
+        for (const mob of members) {
+            if (excess <= 0) break
+            if (mob.keep) continue
+            out.push(mob.id)
+            excess--
+        }
+    }
+    return out
+}
+
+// ------------------------------------------------------------------ speed
+
+/**
+ * Ticks per second from tick times (ms, oldest first). 20 is a healthy server.
+ * Returns { tps, mspt, worst } where mspt is the average milliseconds per tick
+ * and worst the longest single tick.
+ */
+export function speedFrom(times) {
+    if (!times || times.length < 2) return { tps: 20, mspt: 50, worst: 50 }
+    const span = times[times.length - 1] - times[0]
+    const ticks = times.length - 1
+    let worst = 0
+    for (let i = 1; i < times.length; i++) worst = Math.max(worst, times[i] - times[i - 1])
+    const mspt = span / ticks
+    return { tps: Math.min(20, Math.round((1000 / Math.max(1, mspt)) * 10) / 10), mspt: Math.round(mspt), worst: Math.round(worst) }
+}
+
+// ------------------------------------------------------------------- auto
+
+/** At least this long between automatic clears. */
+export const AUTO_GAP_MS = 5 * 60 * 1000
+/** A slow server needs at least this much clutter before clearing is worth it. */
+export const AUTO_SLOW_CLUTTER = 300
+/** And this many slow checks in a row (20 seconds apart): a minute of slowness. */
+export const AUTO_SLOW_CHECKS = 3
+
+/**
+ * Should an automatic clear start now?
+ * @param {{clutter: number, tps: number, slowChecks: number, lastAuto: number, running: boolean, now: number}} s
+ * @returns {{go: boolean, why?: string}}
+ */
+export function shouldAutoClear(s) {
+    if (s.running) return { go: false }
+    if (s.now - (s.lastAuto ?? 0) < AUTO_GAP_MS) return { go: false }
+    if (s.clutter >= autoAt()) return { go: true, why: "clutter" }
+    if (s.slowChecks >= AUTO_SLOW_CHECKS && s.clutter >= AUTO_SLOW_CLUTTER) return { go: true, why: "slow" }
+    return { go: false }
+}
+
+// ---------------------------------------------------------------- tallies
 
 /**
  * Tally what is out there, so staff can see the actual cause before deciding.
  * Counting is separate from removing on purpose: often the answer is "you have
- * 2,000 chickens in a farm", which clearing dropped items will not fix and this
- * will not touch.
+ * 2,000 chickens in a farm", which clearing dropped items will not fix.
  */
-export function tally(entities) {
+export function tally(entities, { amounts = false } = {}) {
     const counts = new Map()
     for (const entity of entities) {
-        const id = (entity?.typeId ?? "unknown").replace("minecraft:", "")
-        counts.set(id, (counts.get(id) ?? 0) + 1)
+        const { kind, amount } = entity?.kind ? entity : kindOf(entity)
+        counts.set(kind, (counts.get(kind) ?? 0) + (amounts ? amount : 1))
     }
     return [...counts.entries()]
         .sort((a, b) => b[1] - a[1])
         .map(([type, count]) => ({ type, count }))
 }
 
+/**
+ * What one entity is called in a count: a dropped item by the item it holds,
+ * so a player reads "cobblestone", not "item". Taken BEFORE removal, because
+ * a removed entity can no longer be read.
+ */
+export function kindOf(entity) {
+    const type = String(entity?.typeId ?? "unknown")
+    if (type === "minecraft:item") {
+        const stack = safeStack(entity)
+        if (stack?.typeId) return { kind: String(stack.typeId).replace(/^minecraft:/, ""), amount: Number(stack.amount) || 1 }
+    }
+    return { kind: type.replace(/^minecraft:/, ""), amount: 1 }
+}
+
+/** The word a player knows for an entity id; items keep their own names. */
+const KIND_WORDS = {
+    item: "dropped item", xp_orb: "XP orb", falling_block: "falling block",
+    experience_bottle: "bottle o' enchanting", splash_potion: "splash potion",
+    lingering_potion: "lingering potion", villager_v2: "villager",
+    zombie_villager_v2: "zombie villager", zombie_pigman: "zombified piglin",
+    thrown_trident: "trident", fishing_hook: "fishing hook"
+}
+
+export function kindName(kind) {
+    return KIND_WORDS[kind] ?? String(kind).replace(/_/g, " ")
+}
+
+/** "cobblestone ×320, XP orb ×12", the way the game shows a stack. */
 export function describeTally(rows, limit = 6) {
     if (!rows.length) return "nothing else"
-    return rows.slice(0, limit).map(r => `${r.count} ${r.type.replace(/_/g, " ")}`).join(", ")
+    const shown = rows.slice(0, limit).map(r => `${kindName(r.type)} ×${r.count}`)
+    const more = rows.length - shown.length
+    return shown.join(", ") + (more > 0 ? ` and ${more} more ${more === 1 ? "kind" : "kinds"}` : "")
+}
+
+/** Testing seam. */
+export function __resetCleanup() {
+    seen.clear()
+    shielded.clear()
+    deaths.length = 0
+    recentDrops.length = 0
 }

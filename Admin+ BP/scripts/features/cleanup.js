@@ -1,18 +1,57 @@
 import { world, system, CustomCommandParamType } from "@minecraft/server"
 import { command } from "../core/registry.js"
-import { err, info, broadcast } from "../core/util.js"
+import { ok, err, info, broadcast, staffNotice } from "../core/util.js"
 import { record } from "../core/logs.js"
+import { has } from "../core/ranks.js"
+import { isFrozen } from "../core/moderation.js"
+import { flag } from "../core/settings.js"
+import { Table } from "../core/storage.js"
+import { menu, subtitle } from "../core/ui.js"
+import { hubTitle } from "../core/theme.js"
+import { serializeStack, buildStack } from "../core/staffmode.js"
 import {
-    judge, tally, describeTally, removableTypes,
-    activeGroups, warnSeconds
+    judge, tally, describeTally, kindOf, kindName, removableTypes, activeGroups, warnSeconds, keptReasons,
+    noteSeen, noteDeath, shieldIfDeathDrop, isShielded, forgetMissing, safeStack, stackSignature, planMerges,
+    hotspots, dimensionName, planMobLimit, MOB_LIMIT_TYPES, mobCap, speedFrom, shouldAutoClear
 } from "../core/cleanup.js"
 
-// /clearchat and /lagclear.
+// /clearchat, /lagclear and /lagcheck.
 //
-// /lagclear warns first and only ever removes whitelisted clutter — see
-// core/cleanup.js for why it is built that way round.
+// /lagclear only ever removes whitelisted clutter (core/cleanup.js says why),
+// and since 2.12.17 it does it carefully enough to run by itself:
+//
+//   1. a countdown on everyone's action bar, so anyone can grab their things
+//   2. GATHER: identical drops lying close together are moved onto one spot and
+//      the game merges them, comparing every detail itself. Nothing is made or
+//      deleted, so nothing can be lost; a pile of 300 becomes a handful
+//   3. what is still clutter, and old enough, and nobody's, is removed a batch
+//      per tick, so a big clear can't cause the lag spike it is meant to cure
+//   4. every removed item is written down, so "Bring back the last clear" can
+//      put it back where it was
+//   5. an optional mob limit thins out farm animals and monsters per chunk
+//
+// Behind it, all the time: a tick timer (real ticks per second), item ages from
+// the spawn event, and death drops shielded for a few minutes. With
+// "Clear by itself" on, it gathers quietly when items pile up and clears, with
+// a countdown, when clutter passes the limit or the server is slow and clutter
+// is there to blame; never more than once in five minutes.
 
 const DIMENSIONS = ["minecraft:overworld", "minecraft:nether", "minecraft:the_end"]
+
+/** How much to do per tick: enough to finish fast, little enough not to stall. */
+const REMOVE_PER_TICK = 150
+const GATHER_PER_TICK = 60
+/** At most this many cleared stacks are kept to bring back. */
+const UNDO_LIMIT = 3000
+/** Ticks the game gets to merge what was gathered. */
+const SETTLE_TICKS = 20
+
+/** Who a clear is written down as when nobody started it. */
+const AUTOMATIC = { id: "adminplus", name: "Admin+ (automatic)" }
+
+const undo = new Table("lagclearUndo", {})
+const ticks = []
+const state = { running: false, gathering: false, lastAuto: 0, slowChecks: 0 }
 
 // -------------------------------------------------------------- clear chat
 
@@ -32,16 +71,24 @@ command({
     }
 })
 
-// --------------------------------------------------------------- lag clear
+// ---------------------------------------------------------------- reading
+
+/** The server's speed over the last ten seconds. */
+export function speed() { return speedFrom(ticks) }
+
+function dimensions() {
+    const out = []
+    for (const id of DIMENSIONS) {
+        try { out.push(world.getDimension(id)) } catch { /* not there */ }
+    }
+    return out
+}
 
 /** Everything the current settings would even consider removing. */
-function candidates() {
+function clutter() {
     const types = removableTypes()
-    if (!types.length) return []
     const found = []
-    for (const id of DIMENSIONS) {
-        let dimension
-        try { dimension = world.getDimension(id) } catch { continue }
+    for (const dimension of dimensions()) {
         for (const type of types) {
             try { found.push(...dimension.getEntities({ type })) } catch { /* type unknown here */ }
         }
@@ -49,78 +96,442 @@ function candidates() {
     return found
 }
 
+/** Every entity but players, for the report. */
+function everything() {
+    const found = []
+    for (const dimension of dimensions()) {
+        try { found.push(...dimension.getEntities().filter(e => e.typeId !== "minecraft:player")) } catch { /* not loaded */ }
+    }
+    return found
+}
+
+function where(entity) {
+    try { return { dimension: entity.dimension.id, ...entity.location } } catch { return undefined }
+}
+
+function isMob(entity) {
+    try { return !!entity.getComponent?.("minecraft:health") } catch { return false }
+}
+
+// ------------------------------------------------------------- batching
+
+/** Run `fn` over `items`, `perTick` at a time, then `done`. */
+function inBatches(items, perTick, fn, done) {
+    let i = 0
+    const step = () => {
+        const end = Math.min(items.length, i + perTick)
+        for (; i < end; i++) {
+            try { fn(items[i]) } catch { /* one bad entity costs one entity */ }
+        }
+        if (i < items.length) system.runTimeout(step, 1)
+        else done?.()
+    }
+    step()
+}
+
+function bar(text) {
+    for (const p of world.getAllPlayers()) {
+        try { p.onScreenDisplay.setActionBar(text) } catch { /* left */ }
+    }
+}
+
+// --------------------------------------------------------------- gather
+
+/**
+ * Move identical drops that lie close together onto one spot, and let the game
+ * merge them. The game compares every detail of an item before merging (a
+ * tipped arrow's effect, a map's id, a firework's flight), so this can't lose
+ * or change anything; it only moves items a few blocks, onto a spot where one
+ * of them already lay. Death drops stay put: merged into another stack they
+ * would lose their shield.
+ */
+export function gather(done) {
+    if (state.gathering) { done?.(0); return }
+    state.gathering = true
+    const items = []
+    const byId = new Map()
+    for (const dimension of dimensions()) {
+        let found = []
+        try { found = dimension.getEntities({ type: "minecraft:item" }) } catch { continue }
+        for (const entity of found) {
+            if (isShielded(entity.id)) continue
+            const stack = safeStack(entity)
+            const sig = stackSignature(stack)
+            const at = where(entity)
+            if (!sig || !at) continue
+            byId.set(entity.id, entity)
+            items.push({ id: entity.id, ...at, typeId: stack.typeId, amount: Number(stack.amount) || 1, max: Number(stack.maxAmount) || 64, sig })
+        }
+    }
+    const plans = planMerges(items)
+    let moved = 0
+    inBatches(plans, GATHER_PER_TICK, plan => {
+        // The member nearest the middle is the spot: a place an item already lies.
+        const members = plan.remove.map(id => byId.get(id)).filter(Boolean)
+        let anchor = members[0], best = Infinity
+        for (const m of members) {
+            const at = where(m)
+            const d = at ? Math.hypot(at.x - plan.at.x, at.z - plan.at.z) : Infinity
+            if (d < best) { best = d; anchor = m }
+        }
+        const spot = where(anchor)
+        if (!spot) return
+        for (const m of members) {
+            if (m === anchor) continue
+            try { m.teleport({ x: spot.x, y: spot.y, z: spot.z }); moved++ } catch { /* gone */ }
+        }
+    }, () => {
+        state.gathering = false
+        done?.(moved)
+    })
+}
+
+// ---------------------------------------------------------------- clear
+
+function storeUndo(entries, by) {
+    const kept = entries.slice(-UNDO_LIMIT)
+    try { undo.set("last", { at: Date.now(), by: by?.name ?? "", items: kept }) } catch (e) {
+        console.warn(`[Admin+] lag clear: couldn't save what was cleared: ${e}`)
+    }
+    return kept.length
+}
+
+export function undoCount() { return undo.get("last")?.items?.length ?? 0 }
+
+/**
+ * Remove these entities a batch per tick, writing down every item so it can be
+ * brought back. Re-judged at the moment of removal: something may have been
+ * picked up or named since.
+ */
+function removeAll(entities, by, done) {
+    const saved = []
+    const removed = []
+    inBatches(entities, REMOVE_PER_TICK, entity => {
+        if (entity.isValid === false) return
+        if (!judge(entity).remove) return
+        if (entity.typeId === "minecraft:item") {
+            const stack = safeStack(entity)
+            const at = where(entity)
+            if (stack && at) saved.push({ s: serializeStack(stack), d: at.dimension, x: at.x, y: at.y, z: at.z })
+        }
+        const kind = kindOf(entity)
+        entity.remove()
+        removed.push(kind)
+    }, () => done({ removed, back: saved.length ? storeUndo(saved, by) : undoCount() }))
+}
+
+/** The optional mob limit (cleanup.mobCap). Returns how many were removed. */
+function thinMobs() {
+    const cap = mobCap()
+    if (!cap) return 0
+    const mobs = []
+    const byId = new Map()
+    for (const dimension of dimensions()) {
+        for (const type of MOB_LIMIT_TYPES) {
+            let found = []
+            try { found = dimension.getEntities({ type }) } catch { continue }
+            for (const mob of found) {
+                const at = where(mob)
+                if (!at) continue
+                byId.set(mob.id, mob)
+                mobs.push({ id: mob.id, ...at, typeId: mob.typeId, keep: keepsMob(mob) })
+            }
+        }
+    }
+    let gone = 0
+    for (const id of planMobLimit(mobs, cap)) {
+        try { byId.get(id).remove(); gone++ } catch { /* gone */ }
+    }
+    return gone
+}
+
+/** Named, tamed, leashed, ridden, riding or tagged: somebody's, never removed. */
+function keepsMob(mob) {
+    try {
+        if (mob.nameTag) return true
+        if ((mob.getTags?.() ?? []).some(t => /^(keep|persist|admin:keep|nolagclear)$/i.test(t))) return true
+        if (mob.getComponent?.("minecraft:is_tamed")) return true
+        if (mob.getComponent?.("minecraft:leashable")?.isLeashed) return true
+        if (mob.getComponent?.("minecraft:riding")) return true
+        if ((mob.getComponent?.("minecraft:rideable")?.getRiders?.() ?? []).length) return true
+    } catch { return true }
+    return false
+}
+
+/**
+ * The whole clear: countdown, gather, remove, mob limit, report.
+ * @param {{by?: object, seconds?: number, busiest?: boolean, why?: string}} options
+ */
+export function runClear({ by, seconds = warnSeconds(), busiest = false, why } = {}) {
+    if (state.running) {
+        if (by?.sendMessage) info(by, "§7A lag clear is already running.")
+        return false
+    }
+    if (!activeGroups().length) {
+        if (by?.sendMessage) err(by, "Every cleanup group is switched off, so nothing would be removed.")
+        return false
+    }
+    state.running = true
+    const label = busiest ? "dropped items in the busiest places" : "dropped items and clutter"
+
+    const clear = () => {
+        let candidates = clutter()
+        if (busiest) {
+            const spots = new Set(hotspots(candidates.map(e => ({ ...where(e), typeId: e.typeId, isMob: false })).filter(e => e.dimension), 3)
+                .map(s => `${s.dimension}|${s.cx}|${s.cz}`))
+            candidates = candidates.filter(e => {
+                const at = where(e)
+                return at && spots.has(`${at.dimension}|${Math.floor(at.x / 16)}|${Math.floor(at.z / 16)}`)
+            })
+        }
+        const kept = keptReasons(candidates)
+        const going = candidates.filter(e => judge(e).remove)
+        removeAll(going, by, result => {
+            const mobs = thinMobs()
+            state.running = false
+            report(by, { removed: result.removed, back: result.back, kept, mobs, why })
+        })
+    }
+
+    const afterCountdown = () => {
+        if (!flag("cleanup.merge")) return clear()
+        gather(() => system.runTimeout(clear, SETTLE_TICKS))
+    }
+
+    if (seconds <= 0) { afterCountdown(); return true }
+    broadcast(`§eClearing ${label} in §f${seconds}s§e. Pick up anything you want to keep.`)
+    for (let left = seconds; left > 0; left--) {
+        system.runTimeout(() => bar(`§eClearing ${label} in §f${left}§e...`), (seconds - left) * 20)
+    }
+    system.runTimeout(afterCountdown, seconds * 20)
+    return true
+}
+
+function report(by, { removed, back, kept, mobs, why }) {
+    const counts = tally(removed, { amounts: true })
+    const total = removed.length + mobs
+    const keptTotal = Object.values(kept).reduce((a, b) => a + b, 0)
+    if (!total) {
+        broadcast(`§7Lag clear: nothing needed clearing.${keptTotal ? ` §8(${keptTotal} kept)` : ""}`)
+    } else {
+        const what = [removed.length ? describeTally(counts) : "", mobs ? `${mobs} extra ${mobs === 1 ? "mob" : "mobs"} from crowded spots` : ""].filter(Boolean).join(", ")
+        broadcast(`§7Lag clear removed §f${what}§7.${back ? " §8Staff can bring the items back." : ""}`)
+    }
+    if (keptTotal) {
+        const reasons = Object.entries(kept).sort((a, b) => b[1] - a[1]).map(([r, n]) => `${n} ${r}`).join(", ")
+        staffNotice(`§7Lag clear kept §f${keptTotal}§7: ${reasons}.${back ? ` §8${back} cleared stacks can be brought back: /lagclear.` : ""}`)
+    }
+    const actor = by?.id ? by : AUTOMATIC
+    record(actor, "admin.lagclear", undefined,
+        `${total} removed · ${describeTally(counts)}${mobs ? ` · ${mobs} mobs` : ""}${why ? ` · automatic (${why === "slow" ? "server slow" : "clutter"})` : ""}`)
+}
+
+// -------------------------------------------------------------- bring back
+
+/** Put the last clear's items back where they were. Places nobody is near can't be reached yet; those wait. */
+export function bringBack(player) {
+    const last = undo.get("last")
+    const items = last?.items ?? []
+    if (!items.length) { info(player, "§7There is nothing to bring back."); return 0 }
+    let back = 0
+    const left = []
+    for (const entry of items) {
+        try {
+            const stack = buildStack(entry.s)
+            if (!stack) continue
+            world.getDimension(entry.d).spawnItem(stack, { x: entry.x, y: entry.y, z: entry.z })
+            back++
+        } catch {
+            left.push(entry)
+        }
+    }
+    undo.set("last", { ...last, items: left })
+    if (left.length) ok(player, `Brought back §f${back}§a stacks. §7${left.length} are in places nobody is near; bring them back again once someone is there.`)
+    else ok(player, `Brought back all §f${back}§a stacks, where they were.`)
+    record(player, "admin.lagclear", undefined, `brought back ${back} stacks`)
+    return back
+}
+
+// ---------------------------------------------------------------- screens
+
+function speedWords(tps) {
+    if (tps >= 19) return "§ahealthy"
+    if (tps >= 15) return "§ea little slow"
+    return "§cstruggling"
+}
+
+async function lagMenu(player) {
+    const sp = speed()
+    const found = clutter()
+    const clearable = found.filter(e => judge(e).remove).length
+    const back = undoCount()
+    const again = () => lagMenu(player)
+    return menu(player, {
+        title: hubTitle("settings", "Lag clear"),
+        body: subtitle([
+            `Server speed: §f${sp.tps}§7 ticks a second (${speedWords(sp.tps)}§7).`,
+            `§f${found.length}§7 dropped items and clutter loaded, §f${clearable}§7 clearable now.`,
+            "§8Never cleared: named, enchanted or valuable items, what someone just dropped, and death drops for a few minutes."
+        ].join("\n")),
+        buttons: [
+            { text: "§cClear now§r\n§8Countdown, merge, then clear", run: () => runClear({ by: player }) },
+            { text: "§aMerge only§r\n§8Full stacks, nothing is lost", run: () => mergeOnly(player) },
+            { text: "§eClear the busiest places only§r\n§8Where the clutter piles up", run: () => runClear({ by: player, busiest: true }) },
+            { text: "§fBusiest places§r\n§8Where the load is, and what it is", run: () => lagReport(player, again) },
+            back ? { text: `§bBring back the last clear§r\n§8${back} stacks, where they were`, run: () => bringBack(player) } : null
+        ].filter(Boolean)
+    })
+}
+
+function mergeOnly(player) {
+    const before = clutter().filter(e => e.typeId === "minecraft:item").length
+    gather(moved => system.runTimeout(() => {
+        const after = clutter().filter(e => e.typeId === "minecraft:item").length
+        ok(player, moved
+            ? `Merged §f${before}§a dropped items into §f${after}§a. Nothing was lost.`
+            : "Nothing to merge: no piles of the same item.")
+        if (moved) record(player, "admin.lagclear", undefined, `merged ${before} into ${after}`)
+    }, SETTLE_TICKS))
+}
+
+/** The report /lagcheck opens: speed, what is loaded, and the busiest chunks. */
+export async function lagReport(player, back) {
+    const sp = speed()
+    const all = everything()
+    const clearable = all.filter(e => judge(e).remove).length
+    const players = world.getAllPlayers()
+    const spots = hotspots(all.map(e => ({ ...where(e), typeId: e.typeId, isMob: isMob(e) })).filter(e => e.dimension), 5)
+    const nearest = spot => {
+        let name, best = Infinity
+        for (const p of players) {
+            try {
+                if (p.dimension.id !== spot.dimension) continue
+                const d = Math.hypot(p.location.x - spot.center.x, p.location.z - spot.center.z)
+                if (d < best) { best = d; name = p.name }
+            } catch { /* left */ }
+        }
+        return name && best <= 128 ? name : undefined
+    }
+    return menu(player, {
+        title: hubTitle("settings", "Busiest places"),
+        body: subtitle([
+            `Server speed: §f${sp.tps}§7 ticks a second (${speedWords(sp.tps)}§7). 20 is full speed.`,
+            `§7${sp.mspt} ms a tick on average, the slowest ${sp.worst} ms.`,
+            "",
+            `§f${all.length}§7 things loaded, §f${clearable}§7 clearable now.`,
+            `Most common: §f${describeTally(tally(all), 6)}`,
+            "",
+            spots.length ? "Heaviest first. Mobs count several times an item, villagers most of all." : "Nothing is loaded."
+        ].join("\n")),
+        buttons: [
+            ...spots.map(spot => {
+                const near = nearest(spot)
+                return {
+                    text: `§f${dimensionName(spot.dimension)} ${spot.center.x}, ${spot.center.z}§r\n§8${spot.top.map(t => `${kindName(t.type)} ×${t.count}`).join(", ")}${near ? ` · near ${near}` : ""}`,
+                    run: () => goTo(player, spot)
+                }
+            }),
+            { text: "§cClear now§r\n§8Countdown, merge, then clear", run: () => runClear({ by: player }) }
+        ],
+        back
+    })
+}
+
+function goTo(player, spot) {
+    const where = `${dimensionName(spot.dimension)} ${spot.center.x}, ${spot.center.z}`
+    if (!has(player, "admin.tp")) return info(player, `§7That's at §f${where}§7.`)
+    if (isFrozen(player)) return err(player, "You're frozen, so you can't teleport.")
+    try {
+        const dimension = world.getDimension(spot.dimension)
+        const top = dimension.getTopmostBlock({ x: spot.center.x, z: spot.center.z })
+        const y = top ? top.location.y + 1 : (player.location?.y ?? 100)
+        player.teleport({ x: spot.center.x + 0.5, y, z: spot.center.z + 0.5 }, { dimension })
+        ok(player, `Took you to §f${where}§a.`)
+    } catch {
+        err(player, `Couldn't take you there. It's at §f${where}§c.`)
+    }
+}
+
+// --------------------------------------------------------------- commands
+
 command({
     name: "lagclear",
-    description: "Remove dropped items and clutter after a warning",
+    description: "Clear dropped items and clutter, carefully",
     perm: "admin.lagclear",
     optional: [{ name: "seconds", type: CustomCommandParamType.Integer }],
     run: (player, [seconds]) => {
-        const groups = activeGroups()
-        if (!groups.length) {
-            return err(player, "Every cleanup group is switched off, so nothing would be removed.")
-        }
-
-        const found = candidates()
-        const keepers = found.filter(e => !judge(e).remove)
-        const removable = found.filter(e => judge(e).remove)
-
-        if (!removable.length) {
-            info(player, `Nothing to clear. §8(${found.length} checked, ${keepers.length} protected)`)
-            return
-        }
-
-        const delay = Number.isFinite(seconds) && seconds >= 0 ? Math.round(seconds) : warnSeconds()
-        info(player, `§7Clearing §f${describeTally(tally(removable))}§7.`)
-        if (keepers.length) {
-            info(player, `§8Leaving ${keepers.length} that are named, tagged or valuable.`)
-        }
-
-        if (delay <= 0) return finish(player, removable)
-
-        broadcast(`§eClearing dropped items and clutter in §f${delay}s§e. Pick up anything you want to keep.`)
-        system.runTimeout(() => {
-            // Re-judge at the moment of removal: something may have been picked
-            // up, and a player may have dropped something new in the meantime.
-            finish(player, candidates().filter(e => judge(e).remove))
-        }, delay * 20)
+        // A number is the shortcut: clear now, with that countdown.
+        if (Number.isFinite(seconds)) return runClear({ by: player, seconds: Math.max(0, Math.round(seconds)) })
+        return lagMenu(player)
     }
 })
 
-function finish(player, entities) {
-    let removed = 0
-    const counts = tally(entities)
-    for (const entity of entities) {
-        try {
-            if (!entity.isValid) continue
-            entity.remove()
-            removed++
-        } catch { /* already gone */ }
-    }
-
-    broadcast(`§7Cleared §f${removed}§7 ${removed === 1 ? "entity" : "entities"}. §8${describeTally(counts)}`)
-    record(player, "admin.lagclear", undefined, `${removed} removed · ${describeTally(counts)}`)
-}
-
-/** What is out there, without touching anything. */
+/** What is out there, and where, without touching anything. */
 command({
     name: "lagcheck",
-    description: "Count entities without removing anything",
+    description: "See how the server is doing and where the load is",
     perm: "admin.lagclear",
-    run: (player) => {
-        const everything = []
-        for (const id of DIMENSIONS) {
-            try { everything.push(...world.getDimension(id).getEntities()) } catch { /* not loaded */ }
-        }
-        const rows = tally(everything)
-        const clutter = everything.filter(e => judge(e).remove).length
-
-        info(player, [
-            `§f${everything.length}§7 entities loaded across all dimensions.`,
-            `§f${clutter}§7 of them would be cleared by /lagclear.`,
-            "",
-            `§7Most common: §f${describeTally(rows, 8)}`,
-            "§8Mob farms and villagers are counted but never cleared.",
-            "§8If chickens top the list, clearing items won't help."
-        ].join("\n"))
-    }
+    run: (player) => lagReport(player)
 })
+
+// ---------------------------------------------------------------- running
+
+/**
+ * One check every 20 seconds: count clutter, note whether the server is slow,
+ * gather quietly when items pile up, and clear if it's needed.
+ */
+export function autoCheck(now = Date.now()) {
+    const sp = speed()
+    state.slowChecks = sp.tps < 15 ? state.slowChecks + 1 : 0
+    if (!flag("cleanup.auto") || state.running) return { go: false }
+    const found = clutter()
+    if (flag("cleanup.merge") && found.filter(e => e.typeId === "minecraft:item").length >= 150) gather()
+    const decision = shouldAutoClear({
+        clutter: found.filter(e => judge(e, now).remove).length,
+        tps: sp.tps, slowChecks: state.slowChecks, lastAuto: state.lastAuto, running: state.running, now
+    })
+    if (decision.go) {
+        state.lastAuto = now
+        runClear({ seconds: Math.max(10, warnSeconds()), why: decision.why })
+    }
+    return decision
+}
+
+export function installCleanup() {
+    // Real tick times, for ticks per second. One number a tick costs nothing.
+    system.runInterval(() => {
+        ticks.push(Date.now())
+        if (ticks.length > 201) ticks.shift()
+    }, 1)
+
+    // Ages and death drops, from the moment things appear.
+    try {
+        world.afterEvents.entitySpawn.subscribe(({ entity }) => {
+            try {
+                if (entity?.typeId !== "minecraft:item" && !removableTypes().includes(entity?.typeId)) return
+                const now = Date.now()
+                noteSeen(entity.id, now)
+                if (entity.typeId === "minecraft:item" || entity.typeId === "minecraft:xp_orb") {
+                    shieldIfDeathDrop(entity.id, entity.dimension.id, entity.location, now)
+                }
+            } catch { /* gone already */ }
+        })
+    } catch { /* older runtime: everything counts as old */ }
+    try {
+        world.afterEvents.entityDie.subscribe(({ deadEntity }) => {
+            try {
+                if (deadEntity?.typeId === "minecraft:player") noteDeath(deadEntity.dimension.id, deadEntity.location)
+            } catch { /* gone */ }
+        }, { entityTypes: ["minecraft:player"] })
+    } catch { /* older runtime: no death shield */ }
+
+    system.runInterval(() => autoCheck(), 20 * 20)
+    // Forget what no longer exists, so the age map never outgrows the world.
+    system.runInterval(() => { try { forgetMissing(clutter().map(e => e.id)) } catch { /* next time */ } }, 20 * 60)
+    console.log("[Admin+] lag clear ready")
+    return true
+}
+
+/** Testing seams. */
+export function __tickTimes() { return ticks }
+export function __cleanupState() { return state }

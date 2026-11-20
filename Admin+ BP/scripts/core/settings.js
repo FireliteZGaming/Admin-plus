@@ -108,6 +108,25 @@ export const DEFAULTS = {
     "cleanup.keep": {
         value: "", label: "Lag clear: protected items", help: "Comma separated, part of a name is enough · empty uses the built-in list of valuables"
     },
+    // 2.12.17: the lag clear upgrade (features/cleanup.js).
+    "cleanup.merge": {
+        value: "true", label: "Lag clear: merge piles first", help: "true / false · identical drops close together become full stacks, nothing is lost"
+    },
+    "cleanup.minAge": {
+        value: "30", label: "Lag clear: leave items newer than (seconds)", help: "What someone just dropped stays"
+    },
+    "cleanup.deathKeep": {
+        value: "5", label: "Lag clear: keep death drops for (minutes)", help: "0 doesn't protect them"
+    },
+    "cleanup.auto": {
+        value: "true", label: "Lag clear: clear by itself", help: "true / false · a countdown first, at most every 5 minutes, only when clutter piles up or the server is slow"
+    },
+    "cleanup.autoAt": {
+        value: "1500", label: "Lag clear: clear by itself at (clearable things)", help: "Or sooner when the server is slow for a minute with at least 300"
+    },
+    "cleanup.mobCap": {
+        value: "0", label: "Lag clear: most of one farm animal or monster per chunk", help: "0 is no limit · named, tamed, leashed and ridden mobs are never removed"
+    },
     "automod.ores": {
         value: "true", label: "Automod: ore alerts", help: "true / false · finds are grouped and reported when the player stops mining"
     },

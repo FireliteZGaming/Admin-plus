@@ -91,7 +91,8 @@ const LOG_PHRASES = {
     "admin.staffmode": (_t, d) => d.startsWith("on") ? "turned on staff mode" : "turned off staff mode",
     "admin.vanish": () => "vanished",
     "admin.unvanish": () => "came back from vanish",
-    "admin.lagclear": () => "cleared lag",
+    "admin.lagclear": (_t, d) => String(d ?? "").startsWith("brought back") ? "brought back cleared items"
+        : String(d ?? "").startsWith("merged") ? "merged dropped items" : "cleared lag",
     "admin.clearchat": () => "cleared the chat",
     "admin.guestOn": () => "turned on the guest list",
     "admin.guestOff": () => "turned off the guest list",

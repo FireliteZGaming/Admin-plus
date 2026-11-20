@@ -56,6 +56,26 @@ What that body of work amounts to:
 The per-version detail for all of it is below, unchanged.
 
 ---
+## 2.12.17 — 2026-11-20
+
+**Lag clear is rebuilt. It merges piles before it removes anything, never takes what is somebody's, can be undone, shows where the lag is, and can clear by itself.**
+
+The user, 2026-11-20: "upgrade lag-clear to make insanely better, I mean it can't be simple anymore, it has to be super complex and advanced behind the scenes while simple to use".
+
+- **Two commands.** `/lagclear` opens one menu: Clear now, Merge only, Clear the busiest places only, Busiest places, and Bring back the last clear (once there is something to bring back). `/lagclear 10` still clears at once with that countdown. `/lagcheck` opens Busiest places. Both need `admin.lagclear`.
+- **Merge first.** Identical plain drops lying within 4 blocks of each other are moved together so the game stacks them, before anything is removed. 300 cobblestone entities become 5, with every block still there. Merge only does just this. Named, enchanted, damaged or lore items are never merged.
+- **What a clear never takes:** anything not on the list, named or renamed things, enchanted items, items with lore, the valuables list, anything tagged `keep`, `persist`, `admin:keep` or `nolagclear`, items whose data a script can't copy (maps, fireworks, banners, arrows, ominous bottles, books, potions, suspicious stew, goat horns, bundles, shields, crossbows, lodestone compasses), anything dropped in the last 30 seconds, and what a player drops when they die (items and XP orbs) for 5 minutes. The death shield works whichever order the game reports the death and the drops.
+- **Bring back the last clear.** Every item a clear removes is written down (up to 3,000 stacks) and can be put back where it was. A place nobody is near isn't loaded, so its stacks wait for the next try.
+- **Busiest places.** Server speed from real tick times (ticks a second, average and slowest tick), what is loaded, and the 5 heaviest chunks by a cost per entity (a mob weighs more than an item, a villager most), with who is near. A chunk's button takes you there with `admin.tp`, and refuses while you are frozen.
+- **Clearing by itself** (on by default, Lag clear: clear by itself). A check every 20 seconds clears when 1,500 clearable things are loaded, or when the server runs under 15 ticks a second for 3 checks in a row with at least 300 to blame. It always counts down at least 10 seconds, never runs twice in 5 minutes, and is logged as Admin+ (automatic). From 150 dropped items it merges quietly first.
+- **An optional mob limit** (0, off, by default): at most that many of one farm animal or monster per chunk. Never a named, tamed, leashed, ridden or tagged mob, and villagers are never on the list.
+- **Big clears are spread out:** 150 removals and 60 merge groups a tick. Before a clear, everyone sees the countdown on their action bar.
+- **The messages name things.** Everyone reads "Lag clear removed cobblestone ×320." Staff also get what was kept and why.
+- **No longer removed:** thrown tridents (somebody's trident; a dropped trident was already kept as valuable), ender pearls (stasis chambers) and fishing hooks (AFK fishing).
+- New settings on Server ▸ Settings ▸ Moderation ▸ Lag clear: merge piles first, leave items newer than, keep death drops for, clear by itself, clear by itself at, and the mob limit.
+- Tests: `tests/lagclear.test.js` (new, 67 checks: merging, the keep rules, death drops in either order, load, the mob limit, speed, clearing by itself, a whole clear with bring back, the menu and report), and `tests/cleanup.test.js` for the new wording. 71 suites.
+
+---
 ## 2.12.16 — 2026-11-20
 
 **Timed grants can give things back, /rtp works far out, private chat is fixed, and teleport settings sit in one place.**

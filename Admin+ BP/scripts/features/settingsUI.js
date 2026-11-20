@@ -242,13 +242,19 @@ export const GROUPS = [
                 ]
             },
             {
-                label: "Lag clear", hint: "What a lag clear removes",
+                label: "Lag clear", hint: "What it clears, what it never touches, and clearing by itself",
                 fields: [
+                    sw("cleanup.auto", "Clear by itself when it's needed", "Only when clutter piles up or the server is slow, with a countdown first, at most every 5 minutes"),
+                    num("cleanup.autoAt", "Clear by itself at this many clearable things", "", 200, 5000, 100),
+                    sw("cleanup.merge", "Merge piles of the same item first", "Nothing is lost, and there's far less to load"),
                     sw("cleanup.items", "Dropped items", ""),
                     sw("cleanup.xp", "XP orbs", ""),
                     sw("cleanup.projectiles", "Spent arrows and tridents", ""),
                     sw("cleanup.fallingBlocks", "Falling sand and gravel", ""),
                     num("cleanup.warn", "Countdown before it clears, in seconds", "0 clears at once", 0, 30),
+                    num("cleanup.minAge", "Leave items that dropped in the last ... seconds", "So nobody loses what they just dropped", 0, 300, 5),
+                    num("cleanup.deathKeep", "Keep a player's death drops for ... minutes", "0 doesn't protect them", 0, 30),
+                    num("cleanup.mobCap", "Most of one farm animal or monster in a chunk", "0 is no limit. Named, tamed and leashed mobs are never removed; villagers, golems and pets aren't touched.", 0, 200, 4),
                     beta(txt("cleanup.keep", "Items it never clears", "Separated by commas, and part of a name is enough. Empty keeps the built-in list of valuables."))
                 ]
             },

@@ -31,7 +31,7 @@ import { installWorldTools } from "./features/worldtools.js"
 import { installAutomation } from "./features/automation.js"
 import { menusName } from "./core/channel.js"
 import { installAutomod } from "./features/automod.js"
-import "./features/cleanup.js"
+import { installCleanup } from "./features/cleanup.js"
 import "./features/vanish.js"
 import "./features/online.js"
 import { installPresence } from "./features/presence.js"
@@ -185,6 +185,7 @@ installChat()
 installPrivateChat()
 installTpa()
 installGrants()
+installCleanup()
 installEnderView()
 installEnderBlocks()
 installAllowlist()

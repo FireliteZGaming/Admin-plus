@@ -80,8 +80,8 @@ const rows = tally([
     entity("minecraft:chicken"), entity("minecraft:chicken"), entity("minecraft:chicken"),
     drop("dirt"), drop("dirt"), entity("minecraft:xp_orb")
 ])
-check("sorted by how many", rows.map(r => r.type), ["chicken", "item", "xp_orb"])
-check("worded", describeTally(rows), "3 chicken, 2 item, 1 xp orb")
+check("sorted by how many, items by what they are", rows.map(r => r.type), ["chicken", "dirt", "xp_orb"])
+check("worded the way the game shows a stack", describeTally(rows), "chicken ×3, dirt ×2, XP orb ×1")
 check("empty reads sensibly", describeTally([]), "nothing else")
 
 console.log("\n— warning delay —")
