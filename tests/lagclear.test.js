@@ -5,7 +5,8 @@ import { onPlayerJoin, applyPreset, setRanks } from "../Admin+ BP/scripts/core/r
 import { setSetting, resetSetting } from "../Admin+ BP/scripts/core/settings.js"
 import {
     judge, stackSignature, planMerges, hotspots, planMobLimit, speedFrom, shouldAutoClear, AUTO_GAP_MS, removableTypes, describeTally,
-    noteSeen, noteDeath, shieldIfDeathDrop, isShielded, costOf, HIDDEN_DATA_ITEMS, __resetCleanup
+    noteSeen, noteDeath, shieldIfDeathDrop, isShielded, costOf, HIDDEN_DATA_ITEMS, __resetCleanup,
+    keepsHiddenData, shieldTag, forgetMissing, setSeen, nextSlowLevel
 } from "../Admin+ BP/scripts/core/cleanup.js"
 import { runClear, bringBack, undoCount, autoCheck, speed, __tickTimes, __cleanupState } from "../Admin+ BP/scripts/features/cleanup.js"
 import { NS } from "../Admin+ BP/scripts/config.js"
@@ -47,20 +48,25 @@ function fakeDimension(id) {
     return d
 }
 function addItem(dim, stack, at, extras = {}) {
+    const tags = [...(extras.tags ?? [])]
     const e = {
         id: `it${eid++}`, typeId: "minecraft:item", location: { ...at }, dimension: dim, isValid: true,
-        nameTag: extras.entityName, getTags: () => extras.tags ?? [],
+        nameTag: extras.entityName, getTags: () => tags, addTag: t => { tags.push(t); return true },
         getComponent: id => id === "minecraft:item" ? { itemStack: stack } : undefined,
         teleport(loc) { e.location = { ...loc } },
         remove() { e.isValid = false; const i = dim.list.indexOf(e); if (i >= 0) dim.list.splice(i, 1) }
     }
     dim.list.push(e)
+    // Lying there a while, unless the test says it just landed.
+    if (!extras.fresh) noteSeen(e.id, Date.now() - 10 * 60 * 1000)
     return e
 }
 function addMob(dim, typeId, at, extras = {}) {
     const e = {
         id: `mob${eid++}`, typeId, location: { ...at }, dimension: dim, isValid: true, nameTag: extras.name,
-        getTags: () => [], getComponent: id => id === "minecraft:health" ? {} : undefined,
+        getTags: () => [],
+        getComponent: id => id === "minecraft:health" ? {} : id === "minecraft:equippable" && extras.holds
+            ? { getEquipment: slot => slot === "Mainhand" ? { typeId: extras.holds } : undefined } : undefined,
         remove() { e.isValid = false; const i = dim.list.indexOf(e); if (i >= 0) dim.list.splice(i, 1) }
     }
     dim.list.push(e)
@@ -144,6 +150,52 @@ console.log("\n— what is never on the list: things that are somebody's —")
     check("a long count says how many kinds it left out", describeTally(many, 6).endsWith("and 2 more kinds"), true)
 }
 
+console.log("\n— 3.0.0: what a saved copy can't hold is never cleared, whatever the list —")
+{
+    const hidden = id => keepsHiddenData(stackOf(id, 1, { max: id.startsWith("addon:") ? 1 : 64 }))
+    check("a dyed bundle (2.12.17 missed these)", hidden("minecraft:red_bundle"), true)
+    check("armour, which can carry a trim", hidden("minecraft:iron_chestplate"), true)
+    check("a bee nest, which holds bees", hidden("minecraft:bee_nest"), true)
+    check("an enchanted book", hidden("minecraft:enchanted_book"), true)
+    check("another add-on's one-of-a-kind item", hidden("addon:mythic_blade"), true)
+    check("but not cobblestone", hidden("minecraft:cobblestone"), false)
+    setSetting("cleanup.keep", "diamond")
+    const box = addItem(overworld, stackOf("minecraft:blue_shulker_box", 1, { max: 1 }), { x: 0, y: 64, z: 0 })
+    check("a server's own valuables list can't make a shulker box clearable", judge(box).reason, "can't be brought back exactly")
+    resetSetting("cleanup.keep")
+    for (const e of [...overworld.list]) e.remove()
+}
+
+console.log("\n— 3.0.0: death shields outlive the script and unloaded chunks —")
+{
+    __resetCleanup()
+    const now = Date.now()
+    const tagged = addItem(overworld, stackOf("minecraft:iron_ingot", 9), { x: 5, y: 64, z: 5 }, { tags: [shieldTag(now + 4 * 60000)] })
+    check("a shield on the item's tag holds with nothing in memory (a reload)", judge(tagged, now + 60000).reason, "from a death")
+    check("and lets go when it runs out", judge(tagged, now + 5 * 60000).remove, true)
+    noteDeath("minecraft:overworld", { x: 300, y: 64, z: 300 }, now)
+    shieldIfDeathDrop("gone-for-now", "minecraft:overworld", { x: 301, y: 64, z: 300 }, now + 200)
+    forgetMissing([], now + 60000)
+    check("an item out of sight (its chunk unloaded) keeps its shield", isShielded("gone-for-now", now + 60000), true)
+    const unseen = addItem(overworld, stackOf("minecraft:dirt", 3), { x: 9, y: 64, z: 9 }, { fresh: true })
+    check("something never seen before counts as new (after a restart)", judge(unseen).reason, "just dropped")
+    setSeen(unseen.id, Date.now() - 60000)
+    check("until it has been there long enough", judge(unseen).remove, true)
+    for (const e of [...overworld.list]) e.remove()
+    __resetCleanup()
+}
+
+console.log("\n— 3.0.0: clears for a slow server back off when they don't help —")
+{
+    const now = 10 * AUTO_GAP_MS
+    const slow = { clutter: 400, tps: 12, slowChecks: 3, running: false, now }
+    check("one that didn't help: the next waits 10 minutes, not 5", shouldAutoClear({ ...slow, slowLevel: 1, lastAuto: now - 6 * 60000 }).go, false)
+    check("and goes after 10", shouldAutoClear({ ...slow, slowLevel: 1, lastAuto: now - 11 * 60000 }).why, "slow")
+    check("each failure doubles it, up to 40 minutes", [nextSlowLevel(0, 12), nextSlowLevel(2, 12), nextSlowLevel(3, 12)], [1, 3, 3])
+    check("a clear that helped starts over", nextSlowLevel(3, 19.5), 0)
+    check("clutter clears keep their 5 minutes", shouldAutoClear({ ...slow, clutter: 5000, slowLevel: 3, lastAuto: now - 6 * 60000 }).why, "clutter")
+}
+
 console.log("\n— when to clear by itself —")
 {
     const now = 10 * AUTO_GAP_MS
@@ -158,7 +210,7 @@ console.log("\n— what a clear never takes —")
 {
     __resetCleanup()
     const now = Date.now()
-    const fresh = addItem(overworld, stackOf("minecraft:dirt", 1), { x: 0, y: 64, z: 0 })
+    const fresh = addItem(overworld, stackOf("minecraft:dirt", 1), { x: 0, y: 64, z: 0 }, { fresh: true })
     noteSeen(fresh.id, now - 5000)
     check("something dropped five seconds ago stays", judge(fresh, now).reason, "just dropped")
     check("and goes once it's been there long enough", judge(fresh, now + 60000).remove, true)
@@ -171,7 +223,7 @@ console.log("\n— what a clear never takes —")
     check("one far from any death isn't", shieldIfDeathDrop(far.id, "minecraft:overworld", far.location, now + 400), false)
     const early = addItem(overworld, stackOf("minecraft:bread", 3), { x: -40, y: 70, z: -40 })
     check("a drop the game reports before the death", shieldIfDeathDrop(early.id, "minecraft:overworld", early.location, now + 1000), false)
-    check("is caught once the death is heard", noteDeath("minecraft:overworld", { x: -41, y: 70, z: -40 }, now + 1100), 1)
+    check("is caught once the death is heard", noteDeath("minecraft:overworld", { x: -41, y: 70, z: -40 }, now + 1100).length, 1)
     check("and kept like the rest", judge(early, now + 60000).reason, "from a death")
     const ench = addItem(overworld, stackOf("minecraft:diamond_sword", 1, { ench: true, max: 1 }), { x: 1, y: 64, z: 1 })
     check("enchanted gear stays", judge(ench).reason, "enchanted")
@@ -187,7 +239,7 @@ console.log("\n— a whole clear: gather, keep what's someone's, remove the rest
     for (let i = 0; i < 40; i++) addItem(overworld, stackOf("minecraft:cobblestone", 8), { x: 2 + (i % 4) * 0.5, y: 64, z: 2 })
     const named = addItem(overworld, stackOf("minecraft:dirt", 1, { name: "Keep me" }), { x: 30, y: 64, z: 30 })
     const valuable = addItem(overworld, stackOf("minecraft:elytra", 1, { max: 1 }), { x: 31, y: 64, z: 30 })
-    const justNow = addItem(overworld, stackOf("minecraft:sand", 4), { x: 32, y: 64, z: 30 })
+    const justNow = addItem(overworld, stackOf("minecraft:sand", 4), { x: 32, y: 64, z: 30 }, { fresh: true })
     noteSeen(justNow.id, Date.now())
     staff.inbox.length = 0
     const said = []
@@ -206,7 +258,8 @@ console.log("\n— a whole clear: gather, keep what's someone's, remove the rest
     check("staff were told what was kept and why", staff.inbox.some(m => m.includes("named") && m.includes("valuable")), true)
 
     const back = bringBack(staff)
-    check("bringing back puts all 40 back", back, 40)
+    drain()
+    check("bringing back puts all 40 back, a batch per tick", back, 40)
     check("as the same stacks", items(overworld).filter(e => e.getComponent("minecraft:item").itemStack.typeId === "minecraft:cobblestone").length, 40)
     check("with nothing left waiting", undoCount(), 0)
     for (const e of [...overworld.list]) e.remove()
@@ -222,12 +275,14 @@ console.log("\n— a countdown first, on everyone's action bar —")
     check("the action bar counted down", String(staff.bar).includes("Clearing"), true)
     drain()
     check("then it cleared", items(overworld).length, 0)
+    check("and its 5 stacks can come back", undoCount(), 5)
 }
 
 console.log("\n— the mob limit, when it's set —")
 {
     setSetting("cleanup.mobCap", "2")
     const keepName = addMob(overworld, "minecraft:chicken", { x: 70, y: 64, z: 70 }, { name: "Nugget" })
+    const holder = addMob(overworld, "minecraft:chicken", { x: 70, y: 64, z: 70 }, { holds: "minecraft:diamond_sword" })
     for (let i = 0; i < 4; i++) addMob(overworld, "minecraft:chicken", { x: 70, y: 64, z: 70 })
     for (let i = 0; i < 3; i++) addMob(overworld, "minecraft:villager_v2", { x: 70, y: 64, z: 70 })
     addItem(overworld, stackOf("minecraft:feather", 1), { x: 70, y: 64, z: 70 })
@@ -235,7 +290,9 @@ console.log("\n— the mob limit, when it's set —")
     runClear({ by: staff, seconds: 0 })
     drain()
     const chickens = overworld.list.filter(e => e.typeId === "minecraft:chicken")
-    check("five chickens and a limit of two: two left", chickens.length, 2)
+    check("six chickens and a limit of two: two left", chickens.length, 2)
+    check("one holding a player's sword is never taken", chickens.includes(holder), true)
+    check("bring back keeps the last clears together (5 gravel, 1 feather)", undoCount(), 6)
     check("the named one is one of them", chickens.includes(keepName), true)
     check("villagers untouched", overworld.list.filter(e => e.typeId === "minecraft:villager_v2").length, 3)
     resetSetting("cleanup.mobCap")
@@ -257,6 +314,7 @@ console.log("\n— /lagclear opens a menu, /lagcheck a report —")
     const report = __ui.shown[0]
     check("/lagcheck opens Busiest places", titleOf(report).includes("Busiest places"), true)
     check("which names the busiest chunk and what's in it", buttonsOf(report).some(b => b.includes("Overworld 200, 200") && b.includes("villager")), true)
+    check("and says a tick every N ms, not N ms a tick (3.0.0)", plain(JSON.stringify(report.parts)).includes("A tick every"), true)
     for (const e of [...overworld.list]) e.remove()
 }
 

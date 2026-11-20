@@ -468,12 +468,12 @@ field, or (on a game that drew no labels) one per input.
   every 30 ticks; it writes, so never call it from a before-event. The full
   design is in Obsidian: Firelite ▸ Projects ▸ Minecraft ▸ Bedrock ▸ Mods ▸
   Admin+ ▸ World Tools.
-- **3.0.0 waits for the user's full approval and complete testing** (2026-11-12:
-  "right after I give the full approval and the mods have been tested
-  completely"). The UI overhaul (started in 2.11.0, in Beta) and the setup
-  screen (with its optional password) come first. New features land behind
-  the Default/Beta slider (see Beta features below). Plan: Obsidian ▸ Admin+
-  ▸ Before 3.0.0.
+- **3.0.0 was cut on 2026-11-20 at the user's word** ("i want to publish
+  this stuff", "any fixes can go in 3.0.1 after we post"), before the setup
+  screen (with its optional password), which is still to come. It was
+  approved, not played: 2.12.13 to 3.0.0 had not run in a world when it was
+  cut, so release.py allows only --alpha until the user loads it once.
+  Plan: Obsidian ▸ Admin+ ▸ Before 3.0.0.
 - **Timed grants give things back (2.12.16, the user's design).** When a timed
   grant ends they ALWAYS go back to the gamemode they had; two switches on the
   Grant screen add their inventory from right before the rank and a trip to
@@ -496,7 +496,14 @@ field, or (on a game that drew no labels) one per input.
   removed item is saved for Bring back (`lagclearUndo`, 3,000 stacks). It
   clears by itself by default (`cleanup.auto`), never twice in 5 minutes and
   always after a countdown. Anything new that removes entities goes through
-  `judge()`. `tests/lagclear.test.js`.
+  `judge()`. `tests/lagclear.test.js`. **3.0.0, from research (Obsidian ▸
+  Admin+ ▸ Research):** hidden data is a RULE (`keepsHiddenData`: shulkers,
+  any bundle, bee nests, armour, enchanted books, other packs' unstackables,
+  anything with `minecraft:inventory`) that a server's list can't switch
+  off; shields also ride on the item as `ap:keepuntil:<ms>` tags; an item
+  never seen counts as new; slow-server clears back off (`nextSlowLevel`);
+  bring back keeps the newest 3,000 across clears and the real ItemStacks
+  in memory, like staff mode.
 - **No economy or shop**, ever. The `+` means essentials.
 - **Fly, god, heal, feed: dropped.** Removed on purpose, not missing. Do not
   build them unasked. Three things came OFF this list because the user asked

@@ -22,6 +22,36 @@ tag, same file, only the claim about it changes.
 
 ---
 
+## 3.0.0 — 2026-11-20
+
+**The 3.0.0 milestone: Admin+'s own menus, a rebuilt rank system, one page per settings group, and a lag clear that thinks before it removes.**
+
+The user, 2026-11-20: "do as much as you can on 3.0.0, since i want to publish this stuff", "engineer the lag clear perfectly", and "any fixes can go in 3.0.1 after we post".
+
+**Admin+ in 3.0.0, in short** (each version below has the detail):
+
+- **Admin+ menus:** a dark look with tiles, cards, a Logs timeline and a Profile card, on by default. The pack's settings slider switches back to Minecraft's own menus.
+- **Ranks:** four types (Default, Staff, Cosmetic, Unlisted), one main tag per player, rank badges, a short New rank flow, and nobody can give out a permission they don't have.
+- **Settings:** Server ▸ Settings is one page per group with every switch and number on it. < Code > edits the whole setup as text that is read, never run.
+- **Getting around:** homes, /back, warps, /spawn, /rtp that flies out to find ground, teleport requests with Accept and Refuse, and one Teleportation page for every wait time.
+- **Staff tools:** staff mode (/mm), /invsee and /ec, the Omnitool and land claims (/wts), timed grants that give back gamemode, inventory and a trip to spawn, private chat, reports, and logs with undo.
+- Automation, Personalization (name effects) and searchable help.
+- **On hold:** automod and /disguise. One line each in `core/hold.js` brings them back.
+
+**New in 3.0.0: the lag clear, engineered from research** into how lag clears work and what lags Bedrock (Obsidian: Admin+ ▸ Research):
+
+- **Items a saved copy can't hold are never cleared, by rule, whatever a server's own valuables list says:** shulker boxes, dyed bundles (2.12.17's list had only the plain one), bee nests and beehives, armour (trims), enchanted books, other add-ons' one-of-a-kind items, and anything that holds items.
+- **Death drops stay shielded** through a /reload, a restart, and the chunk unloading while the owner respawns far away: the shield rides on the item as a tag, and expires on its own clock. Anything never seen before counts as new for 30 seconds.
+- **Clears for a slow server back off when they don't help:** the next waits 10, then 20, then 40 minutes, and staff are told the lag is probably not dropped items. A clear that helps starts over at 5.
+- **Bring back** keeps the newest 3,000 stacks across clears, not just the last clear, puts them back a batch per tick, and is exact in the same session because it keeps the real items, as /mm does.
+- **Gathering** never moves fresh drops, items in water or on a hopper, or anything through a wall or floor. It gives the game 45 ticks to merge (it checks about every 40).
+- **The mob limit** spares mobs holding or wearing something (often a player's gear) and removes a batch per tick.
+- **/lagcheck** says "a tick every 50 ms" instead of "50 ms a tick", says when the server is keeping up (so lag is on the player's side) or when it is slow with little to clear, flags chunks with 10 or more villagers, and shows the last clear's script time and the speed before and a minute after. XP orbs weigh as much as items; item frames are gone from the weights (they are blocks on Bedrock).
+- **The saved item copy** (bring back, and /mm after a reload) also keeps dye colour, keep on death, lock mode, and can place on / can destroy.
+- Tests: `tests/lagclear.test.js` (88 checks). 71 suites.
+
+---
+
 ## 2.0.0 — 2026-09-04
 
 **The milestone. Everything since the last stable, consolidated.**

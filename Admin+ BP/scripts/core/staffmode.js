@@ -84,6 +84,18 @@ export function serializeStack(stack) {
     const damage = safe(() => stack.getComponent("minecraft:durability")?.damage)
     if (typeof damage === "number" && damage > 0) out.dmg = damage
 
+    // 3.0.0: more of what the script API can read, so the saved copy (used
+    // after a reload, and by lag clear's bring back) misses less.
+    const dye = safe(() => stack.getComponent("minecraft:dyeable")?.color)
+    if (dye && typeof dye.red === "number") out.dye = { r: dye.red, g: dye.green, b: dye.blue }
+    if (safe(() => stack.keepOnDeath) === true) out.keep = true
+    const lock = safe(() => stack.lockMode)
+    if (lock && lock !== "none") out.lock = String(lock)
+    const placeOn = safe(() => stack.getCanPlaceOn(), []) ?? []
+    if (placeOn.length) out.on = placeOn.map(String)
+    const destroy = safe(() => stack.getCanDestroy(), []) ?? []
+    if (destroy.length) out.br = destroy.map(String)
+
     return out
 }
 
@@ -112,6 +124,16 @@ export function buildStack(plain) {
             if (component) component.damage = plain.dmg
         })
     }
+    if (plain.dye) {
+        safe(() => {
+            const component = stack.getComponent("minecraft:dyeable")
+            if (component) component.color = { red: plain.dye.r, green: plain.dye.g, blue: plain.dye.b }
+        })
+    }
+    if (plain.keep) safe(() => { stack.keepOnDeath = true })
+    if (plain.lock) safe(() => { stack.lockMode = plain.lock })
+    if (plain.on?.length) safe(() => stack.setCanPlaceOn(plain.on))
+    if (plain.br?.length) safe(() => stack.setCanDestroy(plain.br))
     return stack
 }
 

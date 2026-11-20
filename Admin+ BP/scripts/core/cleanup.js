@@ -127,19 +127,27 @@ export function noteSeen(id, at = Date.now()) {
 /** Carry an age over to a new entity (a merged stack keeps the oldest age). */
 export function setSeen(id, at) { if (id) seen.set(id, at) }
 
-/** Ms on the ground, or Infinity for something seen before Admin+ was watching. */
+/**
+ * Ms on the ground. Something Admin+ has never seen counts as new from the
+ * moment it is first seen (3.0.0): after a restart, or when a chunk loads,
+ * nobody loses a drop to a clear in the first `cleanup.minAge` seconds.
+ */
 export function ageOf(id, now = Date.now()) {
+    if (!id) return Infinity
     const at = seen.get(id)
-    return at === undefined ? Infinity : Math.max(0, now - at)
+    if (at === undefined) { seen.set(id, now); return 0 }
+    return Math.max(0, now - at)
 }
 
 export function firstSeen(id) { return seen.get(id) }
 
 /** Forget entities that are gone, so the map never grows past what exists. */
-export function forgetMissing(liveIds) {
+export function forgetMissing(liveIds, now = Date.now()) {
     const keep = new Set(liveIds)
     for (const id of [...seen.keys()]) if (!keep.has(id)) seen.delete(id)
-    for (const id of [...shielded.keys()]) if (!keep.has(id)) shielded.delete(id)
+    // Shields run out on their own clock, never because an item is out of
+    // sight: its chunk unloads while the owner respawns far away (3.0.0).
+    for (const [id, until] of [...shielded]) if (until <= now) shielded.delete(id)
 }
 
 // --------------------------------------------------------------- deaths
@@ -171,10 +179,10 @@ export function noteDeath(dimension, location, at = Date.now()) {
     deaths.push(death)
     while (deaths.length > 50) deaths.shift()
     const minutes = deathKeepMinutes()
-    if (!minutes) return 0
-    let caught = 0
+    if (!minutes) return []
+    const caught = []
     for (const drop of recentDrops) {
-        if (nearDeath(death, drop)) { shielded.set(drop.id, drop.at + minutes * 60 * 1000); caught++ }
+        if (nearDeath(death, drop)) { shielded.set(drop.id, drop.at + minutes * 60 * 1000); caught.push(drop.id) }
     }
     return caught
 }
@@ -200,6 +208,38 @@ export function setShield(id, until) { if (id && until) shielded.set(id, until) 
 export function isShielded(id, now = Date.now()) {
     const until = shielded.get(id)
     return until !== undefined && until > now
+}
+
+/**
+ * A shield also rides on the item as a tag (3.0.0), so it outlives the
+ * script's memory: a /reload, a restart, or the chunk unloading.
+ */
+export const SHIELD_TAG = "ap:keepuntil:"
+export function shieldTag(until) { return SHIELD_TAG + Math.round(until) }
+export function tagShieldUntil(tags) {
+    let until = 0
+    for (const t of tags ?? []) {
+        if (typeof t === "string" && t.startsWith(SHIELD_TAG)) until = Math.max(until, Number(t.slice(SHIELD_TAG.length)) || 0)
+    }
+    return until
+}
+
+/**
+ * Items a saved copy can't hold, by RULE rather than by list, so a server's
+ * own valuables list can't switch it off and new items fail safe (2.12.17's
+ * exact list missed the dyed bundles). Bring back would return these empty,
+ * without their bees, untrimmed, undyed or missing another add-on's data.
+ */
+export function keepsHiddenData(stack) {
+    const id = String(stack?.typeId ?? "")
+    if (!id) return false
+    if (HIDDEN_DATA_ITEMS.has(id)) return true
+    const name = id.replace(/^minecraft:/, "")
+    if (/shulker_box|bundle$|^bee_nest$|^beehive$|^enchanted_book$/.test(name)) return true
+    if (/(helmet|chestplate|leggings|boots|horse_armor|wolf_armor)$/.test(name)) return true
+    if (!id.startsWith("minecraft:") && Number(stack.maxAmount) === 1) return true
+    try { if (stack.getComponent?.("minecraft:inventory")) return true } catch { return true }
+    return false
 }
 
 // ---------------------------------------------------------------- judging
@@ -230,14 +270,14 @@ export function judge(entity, now = Date.now()) {
         return { remove: false, reason: "tagged to keep" }
     }
 
-    if (isShielded(entity.id, now)) return { remove: false, reason: "from a death" }
+    if (isShielded(entity.id, now) || tagShieldUntil(tags) > now) return { remove: false, reason: "from a death" }
 
     if (typeId === "minecraft:item") {
         const stack = safeStack(entity)
         if (stack?.nameTag) return { remove: false, reason: "renamed item" }
         if (enchantsOf(stack).length) return { remove: false, reason: "enchanted" }
         if (loreOf(stack).length) return { remove: false, reason: "has lore" }
-        if (HIDDEN_DATA_ITEMS.has(stack?.typeId)) return { remove: false, reason: "can't be brought back exactly" }
+        if (keepsHiddenData(stack)) return { remove: false, reason: "can't be brought back exactly" }
         const id = String(stack?.typeId ?? "").replace("minecraft:", "")
         if (id && valuables().some(v => id.includes(v))) {
             return { remove: false, reason: "valuable" }
@@ -342,10 +382,11 @@ export function planMerges(items) {
  * also searches for beds and work, costs more again.
  */
 const COST = {
-    "minecraft:item": 1, "minecraft:xp_orb": 0.5, "minecraft:arrow": 0.8, "minecraft:falling_block": 2,
+    "minecraft:item": 1, "minecraft:xp_orb": 1, "minecraft:arrow": 0.8, "minecraft:falling_block": 2,
     "minecraft:tnt": 8, "minecraft:minecart": 2, "minecraft:hopper_minecart": 4, "minecraft:chest_minecart": 3,
     "minecraft:tnt_minecart": 6, "minecraft:boat": 1.5, "minecraft:chest_boat": 2, "minecraft:armor_stand": 1,
-    "minecraft:item_frame": 0.4, "minecraft:glow_frame": 0.4, "minecraft:painting": 0.2,
+    // No item frames: on Bedrock they are blocks, so no entity scan sees them.
+    "minecraft:painting": 0.2,
     "minecraft:villager": 8, "minecraft:villager_v2": 8, "minecraft:iron_golem": 4, "minecraft:wandering_trader": 6
 }
 
@@ -468,10 +509,18 @@ export const AUTO_SLOW_CHECKS = 3
  */
 export function shouldAutoClear(s) {
     if (s.running) return { go: false }
-    if (s.now - (s.lastAuto ?? 0) < AUTO_GAP_MS) return { go: false }
-    if (s.clutter >= autoAt()) return { go: true, why: "clutter" }
-    if (s.slowChecks >= AUTO_SLOW_CHECKS && s.clutter >= AUTO_SLOW_CLUTTER) return { go: true, why: "slow" }
+    const since = s.now - (s.lastAuto ?? 0)
+    if (s.clutter >= autoAt() && since >= AUTO_GAP_MS) return { go: true, why: "clutter" }
+    // A clear for a slow server that didn't help means the lag is elsewhere:
+    // each one that fails doubles the wait, 5, 10, 20, then 40 minutes (3.0.0).
+    const slowGap = AUTO_GAP_MS * 2 ** Math.min(3, s.slowLevel ?? 0)
+    if (s.slowChecks >= AUTO_SLOW_CHECKS && s.clutter >= AUTO_SLOW_CLUTTER && since >= slowGap) return { go: true, why: "slow" }
     return { go: false }
+}
+
+/** After a clear for a slow server: still slow backs off one step, recovered starts over. */
+export function nextSlowLevel(level, tpsAfter) {
+    return tpsAfter < 15 ? Math.min(3, (level ?? 0) + 1) : 0
 }
 
 // ---------------------------------------------------------------- tallies
