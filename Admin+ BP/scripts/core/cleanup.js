@@ -145,6 +145,7 @@ export function firstSeen(id) { return seen.get(id) }
 export function forgetMissing(liveIds, now = Date.now()) {
     const keep = new Set(liveIds)
     for (const id of [...seen.keys()]) if (!keep.has(id)) seen.delete(id)
+    for (const id of [...stackVerdicts.keys()]) if (!keep.has(id)) stackVerdicts.delete(id)
     // Shields run out on their own clock, never because an item is out of
     // sight: its chunk unloads while the owner respawns far away (3.0.0).
     for (const [id, until] of [...shielded]) if (until <= now) shielded.delete(id)
@@ -273,15 +274,8 @@ export function judge(entity, now = Date.now()) {
     if (isShielded(entity.id, now) || tagShieldUntil(tags) > now) return { remove: false, reason: "from a death" }
 
     if (typeId === "minecraft:item") {
-        const stack = safeStack(entity)
-        if (stack?.nameTag) return { remove: false, reason: "renamed item" }
-        if (enchantsOf(stack).length) return { remove: false, reason: "enchanted" }
-        if (loreOf(stack).length) return { remove: false, reason: "has lore" }
-        if (keepsHiddenData(stack)) return { remove: false, reason: "can't be brought back exactly" }
-        const id = String(stack?.typeId ?? "").replace("minecraft:", "")
-        if (id && valuables().some(v => id.includes(v))) {
-            return { remove: false, reason: "valuable" }
-        }
+        const kept = stackVerdict(entity)
+        if (kept) return { remove: false, reason: kept }
     }
 
     // Falling blocks are mid-fall; age means nothing for them.
@@ -290,6 +284,31 @@ export function judge(entity, now = Date.now()) {
     }
 
     return { remove: true, reason: "clutter" }
+}
+
+/**
+ * What an item's stack says, read once per entity (3.0.0). A stack lying on
+ * the ground can't be renamed or enchanted, and the check every 20 seconds
+ * would otherwise read every stack's name, enchantments and lore again. The
+ * valuables list is a setting that can change, so it is checked every time,
+ * from the remembered type.
+ */
+const stackVerdicts = new Map()   // entity id -> { reason, type }
+function stackVerdict(entity) {
+    const id = entity.id
+    let verdict = id ? stackVerdicts.get(id) : undefined
+    if (!verdict) {
+        const stack = safeStack(entity)
+        const reason = stack?.nameTag ? "renamed item"
+            : enchantsOf(stack).length ? "enchanted"
+            : loreOf(stack).length ? "has lore"
+            : keepsHiddenData(stack) ? "can't be brought back exactly" : ""
+        verdict = { reason, type: String(stack?.typeId ?? "").replace("minecraft:", "") }
+        if (id && stack) stackVerdicts.set(id, verdict)
+    }
+    if (verdict.reason) return verdict.reason
+    if (verdict.type && valuables().some(v => verdict.type.includes(v))) return "valuable"
+    return ""
 }
 
 function safeTags(entity) {
@@ -582,4 +601,5 @@ export function __resetCleanup() {
     shielded.clear()
     deaths.length = 0
     recentDrops.length = 0
+    stackVerdicts.clear()
 }

@@ -1,4 +1,4 @@
-import { __test } from "@minecraft/server"
+import { __test, world } from "@minecraft/server"
 import {
     list, get, save, remove, removeAll, render, board, sync, count,
     HOLOGRAM_TYPE, HOLOGRAM_TAG
@@ -147,6 +147,26 @@ check("it reports how many went", cleared >= 1, true)
 check("nothing is left", count(), 0)
 sync()
 check("and no entities either", __test.spawned.length, 0)
+
+console.log("\n— a chunk nobody has loaded: wait, quietly (3.0.0) —")
+{
+    const dim = world.getDimension("minecraft:overworld")
+    const errors = []
+    const realError = console.error
+    console.error = m => errors.push(String(m))
+    dim.isChunkLoaded = () => false
+    save("far", { kind: "text", text: "far away", ...AT })
+    sync(); sync()
+    const placed = () => __test.spawned.some(e => String(e.nameTag).includes("far away"))
+    check("nothing is placed while its chunk is unloaded", placed(), false)
+    check("and nothing is logged about it", errors.length, 0)
+    dim.isChunkLoaded = () => true
+    sync()
+    check("it appears once somebody is near", placed(), true)
+    delete dim.isChunkLoaded
+    console.error = realError
+    removeAll(); sync()
+}
 
 console.log(`\n${passed} passed, ${failed} failed\n`)
 process.exit(failed ? 1 : 0)

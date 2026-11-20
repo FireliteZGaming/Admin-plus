@@ -48,7 +48,14 @@ The user, 2026-11-20: "do as much as you can on 3.0.0, since i want to publish t
 - **The mob limit** spares mobs holding or wearing something (often a player's gear) and removes a batch per tick.
 - **/lagcheck** says "a tick every 50 ms" instead of "50 ms a tick", says when the server is keeping up (so lag is on the player's side) or when it is slow with little to clear, flags chunks with 10 or more villagers, and shows the last clear's script time and the speed before and a minute after. XP orbs weigh as much as items; item frames are gone from the weights (they are blocks on Bedrock).
 - **The saved item copy** (bring back, and /mm after a reload) also keeps dye colour, keep on death, lock mode, and can place on / can destroy.
-- Tests: `tests/lagclear.test.js` (88 checks). 71 suites.
+- **The 20-second check reads each item's stack once:** name, enchantments, lore and hidden data are remembered per item (a stack on the ground can't change), and the valuables list is still checked every time, so a change to it applies at once.
+
+**Fixed from the 2.12.12 playtest log:**
+
+- **Floating text in chunks nobody has loaded** is no longer tried every 2 seconds with an error each time. It waits until someone is near, then appears.
+- Still open, and on hold with `/disguise`: the disguise locator and look-layer errors at world load.
+
+- Tests: `tests/lagclear.test.js` (90 checks), `tests/holograms.test.js` (43). 71 suites.
 
 ---
 

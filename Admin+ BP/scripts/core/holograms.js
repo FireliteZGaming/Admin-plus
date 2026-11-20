@@ -234,12 +234,18 @@ export function sync() {
             continue
         }
 
+        // Nobody near: the chunk isn't loaded, so its hologram (if it is there)
+        // can't be seen or placed yet. Wait quietly; the 2.12.12 playtest log
+        // had an error for every one of these (3.0.0).
+        if (!chunkLoaded(dimension, holo)) continue
+
         let entity
         try {
             entity = dimension.spawnEntity(TYPE, { x: holo.x, y: holo.y, z: holo.z })
         } catch (e) {
             // A chunk that is not loaded is normal and temporary; anything else
             // means the entity itself is wrong, and that is worth shouting about.
+            if (/unloaded/i.test(String(e))) continue
             report(holo.id, `could not spawn ${TYPE} at ${holo.x} ${holo.y} ${holo.z}: ${e}`)
             continue
         }
@@ -253,6 +259,12 @@ export function sync() {
             report(holo.id, `created, but its text could not be set: ${e}`)
         }
     }
+}
+
+/** Is anybody near enough for this spot to be loaded? (A game without the check counts as yes.) */
+function chunkLoaded(dimension, at) {
+    if (typeof dimension?.isChunkLoaded !== "function") return true
+    try { return dimension.isChunkLoaded({ x: at.x, y: at.y, z: at.z }) } catch { return false }
 }
 
 /**
