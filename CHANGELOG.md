@@ -71,7 +71,7 @@ The user, 2026-11-20: "upgrade lag-clear to make insanely better, I mean it can'
 - **An optional mob limit** (0, off, by default): at most that many of one farm animal or monster per chunk. Never a named, tamed, leashed, ridden or tagged mob, and villagers are never on the list.
 - **Big clears are spread out:** 150 removals and 60 merge groups a tick. Before a clear, everyone sees the countdown on their action bar.
 - **The messages name things.** Everyone reads "Lag clear removed cobblestone ×320." Staff also get what was kept and why.
-- **No longer removed:** thrown tridents (somebody's trident; a dropped trident was already kept as valuable), ender pearls (stasis chambers) and fishing hooks (AFK fishing).
+- **No longer removed:** thrown tridents (somebody's trident; a dropped trident was already kept as valuable), ender pearls (stasis chambers) and fishing hooks (AFK fishing). Their switch now reads Spent arrows, snowballs and thrown potions.
 - New settings on Server ▸ Settings ▸ Moderation ▸ Lag clear: merge piles first, leave items newer than, keep death drops for, clear by itself, clear by itself at, and the mob limit.
 - Tests: `tests/lagclear.test.js` (new, 67 checks: merging, the keep rules, death drops in either order, load, the mob limit, speed, clearing by itself, a whole clear with bring back, the menu and report), and `tests/cleanup.test.js` for the new wording. 71 suites.
 

@@ -482,6 +482,21 @@ field, or (on a game that drew no labels) one per input.
   `grantKeep` (the real items in memory too, like staff mode). Taken away
   early counts as ending; staff mode makes it wait; the staff-lost survival
   rule steps aside (`gamemodeComingBack`). `tests/grantend.test.js`.
+- **Lag clear thinks before it removes (2.12.17, the user: "super complex and
+  advanced behind the scenes while simple to use").** `core/cleanup.js` is
+  the thinking and touches no game object; `features/cleanup.js` does the
+  work. It is still a WHITELIST of types (`GROUPS`). Thrown tridents, ender
+  pearls and fishing hooks are off it on purpose: each is somebody's (a
+  trident, a stasis chamber, AFK fishing). A clear merges identical plain
+  drops first (lossless), then removes only what `judge()` allows: never
+  named, renamed, enchanted, lore, valuable or keep-tagged things, items a
+  script can't copy exactly (`HIDDEN_DATA_ITEMS`), drops younger than
+  `cleanup.minAge`, or death drops (items and XP) for `cleanup.deathKeep`
+  minutes, whichever order the game reports the death and the drops. Every
+  removed item is saved for Bring back (`lagclearUndo`, 3,000 stacks). It
+  clears by itself by default (`cleanup.auto`), never twice in 5 minutes and
+  always after a countdown. Anything new that removes entities goes through
+  `judge()`. `tests/lagclear.test.js`.
 - **No economy or shop**, ever. The `+` means essentials.
 - **Fly, god, heal, feed: dropped.** Removed on purpose, not missing. Do not
   build them unasked. Three things came OFF this list because the user asked

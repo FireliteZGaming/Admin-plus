@@ -249,7 +249,7 @@ export const GROUPS = [
                     sw("cleanup.merge", "Merge piles of the same item first", "Nothing is lost, and there's far less to load"),
                     sw("cleanup.items", "Dropped items", ""),
                     sw("cleanup.xp", "XP orbs", ""),
-                    sw("cleanup.projectiles", "Spent arrows and tridents", ""),
+                    sw("cleanup.projectiles", "Spent arrows, snowballs and thrown potions", "Thrown tridents and ender pearls always stay"),
                     sw("cleanup.fallingBlocks", "Falling sand and gravel", ""),
                     num("cleanup.warn", "Countdown before it clears, in seconds", "0 clears at once", 0, 30),
                     num("cleanup.minAge", "Leave items that dropped in the last ... seconds", "So nobody loses what they just dropped", 0, 300, 5),
