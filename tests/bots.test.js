@@ -112,12 +112,12 @@ console.log("\n— kick and ban go by name, since the bot never spawned —")
     check("the list says banned", possibleBots().find(b => b.name === "AdBot")?.action, "banned")
 }
 
-console.log("\n— 3.0.2: the Alert staff switch, before the action —")
+console.log("\n— 3.0.2: the Alerts switch, before the action —")
 {
     __ui.shown.length = 0; __ui.answers.length = 0
     await botSettingsScreen(staff, () => {})
     const fields = (__ui.shown[0]?.parts ?? []).filter(p => ["toggle", "dropdown", "slider"].includes(p[0])).map(p => plain(p[1]))
-    check("the screen: Bot detection, Alert staff, then what to do at the limit", fields.slice(0, 3), ["Bot detection", "Alert staff", "At the limit"])
+    check("the screen: Bot detection, Alerts, then what to do at the limit", fields.slice(0, 3), ["Bot detection", "Alerts", "At the limit"])
     setSetting("automod.botAlerts", "false")
     staff.inbox.length = 0
     noteJoin("b6", "SilentBot", Date.now() - 6 * MIN)

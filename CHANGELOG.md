@@ -24,11 +24,11 @@ tag, same file, only the claim about it changes.
 
 ## 3.0.2 — 2026-11-20
 
-**Bot detection gets an Alert staff switch.** GitHub only.
+**Bot detection gets an Alerts switch.** GitHub only.
 
 The user, 2026-11-20: "in Bot Detection, it has a toggle before actions, it has the alert toggle".
 
-- **/automod ▸ Bot detection:** Alert staff sits between the Bot detection switch and what to do at the limit. With it off, staff get no chat alerts about possible bots, but accounts still go on the Possible bots list and the chosen action (kick or ban) still happens. On by default.
+- **/automod ▸ Bot detection:** Alerts sits between the Bot detection switch and what to do at the limit. On, staff are sent each flagged account; off, they aren't. Flagging (the Possible bots list) and the chosen action happen either way. On by default.
 - The Bot detection button on /automod says "alerts off" while they are.
 - Setting: `automod.botAlerts` (on).
 - Tests: `tests/bots.test.js` (35 checks). 72 suites.

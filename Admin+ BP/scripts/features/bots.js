@@ -31,7 +31,7 @@ const acted = new Set()
 /** What /automod ▸ Bot detection edits: each setting's home (tests/settingspages). */
 export const BOT_FIELDS = [
     { key: "automod.bots", kind: "toggle", label: "Bot detection" },
-    { key: "automod.botAlerts", kind: "toggle", label: "Alert staff" },
+    { key: "automod.botAlerts", kind: "toggle", label: "Alerts" },
     { key: "automod.botAction", kind: "dropdown", label: "At the limit" },
     { key: "automod.botActAt", kind: "slider", label: "The limit (%)", min: 50, max: 100, step: 5 },
     { key: "automod.botGrace", kind: "slider", label: "Wait before judging a new player (seconds)", min: 60, max: 600, step: 30 }
@@ -41,7 +41,7 @@ const ACTIONS = [
     { id: "kick", label: "Kick", word: "kick" },
     { id: "ban", label: "Ban", word: "ban" }
 ]
-/** Bot detection's alerts go through here, so the Alert staff switch covers every one. */
+/** Bot detection's alerts go through here, so the Alerts switch covers every one. */
 function tell(text) { if (alertsOn()) alertStaff(text) }
 
 export function actionWord() { return ACTIONS.find(a => a.id === botAction())?.word ?? "flag only" }
@@ -149,9 +149,9 @@ export async function botSettingsScreen(player, back) {
     if (!has(player, "admin.automod")) { err(player, "You can't change automod."); return back?.() }
     const s = SCORE_STEPS
     const values = await modal(player, hubTitle("settings", "Bot detection"), [
-        { type: "label", label: `§7Bots join but never enter the world. Each gets a score: never entered after the wait §f${s.stuck}%§7, still not after two and a half waits §f+${s.longer}§7, chatted without entering §f+${s.chat}§7, posted a link §f+${s.link}§7, a name like Xbox's made-up ones §f+${s.name}§7. Alert staff tells staff in chat; with it off, accounts are still listed and the action still happens.` },
+        { type: "label", label: `§7Bots join but never enter the world. Each gets a score: never entered after the wait §f${s.stuck}%§7, still not after two and a half waits §f+${s.longer}§7, chatted without entering §f+${s.chat}§7, posted a link §f+${s.link}§7, a name like Xbox's made-up ones §f+${s.name}§7. Alerts sends each one to staff. Flagged accounts go on the list either way.` },
         { id: "on", type: "toggle", label: "Bot detection", default: botsOn() },
-        { id: "alerts", type: "toggle", label: "Alert staff", default: alertsOn() },
+        { id: "alerts", type: "toggle", label: "Alerts", default: alertsOn() },
         { id: "action", type: "dropdown", label: "At the limit", options: ACTIONS.map(a => a.label), default: Math.max(0, ACTIONS.findIndex(a => a.id === botAction())) },
         { id: "at", type: "slider", label: "The limit (%)", min: 50, max: 100, step: 5, default: actAt() },
         { id: "grace", type: "slider", label: "Wait before judging a new player (seconds)", min: 60, max: 600, step: 30, default: graceSeconds() }
@@ -169,7 +169,7 @@ export async function botSettingsScreen(player, back) {
         changed.push(words)
     }
     if (values.on !== undefined) set("automod.bots", values.on ? "true" : "false", `bot detection ${values.on ? "on" : "off"}`)
-    if (values.alerts !== undefined) set("automod.botAlerts", values.alerts ? "true" : "false", `staff alerts ${values.alerts ? "on" : "off"}`)
+    if (values.alerts !== undefined) set("automod.botAlerts", values.alerts ? "true" : "false", `alerts ${values.alerts ? "on" : "off"}`)
     if (values.action !== undefined && ACTIONS[values.action]) set("automod.botAction", ACTIONS[values.action].id, `at the limit: ${ACTIONS[values.action].word}`)
     if (values.at !== undefined) set("automod.botActAt", String(values.at), `limit ${values.at}%`)
     if (values.grace !== undefined) set("automod.botGrace", String(values.grace), `wait ${values.grace} s`)
