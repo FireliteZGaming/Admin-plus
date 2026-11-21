@@ -131,6 +131,9 @@ export const DEFAULTS = {
     "automod.bots": {
         value: "true", label: "Automod: bot detection", help: "true / false · flags accounts that join but never enter the world"
     },
+    "automod.botAlerts": {
+        value: "true", label: "Automod: alert staff about possible bots", help: "true / false · off still lists them and still acts"
+    },
     "automod.botAction": {
         value: "none", label: "Automod: what to do with a likely bot", help: "none / kick / ban · none only flags it"
     },

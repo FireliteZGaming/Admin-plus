@@ -34,6 +34,8 @@ export const LOOKS_GENERATED = /^[A-Z][a-z]+[A-Z][a-z]+\d{1,4}$/
 export const SCORE_STEPS = { stuck: 60, longer: 20, chat: 15, link: 10, name: 5 }
 
 export function botsOn() { return flag("automod.bots") }
+/** Staff alerts, a switch of their own (3.0.2): off still lists and still acts. */
+export function alertsOn() { return flag("automod.botAlerts") }
 export function graceSeconds() {
     const n = Number(setting("automod.botGrace"))
     return Number.isFinite(n) && n >= 30 ? n : 120

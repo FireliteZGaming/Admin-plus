@@ -9,7 +9,7 @@ import { automodScreen } from "./automod.js"
 import { CHAT_AUTOMOD_ON_HOLD, AUTOMOD_ON_HOLD } from "../core/hold.js"
 import { heldScreen, heldWaiting } from "./heldUI.js"
 import { command } from "../core/registry.js"
-import { botsOn, actAt } from "../core/botcheck.js"
+import { botsOn, actAt, alertsOn } from "../core/botcheck.js"
 import { botSettingsScreen, botListScreen, possibleBots, actionWord } from "./bots.js"
 
 // /admin ▸ Server ▸ Automod
@@ -39,7 +39,7 @@ export async function automodHubScreen(player, back) {
         title: hubTitle("settings", "Automod"),
         body: subtitle("Automod is coming back one check at a time. Bot detection is\nfirst: it spots accounts that join but never enter the world,\nlike the ad bots. The other checks are on hold for now."),
         buttons: [
-            { text: hubEntry("settings", "Bot detection", botsOn() ? `§aon§8 · at ${actAt()}%: ${actionWord()}` : "§coff§8 · spots accounts that never enter the world"), run: () => botSettingsScreen(player, again) },
+            { text: hubEntry("settings", "Bot detection", botsOn() ? `§aon§8 · at ${actAt()}%: ${actionWord()}${alertsOn() ? "" : " · alerts off"}` : "§coff§8 · spots accounts that never enter the world"), run: () => botSettingsScreen(player, again) },
             { text: hubEntry("settings", `Possible bots (${bots})`, bots ? "Look at each one: kick, ban, or clear" : "Nobody right now"), run: () => botListScreen(player, again) },
             AUTOMOD_ON_HOLD
                 ? { text: "§7Ore alerts and fast breaking\n§8On hold", run: () => { info(player, "Ore alerts and fast breaking are on hold for now."); return again() } }

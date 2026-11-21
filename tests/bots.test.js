@@ -4,7 +4,7 @@ import "../Admin+ BP/scripts/main.js"
 import { onPlayerJoin, applyPreset, setRanks } from "../Admin+ BP/scripts/core/ranks.js"
 import { setSetting, resetSetting } from "../Admin+ BP/scripts/core/settings.js"
 import { noteJoin, noteSpawn, noteChat, scoreOf, decide, recordOf, LOOKS_GENERATED, __resetBotcheck } from "../Admin+ BP/scripts/core/botcheck.js"
-import { checkBots, possibleBots, act } from "../Admin+ BP/scripts/features/bots.js"
+import { checkBots, possibleBots, act, botSettingsScreen } from "../Admin+ BP/scripts/features/bots.js"
 import { isBanned } from "../Admin+ BP/scripts/core/moderation.js"
 import { AUTOMOD_ON_HOLD, AUTOMOD_SECTION_ON_HOLD } from "../Admin+ BP/scripts/core/hold.js"
 import { NS } from "../Admin+ BP/scripts/config.js"
@@ -110,6 +110,29 @@ console.log("\n— kick and ban go by name, since the bot never spawned —")
     await act(entry, "ban", staff)
     check("staff can ban one from the list, and it holds on every join", isBanned("b3"), true)
     check("the list says banned", possibleBots().find(b => b.name === "AdBot")?.action, "banned")
+}
+
+console.log("\n— 3.0.2: the Alert staff switch, before the action —")
+{
+    __ui.shown.length = 0; __ui.answers.length = 0
+    await botSettingsScreen(staff, () => {})
+    const fields = (__ui.shown[0]?.parts ?? []).filter(p => ["toggle", "dropdown", "slider"].includes(p[0])).map(p => plain(p[1]))
+    check("the screen: Bot detection, Alert staff, then what to do at the limit", fields.slice(0, 3), ["Bot detection", "Alert staff", "At the limit"])
+    setSetting("automod.botAlerts", "false")
+    staff.inbox.length = 0
+    noteJoin("b6", "SilentBot", Date.now() - 6 * MIN)
+    checkBots()
+    check("with alerts off, staff aren't told", staff.inbox.some(m => m.includes("SilentBot")), false)
+    check("but it still goes on the list", possibleBots().some(b => b.name === "SilentBot"), true)
+    setSetting("automod.botAction", "kick")
+    __test.commands.length = 0
+    noteJoin("b7", "QuietKickBot", Date.now() - 6 * MIN)
+    checkBots()
+    await settle()
+    check("and the chosen action still happens", __test.commands.some(c => c.startsWith('kick "QuietKickBot"')), true)
+    check("still without a word to staff", staff.inbox.some(m => m.includes("QuietKickBot")), false)
+    resetSetting("automod.botAction")
+    resetSetting("automod.botAlerts")
 }
 
 console.log("\n— switched off, it does nothing —")
