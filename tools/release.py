@@ -363,7 +363,13 @@ def body_for(version, notes, channel, slug):
     """Release notes: the changelog section, what the channel claims, and where
     the rest of the history is. A releases page that skips versions should at
     least say where they went."""
-    parts = [notes]
+    parts = []
+    if slug:
+        # In the body so it reaches releases.atom, which carries no asset list.
+        parts.append(f"**[Download Admin+ v{version}.mcaddon]"
+                     f"(https://github.com/{slug}/releases/download/v{version}/"
+                     f"Admin%2B-v{version}.mcaddon)**")
+    parts.append(notes)
     if MEANS[channel]:
         parts.append(MEANS[channel])
     if slug:
