@@ -308,13 +308,25 @@ export function confiscate(target, ref) {
  * the item whenever the viewer's inventory is full, which is exactly when a
  * staff member is most likely to be confiscating things.
  */
-export function transfer(viewer, target, ref) {
+export function transfer(viewer, target, ref, expected) {
     const stack = itemAt(target, ref)
     if (!stack) return { ok: false, reason: "That slot is empty now." }
+    // The screen is a picture of the moment it opened (3.1.7). If they moved,
+    // used or swapped it since, the slot holds something else, and taking
+    // "it" would take the wrong thing.
+    if (expected && (stack.typeId !== expected.typeId || stack.amount !== expected.amount)) {
+        return { ok: false, reason: "That slot changed after the screen opened, so nothing was taken. This is how it looks now." }
+    }
     const item = describeItem(stack, ref)
 
     const mine = containerOf(viewer)
     if (!mine) return { ok: false, reason: "Couldn't reach your own inventory." }
+    // An EMPTY slot, never just room (3.1.7). addItem tops up partial stacks
+    // first and hands back what didn't fit, so on a nearly full inventory part
+    // of the stack arrived while all of it stayed with them: a copy.
+    if (typeof mine.emptySlotsCount === "number" && mine.emptySlotsCount < 1) {
+        return { ok: false, reason: "Your inventory is full, so nothing was taken." }
+    }
 
     // Not safe(): addItem returns UNDEFINED on success and the leftover stack
     // when it did not fit, so "undefined" is the good case here and collapsing

@@ -27,29 +27,38 @@ import { setting, flag } from "./settings.js"
 //              become five, with every block still there.
 //   LOAD       a cost per entity, summed per chunk, so the report can say WHERE
 //              the server is struggling and what is doing it.
-//   MOB LIMIT  optional: at most `cleanup.mobCap` of one farm animal or monster
-//              per chunk. A short whitelist, and never a named, tamed, leashed
-//              or ridden mob.
+//   MOB LIMIT  at most `cleanup.mobCap` of one farm animal or monster per
+//              chunk, the farthest from players first. A short whitelist, and
+//              never a named, tamed, leashed or ridden mob. On by default since
+//              3.0.3 at 20, the cap Bedrock servers commonly use (Obsidian ▸
+//              Admin+ ▸ Research): the user, "so it actually clears lag".
+//              Nothing in vanilla limits bred animals.
 //   SPEED      ticks per second from real tick timing, the honest measure of
 //              "the server is lagging".
 //   AUTO       when to clear by itself: lots of clutter, or a slow server with
 //              clutter to blame, and never more than once in five minutes.
 
-/** The only things that can ever be removed, grouped so each can be switched off. */
+/**
+ * The only things that can ever be removed, grouped so each can be switched
+ * off. `words` is how a sentence names it, `short` how a button does.
+ */
 export const GROUPS = {
     items: {
         key: "cleanup.items",
         label: "Dropped items",
+        words: "dropped items", short: "drops",
         types: ["minecraft:item"]
     },
     xp: {
         key: "cleanup.xp",
         label: "XP orbs",
+        words: "XP orbs", short: "XP",
         types: ["minecraft:xp_orb"]
     },
     projectiles: {
         key: "cleanup.projectiles",
         label: "Spent projectiles",
+        words: "spent arrows and thrown potions", short: "arrows",
         // Not here, on purpose (2.12.17): a thrown trident is somebody's
         // trident, an ender pearl can be waiting in a stasis chamber, and a
         // fishing hook belongs to someone fishing, AFK farms included.
@@ -62,9 +71,13 @@ export const GROUPS = {
     fallingBlocks: {
         key: "cleanup.fallingBlocks",
         label: "Falling blocks",
+        words: "falling sand and gravel", short: "falling blocks",
         types: ["minecraft:falling_block"]
     }
 }
+
+/** The mob limit's shipped value; High halves the limit, or this when the limit is off. */
+export const DEFAULT_MOB_CAP = 20
 
 /**
  * Item types worth protecting even when they are lying on the floor. Someone
@@ -112,8 +125,26 @@ function numberSetting(key, fallback, min = 0) {
 export function warnSeconds() { return Math.round(numberSetting("cleanup.warn", 5)) }
 export function minAgeSeconds() { return numberSetting("cleanup.minAge", 30) }
 export function deathKeepMinutes() { return numberSetting("cleanup.deathKeep", 5) }
-export function autoAt() { return Math.round(numberSetting("cleanup.autoAt", 1500, 50)) }
-export function mobCap() { return Math.round(numberSetting("cleanup.mobCap", 0)) }
+export function autoAt() { return Math.round(numberSetting("cleanup.autoAt", 500, 50)) }
+export function mobCap() { return Math.round(numberSetting("cleanup.mobCap", DEFAULT_MOB_CAP)) }
+
+/**
+ * How hard a clear goes (3.0.3, the user: "in a level scale, you can do a high
+ * lag clear, or a minor lag clear or like in between").
+ *   minor   dropped items and XP orbs only, nothing alive
+ *   medium  the lag clear settings: what a clear by itself takes
+ *   high    every group, falling blocks too, and mobs down to half the limit
+ * Every level keeps what's somebody's: judge() decides that, not the level.
+ */
+export const CLEAR_LEVELS = ["minor", "medium", "high"]
+
+/** What one level takes: `{ groups: [GROUPS ids], cap }`, cap 0 meaning no mobs. */
+export function clearPlan(level = "medium") {
+    const on = Object.keys(GROUPS).filter(id => flag(GROUPS[id].key))
+    if (level === "minor") return { groups: on.filter(id => id === "items" || id === "xp"), cap: 0 }
+    if (level === "high") return { groups: Object.keys(GROUPS), cap: Math.max(4, Math.floor((mobCap() || DEFAULT_MOB_CAP) / 2)) }
+    return { groups: on, cap: mobCap() }
+}
 
 // ------------------------------------------------------------------ age
 
@@ -252,13 +283,15 @@ export function keepsHiddenData(stack) {
  * one reason to remove it.
  *
  * @param {object} entity a real Entity, or a plain object in tests
+ * @param {string[]} types what this clear may take: the settings' groups,
+ *   or what someone picked on /lagclear (3.0.3)
  * @returns {{remove: boolean, reason: string}}
  */
-export function judge(entity, now = Date.now()) {
+export function judge(entity, now = Date.now(), types = removableTypes()) {
     if (!entity) return { remove: false, reason: "gone" }
 
     const typeId = entity.typeId ?? ""
-    if (!removableTypes().includes(typeId)) {
+    if (!types.includes(typeId)) {
         return { remove: false, reason: "not on the list" }
     }
 
@@ -328,10 +361,10 @@ function loreOf(stack) {
 }
 
 /** Why things were kept, counted: { "just dropped": 12, valuable: 3 }. */
-export function keptReasons(entities, now = Date.now()) {
+export function keptReasons(entities, now = Date.now(), types = removableTypes()) {
     const out = {}
     for (const entity of entities) {
-        const verdict = judge(entity, now)
+        const verdict = judge(entity, now, types)
         if (!verdict.remove) out[verdict.reason] = (out[verdict.reason] ?? 0) + 1
     }
     return out
@@ -470,9 +503,12 @@ export const MOB_LIMIT_TYPES = new Set([
  * Which mobs to remove so no chunk holds more than `cap` of one type.
  * `mobs`: [{ id, dimension, x, z, typeId, keep }], `keep` true for named,
  * tamed, leashed, ridden or tagged mobs: those count toward the limit but are
- * never removed.
+ * never removed. `players`: [{ dimension, x, z }]. The farthest from any
+ * player go first (3.0.3, as Lag Shield does), so the mobs someone is looking
+ * at are the last to vanish; a mob in a dimension with nobody in it counts as
+ * farthest of all.
  */
-export function planMobLimit(mobs, cap) {
+export function planMobLimit(mobs, cap, players = []) {
     if (!(cap > 0)) return []
     const groups = new Map()
     for (const mob of mobs) {
@@ -481,14 +517,24 @@ export function planMobLimit(mobs, cap) {
         if (!groups.has(key)) groups.set(key, [])
         groups.get(key).push(mob)
     }
+    const nearest = mob => {
+        let best = Infinity
+        for (const p of players) {
+            if (p.dimension !== mob.dimension) continue
+            best = Math.min(best, Math.hypot(p.x - mob.x, p.z - mob.z))
+        }
+        return best
+    }
     const out = []
     for (const members of groups.values()) {
         let excess = members.length - cap
         if (excess <= 0) continue
-        for (const mob of members) {
+        const farthestFirst = members.filter(m => !m.keep)
+            .map(m => ({ m, d: nearest(m) }))
+            .sort((a, b) => b.d - a.d)
+        for (const { m } of farthestFirst) {
             if (excess <= 0) break
-            if (mob.keep) continue
-            out.push(mob.id)
+            out.push(m.id)
             excess--
         }
     }
@@ -516,8 +562,10 @@ export function speedFrom(times) {
 
 /** At least this long between automatic clears. */
 export const AUTO_GAP_MS = 5 * 60 * 1000
-/** A slow server needs at least this much clutter before clearing is worth it. */
-export const AUTO_SLOW_CLUTTER = 300
+/** A slow server needs at least this much to clear (extra mobs count) before
+ *  clearing is worth it. 300 until 3.0.3; the user wanted it to clear "whenever
+ *  the server stays slow". The back-off below still stops useless repeats. */
+export const AUTO_SLOW_CLUTTER = 100
 /** And this many slow checks in a row (20 seconds apart): a minute of slowness. */
 export const AUTO_SLOW_CHECKS = 3
 

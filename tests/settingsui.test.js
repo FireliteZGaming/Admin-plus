@@ -129,12 +129,13 @@ console.log("\n— names above heads, handed back —")
 
 console.log("\n— Automod is its own door —")
 {
-    // Checks, then Chat screening, which is greyed out while chat automod is
-    // on hold (tests/hold.test.js). Held messages shows only when one waits.
+    // 3.1.4, the user: "Bot Guard and Chat Moderation should be the only 2
+    // ... eventually we will have Anti-cheat". Detected Bots lives in Bot
+    // Guard; Held messages and Test a message in Chat Moderation.
     __ui.answers.length = 0
     await automodHubScreen(boss, () => {})
     const hub = buttonsOf(lastForm()).map(t => t.split("\n")[0].replace(/§./g, ""))
-    check("3.0.1: bot detection first, then the held checks, and no empty held queue", hub, ["Bot detection", "Possible bots (0)", "Ore alerts and fast breaking", "Chat screening", "< Back"])
+    check("two sections, Bot Guard then Chat Moderation", hub, ["Bot Guard", "Chat Moderation", "< Back"])
     // The screening settings still work, for the day the hold lifts. Since
     // 2.12.10 its form carries the word lists too, and
     // tests/settingspages.test.js fills it field by field.

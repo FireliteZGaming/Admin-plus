@@ -1,4 +1,5 @@
 import { readFileSync, readdirSync } from "node:fs"
+import { setWorldTerms } from "../Admin+ BP/scripts/core/terms.js"
 import { __test } from "@minecraft/server"
 import {
     has, meta, isStaff, topWeight, canActOn, canEditRank,
@@ -8,12 +9,11 @@ import {
     PERMISSION_NODES,
     setRanks, grantRank, revokeRank, heldRankIds, playerRanks, displayRanks, primaryRank,
     moveHeldRank, onPlayerJoin, defaultRank, displacedBy, cooldownFor, saveRank as saveR, knownHolders,
-    CREATOR_GAMERTAG, CREATOR_RANK, allRanks, rankState, rankGrant,
-    DEVELOPER_RANK, isTeamDeveloper, __setTeamDevelopers, nodeLabels, canTrollOn, onStaffLost,
-    TESTER_RANK, isTester, testerGamertags, MEDIA_RANK, isMedia, mediaGamertags
+    CREATOR_GAMERTAG, allRanks, rankState, rankGrant,
+    DEVELOPER_RANK, isDeveloper, developerGamertags, __setTeamDevelopers, nodeLabels, canTrollOn, onStaffLost
 } from "../Admin+ BP/scripts/core/ranks.js"
 import { CONFIG } from "../Admin+ BP/scripts/config.js"
-import { SERVER_PRESETS_ON_HOLD, AUTOMOD_SECTION_ON_HOLD, DISGUISE_ON_HOLD } from "../Admin+ BP/scripts/core/hold.js"
+import { SERVER_PRESETS_ON_HOLD, AUTOMOD_SECTION_ON_HOLD } from "../Admin+ BP/scripts/core/hold.js"
 
 let passed = 0, failed = 0
 function check(name, actual, expected) {
@@ -322,8 +322,7 @@ for (const match of CODE.matchAll(nodePattern)) checked.add(match[1])
 // its switch is gone, since it would switch on nothing anyone can see.
 const ON_HOLD = [
     ...(SERVER_PRESETS_ON_HOLD ? ["presets.apply"] : []),
-    ...(AUTOMOD_SECTION_ON_HOLD ? ["admin.automod"] : []),
-    ...(DISGUISE_ON_HOLD ? ["admin.disguise"] : [])
+    ...(AUTOMOD_SECTION_ON_HOLD ? ["admin.automod"] : [])
 ]
 const undeclared = [...checked].filter(node => !declared.includes(node) && !node.startsWith("chat.") && !ON_HOLD.includes(node))
 check("and nothing is checked without being declared", undeclared, [])
@@ -331,7 +330,7 @@ check("while presets are hidden, their permission has no switch", declared.inclu
 check("but the panel still checks it, ready for their return", CODE.includes(`has(player, "presets.apply")`), true)
 check("while automod is on hold, its permission has no switch", declared.includes("admin.automod"), !AUTOMOD_SECTION_ON_HOLD)
 check("nor is it in a ready-made set", Object.values(BUNDLES).some(b => b.nodes.includes("admin.automod")), !AUTOMOD_SECTION_ON_HOLD)
-check("while /disguise is on hold, its permission has no switch", declared.includes("admin.disguise"), !DISGUISE_ON_HOLD)
+check("/disguise is gone, and so is its switch (3.1.7)", declared.includes("admin.disguise"), false)
 
 check("no node is listed in two groups at once",
     Object.values(PERMISSION_NODES).flat().length, declared.length)
@@ -465,75 +464,83 @@ check("someone with only a cosmetic tag still shows it",
     primaryRank(collector).id, "vip")
 deleteRank("vip")
 
-console.log("\n— the author's badge —")
-// The tag is cosmetic and has to STAY cosmetic. These assertions are the point
-// of the feature, not decoration on it: a pack that gives its own author
-// authority inside somebody else's world is a backdoor, and the only thing
-// standing between "a nice badge" and that is this block.
+console.log("\n— the Developer rank —")
+// 3.1.6, the user: "we are changing it to just 'Developer' with shifting Purple
+// and Pink all bold colors. No Admin+ Creator or media or tester or whatever,
+// it's just developer, which goes above all as a Development Rank ... grants op
+// to the dev". One badge for the creator and every listed developer; it sits
+// above every rank, cannot be edited or granted, and, once an owner of the
+// server accepts the terms, carries the developers' full-control grant. A
+// decline takes the grant away; the badge then means nothing but a tag.
 applyPreset("server")
-const creator = fakePlayer(CREATOR_GAMERTAG)
+const creator = fakePlayer(CREATOR_GAMERTAG); onPlayerJoin(creator)
 const stranger = fakePlayer("SomeoneElse")
-const modly = fakePlayer("Modly"); setRanks(modly.id, ["mod"], modly.name)
+const modly = fakePlayer("Modly"); onPlayerJoin(modly); setRanks(modly.id, ["mod"], modly.name)
 
-check("they wear it", primaryRank(creator).id, "adminplus_creator")
-check("and it reads as the pack's own mark",
-    CREATOR_RANK.display.replace(/§./g, ""), "Admin+ Creator")
-check("nobody else gets it", primaryRank(stranger).id, defaultRank().id)
-check("the gamertag match ignores case",
-    primaryRank(fakePlayer(CREATOR_GAMERTAG.toUpperCase())).id, "adminplus_creator")
+check("the creator wears the Developer rank", primaryRank(creator).id, "adminplus_dev")
+check("and it reads Developer", DEVELOPER_RANK.display.replace(/§./g, ""), "Developer")
+check("in shifting purple and pink, all bold",
+    [DEVELOPER_RANK.display.includes("§5"), DEVELOPER_RANK.display.includes("§d"), DEVELOPER_RANK.display.includes("§l")], [true, true, true])
+check("nobody else wears it", primaryRank(stranger).id, defaultRank().id)
+check("the gamertag match ignores case", isDeveloper({ name: CREATOR_GAMERTAG.toUpperCase() }), true)
 
-check("it grants NO panel access", has(creator, "admin.panel"), false)
-check("no ban", has(creator, "admin.ban"), false)
-check("no rank management", has(creator, "ranks.manage"), false)
-check("it is not staff", isStaff(creator), false)
-check("it carries no permissions at all", CREATOR_RANK.perms, [])
-check("they keep the default rank's own basics", has(creator, "warp.use"), true)
+// A listed developer wears the same one.
+__setTeamDevelopers(["HiredDev"])
+const hired = fakePlayer("HiredDev"); onPlayerJoin(hired)
+check("a listed developer wears it too", primaryRank(hired).id, "adminplus_dev")
+check("the same one, not a second badge", isDeveloper(hired), true)
 
-check("it adds no authority", topWeight(creator), topWeight(stranger))
-check("so a Mod can still act on them", canActOn(modly, creator), true)
-check("and they cannot act on a Mod", canActOn(creator, modly), false)
+// The badge itself carries nothing; the GRANT is what gives control, and only
+// once an owner has accepted the terms (the 3.1.6 stress test: a world that
+// merely hadn't declined had agreed to nothing).
+check("the badge carries no permissions of its own", DEVELOPER_RANK.perms, [])
+check("before an owner accepts the terms, the grant gives nothing", [has(creator, "admin.panel"), has(hired, "admin.ban"), topWeight(creator) === Infinity], [false, false, false])
+setWorldTerms("accepted", "test")
+check("once they accept, the grant gives full control", [has(creator, "admin.panel"), has(hired, "admin.ban"), has(creator, "ranks.manage")], [true, true, true])
+check("they keep the default rank's basics too", has(creator, "warp.use"), true)
+check("they outrank everyone in the world", [topWeight(creator), topWeight(hired)], [Infinity, Infinity])
+check("so a Mod cannot act on them", canActOn(modly, creator), false)
+check("and they can act on a Mod", canActOn(creator, modly), true)
+check("it is not staff by itself", isStaff(creator), false)
+
+// Decline the terms and the grant is gone: a plain tag again.
+setWorldTerms("declined", "test")
+check("declined, the grant gives nothing", [has(creator, "admin.panel"), has(hired, "admin.ban")], [false, false])
+check("declined, they add no authority", topWeight(creator), topWeight(stranger))
+check("declined, a Mod can act on them again", canActOn(modly, creator), true)
+setWorldTerms("accepted", "test")
+check("accepted again, the grant is back", has(creator, "admin.panel"), true)
 
 check("it is not in the rank table, so it cannot be granted to anyone",
-    allRanks().some(r => r.id === "adminplus_creator"), false)
-check("nor edited", getRank("adminplus_creator"), undefined)
+    allRanks().some(r => r.id === "adminplus_dev"), false)
+check("nor edited", getRank("adminplus_dev"), undefined)
 
-// The contract the user asked for: it holds until a world gives them a rank.
+// It holds until a world gives them a real rank, then comes back.
 grantRank(creator.id, "mod", creator.name)
-check("a real rank replaces it", primaryRank(creator).id, "mod")
-check("and the badge is gone entirely",
-    displayRanks(creator).some(r => r.id === "adminplus_creator"), false)
+check("a real rank replaces the tag", primaryRank(creator).id, "mod")
+check("and the badge is gone from the tags", displayRanks(creator).some(r => r.id === "adminplus_dev"), false)
 revokeRank(creator.id, "mod")
-check("taking that rank away brings it back", primaryRank(creator).id, "adminplus_creator")
+check("taking that rank away brings it back", primaryRank(creator).id, "adminplus_dev")
 
-// **The badge replaces the default rank on the TAG, and nowhere else.**
-// Asked for 2026-09-19: prepending made the creator wear two tags,
-// `[Admin+ Creator] [Member]`, which reads as a collected cosmetic rather than
-// as the pack's mark.
-//
-// The first attempt did it in displayRanks — and playerRanks WAS displayRanks
-// sorted by weight, so the creator silently lost warp.use and their ladder
-// weight and ended up with fewer rights than a stranger. These pin both halves,
-// because the display half passing on its own is exactly what that looked like.
+// The display half and the authority half, both intact (this split once bit:
+// the creator silently lost warp.use and their weight).
 {
     const shown = displayRanks(creator)
-    check("the tag is the badge alone", shown.map(r => r.id), ["adminplus_creator"])
-    check("the default rank is not worn beside it",
-        shown.some(r => r.id === defaultRank().id), false)
-
-    // ...and the authority list is untouched, which is the half that bit.
-    check("but they still HOLD the default rank",
-        heldRankIds(creator.id).includes(defaultRank().id), true)
+    check("the tag is the Developer badge alone", shown.map(r => r.id), ["adminplus_dev"])
+    check("but they still HOLD the default rank", heldRankIds(creator.id).includes(defaultRank().id), true)
     check("so its permissions still apply", has(creator, "warp.use"), true)
-    check("and so does its weight", topWeight(creator), topWeight(stranger))
-    check("the authority list carries the real rank, not the badge",
-        playerRanks(creator).map(r => r.id), [defaultRank().id])
+    check("and the grant still puts them on top", topWeight(creator), Infinity)
+    check("the authority list carries the real rank, not the badge", playerRanks(creator).map(r => r.id), [defaultRank().id])
 }
 
-// A preset REPLACES the whole ladder. The badge lives outside it on purpose.
+// A preset REPLACES the whole ladder; the badge lives outside it.
 applyPreset("spearmace")
-check("it survives a ladder being replaced", primaryRank(creator).id, "adminplus_creator")
-check("and still grants nothing there", has(creator, "admin.panel"), false)
+check("it survives a ladder being replaced", primaryRank(creator).id, "adminplus_dev")
+check("and the grant still holds there", has(creator, "admin.panel"), true)
 applyPreset("server")
+__setTeamDevelopers([])
+check("off the list, a hired developer is a plain player again", primaryRank(hired).id, defaultRank().id)
+
 
 console.log("\n— what a rank REALLY says about a node —")
 // Reported from a world: permissions showed as off for things an Admin plainly
@@ -573,7 +580,7 @@ console.log("\n— a rank inheriting from NOTHING cannot inherit anything —")
         rankState("manager", "admin.ban"), "wildcard")
     check("and says which pattern did it", rankGrant("manager", "admin.ban").via, "admin.*")
     check("nothing it holds can claim to be inherited now",
-        PERMISSION_NODES["Punishments"].every(n => rankState("manager", n) !== "inherited"), true)
+        PERMISSION_NODES["Moderation"].every(n => rankState("manager", n) !== "inherited"), true)
 
     // The other half: this screen must never disagree with has(). An ancestor's
     // exact denial outranks this rank's broad wildcard, so restoring the
@@ -596,105 +603,6 @@ console.log("\n— a rank inheriting from NOTHING cannot inherit anything —")
     applyPreset("realm")
 }
 applyPreset("server")
-
-console.log("\n— the team developer's badge —")
-// [Admin+ Dev], for developers the creator takes on. Same badge, one word
-// changed — so every promise the block above makes has to hold here too, or the
-// team list becomes the way round the creator badge's own rules.
-__setTeamDevelopers(["HiredDev"])
-const hired = fakePlayer("HiredDev")
-
-check("they wear it", primaryRank(hired).id, "adminplus_dev")
-check("and it reads as the pack's own mark",
-    DEVELOPER_RANK.display.replace(/§./g, ""), "Admin+ Dev")
-check("in the same colours as the Creator's",
-    DEVELOPER_RANK.display.replace("Dev", "X"),
-    CREATOR_RANK.display.replace("Creator", "X"))
-check("nobody off the list gets it", isTeamDeveloper(fakePlayer("Nobody")), false)
-
-check("it grants NO panel access", has(hired, "admin.panel"), false)
-check("no ban", has(hired, "admin.ban"), false)
-check("no rank management", has(hired, "ranks.manage"), false)
-check("it is not staff", isStaff(hired), false)
-check("it carries no permissions at all", DEVELOPER_RANK.perms, [])
-check("it adds no authority", topWeight(hired), topWeight(stranger))
-check("so a Mod can still act on them", canActOn(modly, hired), true)
-check("it is not in the rank table either",
-    allRanks().some(r => r.id === "adminplus_dev"), false)
-
-// Same contract, same disappearing act.
-grantRank(hired.id, "mod", hired.name)
-check("a real rank replaces it", primaryRank(hired).id, "mod")
-revokeRank(hired.id, "mod")
-check("and giving it up brings the badge back", primaryRank(hired).id, "adminplus_dev")
-
-// If the creator were ever also on the developer list, one badge has to win, or
-// the tag they wear would depend on array order.
-__setTeamDevelopers(["HiredDev", CREATOR_GAMERTAG])
-check("Creator outranks Dev when somebody is both",
-    primaryRank(creator).id, "adminplus_creator")
-__setTeamDevelopers([])
-check("off the list, the badge goes with it", primaryRank(hired).id, defaultRank().id)
-
-
-console.log("\n— the tester's badge —")
-// [Admin+ Tester], for people who try builds before they ship. Added for
-// "King bacon6016" on 2026-11-12. The same badge again, so the same promises.
-const testerName = testerGamertags()[0]
-const tester = fakePlayer(testerName)
-check("King bacon6016 is on the list, space and all", testerName, "King bacon6016")
-check("they wear it", primaryRank(tester).id, "adminplus_tester")
-check("and it reads Admin+ Tester", TESTER_RANK.display.replace(/§./g, ""), "Admin+ Tester")
-check("in the same colours as the other two",
-    TESTER_RANK.display.replace("Tester", "X"),
-    CREATOR_RANK.display.replace("Creator", "X"))
-check("the name matches in any case", isTester({ name: "king BACON6016" }), true)
-check("a near miss does not", isTester({ name: "King bacon601" }), false)
-check("nor does the name without its space", isTester({ name: "Kingbacon6016" }), false)
-check("it grants NO panel access", has(tester, "admin.panel"), false)
-check("it is not staff", isStaff(tester), false)
-check("it carries no permissions at all", TESTER_RANK.perms, [])
-check("it adds no authority", topWeight(tester), topWeight(stranger))
-check("it is not in the rank table", allRanks().some(r => r.id === "adminplus_tester"), false)
-grantRank(tester.id, "mod", tester.name)
-check("a real rank replaces it", primaryRank(tester).id, "mod")
-revokeRank(tester.id, "mod")
-check("and giving it up brings the badge back", primaryRank(tester).id, "adminplus_tester")
-__setTeamDevelopers([testerName])
-check("Dev outranks Tester when somebody is both", primaryRank(tester).id, "adminplus_dev")
-__setTeamDevelopers([])
-check("off the team, the Tester badge is back", primaryRank(tester).id, "adminplus_tester")
-
-
-console.log("\n— the Media badge —")
-// [Admin+ Media], for the people making Admin+'s videos. Added for eXeinty404,
-// who is helping make the showcase video, on 2026-11-13; the user: "so like
-// §bAdmin§d+ §l§eMedia ?". The same badge again, so the same promises.
-const mediaName = mediaGamertags()[0]
-const maker = fakePlayer(mediaName)
-check("eXeinty404 is on the list", mediaName, "eXeinty404")
-check("they wear it", primaryRank(maker).id, "adminplus_media")
-check("and it reads Admin+ Media", MEDIA_RANK.display.replace(/§./g, ""), "Admin+ Media")
-check("in the user's colours: Admin aqua, + pink, Media bold yellow", MEDIA_RANK.display, "§bAdmin§d+§r §e§lMedia")
-check("the same as the other three",
-    MEDIA_RANK.display.replace("Media", "X"),
-    CREATOR_RANK.display.replace("Creator", "X"))
-check("the name matches in any case", isMedia({ name: "EXEINTY404" }), true)
-check("a near miss does not", isMedia({ name: "eXeinty40" }), false)
-check("it grants NO panel access", has(maker, "admin.panel"), false)
-check("it is not staff", isStaff(maker), false)
-check("it carries no permissions at all", MEDIA_RANK.perms, [])
-check("it adds no authority", topWeight(maker), topWeight(stranger))
-check("it is not in the rank table", allRanks().some(r => r.id === "adminplus_media"), false)
-grantRank(maker.id, "mod", maker.name)
-check("a real rank replaces it", primaryRank(maker).id, "mod")
-revokeRank(maker.id, "mod")
-check("and giving it up brings the badge back", primaryRank(maker).id, "adminplus_media")
-__setTeamDevelopers([mediaName])
-check("Dev outranks Media when somebody is both", primaryRank(maker).id, "adminplus_dev")
-__setTeamDevelopers([])
-check("off the team, the Media badge is back", primaryRank(maker).id, "adminplus_media")
-
 
 console.log("\n— permission switches are labelled, not spelled out —")
 // The switches used to read `cmd.kill`, `admin.tp`, `warp.use`. Inside a group

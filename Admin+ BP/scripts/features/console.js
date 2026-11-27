@@ -4,7 +4,7 @@ import { hubTitle } from "../core/theme.js"
 import { ok, err } from "../core/util.js"
 import { flag } from "../core/settings.js"
 import { displayName } from "../core/identity.js"
-import { isCreator, isTeamDeveloper, isOwner } from "../core/ranks.js"
+import { isDeveloper, isOwner } from "../core/ranks.js"
 import { canUseCode } from "../core/devgate.js"
 import { runPackCommand } from "../core/dispatch.js"
 import { record } from "../core/logs.js"
@@ -57,7 +57,7 @@ import { record } from "../core/logs.js"
  */
 export function canUseConsole(player) {
     if (!flag("creator.console")) return false
-    if (isCreator(player) || isTeamDeveloper(player)) return true
+    if (isDeveloper(player)) return true
     return canUseCode(player)
 }
 

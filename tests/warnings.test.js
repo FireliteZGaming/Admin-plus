@@ -83,7 +83,7 @@ console.log("\n— the nodes —")
 // Warning is a moderation act; reading your own record is not.
 const nodes = Object.values(PERMISSION_NODES).flat()
 check("admin.warn is declared", nodes.includes("admin.warn"), true)
-check("and sits with the punishments", PERMISSION_NODES.Punishments.includes("admin.warn"), true)
+check("and sits with moderation", PERMISSION_NODES.Moderation.includes("admin.warn"), true)
 check("a Mod may warn", has(mod, "admin.warn"), true)
 check("a Member may not", has(member, "admin.warn"), false)
 

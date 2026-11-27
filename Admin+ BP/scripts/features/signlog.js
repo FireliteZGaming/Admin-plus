@@ -3,6 +3,10 @@ import { record } from "../core/logs.js"
 import { noteSign } from "../core/chatlog.js"
 import { flag } from "../core/settings.js"
 import { stripCodes } from "../core/identity.js"
+// 3.1.4: Chat Moderation reads signs too, and clears a caught one.
+import { checkSign, signModerationOn } from "./chatmod.js"
+import { adminplusDisabled } from "../core/terms.js"
+import { alertStaff, tell } from "./automod.js"
 
 // What people write on signs, in the log.
 //
@@ -58,6 +62,25 @@ export function signText(block) {
     return stripCodes(String(raw ?? "")).replace(/\r?\n/g, " / ").trim()
 }
 
+/**
+ * One side's text, the same way: "Front" or "Back" (the SignSide values).
+ * The plain getText() above reads the front only, so a back side written on
+ * its own went unread until 3.1.4.
+ */
+export function signSideText(block, side) {
+    const sign = safe(() => block?.getComponent?.("minecraft:sign"))
+    if (!sign) return ""
+    const raw = safe(() => sign.getText(side), "")
+    return stripCodes(String(raw ?? "")).replace(/\r?\n/g, " / ").trim()
+}
+
+/** Clear both sides of a sign. Returns whether it worked. */
+function clearSign(block) {
+    const sign = safe(() => block?.getComponent?.("minecraft:sign"))
+    if (!sign) return false
+    try { sign.setText("", "Front"); sign.setText("", "Back"); return true } catch { return false }
+}
+
 function keyOf(block) {
     const l = block?.location
     if (!l) return undefined
@@ -80,7 +103,9 @@ function whereIs(block) {
  * a sign they did not touch.
  */
 export function watchSign(player, block, was = "") {
-    if (!flag("logs.signs")) return false
+    if (adminplusDisabled()) return false
+    // Watched for the log, or for Chat Moderation, which clears a caught sign.
+    if (!flag("logs.signs") && !signModerationOn()) return false
     const key = keyOf(block)
     if (!key || watching.has(key)) return false
     // A cap rather than unbounded growth: a redstone farm placing signs, or
@@ -110,14 +135,20 @@ export function watchSign(player, block, was = "") {
     // it twenty seconds later is the same stale-handle throw, and it would lose
     // the one detail that makes a logged sign actionable: where to go and look.
     const where = whereIs(block)
+    // The back side as it stood, so a change there is noticed too (3.1.4).
+    const wasBack = signSideText(block, "Back")
 
     watching.set(key, true)
     let done = false
     for (const delay of LOOKS) {
         system.runTimeout(() => {
             if (done) return
-            const now = signText(lookUp())
-            if (!now || now === was) {
+            const sign = lookUp()
+            const now = signText(sign)
+            const back = signSideText(sign, "Back")
+            const frontChanged = !!now && now !== was
+            const backChanged = !!back && back !== wasBack
+            if (!frontChanged && !backChanged) {
                 // Last look and still nothing worth saying: stop watching, so
                 // the slot is free for the next sign.
                 if (delay === LOOKS.at(-1)) watching.delete(key)
@@ -125,11 +156,22 @@ export function watchSign(player, block, was = "") {
             }
             done = true
             watching.delete(key)
+
+            // Chat Moderation (3.1.4): a caught side clears the whole sign.
+            // The user: "if it catches it on a side, it could just completely
+            // clear the sign".
+            const caught = checkSign(player, { front: now, back })
+            if (caught && clearSign(sign)) {
+                tell(player, `§7Chat Moderation cleared your sign (${caught.labels}).`)
+                alertStaff(`§7Chat Moderation cleared a sign by §f${player?.name}§7 at §f${where}§7 for §f${caught.why}§7.`)
+                noteSign(player, caught.text, where, was || undefined, { mod: `cleared the sign (${caught.side} side): ${caught.why}` })
+                return
+            }
             // Into the CHAT log, not the audit log: a sign is something a
             // player put in front of everyone, which is what that table is
             // for. Where it stands is kept as its own field so the line reads
             // as the words and the coordinate waits on the detail view.
-            noteSign(player, now, where, was || undefined)
+            noteSign(player, frontChanged ? now : `(back) ${back}`, where, was || undefined)
         }, delay)
     }
     return true

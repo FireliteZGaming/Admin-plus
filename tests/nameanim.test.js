@@ -350,12 +350,12 @@ console.log("\n— the creator wears the name they go by —")
     refreshNameTag(creator)
     check("a rank's own style does not take their name off them",
         creator.nameTag.includes(CHOSEN), true)
-    // The tag beside it is the CREATOR BADGE, not Member — the badge replaces
-    // the default rank, which is what 2.7.1 was for. So the two halves of the
-    // nametag come from two different places and neither overwrites the other:
-    //     §8[§bAdmin§d+§r §e§lCreator§8]§r §f§mF§4i§nr§ce§6l§pi§gt§ee
+    // The tag beside it is the DEVELOPER BADGE (3.1.6), not Member — the badge
+    // replaces the default rank, which is what 2.7.1 was for. So the two halves
+    // of the nametag come from two different places and neither overwrites the
+    // other: the Developer tag, then the animated name.
     check("and the badge is still drawn beside it",
-        plainOf(creator.nameTag).includes("Creator"), true)
+        plainOf(creator.nameTag).includes("Developer"), true)
     saveRank("member", { meta: { ...getRank("member")?.meta, "nametag.style": "none" } })
 
     // And it is a switch like everything else.

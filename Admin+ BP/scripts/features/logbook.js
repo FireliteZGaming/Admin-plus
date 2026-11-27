@@ -110,10 +110,14 @@ const LOG_PHRASES = {
     "automod.ore": t => `flagged ${t} for mining ore`,
     "automod.bot": (t, d) => String(d ?? "").startsWith("banned") ? `banned ${t} as a likely bot`
         : String(d ?? "").startsWith("kicked") ? `kicked ${t} as a likely bot`
-        : String(d ?? "").startsWith("cleared") ? `took ${t} off the possible bots list`
+        : String(d ?? "").startsWith("cleared") ? `took ${t} off Detected Bots`
         : `couldn't kick ${t}, a likely bot`,
     "automod.breaks": t => `flagged ${t} for breaking blocks fast`,
     "automod.config": () => "changed automod settings",
+    // 3.1.4: Chat Moderation's own actions (features/chatmod.js).
+    "automod.chat": (t, d) => String(d ?? "").startsWith("kicked") ? `kicked ${t} for spam`
+        : String(d ?? "").startsWith("muted") ? `muted ${t} for swearing too much`
+        : `warned ${t} for swearing too much`,
     "chat.approve": t => `let a held message from ${t} through`,
     "chat.deny": t => `blocked a held message from ${t}`,
     "chat.denyAll": () => "blocked every held message",
@@ -143,6 +147,10 @@ const LOG_PHRASES = {
     "rank.delete": () => "deleted a rank",
     "rank.preset": () => "applied a ready-made rank list",
     "report.filed": t => t ? `reported ${t}` : "filed a report",
+    // 3.1.6: setup and Admin+'s terms (features/setup.js, features/terms.js).
+    "setup.done": () => "set up Admin+",
+    "terms.accept": () => "accepted Admin+'s terms",
+    "terms.decline": () => "declined Admin+'s terms",
     "report.handled": t => t ? `handled a report about ${t}` : "handled a report",
     "warp.create": () => "made a warp",
     "warp.delete": () => "deleted a warp",
@@ -153,7 +161,7 @@ const LOG_PHRASES = {
 }
 
 /** Sentences whose words already hold the detail, so it isn't said twice. */
-const DETAIL_IN_SENTENCE = new Set(["rank.grant", "rank.revoke", "rank.set", "mod.gamemode", "name.set", "name.clear", "automation.rank", "dev.mode", "troll.disguise", "troll.undisguise"])
+const DETAIL_IN_SENTENCE = new Set(["rank.grant", "rank.revoke", "rank.set", "mod.gamemode", "name.set", "name.clear", "automation.rank", "dev.mode"])
 
 const plain = s => String(s ?? "").replace(/§./g, "")
 const lowerFirst = s => s ? s[0].toLowerCase() + s.slice(1) : s

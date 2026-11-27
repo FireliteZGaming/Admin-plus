@@ -106,7 +106,9 @@ const LEET = {
  *                       3 = + every separator removed, so words run together
  */
 export function normalise(text, level = 2) {
-    let out = String(text ?? "").toLowerCase().replace(INVISIBLE, "")
+    // Colour codes first (3.1.3): the game hides "§" and the character after
+    // it, so "§c" inside a word must not split it (core/toxfeatures.js too).
+    let out = String(text ?? "").replace(/§./gu, "").toLowerCase().replace(INVISIBLE, "")
     out = [...out].map(c => HOMOGLYPHS[c] ?? c).join("")
 
     if (level >= 2) {
@@ -195,6 +197,15 @@ export function termsFor(category) {
  */
 export function screen(text) {
     if (!flag("filter.enabled")) return undefined
+    return wordListMatch(text)
+}
+
+/**
+ * What the word list would hold with this server's settings, whether
+ * screening is switched on or not. For /automod ▸ Chat ▸ Test a message
+ * (3.1.0), which sets the model beside the list on the same line.
+ */
+export function wordListMatch(text) {
     const allow = listOf("filter.allow")
     for (const category of CATEGORIES) {
         const level = levelOf(category)
@@ -203,6 +214,23 @@ export function screen(text) {
         if (term) return { category: category.id, label: category.label, term, level }
     }
     return undefined
+}
+
+/**
+ * Every word-list category a line uses, at level 2 (whole words, leet and
+ * stutter), with this server's own words added. For Chat Moderation (3.1.4),
+ * whose switches decide which of them count; the old screening's per-category
+ * levels don't apply to it.
+ * @returns {{category: string, label: string, term: string}[]}
+ */
+export function wordListCategories(text) {
+    const allow = listOf("filter.allow")
+    const out = []
+    for (const category of CATEGORIES) {
+        const term = findTerm(text, termsFor(category), 2, allow)
+        if (term) out.push({ category: category.id, label: category.label, term })
+    }
+    return out
 }
 
 /** For the settings screen: each category with the level it is set to. */

@@ -10,8 +10,22 @@
  * Both chat parts stop: chat screening holds nothing, and chat flooding warns
  * and mutes nobody. Ore alerts and fast breaking carry on. The engines
  * (core/chatfilter.js, core/automod.js) are untouched and still tested; only
- * the places that act on them read this. Server ▸ Automod shows Chat
- * screening greyed out, and its Checks screen leaves out Chat flooding.
+ * the places that act on them read this. Its Checks screen leaves out Chat
+ * flooding.
+ *
+ * 3.1.0: /automod ▸ Chat (features/chatcheck.js) runs UNDER this hold, the
+ * user's call, 2026-11-26 ("the official feature is in 4.0.0 but i still
+ * would need to test it myself"). Test a message and Watch chat only read
+ * and tell staff, so nothing is held or muted while this is true. The Chat
+ * page took the hub row that was a greyed Chat screening button, and says
+ * that screening and flooding are on hold.
+ *
+ * 3.1.4: Chat Moderation (features/chatmod.js, the user's layout) replaces
+ * both: its level, "Ask the player first", and Harassment, Hate speech,
+ * Sexual content, Profanity and Spam switches, with the word list inside its
+ * categories and spam dropped before it's sent. It is Off until an owner
+ * picks a level. THIS hold still keeps the OLD engines' paths (chat.js's
+ * screen(), automod.js's flood check) shut, so the two can never both act.
  */
 export const CHAT_AUTOMOD_ON_HOLD = true
 
@@ -59,14 +73,3 @@ export const AUTOMOD_ON_HOLD = true
  */
 export const AUTOMOD_SECTION_ON_HOLD = false
 
-/**
- * /disguise, since 2.12.14 (built in 2.12.8). The user, 2026-11-19: "just put
- * a hold on automod and /disguise since those aren't working".
- *
- * The command is not registered, so /disguise doesn't exist in game. Joining
- * still ends a disguise left on the books (onJoin), and stray bodies are
- * still swept, so nobody stays a mob. Its switch leaves Ranks ▸ a rank ▸
- * Permissions ▸ Administrative ▸ Pranks. The engine and its 76 looks stay,
- * and tests/disguise.test.js registers the command itself to keep testing it.
- */
-export const DISGUISE_ON_HOLD = true

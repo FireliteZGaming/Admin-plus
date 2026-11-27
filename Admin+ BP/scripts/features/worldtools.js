@@ -6,6 +6,7 @@ import { ok, err, info } from "../core/util.js"
 import { has } from "../core/ranks.js"
 import { flag, setting } from "../core/settings.js"
 import { record } from "../core/logs.js"
+import { adminplusDisabled } from "../core/terms.js"
 import { claimsScreen } from "./claims.js"
 import { spawnSettingsScreen } from "./warps.js"
 import {
@@ -356,6 +357,7 @@ function draw(viewer, region, everyone) {
 }
 
 function drawAll() {
+    if (adminplusDisabled()) return
     const everyone = flag("omni.outlineEveryone")
     const players = world.getAllPlayers()
     for (const player of players) {
@@ -445,19 +447,19 @@ export function installWorldTools() {
     // Left click on a block: hitting it. Fires on the first punch.
     world.afterEvents?.entityHitBlock?.subscribe(event => {
         const player = event.damagingEntity
-        if (player?.typeId !== "minecraft:player" || !isOmnitool(heldItem(player))) return
+        if (adminplusDisabled() || player?.typeId !== "minecraft:player" || !isOmnitool(heldItem(player))) return
         leftClick(player, event.hitBlock)
     })
     // It never breaks a block, in creative or on a long hold.
     world.beforeEvents?.playerBreakBlock?.subscribe(event => {
-        if (!isOmnitool(event.itemStack)) return
+        if (adminplusDisabled() || !isOmnitool(event.itemStack)) return
         event.cancel = true
         const player = event.player, block = event.block
         system.run(() => leftClick(player, block))
     })
     // Right click on a block. The block itself isn't used (no chest opens).
     world.beforeEvents?.playerInteractWithBlock?.subscribe(event => {
-        if (!isOmnitool(event.itemStack)) return
+        if (adminplusDisabled() || !isOmnitool(event.itemStack)) return
         event.cancel = true
         if (event.isFirstEvent === false) return
         const player = event.player, block = event.block
@@ -468,7 +470,7 @@ export function installWorldTools() {
     })
     // Right click on nothing, if the game reports one for this item.
     world.beforeEvents?.itemUse?.subscribe(event => {
-        if (!isOmnitool(event.itemStack)) return
+        if (adminplusDisabled() || !isOmnitool(event.itemStack)) return
         const player = event.source
         system.run(() => {
             // A right click on a block can report a use as well; that click is handled.

@@ -4,7 +4,8 @@ import { has, canActOn, isRealOperator } from "../core/ranks.js"
 import { displayName } from "../core/identity.js"
 import { ban, isBanned } from "../core/moderation.js"
 import { record } from "../core/logs.js"
-import { isBanHammer, worldToken } from "../core/banhammer.js"
+import { isBanHammer, worldToken } from "../core/banhammer.js"
+import { adminplusDisabled } from "../core/terms.js"
 
 // Swing it at somebody and they are banned. That is the whole feature.
 //
@@ -138,6 +139,7 @@ export function installBanHammer() {
     }
 
     hit.subscribe(event => {
+        if (adminplusDisabled()) return
         const attacker = event.damagingEntity
         const victim = event.hitEntity
         if (!attacker || !victim) return

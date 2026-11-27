@@ -88,9 +88,9 @@ async function chestView(viewer, target, allowed, back) {
     }
 
     // Between drawing the form and the tap, they may have moved, dropped or
-    // eaten it. transfer() re-reads the slot, so the worst case is a refusal
-    // rather than taking the wrong thing.
-    const result = transfer(viewer, target, picked.ref)
+    // eaten it. transfer() re-reads the slot and checks it still holds what
+    // was drawn, so the worst case is a refusal, never the wrong thing.
+    const result = transfer(viewer, target, picked.ref, picked)
     if (!result.ok) {
         err(viewer, result.reason)
         return chestView(viewer, target, allowed, back)
@@ -195,7 +195,7 @@ async function itemScreen(viewer, target, item, allowed, back) {
                 ? {
                     text: "§aTake it§r\n§8Moves the stack into your inventory",
                     run: async () => {
-                        const result = transfer(viewer, target, item.ref)
+                        const result = transfer(viewer, target, item.ref, item)
                         if (!result.ok) { err(viewer, result.reason); return back() }
                         record(viewer, "mod.invsee.take", target, itemLine(result.item))
                         ok(viewer, `Took §f${itemLine(result.item)}§a from ${displayName(target)}.`)

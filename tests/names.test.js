@@ -20,7 +20,7 @@ const ours = readdirSync(dir)
     .filter(f => f.endsWith(".js"))
     .flatMap(f => [...readFileSync(new URL(f, dir), "utf8")
         .matchAll(/command\(\{[^}]*?name:\s*"([a-z0-9_]+)"/gs)].map(m => m[1]))
-    .concat(["admin", "tp"])              // registered in main.js
+    .concat(["admin"])                    // registered in main.js
 // Built with the REAL codenameFor, not by restating the naming rule here. The
 // version of this block that this replaced did `COMMANDS.map(c => \`z${c.name}\`)`
 // — it wrote down its own expectation and then agreed with itself, so when the
@@ -158,8 +158,6 @@ console.log("\n— the two surfaces that can still say it —")
     const src = readFileSync("Admin+ BP/scripts/core/registry.js", "utf8")
     check("selector parameters are renamed so the hint is on screen",
         src.includes("`${name}_or_me`") && src.includes("`${name}_me_or_all`"), true)
-    check("/tp carries it too, in the required form",
-        readFileSync("Admin+ BP/scripts/main.js", "utf8").includes("target_me_or_all"), true)
 }
 
 console.log("\n— how many commands still ask the engine to expand a selector —")
@@ -228,12 +226,11 @@ console.log("\n— the pack's OWN names, checked against the ones the game owns 
 // have to fail today. When one is renamed, take it off this list.
 {
     const shadowed = ours.filter(name => GAME_OWNED.has(name)).sort()
-    check("exactly the three the engine names, and no new ones",
-        shadowed, ["me", "msg", "tp"])
-
-    // Each has a sibling that is NOT game-owned and therefore works bare for a
-    // non-op. `tp` is the one that does not, which is why it is the urgent one.
-    check("me has a working bare alternative", ours.includes("emote"), true)
+    // 3.1.7, the user: "/tp technically exists as a command in vanilla
+    // already, so we can remove that as well as emotes". /a:tp, /emote and
+    // /a:me are gone, which leaves /msg.
+    check("only /msg is left of the three the engine names, and no new ones",
+        shadowed, ["msg"])
     // /msg's own description says "bare /msg is vanilla's" — that one was a
     // known, written-down choice with /pm as the way through. /tp was not.
     check("msg has one, and its description already admits the problem",

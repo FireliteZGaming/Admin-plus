@@ -64,7 +64,7 @@ console.log("\n— the node it needs —")
 // Reading other people's private messages goes with reading the audit log,
 // not with wearing a staff tag.
 check("chat.spy is declared", Object.values(PERMISSION_NODES).flat().includes("chat.spy"), true)
-check("and sits with chat", PERMISSION_NODES.Chat.includes("chat.spy"), true)
+check("and sits with staff chat", PERMISSION_NODES["Staff chat"].includes("chat.spy"), true)
 check("a Mod may spy", has(mod, "chat.spy"), true)
 check("a member may not", has(alex, "chat.spy"), false)
 

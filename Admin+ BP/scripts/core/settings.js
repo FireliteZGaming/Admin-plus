@@ -109,9 +109,6 @@ export const DEFAULTS = {
         value: "", label: "Lag clear: protected items", help: "Comma separated, part of a name is enough · empty uses the built-in list of valuables"
     },
     // 2.12.17: the lag clear upgrade (features/cleanup.js).
-    "cleanup.merge": {
-        value: "true", label: "Lag clear: merge piles first", help: "true / false · identical drops close together become full stacks, nothing is lost"
-    },
     "cleanup.minAge": {
         value: "30", label: "Lag clear: leave items newer than (seconds)", help: "What someone just dropped stays"
     },
@@ -121,27 +118,52 @@ export const DEFAULTS = {
     "cleanup.auto": {
         value: "true", label: "Lag clear: clear by itself", help: "true / false · a countdown first, at most every 5 minutes, only when clutter piles up or the server is slow"
     },
+    // 3.0.3, the user: lag clear should "actually clear lag". It counts crowded
+    // mobs, clears by itself sooner, and thins farms by default.
     "cleanup.autoAt": {
-        value: "1500", label: "Lag clear: clear by itself at (clearable things)", help: "Or sooner when the server is slow for a minute with at least 300"
+        value: "500", label: "Lag clear: clear by itself at (clearable things)", help: "Extra mobs count too · or sooner when the server is slow for a minute with at least 100"
     },
     "cleanup.mobCap": {
-        value: "0", label: "Lag clear: most of one farm animal or monster per chunk", help: "0 is no limit · named, tamed, leashed and ridden mobs are never removed"
+        value: "20", label: "Lag clear: most of one farm animal or monster per chunk", help: "0 is no limit · the farthest from players go first · named, tamed, leashed and ridden mobs are never removed"
     },
     // 3.0.1: bot detection, the first part of Automod back (core/botcheck.js).
+    // 3.0.3: named Bot Guard, and the wait in seconds became a level.
     "automod.bots": {
-        value: "true", label: "Automod: bot detection", help: "true / false · flags accounts that join but never enter the world"
+        value: "true", label: "Automod: Bot Guard", help: "true / false · catches half-joined accounts: they join but never enter the world"
     },
     "automod.botAlerts": {
-        value: "true", label: "Automod: bot detection alerts", help: "true / false · sends each flagged account to staff; flagging happens either way"
+        value: "true", label: "Automod: Bot Guard alerts", help: "true / false · sends each flagged account to staff; flagging happens either way"
     },
     "automod.botAction": {
-        value: "none", label: "Automod: what to do with a likely bot", help: "none / kick / ban · none only flags it"
+        value: "none", label: "Automod: what Bot Guard does with a likely bot", help: "none / kick / ban · none only flags it"
     },
     "automod.botActAt": {
-        value: "80", label: "Automod: act at this bot score (%)", help: "50 to 100"
+        value: "80", label: "Automod: Bot Guard acts at this score (%)", help: "50 to 100"
     },
-    "automod.botGrace": {
-        value: "120", label: "Automod: seconds before judging a new player", help: "So nobody still loading in is judged"
+    "automod.botLevel": {
+        value: "medium", label: "Automod: Bot Guard level", help: "low / medium / high · how long a new join has to enter the world: 2 minutes, 1 minute, 20 seconds"
+    },
+    // 3.1.0: Watch chat, the in-game test of the chat model
+    // (features/chatcheck.js). It tells staff; it never holds a message.
+    // 3.1.4: Chat Moderation (features/chatmod.js), the user's layout. The
+    // level keeps Watch chat's key, so a world that set one keeps it.
+    "automod.chatWatch": {
+        value: "off", label: "Automod: Chat Moderation level", help: "off / low / medium / high · how strict Chat Moderation is: what it catches, and how firmly it answers swearing and spam"
+    },
+    "automod.chatAsk": {
+        value: "true", label: "Automod: ask the player first", help: "true / false · a flagged message isn't sent until they press Send or Cancel. Off: it's held for staff."
+    },
+    "automod.chatHarassment": {
+        value: "true", label: "Automod: Harassment", help: "true / false · insults, threats, death wishes, telling someone to hurt themselves"
+    },
+    "automod.chatHate": {
+        value: "true", label: "Automod: Hate speech", help: "true / false · slurs, and attacks on a group"
+    },
+    "automod.chatSexual": {
+        value: "true", label: "Automod: Sexual content", help: "true / false · sexual messages, and asking players for pictures"
+    },
+    "automod.chatProfanity": {
+        value: "true", label: "Automod: Profanity", help: "true / false · swearing too much: a warning, then a mute, never a kick"
     },
     "automod.ores": {
         value: "true", label: "Automod: ore alerts", help: "true / false · finds are grouped and reported when the player stops mining"
@@ -162,7 +184,7 @@ export const DEFAULTS = {
         value: "20", label: "Automod: blocks a second", help: "Keep this high: TNT and Efficiency V break blocks fast without cheating"
     },
     "automod.spam": {
-        value: "true", label: "Automod: chat flooding", help: "true / false · on hold for now, so this does nothing"
+        value: "true", label: "Automod: Spam", help: "true / false · Chat Moderation's Spam switch (3.1.4): too many messages too fast get a warning, then mutes; Medium and High kick a player who keeps on after the longest mute"
     },
     "automod.spamRate": {
         value: "6", label: "Automod: typing fast", help: "messages in 10s · above this, they are told they are typing fast. No strike, and nothing is recorded."
@@ -265,11 +287,6 @@ export const DEFAULTS = {
     },
     "feature.tpa": {
         value: "true", label: "Teleport requests", help: "true / false · /tpa, /tpahere, /tpaccept, /tpadeny and /tpacancel"
-    },
-    "feature.enderchest": {
-        // Ships OFF while the screen is still settling. A world that wants it
-        // turns it on; nobody inherits a half-finished feature in an update.
-        value: "false", label: "Ender chest", help: "true / false · /ec, and /enderchest <player> for staff"
     },
     "logs.chat": {
         value: "true",
@@ -511,16 +528,6 @@ export const DEFAULTS = {
         label: "/invsee shows a chest grid",
         help: "true / false · shows items in a chest grid, which needs the resource pack. false shows a plain list instead."
     },
-    "format.emote": {
-        value: "§d* {NICKNAME} §r§d§o{MSG}",
-        label: "Emote line",
-        help: "Tokens: {NAME} {NICKNAME} {MSG} {CHANNEL} · what /emote prints"
-    },
-    "feature.emote": {
-        value: "true",
-        label: "Emotes (/emote)",
-        help: "true / false · lets players describe an action instead of saying something"
-    },
     "format.pmOut": {
         value: "§8[§dyou §8» §d{NICKNAME}§8] §7{MSG}",
         label: "Private message you sent",
@@ -567,7 +574,6 @@ export const DEFAULTS = {
 const MUST_KEEP = {
     "format.chat": [["{MSG}"], ["{NAME}", "{NICKNAME}"]],
     "format.chatChannel": [["{MSG}"], ["{NAME}", "{NICKNAME}"]],
-    "format.emote": [["{MSG}"], ["{NAME}", "{NICKNAME}"]],
     "format.pmOut": [["{MSG}"], ["{NAME}", "{NICKNAME}"]],
     "format.pmIn": [["{MSG}"], ["{NAME}", "{NICKNAME}"]],
     "format.nameTag": [["{NAME}", "{NICKNAME}"]],

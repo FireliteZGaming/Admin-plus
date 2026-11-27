@@ -56,6 +56,14 @@ const enums = []
  */
 export function command(spec) { pending.push(spec) }
 
+/**
+ * One check every command passes before it runs, after its permission: a
+ * function given the player and the command's name that answers true, false,
+ * or a promise of either. Set once, by features/terms.js (3.1.6).
+ */
+let gate = null
+export function setCommandGate(fn) { gate = typeof fn === "function" ? fn : null }
+
 /** Every command spec, whole. core/dispatch.js runs them from typed text. */
 export function commandSpecs() { return [...pending] }
 
@@ -277,8 +285,16 @@ system.beforeEvents.startup.subscribe(({ customCommandRegistry }) => {
                             report(e)
                         }
                     }
-                    if (!missing.length) return run()
-                    fill(player, spec, args, missing).then(filled => { if (filled) run() }, report)
+                    const go = () => {
+                        if (!missing.length) return run()
+                        fill(player, spec, args, missing).then(filled => { if (filled) run() }, report)
+                    }
+                    // The gate (3.1.6, features/terms.js): an owner who hasn't
+                    // accepted Admin+'s terms sees them first, and the command
+                    // runs only once they accept.
+                    const pass = gate ? gate(player, spec.name) : true
+                    if (pass === true) return go()
+                    Promise.resolve(pass).then(yes => { if (yes === true) go() }, report)
                 })
                 return { status: CustomCommandStatus.Success }
             })

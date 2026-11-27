@@ -2,6 +2,7 @@ import { world, system, ItemTypes } from "@minecraft/server"
 import { ok, err, info } from "../core/util.js"
 import { allServerPresets, getServerPreset, applyServerPreset, detectServerPreset } from "../core/serverPresets.js"
 import { record } from "../core/logs.js"
+import { adminplusDisabled } from "../core/terms.js"
 import { typeIdToDataId, typeIdToID } from "../core/typeIds.js"
 
 // The bridge from commands into the script.
@@ -37,7 +38,13 @@ function reply(source, kind, text) {
     console.log(`[Admin+] ${text.replace(/§./g, "")}`)
 }
 
-function applyByEvent(source, wanted) {
+export function applyByEvent(source, wanted) {
+    // Admin+ is off (its terms were declined): a preset is a command like
+    // any other, so it does nothing until an owner accepts.
+    if (adminplusDisabled()) {
+        reply(source, "info", "§7Admin+ is turned off here. An owner has to accept its terms.")
+        return
+    }
     const id = String(wanted ?? "").trim().toLowerCase()
 
     if (!id) {

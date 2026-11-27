@@ -6,6 +6,7 @@ import { GROUPS, settingsScreen, groupScreen, pageScreen } from "../Admin+ BP/sc
 import { CHECK_PAGES, automodScreen } from "../Admin+ BP/scripts/features/automod.js"
 import { WORD_FIELDS, HOLD_FIELD, screeningScreen } from "../Admin+ BP/scripts/features/automodUI.js"
 import { BOT_FIELDS } from "../Admin+ BP/scripts/features/bots.js"
+import { CHAT_FIELDS } from "../Admin+ BP/scripts/features/chatcheck.js"
 import { openPanel } from "../Admin+ BP/scripts/features/panel.js"
 import { configPresetsScreen, kindOf, submittedValue, previewLine, fromBlock, toBlock } from "../Admin+ BP/scripts/features/code.js"
 import { savePresetFromCurrent, deletePreset } from "../Admin+ BP/scripts/core/configPresets.js"
@@ -87,7 +88,9 @@ console.log("\n— every setting has one home in Beta —")
         ...Object.values(CHECK_PAGES).flatMap(page => page.fields.map(f => f.key)),
         ...screening,
         ...WORD_FIELDS.map(f => f.key), HOLD_FIELD.key,
-        ...BOT_FIELDS.map(f => f.key)
+        ...BOT_FIELDS.map(f => f.key),
+        // 3.1.0: /automod ▸ Chat holds Watch chat.
+        ...CHAT_FIELDS.map(f => f.key)
     ]
     const nowhere = Object.keys(DEFAULTS).filter(key => !homes.includes(key))
     // The three technical ones stay in < Code > alone, on purpose.
@@ -120,8 +123,8 @@ console.log("\n— in Beta a group is one page in sections —")
     await groupScreen(boss, group("chat"), () => {})
     const chat = lastForm()
     check("Chat opens as one form", chat.parts.some(p => p[0] === "button"), false)
-    check("a section per thing in it", sectionsOf(chat), ["Admin+ chat", "Chat lines", "Chat rooms", "Private messages", "Emotes", "Join and leave"])
-    check("with a divider before each", chat.parts.filter(p => p[0] === "divider").length, 6)
+    check("a section per thing in it", sectionsOf(chat), ["Admin+ chat", "Chat lines", "Chat rooms", "Private messages", "Join and leave"])
+    check("with a divider before each", chat.parts.filter(p => p[0] === "divider").length, 5)
     check("and a Save button", chat.parts.find(p => p[0] === "submit")?.[1], "Save")
     const chatLine = inputsOf(chat).find(p => firstLine(p[1]) === "Chat line")
     check("how a chat line looks is in Chat", chatLine?.[0], "text")
@@ -229,7 +232,8 @@ console.log("\n— Advanced and Saved setups in Beta —")
     setBeta(false)
     check("Minecraft's menus have no Every setting either", (await advanced()).includes("Every setting"), false)
     setBeta(true)
-    check("Beta's Advanced: setups, < Code > and reset", await advanced(), ["Saved setups", "< Code >", "Factory reset", "< Back"])
+    // 3.1.6: Set up again, setup's way back in once the /admin button is gone.
+    check("Beta's Advanced: setups, < Code >, setup and reset", await advanced(), ["Saved setups", "< Code >", "Set up again", "Factory reset", "< Back"])
 
     replaceOverrides({})
     __ui.answers.length = 0

@@ -59,11 +59,28 @@ export function lift(text) {
  * A title for the Beta look. The frame draws "Admin+" itself, so the brand
  * prefix comes off and the screen's own name stays, in its hub colour.
  */
-export function lookTitle(title, { tiles = false, profile = false, logs = false } = {}) {
+export function lookTitle(title, { tiles = false, profile = false, logs = false, guard = false } = {}) {
     let text = String(title ?? "")
     if (text.startsWith(BRAND_PREFIX)) text = text.slice(BRAND_PREFIX.length)
-    return lift(text) + BETA_LOOK + (tiles ? TILES : "") + (tiles && profile ? PROFILE : "") + (!tiles && logs ? LOGS : "")
+    const guarded = !tiles && !logs && guard ? (guard === "on" ? GUARD_ON : GUARD) : ""
+    return lift(text) + BETA_LOOK + (tiles ? TILES : "") + (tiles && profile ? PROFILE : "") + (!tiles && logs ? LOGS : "") + guarded
 }
+
+/**
+ * Bot Guard's own frame (3.1.5, the user: "Bot guard should be its own unique
+ * UI look really animated and good, a pretty damn good layout too"). A title
+ * ending in GUARD is drawn with a banner across the top: the shield, the
+ * form's body as Bot Guard's status, and a WATCHING or OFF pill. Then the
+ * buttons with a CARD face stand side by side as cards, and the rest (Back)
+ * stay rows. GUARD_ON (GUARD then §1) lights it up: the shield in colour, its
+ * glow pulsing and a scan line sweeping the banner. Without it the shield is
+ * grey and nothing moves. Same hidden-code style as the markers above.
+ */
+export const GUARD = "§g§h§s§d"
+export const GUARD_ON = "§g§h§s§d§1"
+
+/** A picture in Bot Guard's frame, drawn by tools/genlook.py. */
+export function guardIcon(key) { return `textures/ui/adminplus/guard_${key}` }
 
 /**
  * The Logs (2.12.5): a timeline frame of its own. The user, 2026-11-13: "do a
@@ -101,6 +118,17 @@ export const TILE_LEFT = "§e§f§t"
 export function tileText(text, index) {
     return index % 2 === 0 ? `${text}${TILE_LEFT}` : text
 }
+
+/**
+ * A wide tile (3.1.6): one button across both columns, above the tiles. The
+ * user wanted setup's button in /admin to span two buttons. A tile whose text
+ * ends in WIDE shows in the row above the columns and in neither column.
+ * Same hidden-code style as the markers above.
+ */
+export const WIDE = "§s§p§a§n"
+
+/** A wide tile's text, marked so the tile frame draws it across both columns. */
+export function wideText(text) { return `${text}${WIDE}` }
 
 /** A tile's picture: its stripe and icon, drawn by tools/genlook.py. */
 export function tileIcon(key) { return `textures/ui/adminplus/tile_${key}` }

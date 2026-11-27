@@ -229,6 +229,8 @@ for (const file of scriptFiles("Admin+ BP/scripts")) {
 // target (a warp is not a person). They are log entries only.
 const NO_AUDIENCE = new Set([
     "automod.ore", "automod.breaks", "automod.spam", "automod.config", "automod.bot",
+    // 3.1.4: Chat Moderation's warnings, mutes and spam kicks, done by automod itself.
+    "automod.chat",
     "admin.clearchat", "admin.lagclear", "chat.broadcast", "dev.banhammer",
     // Taking a barrier out of the panel is done to the world, not to a person.
     // It is logged so there is a record of who has them.
@@ -255,6 +257,9 @@ const NO_AUDIENCE = new Set([
     "config.serverPreset",
     "hologram.create", "hologram.edit", "hologram.move", "hologram.delete", "hologram.clear",
     "rank.delete", "rank.preset",
+    // 3.1.6: setup is done to the world, and the terms are between one owner
+    // and Admin+. Both are kept as a record; nobody else needs a line.
+    "setup.done", "terms.accept", "terms.decline",
     "warp.create", "warp.move", "warp.delete", "warp.access", "warp.spawnSet", "warp.spawnEdit",
     // The Omnitool's spawn (2.9.0) is done to the world, not to a person.
     "omni.spawnOn", "omni.spawnArea", "omni.spawnPoint", "omni.spawnDelete",

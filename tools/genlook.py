@@ -10,8 +10,9 @@ is the same every time.
 
 The colours are the concept's (Obsidian > Admin+ > UI Overhaul).
 """
+import math
 import pathlib
-from PIL import Image
+from PIL import Image, ImageDraw
 
 OUT = pathlib.Path(__file__).resolve().parent.parent / "Admin+ RP" / "textures" / "ui" / "adminplus"
 
@@ -168,6 +169,16 @@ ICONS = {
         "skkkkkks",
         "ssssssss",
         "........"]),
+    # Setup's wide tile in /admin (3.1.6): a star, for getting started.
+    "star": ({"g": "ffd166", "d": "c99a2e"}, [
+        "...gg...",
+        "...gg...",
+        "gggggggg",
+        ".gggggg.",
+        "..gggg..",
+        ".gggggg.",
+        ".dd..dd.",
+        "d......d"]),
     # The Logs timeline (2.12.5). Drawn in one colour on a round dot, so only
     # the shape matters here.
     "hammer": ({"g": "ffffff"}, [
@@ -347,6 +358,7 @@ TILES = {
     "settings": ("gear", STEEL),
     "console": ("terminal", PURPLE),
     "personalize": ("palette", PINK),
+    "setup": ("star", GOLD),
 }
 
 # A tile's icon area is 32x34 on screen (inside the button's 1px edge), drawn
@@ -378,6 +390,154 @@ def tile_texture(key, icon, stripe):
 STRIPES = {"mod": "55ff55", "admin": "ffaa00", "manager": "aa00aa", "owner": "aa0000"}
 
 
+# ------------------------------------------------------------- Bot Guard
+# Bot Guard's own look (3.1.5, the user: "its own unique UI look really
+# animated and good"). Drawn smooth, at SS times the size and shrunk, the way
+# the rank badges learned to be (2.11.3: pixel by pixel looked "sloppy").
+SS = 8
+DARK = rgb("0b0d12")
+
+
+def smooth(w, h, draw, name, out=None):
+    """Draw a w by h design SS times over and shrink it. Saved at `out`, twice
+    the size it shows at by default, like the tile icons, so it stays sharp."""
+    ow, oh = out or (w * 2, h * 2)
+    s = SS * ow / w
+    big = Image.new("RGBA", (round(w * s), round(h * s)), CLEAR)
+    draw(big, ImageDraw.Draw(big), s)
+    return save(big.resize((ow, oh), Image.LANCZOS), name)
+
+
+def shield_points(w, h, inset=0.0):
+    """A heater shield: a straight top with round corners, sides that curve to a point."""
+    pts = []
+    left, right, top, bottom = inset, w - inset, inset, h - inset
+    mid = w / 2
+    corner = w * 0.12
+    # Top edge, round corners.
+    for i in range(9):
+        a = math.pi * (1 + i / 16)
+        pts.append((left + corner + corner * math.cos(a), top + corner + corner * math.sin(a)))
+    for i in range(9):
+        a = math.pi * (1.5 + i / 16)
+        pts.append((right - corner + corner * math.cos(a), top + corner + corner * math.sin(a)))
+    # Right side down, then a curve to the point.
+    shoulder = top + (bottom - top) * 0.5
+    pts.append((right, shoulder))
+    for i in range(1, 17):
+        t = i / 16
+        # Quadratic curve from the shoulder through (right, bottom-ish) to the point.
+        x = (1 - t) ** 2 * right + 2 * (1 - t) * t * right + t ** 2 * mid
+        y = (1 - t) ** 2 * shoulder + 2 * (1 - t) * t * (bottom - (bottom - top) * 0.12) + t ** 2 * bottom
+        pts.append((x, y))
+    for i in range(1, 17):
+        t = i / 16
+        x = (1 - t) ** 2 * mid + 2 * (1 - t) * t * left + t ** 2 * left
+        y = (1 - t) ** 2 * bottom + 2 * (1 - t) * t * (bottom - (bottom - top) * 0.12) + t ** 2 * shoulder
+        pts.append((x, y))
+    return pts
+
+
+def vertical_gradient(w, h, a, b):
+    img = Image.new("RGBA", (w, h))
+    for y in range(h):
+        colour = blend(a, b, y / max(1, h - 1))
+        for x in range(w):
+            img.putpixel((x, y), colour)
+    return img
+
+
+def robot(draw, cx, cy, size, face, eye, antenna_tip):
+    """A small robot head: a rounded square, two eyes, a mouth, an antenna."""
+    half = size / 2
+    draw.rounded_rectangle([cx - half, cy - half * 0.8, cx + half, cy + half * 0.8], radius=size * 0.22, fill=face)
+    r = size * 0.11
+    for dx in (-size * 0.22, size * 0.22):
+        draw.ellipse([cx + dx - r, cy - r * 1.3, cx + dx + r, cy + r * 0.7], fill=eye)
+    draw.rounded_rectangle([cx - size * 0.2, cy + size * 0.18, cx + size * 0.2, cy + size * 0.26], radius=size * 0.04, fill=DARK)
+    draw.line([cx, cy - half * 0.8, cx, cy - half * 1.25], fill=face, width=max(1, int(size * 0.08)))
+    tip = size * 0.1
+    draw.ellipse([cx - tip, cy - half * 1.25 - tip, cx + tip, cy - half * 1.25 + tip], fill=antenna_tip)
+
+
+def guard_shield(off=False):
+    """The emblem: a dark shield ringed aqua to pink, a white robot inside with aqua eyes.
+    Off, the same shield in greys, so a switched-off Bot Guard looks asleep."""
+    w, h = 40, 44
+    ring = (rgb("5c6375"), rgb("3a3f4c")) if off else (AQUA, PINK)
+    face, eye, tip = (rgb("6b7285"), rgb("2a2e38"), rgb("4a5060")) if off else (WHITE, AQUA, PINK)
+
+    def draw(img, d, s):
+        W, H = img.size
+        outer = shield_points(W, H, inset=s * 0.5)
+        mask = Image.new("L", (W, H), 0)
+        ImageDraw.Draw(mask).polygon(outer, fill=255)
+        img.paste(vertical_gradient(W, H, *ring), (0, 0), mask)
+        d.polygon(shield_points(W, H, inset=s * 3), fill=DARK)
+        robot(d, W / 2, H * 0.47, W * 0.46, face, eye, tip)
+
+    return smooth(w, h, draw, "guard_shield_off" if off else "guard_shield")
+
+
+def guard_banner():
+    """The banner behind Bot Guard's status: faintly aqua at the shield's end, plain dark at the other."""
+    return gradient(blend(TILE, AQUA, 0.12), TILE, "guard_banner", 64, 1)
+
+
+def guard_glow():
+    """A soft aqua glow behind the shield, to pulse."""
+    w = h = 64
+    img = Image.new("RGBA", (w, h), CLEAR)
+    mid = (w - 1) / 2
+    for x in range(w):
+        for y in range(h):
+            d = ((x - mid) ** 2 + (y - mid) ** 2) ** 0.5 / mid
+            if d < 1:
+                img.putpixel((x, y), AQUA[:3] + (round(150 * (1 - d) ** 2),))
+    return save(img, "guard_glow")
+
+
+def guard_scan():
+    """The scanning line that sweeps the banner: aqua with a white core, fading to nothing at its sides."""
+    w, h = 16, 64
+    img = Image.new("RGBA", (w, h), CLEAR)
+    mid = (w - 1) / 2
+    for x in range(w):
+        t = 1 - abs(x - mid) / mid
+        colour = blend(AQUA, WHITE, max(0, t - 0.6) / 0.4)
+        for y in range(h):
+            fade = min(1, min(y, h - 1 - y) / 8)
+            img.putpixel((x, y), colour[:3] + (round(200 * t ** 2 * fade),))
+    return save(img, "guard_scan")
+
+
+def guard_icon_moderation():
+    """Bot Moderation's card: three sliders, aqua, pink and gold knobs."""
+    w = h = 32
+
+    def draw(img, d, s):
+        for i, (at, knob) in enumerate([(0.32, AQUA), (0.7, PINK), (0.48, GOLD)]):
+            y = (8 + i * 8) * s
+            d.rounded_rectangle([4 * s, y - s, 28 * s, y + s], radius=s, fill=STEEL)
+            x = (4 + 24 * at) * s
+            d.ellipse([x - 3.2 * s, y - 3.2 * s, x + 3.2 * s, y + 3.2 * s], fill=knob)
+
+    return smooth(w, h, draw, "guard_moderation", out=(56, 56))
+
+
+def guard_icon_detected():
+    """Detected Bots' card: a robot with red eyes and a red alert dot."""
+    w = h = 32
+
+    def draw(img, d, s):
+        robot(d, 15 * s, 18 * s, 20 * s, WHITE, RED, STEEL)
+        d.ellipse([22 * s, 3 * s, 30 * s, 11 * s], fill=RED)
+        d.rounded_rectangle([25.4 * s, 4.6 * s, 26.6 * s, 8 * s], radius=0.5 * s, fill=WHITE)
+        d.ellipse([25.4 * s, 8.6 * s, 26.6 * s, 9.8 * s], fill=WHITE)
+
+    return smooth(w, h, draw, "guard_detected", out=(56, 56))
+
+
 def main():
     made = [
         flat(rgb("ffffff"), "white"),
@@ -394,6 +554,8 @@ def main():
     for key, (icon, colour) in LOG_ICONS.items():
         made.append(log_dot(key, icon, colour))
     made.append(flow_texture())
+    made += [guard_shield(), guard_shield(off=True), guard_banner(), guard_glow(), guard_scan(),
+             guard_icon_moderation(), guard_icon_detected()]
     print(f"{len(made)} textures in {OUT}")
     for name in made:
         print(f"  {name}.png")

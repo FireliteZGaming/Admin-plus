@@ -43,7 +43,7 @@ const titleOf = form => plain(partsOf(form, "title")[0]?.[1])
 /** The first form shown since `from` whose title includes `text`. */
 const formTitled = (text, from) => __ui.shown.slice(from).find(form => titleOf(form).includes(text))
 // Staff tools: every section but the two any player's rank can have.
-const ADMIN_GROUPS = Object.keys(PERMISSION_NODES).filter(group => !["Everyone", "Personalization"].includes(group))
+const ADMIN_GROUPS = Object.keys(PERMISSION_NODES).filter(group => !["Transportation", "Communication", "Personalization"].includes(group))
 
 applyPreset("server")
 const boss = person("gap-boss", "Boss")
@@ -71,13 +71,13 @@ console.log("\n— what Ally has —")
 
 console.log("\n— the switches show only what the editor has —")
 {
-    // Ranks ▸ Helper ▸ Permissions ▸ Administrative ▸ Punishments, all on.
-    const punish = PERMISSION_NODES["Punishments"]
+    // Ranks ▸ Helper ▸ Permissions ▸ Administrative ▸ Moderation, all on.
+    const punish = PERMISSION_NODES["Moderation"]
     const from = __ui.shown.length
     __ui.answers.length = 0
-    __ui.answers.push(press(1), press(1), press(1 + ADMIN_GROUPS.indexOf("Punishments")), submit(...punish.map(() => true)))
+    __ui.answers.push(press(1), press(1), press(1 + ADMIN_GROUPS.indexOf("Moderation")), submit(...punish.map(() => true)))
     await rankScreen(ally, "helper", () => {})
-    const form = formTitled("Punishments", from)
+    const form = formTitled("Moderation", from)
     check("Permanent ban is left off the form", partsOf(form, "toggle").length, punish.length - 1)
     check("so Helper still can't permanently ban", rankState("helper", "admin.banperm"), "none")
     check("and what Ally has was saved", rankState("helper", "admin.ban"), "own")

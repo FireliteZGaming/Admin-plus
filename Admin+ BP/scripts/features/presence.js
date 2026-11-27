@@ -2,6 +2,7 @@ import { world, system } from "@minecraft/server"
 import { render, flag } from "../core/settings.js"
 import { displayName, nameTokens, getNickname } from "../core/identity.js"
 import { isVanished } from "../core/vanish.js"
+import { adminplusDisabled } from "../core/terms.js"
 
 // Join and leave lines, printed by us instead of by the game.
 //
@@ -21,6 +22,7 @@ import { isVanished } from "../core/vanish.js"
 
 /** Print the join line for a player. */
 export function announceJoin(player) {
+    if (adminplusDisabled()) return
     if (!flag("presence.announce")) return
     world.sendMessage(render("format.join", nameTokens(player)))
 }
@@ -33,6 +35,7 @@ export function announceJoin(player) {
  * @param nickname theirs if they had one; falls back to the gamertag
  */
 export function announceLeave(name, nickname) {
+    if (adminplusDisabled()) return
     if (!flag("presence.announce")) return
     world.sendMessage(render("format.leave", nameTokens(name, nickname)))
 }
@@ -62,6 +65,7 @@ export const GREETING_DELAY = 60
  * line can be told apart.
  */
 export function greet(player) {
+    if (adminplusDisabled()) return undefined
     if (!flag("presence.greet")) return undefined
     const line = render("format.greeting", nameTokens(player))
     // Blanking the text is the other way to turn it off, and a realm that has

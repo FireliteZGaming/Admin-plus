@@ -8,7 +8,8 @@ import { enter, exit, inStaffMode, needsRebuild, staffModeList, markVanished, va
 import { isVanished, vanish, unvanish } from "../core/vanish.js"
 import { worldToken, HAMMER_NAME } from "../core/banhammer.js"
 import { ITEMS } from "./adminitems.js"
-import { announceJoin, announceLeave } from "./presence.js"
+import { announceJoin, announceLeave } from "./presence.js"
+import { adminplusDisabled } from "../core/terms.js"
 
 // /mm — staff mode.
 //
@@ -235,7 +236,7 @@ export function installStaffMode() {
     if (after?.itemUse?.subscribe) {
         after.itemUse.subscribe(event => {
             const player = event.source
-            if (!player || !inStaffMode(player)) return
+            if (!player || adminplusDisabled() || !inStaffMode(player)) return
             const tool = toolFor(event.itemStack ?? mainhandOf(player))
             if (!tool) return
             system.run(() => runTool(player, tool))

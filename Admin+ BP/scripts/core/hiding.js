@@ -1,7 +1,7 @@
 import { world, system } from "@minecraft/server"
 import { Table } from "./storage.js"
 
-// Hiding a player (2.12.8): one layer that vanish and disguise both stand on.
+// Hiding a player (2.12.8): one layer for every reason a player is hidden.
 //
 // Each feature hides a player for its own REASON, and the player shows again
 // only when no reason is left: coming out of vanish while disguised keeps you
@@ -42,7 +42,7 @@ export function isHidden(playerOrId, reason) {
     return reason ? !!record.reasons?.[reason] : Object.keys(record.reasons ?? {}).length > 0
 }
 
-/** Why a player is hidden: "vanish", "disguise", or both. */
+/** Why a player is hidden: "vanish" (the only reason since /disguise went in 3.1.7). */
 export function hiddenFor(playerOrId) {
     return Object.keys(records.get(idOf(playerOrId))?.reasons ?? {})
 }
@@ -147,6 +147,10 @@ function release(player) {
 
 export function installHiding() {
     world.afterEvents.playerSpawn.subscribe(({ player, initialSpawn }) => {
+        // /disguise was removed in 3.1.7. A disguise left on the books would
+        // keep its player hidden with nothing left that could end it, so the
+        // reason goes, and the effects come back if nothing else hides them.
+        if (initialSpawn && isHidden(player, "disguise")) unhide(player, "disguise")
         if (isHidden(player)) {
             const record = records.get(player.id)
             // Dying clears every effect, theirs included, so there is nothing

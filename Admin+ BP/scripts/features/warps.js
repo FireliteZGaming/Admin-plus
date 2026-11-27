@@ -13,7 +13,8 @@ import {
 import { queueTeleport } from "../core/teleport.js"
 import { record } from "../core/logs.js"
 import { pickFrom } from "../core/ask.js"
-import { currentSpawnPoint, spawnRecord, describeRegion, insideSpawnArea, reconcileSpawn } from "../core/omnitool.js"
+import { currentSpawnPoint, spawnRecord, describeRegion, insideSpawnArea, reconcileSpawn } from "../core/omnitool.js"
+import { adminplusDisabled } from "../core/terms.js"
 
 // Warps — /warp, /warps, /spawn for everyone; everything else on one screen per
 // destination.
@@ -457,6 +458,7 @@ function exempt(player) {
  */
 export function installSpawnProtection() {
     const blockGuard = (eventData, player, location) => {
+        if (adminplusDisabled()) return
         if (exempt(player)) return
         if (!insideSpawn(location, player?.dimension?.id)) return
         eventData.cancel = true
@@ -475,6 +477,7 @@ export function installSpawnProtection() {
     const beforeHurt = world.beforeEvents?.entityHurt
     if (beforeHurt?.subscribe) {
         beforeHurt.subscribe(eventData => {
+            if (adminplusDisabled()) return
             const attacker = eventData.damageSource?.damagingEntity
             const victim = eventData.hurtEntity
             if (!isPvp(attacker, victim) || exempt(attacker)) return
@@ -487,6 +490,7 @@ export function installSpawnProtection() {
 
     // Fallback: give the health straight back, so the hit achieves nothing.
     world.afterEvents.entityHurt.subscribe(eventData => {
+        if (adminplusDisabled()) return
         const attacker = eventData.damageSource?.damagingEntity
         const victim = eventData.hurtEntity
         if (!isPvp(attacker, victim) || exempt(attacker)) return

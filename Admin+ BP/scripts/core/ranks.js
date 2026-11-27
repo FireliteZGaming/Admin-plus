@@ -5,10 +5,11 @@ import { displayName, nameTokens, stripCodes, hasNickname, getNameFont, setNameD
 import { render, renderTag, nameTagsEnabled, flag, setting } from "./settings.js"
 import { STYLES, STYLE_IDS, paint, currentFrame, rampFrom } from "./nametag.js"
 import { isHidden } from "./hiding.js"
-import { SERVER_PRESETS_ON_HOLD, AUTOMOD_SECTION_ON_HOLD, DISGUISE_ON_HOLD } from "./hold.js"
+import { SERVER_PRESETS_ON_HOLD, AUTOMOD_SECTION_ON_HOLD } from "./hold.js"
 import { look } from "./prefs.js"
 import { applyFont } from "./fonts.js"
 import { badgeFor, teamBadgeFor } from "./badges.js"
+import { adminplusDisabled, serverAccepted } from "./terms.js"
 
 // Admin+ rank engine — see RANKS_PLAN.md for the design rationale.
 //
@@ -166,26 +167,33 @@ export const DEFAULT_RANKS = JSON.parse(JSON.stringify(PRESETS.server.ranks))
  * hand the server away.
  */
 export const PERMISSION_NODES = {
-    "Everyone": ["warp.use", "spawn.use", "tpa.use", "report.use", "online.use"],
+    // 3.1.7, the user: "categories became more sane - Transportation -
+    // Communication. For staff and default permissions so it's easy to
+    // navigate." The member groups come first (MEMBER_GROUPS: what any player
+    // with the rank can use), then the staff groups, least dangerous to most.
+    // The names match /info's topics, so a command and its switch are found
+    // under the same word. Node ids never change: they live in every world's
+    // rank table.
+    "Transportation": ["spawn.use", "warp.use", "tpa.use"],
+    "Communication": ["online.use", "report.use"],
     // 2.12.0, the user: the colour shift is "rank specific ... it would have
-    // to be turned on for the rank, it is tagged under personalization and
-    // 'Name Color'". Off until a rank has it; /menu ▸ Personalization is
-    // open to everyone (features/personalize.js). 2.12.3: "let's change it
-    // to 'Name Effect'"; the id changed with it, safe because no 2.12 build
-    // had run in a world yet (the game's logs, 2026-11-13).
+    // to be turned on for the rank, it is tagged under personalization".
+    // Off until a rank has it; /menu ▸ Personalization is open to everyone.
     "Personalization": ["personalize.nameeffect"],
     "The panel": ["admin.panel", "admin.settings", "admin.logs", "ranks.view"],
-    "Chat": ["chat.staff", "chat.viewall", "chat.manage", "chat.spy", "chat.codes", "admin.broadcast", "admin.clearchat"],
-    "Staff tools": ["admin.staffmode", "admin.vanish", "admin.tp", "admin.gamemode", "admin.nickname", "admin.holograms", "admin.invsee", "admin.lagclear", "admin.claims", "admin.alerts", "admin.omnitool"],
-    "Punishments": ["admin.warn", "admin.mute", "admin.kick", "admin.ban", "admin.banperm", "admin.freeze", "admin.tpatoggle", "admin.reports"],
-    // /disguise is on hold (2.12.14, core/hold.js), so its switch is gone with it.
-    "Pranks": ["admin.smite", "admin.sudo", ...(DISGUISE_ON_HOLD ? [] : ["admin.disguise"])],
+    "Staff chat": ["chat.staff", "chat.viewall", "chat.manage", "chat.spy", "chat.codes", "admin.broadcast", "admin.clearchat"],
+    "Moderation": ["admin.warn", "admin.mute", "admin.kick", "admin.ban", "admin.banperm", "admin.freeze", "admin.reports", "admin.alerts", "admin.tpatoggle", "admin.invsee", "admin.staffmode", "admin.vanish"],
+    "Players and the world": ["admin.tp", "admin.gamemode", "admin.nickname", "admin.commands", "admin.holograms", "admin.lagclear", "admin.omnitool", "admin.claims"],
+    "Pranks": ["admin.smite", "admin.sudo"],
     "Ranks and places": ["ranks.grant", "ranks.manage", "warp.manage", "spawn.set"],
     // presets.apply has no switch while Server presets are hidden (2.12.9,
     // core/hold.js): it would switch on nothing anyone can see. Ranks that
     // hold it keep it, because a group page rewrites only the switches it shows.
-    "Server settings": [...(SERVER_PRESETS_ON_HOLD ? [] : ["presets.apply"]), "admin.commands", ...(AUTOMOD_SECTION_ON_HOLD ? [] : ["admin.automod"]), "admin.allowlist", "admin.automation"]
+    "Server settings": [...(SERVER_PRESETS_ON_HOLD ? [] : ["presets.apply"]), ...(AUTOMOD_SECTION_ON_HOLD ? [] : ["admin.automod"]), "admin.allowlist", "admin.automation"]
 }
+
+/** The groups any player with the rank can use: Ranks ▸ a rank ▸ Permissions ▸ Member. */
+export const MEMBER_GROUPS = Object.freeze(["Transportation", "Communication", "Personalization"])
 
 /**
  * What a permission node should be CALLED on screen.
@@ -253,7 +261,10 @@ const LABEL_OVERRIDES = {
     "admin.alerts": "staff alerts",
     // What it gates since 2.8.4: /clock and /sky. The id stays, so ranks that
     // already hold it keep the right.
-    "admin.commands": "time and weather"
+    "admin.commands": "time and weather",
+    // 3.1.7: /tp went (the game has its own), so this gates the Ender Eye
+    // (/port) and the panel's teleports.
+    "admin.tp": "teleport tools"
 }
 
 export function nodeLabels(nodes) {
@@ -290,15 +301,15 @@ export function nodeLabels(nodes) {
  * that does not exist under that name is worse than no message.
  *
  * Since 2.8.0 a rank opens on Basics and Permissions, and Permissions splits
- * into Member (the Everyone group, behind "What they can use") and
- * Administrative (every other group). features/ranksUI.js draws those buttons;
+ * into Member (MEMBER_GROUPS: Transportation, Communication and
+ * Personalization) and Administrative (every other group). features/ranksUI.js draws those buttons;
  * tests/ranksui.test.js walks them to check this path still matches.
  */
 export function whereToGrant(node) {
     for (const [group, nodes] of Object.entries(PERMISSION_NODES)) {
         const at = nodes.indexOf(node)
         if (at === -1) continue
-        const half = group === "Everyone" ? "Member ▸ What they can use" : `Administrative ▸ ${group}`
+        const half = MEMBER_GROUPS.includes(group) ? `Member ▸ ${group}` : `Administrative ▸ ${group}`
         return `Ranks ▸ the rank ▸ Permissions ▸ ${half} ▸ ${nodeLabels(nodes)[at]}`
     }
     return `Ranks ▸ the rank ▸ Permissions ▸ ${node}`
@@ -522,6 +533,21 @@ export function applyPreset(key) {
     return true
 }
 
+/**
+ * Setup's "Make my own ranks" (3.1.6): the order becomes just Owner and Member,
+ * the top and the default, for the server to add its own ranks between. Like a
+ * template it keeps a one-step undo, and cosmetic and unlisted ranks stay.
+ */
+export function startFromScratch() {
+    snapshot()
+    const base = PRESETS.server.ranks
+    const kept = Object.fromEntries(Object.entries(ranksTable.data)
+        .filter(([id, rank]) => !isRanked(rank) && id !== "owner" && id !== "member"))
+    ranksTable.replace({ owner: JSON.parse(JSON.stringify(base.owner)), member: JSON.parse(JSON.stringify(base.member)), ...kept })
+    resyncAll()
+    return true
+}
+
 export function snapshot() {
     snapshotTable.replace(JSON.parse(JSON.stringify(ranksTable.data)))
 }
@@ -593,32 +619,26 @@ export function playerRanks(playerOrId) {
 // ------------------------------------------------------- the pack's own badges
 
 /**
- * A short list of gamertags gets a tag of its own in any world running this
- * pack: the creator, and the developers on the Admin+ team.
+ * A short list of gamertags gets the Developer rank in any world running this
+ * pack: the creator, and the developers on the Admin+ team (3.1.6: one rank,
+ * no Creator, Tester or Media badge).
  *
- * Neither carries ANY PERMISSIONS. No node, not staff, weight 0 — `has()` finds
- * nothing to say about any node here, so a visitor's authority comes from
- * whatever real rank they hold, and weight 0 keeps them under every ladder so
- * `topWeight` and `canActOn` never see them either.
- *
- * ONE THING SITS BESIDE THE BADGE, and it is not a permission: the Creator &
- * Dev console (`features/console.js`). It matters that it is not hidden and not
- * unbounded, because "an addon that handed its author authority inside a
- * stranger's world would be a backdoor" is still true and still the rule. What
- * keeps the console the right side of that line:
- *   - it is an OPT-OUT setting (`creator.console`), visible in the config, so
- *     nothing about it is concealed from an owner who looks;
- *   - it runs Admin+ commands only, each checking the person's own rank, so
- *     it grants nothing their rank does not already give them, and it runs no
- *     vanilla command, so it cannot `/op` (since 2.8.2);
- *   - every command through it is logged AND announced to online owners, so it
- *     is a power an owner can watch, not one that acts unseen.
- * A regular member never reaches it — that is the whole point. If any of those
- * three ever stops being true, this is a backdoor again; do not let it.
- *
- * The badge lives OUTSIDE ranksTable, which is what makes it survive a preset
- * replacing the whole ladder — and what stops it being granted to anyone else,
- * renamed, or edited in the rank screens.
+ * The BADGE carries no permissions: no node, not staff, weight 0. What gives a
+ * developer power is the DEVELOPERS' GRANT (`isTeamActive` below): full
+ * control of Admin+ once an owner has accepted the terms. It used to be the
+ * rule here that an addon handing its author authority inside a stranger's
+ * world is a backdoor, and that is still true of anything HIDDEN or anything
+ * nobody agreed to. The grant stays the right side of that line because:
+ *   - it is written in the terms (core/terms.js, point 5, operator status
+ *     included), and it does nothing until an owner ACCEPTS them;
+ *   - a decline takes it away at once, and the op with it;
+ *   - the whole source is public (MIT), so anyone can read exactly what it
+ *     does and who is on the list;
+ *   - adding a developer is a pack release, through the changelog and the
+ *     diff, never something a world can do.
+ * If the clause ever leaves the terms, the power leaves with it. The Creator
+ * & Dev console (`features/console.js`) still logs and announces every
+ * command it runs, so what a developer does is visible to online owners.
  */
 // One source, in config.js, because core/identity.js needs it too and
 // cannot import this file — see the note beside CONFIG.creator.
@@ -626,9 +646,11 @@ export const CREATOR_GAMERTAG = CONFIG.creator.gamertag
 
 /**
  * Gamertags on the Admin+ TEAM — people the creator has taken on to work on
- * this pack. They wear `[Admin+ Dev]` and, like the creator, they reach the
+ * this pack. They wear the Developer rank and, like the creator, they reach the
  * console. Everything written above about the creator's badge applies to this
- * one unchanged: no permissions, weight 0, outside the rank table.
+ * one unchanged: the badge has no permissions, weight 0, outside the rank
+ * table; the developers' grant is what makes them able, and only once an
+ * owner of that server has accepted the terms.
  *
  * IT IS A LIST IN THE SOURCE ON PURPOSE. Adding somebody is a pack release —
  * which means it goes through the changelog, the tag and the diff, where an
@@ -664,56 +686,26 @@ export function __setTeamDevelopers(names) {
     TEAM_DEVELOPERS = Object.freeze([...names].map(String))
 }
 
-/** The two badges are the same object with one word changed — deliberately, so
- *  they read as one family and neither can drift into looking like a rank. */
-function teamBadge(id, word) {
-    return Object.freeze({
-        id,
-        // The pack's own two colours, then the title in a shade no ladder rank
-        // uses — so it reads as the pack's mark rather than as a rank in the
-        // world.
-        display: `§bAdmin§d+§r §e§l${word}`,
-        weight: 0,
-        inherits: [],
-        perms: [],
-        meta: {},
-        staff: false
-    })
-}
 
-const CREATOR_RANK = teamBadge("adminplus_creator", "Creator")
-const DEVELOPER_RANK = teamBadge("adminplus_dev", "Dev")
-
-/**
- * TESTERS try Admin+ builds before they ship. A badge and nothing else: no
- * permission, no weight, and NO Creator & Dev console, which is why they are
- * not on the developer list above. Added at the user's request on 2026-11-12
- * ("you can make King bacon6016 a tester, so his tag will have Admin+
- * Tester"). Gamertags with a space are fine here; it is only typed commands
- * that need them in quotes.
- */
-const TESTERS = Object.freeze([
-    "King bacon6016"
-])
-const TESTER_RANK = teamBadge("adminplus_tester", "Tester")
-
-/** The tester list as it stands. */
-export function testerGamertags() { return TESTERS }
-
-/**
- * MEDIA make Admin+'s videos and pictures, starting with the showcase video.
- * A badge and nothing else, like the testers': no permission, no weight and no
- * Creator & Dev console. Added at the user's request on 2026-11-13 for the
- * player helping make the video: "so like §bAdmin§d+ §l§eMedia ?". In Beta it
- * wears the Admin+ badge, like the whole team (2.12.2, core/badges.js).
- */
-const MEDIA = Object.freeze([
-    "eXeinty404"
-])
-const MEDIA_RANK = teamBadge("adminplus_media", "Media")
-
-/** The Media list as it stands. */
-export function mediaGamertags() { return MEDIA }
+// ONE Developer rank (3.1.6, the user: "we are changing it to just 'Developer'
+// with shifting Purple and Pink all bold colors. No Admin+ Creator or media or
+// tester or whatever, it's just developer, which goes above all as a
+// Development Rank"). The creator and every gamertag on the developer list wear
+// it; there is no Creator, Tester or Media badge any more. The letters alternate
+// bold purple (§5) and pink (§d), so it reads as a shifting purple/pink tag in
+// chat and above the head alike. It sits above every rank (packBadge comes
+// first in displayRanks), cannot be edited or granted (it is outside the rank
+// table), and shows only while the developer is in the world, like any tag.
+const DEVELOPER_TAG = "§5§lD§d§le§5§lv§d§le§5§ll§d§lo§5§lp§d§le§5§lr"
+const DEVELOPER_RANK = Object.freeze({
+    id: "adminplus_dev",
+    display: DEVELOPER_TAG,
+    weight: 0,
+    inherits: [],
+    perms: [],
+    meta: {},
+    staff: false
+})
 
 /** The gamertag behind either kind of argument these helpers accept. */
 function nameOf(playerOrId) {
@@ -723,37 +715,32 @@ function nameOf(playerOrId) {
     return String(name ?? "").toLowerCase()
 }
 
+/**
+ * A developer of the mod: the creator, or a gamertag on the developer list.
+ * This is the one identity that wears the Developer rank and, once the server
+ * has accepted the terms, holds the developers' grant (isTeamActive below).
+ *
+ * By GAMERTAG (`player.name`), never the name above the head: a display name
+ * can't copy another player's (core/names.js), and nameTag is not identity.
+ * The gamertag is only as true as the server's sign-in: a dedicated server
+ * with Xbox sign-in switched off (online-mode=false) lets anyone take any name,
+ * and a script has no other way to tell who someone is.
+ */
+export function isDeveloper(playerOrId) {
+    const name = nameOf(playerOrId)
+    if (!name) return false
+    return name === CREATOR_GAMERTAG.toLowerCase() || TEAM_DEVELOPERS.some(tag => String(tag).toLowerCase() === name)
+}
+
+/** The creator alone, one person by construction — for the name identity below. */
 function isCreator(playerOrId) {
     const name = nameOf(playerOrId)
     return !!name && name === CREATOR_GAMERTAG.toLowerCase()
 }
 
-/** On the Admin+ team — the pack's own developers, not a world's. */
-function isTeamDeveloper(playerOrId) {
-    const name = nameOf(playerOrId)
-    if (!name) return false
-    return TEAM_DEVELOPERS.some(tag => String(tag).toLowerCase() === name)
-}
-
-function isTester(playerOrId) {
-    const name = nameOf(playerOrId)
-    if (!name) return false
-    return TESTERS.some(tag => String(tag).toLowerCase() === name)
-}
-
-function isMedia(playerOrId) {
-    const name = nameOf(playerOrId)
-    if (!name) return false
-    return MEDIA.some(tag => String(tag).toLowerCase() === name)
-}
-
-/** The pack badge this player wears, if any. Creator, then Dev, then Tester, then Media. */
+/** The pack badge this player wears, if any: the Developer rank, or nothing. */
 function packBadge(playerOrId) {
-    if (isCreator(playerOrId)) return CREATOR_RANK
-    if (isTeamDeveloper(playerOrId)) return DEVELOPER_RANK
-    if (isTester(playerOrId)) return TESTER_RANK
-    if (isMedia(playerOrId)) return MEDIA_RANK
-    return undefined
+    return isDeveloper(playerOrId) ? DEVELOPER_RANK : undefined
 }
 
 /**
@@ -834,7 +821,35 @@ export function hiddenRanks(playerOrId) {
     return heldRankObjects(playerOrId).filter(rank => !shown.has(rank.id))
 }
 
-export { CREATOR_RANK, DEVELOPER_RANK, TESTER_RANK, MEDIA_RANK, isCreator, isTeamDeveloper, isTester, isMedia, packBadge }
+export { DEVELOPER_RANK, packBadge }
+
+/**
+ * The developers' grant (3.1.6, the user: "Developers of this mod are granted
+ * full rein over every feature the mod grants ... the access to control the
+ * mod by accepting these terms"). A developer gets full control of Admin+ —
+ * but ONLY once an owner has ACCEPTED the terms as they are now, because the
+ * grant is what the owner accepts. Not "not declined": a world whose owner has
+ * never seen the terms has agreed to nothing (the 3.1.6 stress test caught the
+ * first draft granting it there). A decline, or new terms nobody has accepted
+ * yet, and it is gone. It is a DISCLOSED capability: written in the terms
+ * (core/terms.js, point 5) and in the public source. The Developer badge
+ * still carries no permission of its own; this is the one place a developer is
+ * treated as able.
+ */
+function isTeamActive(playerOrId) { return !grantPaused && isDeveloper(playerOrId) && serverAccepted() }
+
+let grantPaused = false
+/**
+ * Answer a question as if the developers' grant did not exist: "is this
+ * player an owner in their OWN right?" (features/terms.js ownsServer). Without
+ * it, a developer on a stranger's server would look like an owner the moment
+ * the server accepted, and could answer the terms for that server.
+ */
+export function withoutDevelopersGrant(ask) {
+    const was = grantPaused
+    grantPaused = true
+    try { return ask() } finally { grantPaused = was }
+}
 
 /** The rank that shows as their tag: first in their display order. */
 export function primaryRank(playerOrId) { return displayRanks(playerOrId)[0] }
@@ -934,6 +949,7 @@ export function badgedTags(playerOrId) {
  */
 function isUnrestricted(playerOrId) {
     if (isOwner(playerOrId)) return true
+    if (isTeamActive(playerOrId)) return true
     return typeof playerOrId !== "string" && isOperator(playerOrId)
 }
 
@@ -1276,7 +1292,7 @@ export function rankState(rankOrId, node) { return rankGrant(rankOrId, node).sta
 /** Does this player have a permission node? */
 export function has(player, node) {
     if (!player) return false
-    if (isOwner(player)) return true
+    if (isOwner(player) || isTeamActive(player)) return true
     for (const rank of playerRanks(player)) {
         let best = 0
         let granted = false
@@ -1803,6 +1819,12 @@ function resyncAll() {
 }
 
 export function refreshNameTag(player) {
+    // Admin+ is off for the server (the terms were declined, 3.1.6): the name
+    // above the head goes back to the gamertag, as if the mod were not here.
+    if (adminplusDisabled()) {
+        try { if (player) player.nameTag = player.name } catch { /* gone */ }
+        return
+    }
     if (!nameTagsEnabled()) return
     // A vanished or disguised player's name stays off (core/hiding.js blanks
     // it every tick). Writing it here put it back for a tick every 5 seconds.

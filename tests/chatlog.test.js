@@ -75,7 +75,8 @@ console.log("\n— private messages are never in here —")
 // a log that kept them anyway would make that preference a lie.
 const chatSrc = readFileSync(new URL("../Admin+ BP/scripts/features/chat.js", import.meta.url), "utf8")
 const pmSrc = readFileSync(new URL("../Admin+ BP/scripts/features/privatechat.js", import.meta.url), "utf8")
-check("the hook is on the channel funnel", chatSrc.includes("noteChat(sender, message, channel)"), true)
+// 3.1.4: with Chat Moderation's note for the line, when it acted.
+check("the hook is on the channel funnel", chatSrc.includes("noteChat(sender, message, channel, note)"), true)
 check("and private chat never calls it", pmSrc.includes("noteChat"), false)
 
 // It is a SEPARATE table. Sharing the audit log's ring buffer would push every

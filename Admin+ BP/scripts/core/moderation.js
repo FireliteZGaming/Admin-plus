@@ -4,6 +4,7 @@ import { setting } from "./settings.js"
 import { formatDuration } from "./util.js"
 import { CONFIG } from "../config.js"
 import { isVanished } from "./vanish.js"
+import { adminplusDisabled } from "./terms.js"
 
 // Moderation state: bans, mutes, and per-player flags (frozen, TPA closed).
 //
@@ -452,7 +453,10 @@ export function setFrozen(target, frozen) {
 let inputWarned = false
 
 export function applyFrozen(target) {
-    const frozen = getFlag(target, "frozen", false)
+    // Nobody stays frozen while Admin+ is off (3.1.7); features/terms.js
+    // calls this for everyone online when the answer changes, so a freeze
+    // lifts on a decline and holds again on an accept.
+    const frozen = getFlag(target, "frozen", false) && !adminplusDisabled()
     const permissions = target?.inputPermissions
     if (!permissions) return false
 
@@ -527,22 +531,29 @@ export function installModeration() {
 
     world.afterEvents.playerSpawn.subscribe(({ player, initialSpawn }) => {
         if (!initialSpawn) return
-        system.run(async () => {
-            pruneExpired()
-            const record = banRecord(player)
-            if (record) {
-                const removed = await kick(player, banMessage(record))
-                // A banned player still standing here is worth a log line, not
-                // silence — it is the difference between "the ban works" and
-                // "the ban is recorded and doing nothing visible".
-                if (!removed) {
-                    console.warn(`[Admin+] ${player.name} rejoined while banned and could not be removed`)
-                }
-                return
-            }
-            applyFrozen(player)
-        })
+        system.run(() => checkJoin(player))
     })
+}
+
+/** On joining: a banned player is removed, a frozen one held. Exported for tests. */
+export async function checkJoin(player) {
+    pruneExpired()
+    // Admin+ is off (its terms declined, 3.1.7): bans step aside like the
+    // rest, so an owner never has to accept just to let someone back in.
+    // The ban is still on the books and applies again once accepted.
+    const record = adminplusDisabled() ? undefined : banRecord(player)
+    if (record) {
+        const removed = await kick(player, banMessage(record))
+        // A banned player still standing here is worth a log line, not
+        // silence — it is the difference between "the ban works" and
+        // "the ban is recorded and doing nothing visible".
+        if (!removed) {
+            console.warn(`[Admin+] ${player.name} rejoined while banned and could not be removed`)
+        }
+        return "banned"
+    }
+    applyFrozen(player)
+    return "joined"
 }
 
 /** Human-readable state line for the panel. */

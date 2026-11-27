@@ -52,7 +52,6 @@ const BASICS = [
     { cmd: "/r hi back", what: "Reply to whoever messaged you last.", on: "feature.pm" },
     { cmd: "/report Steve griefing", what: "Tell staff about a player. They see it right away.", need: "report.use", on: "feature.reports" },
     { cmd: "/warnings", what: "See if you have any warnings on your record." },
-    { cmd: "/emote waves", what: "Say what you are doing: \"§oSteve waves§r\".", on: "feature.emote" }
 ]
 
 // ------------------------------------------------------------- the help, 2.12.13
@@ -69,10 +68,9 @@ const BASICS = [
 // can run are offered at all.
 
 const TOPICS = [
-    { id: "travel", label: "Getting around", hint: "Spawn, warps, homes, teleports" },
-    { id: "talk", label: "Talking", hint: "Private messages and chat rooms" },
+    { id: "travel", label: "Transportation", hint: "Spawn, warps, homes, teleports" },
+    { id: "talk", label: "Communication", hint: "Messages, chat rooms, reports and warnings" },
     { id: "you", label: "Your things", hint: "Your menu, settings and items" },
-    { id: "rules", label: "Rules and reports", hint: "Reporting players, warnings" },
     { id: "staff", label: "Staff tools", hint: "What your staff tools do" },
     { id: "more", label: "More commands", hint: "Everything else you can use" }
 ]
@@ -96,16 +94,15 @@ const PAGES = [
     { cmd: "praccept", topic: "talk", what: "Say yes to a private chat request.", how: ["/praccept"], words: "private chat yes accept", on: "feature.pm" },
     { cmd: "prdeny", topic: "talk", what: "Say no to a private chat request.", how: ["/prdeny"], words: "private chat no refuse", on: "feature.pm" },
     { cmd: "prexit", topic: "talk", what: "Leave the private chat you are in.", how: ["/prexit"], words: "private chat leave exit stop", on: "feature.pm" },
-    { cmd: "emote", topic: "talk", what: "Say what you are doing, like \"Steve waves\".", how: ["/emote waves"], words: "action me roleplay", on: "feature.emote" },
     { cmd: "chat", topic: "talk", what: "Pick which chat room you talk in.", how: ["/chat"], words: "room channel staff general switch" },
     { cmd: "menu", topic: "you", what: "Your own menu: travel, people, land claims, settings and help.", how: ["/menu"], words: "settings options profile personalize" },
     { cmd: "online", topic: "you", what: "See who else is playing right now.", how: ["/online"], words: "players list who" },
     { cmd: "info", topic: "you", what: "This help.", how: ["/info"], words: "help guide commands" },
-    { cmd: "report", topic: "rules", what: "Tell the staff about a player. They see it right away.", how: ["/report Steve griefing"], words: "grief hack cheat abuse staff complain", on: "feature.reports" },
-    { cmd: "warnings", topic: "rules", what: "See if you have any warnings on your record.", how: ["/warnings"], words: "warn record strikes" },
+    { cmd: "report", topic: "talk", what: "Tell the staff about a player. They see it right away.", how: ["/report Steve griefing"], words: "grief hack cheat abuse staff complain", on: "feature.reports" },
+    { cmd: "warnings", topic: "talk", what: "See if you have any warnings on your record.", how: ["/warnings"], words: "warn record strikes" },
     { cmd: "admin", topic: "staff", what: "The panel, with almost every staff tool.", how: ["/admin"], words: "panel staff tools" },
     { cmd: "mm", topic: "staff", what: "Staff mode: you get your tools and go invisible.", how: ["/mm"], words: "staff mode moderate" },
-    { cmd: "automod", topic: "staff", what: "Automod: bot detection and the possible bots list.", how: ["/automod"], words: "automod bots bot detection spam ads" },
+    { cmd: "automod", topic: "staff", what: "Automod: Bot Guard (Bot Moderation, Detected Bots) and Chat Moderation.", how: ["/automod"], words: "automod bots bot guard bot detection detected bots half-joined spam ads chat moderation harassment hate speech sexual profanity swearing signs" },
     { cmd: "items", topic: "staff", what: "The admin item chest. A locked item says what it needs.", how: ["/items"], words: "tools hammer compass eye" },
     { cmd: "vanish", topic: "staff", what: "Disappear. Nobody sees you or your armour.", how: ["/vanish"], words: "invisible hide" },
     { cmd: "warn", topic: "staff", what: "Put a warning on a player's record.", how: ["/warn Steve spamming"], words: "warning strike" },

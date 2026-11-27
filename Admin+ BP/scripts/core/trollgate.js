@@ -36,11 +36,6 @@ import { has, whereToGrant } from "./ranks.js"
  */
 export const SMITE = "admin.smite"
 export const SUDO = "admin.sudo"
-/**
- * `/disguise` (2.12.8): turn yourself or someone below you into a mob. Its own
- * switch, because it hides who a player is, the way sudo hides who spoke.
- */
-export const DISGUISE = "admin.disguise"
 
 /** May this player use troll tools? Defaults to the harmless half. */
 export function trollAllowed(player, node = SMITE) {

@@ -86,8 +86,9 @@ const GROUPS = [
     },
     {
         id: "server", label: "Server",
-        hint: "< Code > edits, saved setups, warps, spawn, the creator console",
-        prefixes: ["config", "warp", "omni", "automation", "creator", "dev"]
+        hint: "< Code > edits, saved setups, setup and terms, warps, spawn, the creator console",
+        // 3.1.6: setup and Admin+'s terms (features/setup.js, features/terms.js).
+        prefixes: ["config", "warp", "omni", "automation", "creator", "dev", "setup", "terms"]
     },
     {
         id: "reports", label: "Reports",
@@ -400,6 +401,8 @@ export function chatReadLine(entry) {
     const out = [`§8${clockOf(entry.at)} ${tag}${where} §f${entry.name}§7: §r${entry.text}`]
     if (sign && entry.was) out.push(`§8      was "${entry.was}"`)
     if (sign && entry.where) out.push(`§8      ${entry.where}`)
+    // 3.1.4: what Chat Moderation did with it, under the words it acted on.
+    if (entry.mod) out.push(`§c      Chat Moderation: ${entry.mod}${entry.unsent && !sign ? " §8(never reached chat)" : ""}`)
     return out
 }
 

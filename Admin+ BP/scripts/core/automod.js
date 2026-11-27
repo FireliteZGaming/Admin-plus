@@ -217,6 +217,18 @@ export function noteChat(player, now = Date.now()) {
     return undefined
 }
 
+/**
+ * Is this player over the spam line right now? True from the message that
+ * crosses `spamHard` until their ten-second window ends. Chat Moderation
+ * (3.1.4) drops every such line before it's sent: the user, "we could
+ * technically use a method to get rid of it before it actually sends".
+ */
+export function flooding(playerOrId, now = Date.now()) {
+    const id = typeof playerOrId === "string" ? playerOrId : playerOrId?.id
+    const state = chatRates.get(id)
+    return !!state && now - state.since <= 10000 && state.count > config.spamHard()
+}
+
 // ------------------------------------------------------------ spam strikes
 //
 // Typing fast is not spamming, and the difference decides whether anything on

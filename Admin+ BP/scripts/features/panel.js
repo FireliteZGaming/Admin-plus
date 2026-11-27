@@ -22,6 +22,7 @@ import { SERVER_PRESETS_ON_HOLD, AUTOMOD_SECTION_ON_HOLD } from "../core/hold.js
 import { hologramsScreen } from "./holograms.js"
 import { creditsScreen } from "./credits.js"
 import { infoScreen } from "./info.js"
+import { offersSetup, setupScreen, canSetUp } from "./setup.js"
 
 // /admin — the staff panel.
 //
@@ -42,6 +43,17 @@ import { infoScreen } from "./info.js"
 export async function openPanel(player) {
     const again = () => openPanel(player)
     const buttons = []
+
+    // Setup (3.1.6): owners see it first, across both columns, until setup is
+    // done or anything has been changed by hand.
+    if (offersSetup(player)) {
+        buttons.push({
+            text: hubButton("presets", "Set up Admin+", "Four short steps: ranks, automod, everyday commands and chat"),
+            tile: tile("setup", "Set up Admin+", "Ranks, automod, more"),
+            wide: true,
+            run: () => setupScreen(player, again)
+        })
+    }
 
     // Waiting reports go first, and only when there are any.
     const badge = reportsBadge(player)
@@ -140,7 +152,7 @@ function serverButtons(player, back) {
             : null,
         // Hidden, not dropped (2.12.14, core/hold.js): "temp removing automod entirely".
         !AUTOMOD_SECTION_ON_HOLD && has(player, "admin.automod")
-            ? { text: hubButton("settings", "Automod", "Bot detection · the other checks are on hold"), run: () => automodHubScreen(player, back) }
+            ? { text: hubButton("settings", "Automod", "Bot Guard and Chat Moderation"), run: () => automodHubScreen(player, back) }
             : null,
         // The user, 2026-11-12: "we can have our own automation setting under server".
         has(player, "admin.automation")
@@ -192,6 +204,11 @@ async function advancedScreen(player, back) {
                 : null,
             canUseCode(player)
                 ? { text: hubEntry("code", "< Code >", beta ? "Every setting, written as JavaScript" : "Edit every setting as text"), run: () => codeScreen(player, again) }
+                : null,
+            // 3.1.6: the /admin button goes once anything is changed, so setup
+            // always has this way back in, with what's set now filled in.
+            canSetUp(player)
+                ? { text: hubEntry("presets", "Set up again", "Ranks, automod, everyday commands and chat, in four steps"), run: () => setupScreen(player, again) }
                 : null,
             settings && hasOperator(player)
                 ? { text: hubEntry("actions", "Factory reset", "Wipe Admin+ and start over like new"), run: () => factoryResetScreen(player, again) }

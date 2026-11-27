@@ -1,6 +1,7 @@
-import { setting, flag } from "./settings.js"
+import { setting, flag, overrides } from "./settings.js"
 
-// Bot detection (3.0.1): the first part of Automod to come back from hold.
+// Bot Guard (3.0.1 as "bot detection", named Bot Guard in 3.0.3): the first
+// part of Automod to come back from hold.
 // The user, 2026-11-20: "this would fit into automod, as a 'bot detection'
 // and as a /automod command ... you can have it flag you, or you can have it
 // both flag you and kick (or ban) the person ... No Action, Kick, Ban. and it
@@ -13,10 +14,16 @@ import { setting, flag } from "./settings.js"
 // can still post. So the main signal is a join with no first spawn.
 //
 // Two things look the same for a while (the user's warning), and neither can
-// match: a player still loading in, because nothing is judged before
-// `automod.botGrace` seconds; and a dead player on the death screen with
-// instant respawn off, who can't be teleported to either but DID spawn
-// before, so "never spawned" is false for them.
+// match: a player still loading in, because nothing is judged before the
+// level's wait; and a dead player on the death screen with instant respawn
+// off, who can't be teleported to either but DID spawn before, so "never
+// spawned" is false for them.
+//
+// 3.0.3, the user: it works ("i turned it to 60 seconds and it only caught
+// bots"), but "those bots had time to do something". So the wait became a
+// LEVEL, "like for servers or verification": Low for a super laggy server,
+// Medium 60 seconds, High 20 seconds, and Max, "almost instant detection",
+// which is in progress.
 //
 // This file is the thinking and touches no game object; features/bots.js
 // listens, keeps the possible-bot list and acts.
@@ -36,10 +43,41 @@ export const SCORE_STEPS = { stuck: 60, longer: 20, chat: 15, link: 10, name: 5 
 export function botsOn() { return flag("automod.bots") }
 /** Alerts (3.0.2): whether staff are sent each flagged account. Flagging happens either way. */
 export function alertsOn() { return flag("automod.botAlerts") }
-export function graceSeconds() {
-    const n = Number(setting("automod.botGrace"))
-    return Number.isFinite(n) && n >= 30 ? n : 120
+/**
+ * How long a new join has to enter the world before Bot Guard judges it.
+ * Max ("almost instant") is in progress: it needs signs that don't wait for
+ * the clock, so it isn't offered yet.
+ */
+export const LEVELS = [
+    { id: "low", label: "Low", seconds: 120, wait: "2 minutes" },
+    { id: "medium", label: "Medium", seconds: 60, wait: "1 minute" },
+    { id: "high", label: "High", seconds: 20, wait: "20 seconds" }
+]
+const DEFAULT_LEVEL = "medium"
+
+/** The nearest level for a wait in seconds: how a 3.0.1 or 3.0.2 world's wait carries over. */
+export function levelForSeconds(seconds) {
+    const n = Number(seconds)
+    if (!Number.isFinite(n)) return DEFAULT_LEVEL
+    if (n <= 30) return "high"
+    if (n <= 90) return "medium"
+    return "low"
 }
+
+/**
+ * The level in force. A world that set the old wait (`automod.botGrace`,
+ * 3.0.1 and 3.0.2) and no level yet keeps about the same speed; features/bots.js
+ * moves it over once.
+ */
+export function botLevel() {
+    const stored = overrides()
+    const id = stored["automod.botLevel"] === undefined && stored["automod.botGrace"] !== undefined
+        ? levelForSeconds(stored["automod.botGrace"])
+        : String(setting("automod.botLevel") ?? "").trim().toLowerCase()
+    return LEVELS.find(l => l.id === id) ?? LEVELS.find(l => l.id === DEFAULT_LEVEL)
+}
+
+export function graceSeconds() { return botLevel().seconds }
 export function actAt() {
     const n = Number(setting("automod.botActAt"))
     return Number.isFinite(n) ? Math.min(100, Math.max(50, n)) : 80

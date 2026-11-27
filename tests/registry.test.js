@@ -1,6 +1,7 @@
 import { __test, CustomCommandParamType as P } from "@minecraft/server"
 import { __ui } from "@minecraft/server-ui"
 import "../Admin+ BP/scripts/main.js"
+import { acceptTerms } from "../Admin+ BP/scripts/features/terms.js"
 import { commandSpecs, command, defineEnum } from "../Admin+ BP/scripts/core/registry.js"
 import { onPlayerJoin, setRanks, saveRank } from "../Admin+ BP/scripts/core/ranks.js"
 import { NS } from "../Admin+ BP/scripts/config.js"
@@ -180,6 +181,8 @@ const near = makePlayer("reg2", "Nearby", 5)
 const far = makePlayer("reg3", "Faraway", 500)
 saveRank("boss", { display: "§4Boss", weight: 100, staff: true, perms: ["*"] })
 setRanks(me.id, ["boss"], me.name)
+// 3.1.6: an owner accepts Admin+'s terms before using its commands.
+acceptTerms(me)
 
 const buttonsOf = form => form.parts.filter(p => p[0] === "button").map(p => p[1])
 const pick = selection => ({ canceled: false, selection })
@@ -284,7 +287,7 @@ console.log("\n— rule 3: a `rest` argument takes a plain sentence —")
         .filter(spec => [...(spec.mandatory ?? []), ...(spec.optional ?? [])].some(p => p.rest))
         .map(spec => spec.name).sort()
     check("every free-text command takes a sentence", sentences,
-        ["broadcast", "emote", "guestlist", "maintenance", "me", "msg", "mute", "nick", "pm", "r", "sudo"])
+        ["broadcast", "guestlist", "maintenance", "msg", "mute", "nick", "pm", "r", "sudo"])
     check("/broadcast kept its seven words", paramsOf(defOf("broadcast")).length, 8)
 }
 

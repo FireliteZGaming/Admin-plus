@@ -128,9 +128,6 @@ const PHRASES = {
     "mod.warn": t => `Warned ${t}`,
     "mod.unwarn": t => `Took a warning off ${t}`,
     "troll.smite": t => `Smote ${t}`,
-    // /disguise (2.12.8). `d` is the mob's name.
-    "troll.disguise": (t, d) => `Disguised ${t} as ${aOrAn(d)}`,
-    "troll.undisguise": (t, d) => `Turned ${t} back from ${aOrAn(d)}`,
     "mod.freeze": t => `Froze ${t}`,
     "mod.unfreeze": t => `Unfroze ${t}`,
     "mod.tpaClose": t => `Closed ${t}'s TPA`,
@@ -178,9 +175,7 @@ const SELF_PHRASES = {
         if (sameLetters(p || t, d)) return "Changed the look of own name"
         return hadOwnName(p, t) ? `Changed own display name from ${plainName(p)} to ${plainName(d)}` : `Changed own display name to ${plainName(d)}`
     },
-    "name.clear": (t, _d, p) => hadOwnName(p, t) ? `Cleared own display name (was ${plainName(p)})` : "Cleared own display name",
-    "troll.disguise": (_t, d) => `Disguised as ${aOrAn(d)}`,
-    "troll.undisguise": (_t, d) => `Stopped being ${aOrAn(d)}`
+    "name.clear": (t, _d, p) => hadOwnName(p, t) ? `Cleared own display name (was ${plainName(p)})` : "Cleared own display name"
 }
 
 /** "a Creeper", "an Enderman". */

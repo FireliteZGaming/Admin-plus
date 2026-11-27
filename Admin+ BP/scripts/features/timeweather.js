@@ -18,7 +18,7 @@ import { noteExecuted } from "../core/cmdlog.js"
 // `/clock set 1000`. Typed alone, /clock offers all seven as buttons.
 //
 // Who may use them: the rank switch `admin.commands`, shown as "time and
-// weather" (Ranks ▸ a rank ▸ Permissions ▸ Administrative ▸ Server settings).
+// weather" (Ranks ▸ a rank ▸ Permissions ▸ Administrative ▸ Players and the world).
 // The node keeps its old id so ranks that already hold it keep the right.
 
 const P = CustomCommandParamType

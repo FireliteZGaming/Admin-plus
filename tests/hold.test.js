@@ -2,9 +2,8 @@ import { readFileSync, readdirSync } from "node:fs"
 import { __test } from "@minecraft/server"
 import { __ui } from "@minecraft/server-ui"
 import { onPlayerJoin, setRanks, applyPreset } from "../Admin+ BP/scripts/core/ranks.js"
-import { CHAT_AUTOMOD_ON_HOLD, AUTOMOD_ON_HOLD, DISGUISE_ON_HOLD } from "../Admin+ BP/scripts/core/hold.js"
+import { CHAT_AUTOMOD_ON_HOLD, AUTOMOD_ON_HOLD } from "../Admin+ BP/scripts/core/hold.js"
 import { commandSpecs } from "../Admin+ BP/scripts/core/registry.js"
-import "../Admin+ BP/scripts/features/disguise.js"
 import { screen } from "../Admin+ BP/scripts/core/chatfilter.js"
 import { heldCount, clearHeld } from "../Admin+ BP/scripts/core/heldchat.js"
 import { noteChat } from "../Admin+ BP/scripts/core/automod.js"
@@ -61,8 +60,8 @@ console.log("\n— chat automod is on hold —")
 check("the hold is on", CHAT_AUTOMOD_ON_HOLD, true)
 // 2.12.14, the user: "just put a hold on automod and /disguise since those aren't working".
 check("all of automod is on hold too", AUTOMOD_ON_HOLD, true)
-check("and /disguise is on hold", DISGUISE_ON_HOLD, true)
-check("so /disguise isn't a command in game", commandSpecs().some(spec => spec.name === "disguise"), false)
+// 3.1.7, the user: "We also must remove /disguise". Gone, not held.
+check("/disguise isn't a command in game", commandSpecs().some(spec => spec.name === "disguise"), false)
 installChat()
 installAutomod()
 
@@ -84,26 +83,24 @@ check("and a flood mutes nobody", isMuted(member), false)
 check("nor tells them they are typing quickly",
     member.inbox.some(m => clean(m).includes("typing quickly")), false)
 
-console.log("\n— Server ▸ Automod: Chat screening is greyed out —")
+console.log("\n— Server ▸ Automod: two sections; the old screening stays on hold —")
 {
+    // 3.1.4: Chat Moderation took over from the old word-list screening and
+    // chat flooding, whose own paths this hold still keeps shut (core/hold.js),
+    // so the two can never both act. The user: "Bot Guard and Chat Moderation
+    // should be the only 2 ... eventually we will have Anti-cheat".
     __ui.answers.length = 0
     __ui.shown.length = 0
-    __ui.answers.push(press(3))   // 3.0.1: Bot detection, Possible bots, Ore alerts, then Chat screening
+    __ui.answers.push(press(1))   // Bot Guard, then Chat Moderation
     await automodHubScreen(boss, () => {})
     const hub = __ui.shown[0]
-    const buttons = partsOf(hub, "button").map(p => p[1])
-    const screening = buttons.find(text => clean(text).startsWith("Chat screening"))
-    check("the button is still there", !!screening, true)
-    check("in grey", screening?.startsWith("§7Chat screening"), true)
-    check("and it says it is on hold", clean(screening ?? "").includes("On hold"), true)
-    check("the Checks button no longer lists chat flooding",
-        clean(buttons[0]).includes("chat flooding"), false)
-    check("the screen says the other checks are on hold",
-        clean(partsOf(hub, "body")[0]?.[1] ?? "").includes("other checks are on hold"), true)
-    const after = __ui.shown[1]
-    check("pressing it opens no settings: the hub comes back",
-        !!after && partsOf(after, "toggle").length === 0 && partsOf(after, "button").length > 0, true)
-    check("and it says why", boss.inbox.some(m => clean(m).includes("Chat screening is on hold")), true)
+    const buttons = partsOf(hub, "button").map(p => clean(p[1]).split("\n")[0])
+    check("no Chat screening or Ore alerts button any more",
+        buttons.some(text => text.startsWith("Chat screening") || text.startsWith("Ore alerts")), false)
+    check("the hub says Anti-cheat comes later", clean(partsOf(hub, "body")[0]?.[1] ?? "").includes("Anti-cheat comes later"), true)
+    const page = __ui.shown[1]
+    check("Chat Moderation opens its own page: Settings, Test a message, Held messages",
+        partsOf(page, "button").map(p => clean(p[1]).split("\n")[0].replace(/ \(\d+\)$/, "")), ["Settings", "Test a message", "Held messages", "< Back"])
 }
 {
     __ui.answers.length = 0

@@ -49,9 +49,10 @@ const lastSaid = () => (said.at(-1) ?? "").replace(/§./g, "")
 const titleOf = form => (form.parts.find(p => p[0] === "title")?.[1] ?? "").replace(/§./g, "")
 const shownSince = from => __ui.shown.slice(from).map(titleOf)
 const CREATE = press(1), BACK = press(0)
-const BASICS = PERMISSION_NODES.Everyone
+// What every player can use: the two member groups with switches that start on (3.1.7).
+const BASICS = [...PERMISSION_NODES.Transportation, ...PERMISSION_NODES.Communication]
 // What any player's rank can be given: the basics and, since 2.12.0, Personalization.
-const MEMBER_SECTIONS = ["Everyone", "Personalization"]
+const MEMBER_SECTIONS = ["Transportation", "Communication", "Personalization"]
 /** The places a new rank can go for Boss: every rank below theirs, as the form lists them. */
 const places = () => ladder().filter(r => (r.weight ?? 0) < topWeight(boss))
 const above = id => places().findIndex(r => r.id === id)
@@ -114,7 +115,7 @@ console.log("\n— the steps say what they ask —")
     const perms = __ui.shown[from + 1]
     check("the basics start on, from the new players' rank",
         perms.parts.filter(p => p[0] === "toggle").map(p => p[2]?.defaultValue), [...BASICS.map(() => true), ...PERMISSION_NODES.Personalization.map(() => false)])
-    check("under a section title", perms.parts.find(p => p[0] === "label")?.[1], "§lWhat they can use")
+    check("under a section title", perms.parts.find(p => p[0] === "label")?.[1], "§lTransportation")
     check("its button says Continue", perms.parts.find(p => p[0] === "submit")?.[1], "Continue")
     const place = __ui.shown[from + 2]
     const choices = place.parts.find(p => p[0] === "dropdown")
@@ -200,7 +201,7 @@ console.log("\n— a staff rank picked switch by switch —")
         shownSince(from).slice(0, 5), ["Admin+ | New rank", "Admin+ | Template", "Admin+ | Permissions · Warden", "Admin+ | Where it goes", "Admin+ | Create this rank?"])
     const list = __ui.shown[from + 2]
     check("every section is on one form, a title each",
-        partsOf(list, "label"), Object.keys(PERMISSION_NODES).map(g => `§l${g === "Everyone" ? "What they can use" : g}`))
+        partsOf(list, "label"), Object.keys(PERMISSION_NODES).map(g => `§l${g}`))
     check("split by dividers", list.parts.filter(p => p[0] === "divider").length, Object.keys(PERMISSION_NODES).length - 1)
     check("with a switch for every permission", list.parts.filter(p => p[0] === "toggle").length, Object.values(PERMISSION_NODES).flat().length)
     check("it gets exactly the switches turned on", getRank("warden")?.perms, picked)
@@ -449,13 +450,13 @@ console.log("\n— \"switch it on here\" names the real buttons —")
 {
     const at = "Ranks ▸ the rank ▸ Permissions ▸ "
     check("a prank node", whereToGrant("admin.smite"), `${at}Administrative ▸ Pranks ▸ smite`)
-    check("a punishment node", whereToGrant("admin.banperm"), `${at}Administrative ▸ Punishments ▸ banperm`)
-    check("the switch for /clock and /sky", whereToGrant("admin.commands"), `${at}Administrative ▸ Server settings ▸ time and weather`)
-    check("an everyday node sits under Member", whereToGrant("warp.use"), `${at}Member ▸ What they can use ▸ warp`)
+    check("a moderation node", whereToGrant("admin.banperm"), `${at}Administrative ▸ Moderation ▸ banperm`)
+    check("the switch for /clock and /sky", whereToGrant("admin.commands"), `${at}Administrative ▸ Players and the world ▸ time and weather`)
+    check("an everyday node sits under Member", whereToGrant("warp.use"), `${at}Member ▸ Transportation ▸ warp`)
     check("a node nobody lists still gets an answer", whereToGrant("made.up"), `${at}made.up`)
     for (const [group, nodes] of Object.entries(PERMISSION_NODES)) {
         const labels = nodeLabels(nodes)
-        const half = group === "Everyone" ? "Member ▸ What they can use" : `Administrative ▸ ${group}`
+        const half = MEMBER_SECTIONS.includes(group) ? `Member ▸ ${group}` : `Administrative ▸ ${group}`
         const wrong = nodes.filter((n, i) => whereToGrant(n) !== `${at}${half} ▸ ${labels[i]}`)
         check(`${group}: every node points at its button`, wrong, [])
     }
@@ -470,8 +471,8 @@ console.log("\n— \"switch it on here\" names the real buttons —")
     }
     __ui.answers.push(press(await permissionsAt("member")), press(0))
     await rankScreen(boss, "member", () => {})
-    check("Permissions ▸ Member opens on What they can use",
-        partsOf(lastForm(), "button")[0].includes("What they can use"), true)
+    check("Permissions ▸ Member opens on Transportation",
+        partsOf(lastForm(), "button")[0].includes("Transportation"), true)
     // A staff rank ▸ Permissions ▸ Administrative:
     __ui.answers.push(press(await permissionsAt("mod")), press(1))
     await rankScreen(boss, "mod", () => {})

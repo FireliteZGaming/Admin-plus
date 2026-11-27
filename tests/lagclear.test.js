@@ -1,12 +1,13 @@
 import { __test, world, ItemStack } from "@minecraft/server"
 import { __ui } from "@minecraft/server-ui"
 import "../Admin+ BP/scripts/main.js"
+import { acceptTerms } from "../Admin+ BP/scripts/features/terms.js"
 import { onPlayerJoin, applyPreset, setRanks } from "../Admin+ BP/scripts/core/ranks.js"
 import { setSetting, resetSetting } from "../Admin+ BP/scripts/core/settings.js"
 import {
     judge, stackSignature, planMerges, hotspots, planMobLimit, speedFrom, shouldAutoClear, AUTO_GAP_MS, removableTypes, describeTally,
     noteSeen, noteDeath, shieldIfDeathDrop, isShielded, costOf, HIDDEN_DATA_ITEMS, __resetCleanup,
-    keepsHiddenData, shieldTag, forgetMissing, setSeen, nextSlowLevel
+    keepsHiddenData, shieldTag, forgetMissing, setSeen, nextSlowLevel, mobCap, autoAt, AUTO_SLOW_CLUTTER, clearPlan
 } from "../Admin+ BP/scripts/core/cleanup.js"
 import { runClear, bringBack, undoCount, autoCheck, speed, __tickTimes, __cleanupState } from "../Admin+ BP/scripts/features/cleanup.js"
 import { NS } from "../Admin+ BP/scripts/config.js"
@@ -86,6 +87,8 @@ const staff = {
 __test.players.push(staff)
 onPlayerJoin(staff)
 setRanks(staff.id, ["owner"], "Staff")
+// 3.1.6: an owner accepts Admin+'s terms before using its commands.
+acceptTerms(staff)
 
 const overworld = fakeDimension("minecraft:overworld")
 const realGetDimension = world.getDimension
@@ -304,15 +307,26 @@ console.log("\n— the mob limit, when it's set —")
     for (const e of [...overworld.list]) e.remove()
 }
 
-console.log("\n— /lagclear opens a menu, /lagcheck a report —")
+console.log("\n— /lagclear opens the levels, /lagcheck a report —")
 {
     addMob(overworld, "minecraft:villager_v2", { x: 200, y: 64, z: 200 })
     __ui.shown.length = 0; __ui.answers.length = 0
     __test.invoke(full("lagclear"), staff)
     await settle()
-    const names = buttonsOf(__ui.shown[0])
-    check("the menu is titled Lag clear", titleOf(__ui.shown[0]).includes("Lag clear"), true)
-    check("with the main choices", ["Clear now", "Merge only", "Busiest places"].every(n => names.some(b => b.startsWith(n))), true)
+    const form = __ui.shown[0]
+    const drop = (form?.parts ?? []).find(p => p[0] === "dropdown")
+    check("the form is titled Lag clear", titleOf(form).includes("Lag clear"), true)
+    // 3.0.3, the user: "a high lag clear, or a minor lag clear or like in
+    // between", then "Have it be a dropdown instead then you press submit".
+    check("one dropdown: Minor, Medium, High, then Bring back while there's something to bring back", (drop?.[2] ?? []).map(o => plain(o).split(" (")[0]),
+        ["Minor lag clear", "Medium lag clear", "High lag clear", "Bring back the last clear"])
+    check("it starts on Medium, the clear that runs by itself", drop?.[3]?.defaultValueIndex, 1)
+    const text = plain((form?.parts ?? []).find(p => p[0] === "label")?.[1])
+    check("and the text says what each level takes", [
+        "Minor: drops and XP (",
+        "Medium: drops, XP, arrows and mobs down to 20 of a kind per chunk (",
+        "High: all clutter, falling blocks too and mobs down to 10 of a kind per chunk ("
+    ].map(s => text.includes(s)), [true, true, true])
     __ui.shown.length = 0; __ui.answers.length = 0
     __test.invoke(full("lagcheck"), staff)
     await settle()
@@ -320,6 +334,85 @@ console.log("\n— /lagclear opens a menu, /lagcheck a report —")
     check("/lagcheck opens Busiest places", titleOf(report).includes("Busiest places"), true)
     check("which names the busiest chunk and what's in it", buttonsOf(report).some(b => b.includes("Overworld 200, 200") && b.includes("villager")), true)
     check("and says a tick every N ms, not N ms a tick (3.0.0)", plain(JSON.stringify(report.parts)).includes("A tick every"), true)
+    check("and Clear now, which opens the levels", buttonsOf(report).some(b => b.startsWith("Clear now")), true)
+    for (const e of [...overworld.list]) e.remove()
+}
+
+console.log("\n— what each level takes —")
+{
+    check("Minor: dropped items and XP orbs, no mobs", clearPlan("minor"), { groups: ["items", "xp"], cap: 0 })
+    check("Medium: the lag clear settings, as a clear by itself", clearPlan("medium"), { groups: ["items", "xp", "projectiles"], cap: 20 })
+    check("High: every group, and mobs down to half the limit", clearPlan("high"), { groups: ["items", "xp", "projectiles", "fallingBlocks"], cap: 10 })
+    setSetting("cleanup.xp", "false")
+    setSetting("cleanup.mobCap", "0")
+    check("a group switched off stays off for Minor and Medium", [clearPlan("minor").groups, clearPlan("medium").groups], [["items"], ["items", "projectiles"]])
+    check("with the mob limit off, Medium leaves mobs and High still thins them to 10", [clearPlan("medium").cap, clearPlan("high").cap], [0, 10])
+    resetSetting("cleanup.xp")
+    resetSetting("cleanup.mobCap")
+}
+
+console.log("\n— a clear takes only what its level takes —")
+{
+    const addThing = (dim, typeId, at) => {
+        const e = {
+            id: `th${eid++}`, typeId, location: { ...at }, dimension: dim, isValid: true,
+            getTags: () => [], addTag: () => true, getComponent: () => undefined,
+            remove() { e.isValid = false; const i = dim.list.indexOf(e); if (i >= 0) dim.list.splice(i, 1) }
+        }
+        dim.list.push(e)
+        noteSeen(e.id, Date.now() - 10 * 60 * 1000)
+        return e
+    }
+    const count = type => overworld.list.filter(e => e.typeId === type).length
+    const scatter = () => {
+        for (let i = 0; i < 3; i++) addItem(overworld, stackOf("minecraft:dirt", 1), { x: 400 + i * 20, y: 64, z: 400 })
+        for (let i = 0; i < 4; i++) addThing(overworld, "minecraft:xp_orb", { x: 450 + i * 20, y: 64, z: 450 })
+        for (let i = 0; i < 2; i++) addThing(overworld, "minecraft:arrow", { x: 470 + i * 20, y: 64, z: 470 })
+    }
+    for (let i = 0; i < 30; i++) addMob(overworld, "minecraft:cow", { x: 500, y: 64, z: 500 })
+    addThing(overworld, "minecraft:falling_block", { x: 520, y: 70, z: 520 })
+    // Pick from the dropdown and Submit: 0 Minor, 1 Medium, 2 High, 3 Bring back.
+    const press = async n => {
+        __ui.shown.length = 0; __ui.answers.length = 0
+        __ui.answers.push({ canceled: false, formValues: [undefined, n] })
+        __test.timers.length = 0
+        __test.invoke(full("lagclear"), staff)
+        await settle()
+        drain()
+    }
+    scatter()
+    await press(0)
+    check("Minor: the drops and XP orbs go", [items(overworld).length, count("minecraft:xp_orb")], [0, 0])
+    check("but the arrows, the cows and the falling block stay", [count("minecraft:arrow"), count("minecraft:cow"), count("minecraft:falling_block")], [2, 30, 1])
+    scatter()
+    await press(1)
+    check("Medium: drops, XP orbs and arrows go", [items(overworld).length, count("minecraft:xp_orb"), count("minecraft:arrow")], [0, 0, 0])
+    check("the cows come down to 20, and the falling block stays", [count("minecraft:cow"), count("minecraft:falling_block")], [20, 1])
+    await press(2)
+    check("High: the cows come down to 10, and the falling block goes too", [count("minecraft:cow"), count("minecraft:falling_block")], [10, 0])
+    await press(3)
+    check("Bring back, from the same dropdown, puts the cleared drops back", items(overworld).length > 0, true)
+    for (const e of [...overworld.list]) e.remove()
+}
+
+console.log("\n— 3.0.3: the mob limit is on, the farthest go first, and mobs count —")
+{
+    // The user: "simplify things on lag clear, so it actually clears lag".
+    check("on out of the box at 20 of a kind per chunk", mobCap(), 20)
+    check("clears by itself at 500 things, not 1,500", autoAt(), 500)
+    check("or on a server slow for a minute with at least 100 to clear, not 300", AUTO_SLOW_CLUTTER, 100)
+    const herd = Array.from({ length: 4 }, (_, i) => ({ id: `cow${i}`, dimension: "minecraft:overworld", x: i * 4, z: 0, typeId: "minecraft:cow", keep: false }))
+    check("four cows, a limit of two: the two farthest from the player go", planMobLimit(herd, 2, [{ dimension: "minecraft:overworld", x: 0, z: 0 }]).sort(), ["cow2", "cow3"])
+    check("with nobody in that dimension it still thins them", planMobLimit(herd, 2, [{ dimension: "minecraft:nether", x: 0, z: 0 }]).length, 2)
+    // A chicken farm with no drops at all can start a clear by itself now.
+    setSetting("cleanup.autoAt", "50")
+    for (let i = 0; i < 80; i++) addMob(overworld, "minecraft:chicken", { x: 300, y: 64, z: 300 })
+    __test.timers.length = 0
+    __cleanupState().lastAuto = 0
+    check("80 chickens in one chunk and no drops: it clears by itself", autoCheck(Date.now()).why, "clutter")
+    drain()
+    check("and leaves 20", overworld.list.filter(e => e.typeId === "minecraft:chicken").length, 20)
+    resetSetting("cleanup.autoAt")
     for (const e of [...overworld.list]) e.remove()
 }
 

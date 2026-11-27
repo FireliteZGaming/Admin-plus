@@ -6,15 +6,16 @@ import { has } from "../core/ranks.js"
 import { isFrozen } from "../core/moderation.js"
 import { flag } from "../core/settings.js"
 import { Table } from "../core/storage.js"
-import { menu, subtitle } from "../core/ui.js"
+import { menu, modal, subtitle, INCOMPLETE } from "../core/ui.js"
 import { hubTitle } from "../core/theme.js"
 import { serializeStack, buildStack } from "../core/staffmode.js"
 import {
-    judge, tally, describeTally, kindOf, kindName, removableTypes, activeGroups, warnSeconds, keptReasons,
+    judge, tally, describeTally, kindOf, kindName, removableTypes, warnSeconds, keptReasons,
     noteSeen, noteDeath, shieldIfDeathDrop, isShielded, forgetMissing, safeStack, stackSignature, planMerges,
     hotspots, dimensionName, planMobLimit, MOB_LIMIT_TYPES, mobCap, speedFrom, shouldAutoClear,
-    ageOf, minAgeSeconds, shieldTag, shieldUntil, tagShieldUntil, nextSlowLevel
+    ageOf, minAgeSeconds, shieldTag, shieldUntil, tagShieldUntil, nextSlowLevel, GROUPS, CLEAR_LEVELS, clearPlan
 } from "../core/cleanup.js"
+import { adminplusDisabled } from "../core/terms.js"
 
 // /clearchat, /lagclear and /lagcheck.
 //
@@ -29,13 +30,25 @@ import {
 //      per tick, so a big clear can't cause the lag spike it is meant to cure
 //   4. every removed item is written down, so "Bring back the last clear" can
 //      put it back where it was
-//   5. an optional mob limit thins out farm animals and monsters per chunk
+//   5. the mob limit thins out farm animals and monsters per chunk, the
+//      farthest from players first
 //
 // Behind it, all the time: a tick timer (real ticks per second), item ages from
 // the spawn event, and death drops shielded for a few minutes. With
 // "Clear by itself" on, it gathers quietly when items pile up and clears, with
-// a countdown, when clutter passes the limit or the server is slow and clutter
-// is there to blame; never more than once in five minutes.
+// a countdown, when clutter and extra mobs pass the limit or the server is
+// slow and there's something to blame; never more than once in five minutes.
+//
+// 3.0.3, the user: "simplify things on lag clear, so it actually clears lag".
+// They chose: clear mobs too (the limit is on, 20 of a kind per chunk), clear
+// by itself sooner (500 things, or 100 on a slow server, mobs counted), and a
+// simpler /lagclear. The same day a list of toggles and then a menu of level
+// buttons were tried; the user settled it: "it should go back to normal, but
+// in a level scale, you can do a high lag clear, or a minor lag clear or like
+// in between", then "Have it be a dropdown instead then you press submit.
+// Toggles are too weird". So /lagclear is one dropdown: Minor, Medium, High
+// (core/cleanup.js clearPlan), and Bring back the last clear. Merging always
+// happens now when dropped items are taken; it was a switch.
 
 const DIMENSIONS = ["minecraft:overworld", "minecraft:nether", "minecraft:the_end"]
 
@@ -91,9 +104,8 @@ function dimensions() {
     return out
 }
 
-/** Everything the current settings would even consider removing. */
-function clutter() {
-    const types = removableTypes()
+/** Every entity of these types: by default, what the lag clear settings would even consider removing. */
+function clutter(types = removableTypes()) {
     const found = []
     for (const dimension of dimensions()) {
         for (const type of types) {
@@ -254,14 +266,14 @@ export function undoCount() { return undo.get("last")?.items?.length ?? 0 }
  * brought back. Re-judged at the moment of removal: something may have been
  * picked up or named since.
  */
-function removeAll(entities, by, done, meter) {
+function removeAll(entities, by, done, meter, types = removableTypes()) {
     const saved = []
     const removed = []
     const clearAt = Date.now().toString(36)
     const tenth = n => Math.round(n * 10) / 10
     inBatches(entities, REMOVE_PER_TICK, entity => {
         if (entity.isValid === false) return
-        if (!judge(entity).remove) return
+        if (!judge(entity, Date.now(), types).remove) return
         if (entity.typeId === "minecraft:item") {
             const stack = safeStack(entity)
             const at = where(entity)
@@ -277,26 +289,50 @@ function removeAll(entities, by, done, meter) {
     }, () => done({ removed, back: saved.length ? storeUndo(saved, by) : undoCount() }), meter)
 }
 
-/** The optional mob limit (cleanup.mobCap), a batch per tick. Calls done(how many went). */
-function thinMobs(done, meter) {
-    const cap = mobCap()
-    if (!cap) return done(0)
-    const mobs = []
-    const byId = new Map()
+/**
+ * The mobs over the limit (cleanup.mobCap), farthest from players first:
+ * `{ plan: [ids], byId }`. Only a crowded chunk's mobs are looked at closely,
+ * because keepsMob reads several components per mob.
+ */
+function crowdedMobs(cap = mobCap()) {
+    const none = { plan: [], byId: new Map() }
+    if (!cap) return none
+    const found = []
+    const counts = new Map()
     for (const dimension of dimensions()) {
         for (const type of MOB_LIMIT_TYPES) {
-            let found = []
-            try { found = dimension.getEntities({ type }) } catch { continue }
-            for (const mob of found) {
+            let mobs = []
+            try { mobs = dimension.getEntities({ type }) } catch { continue }
+            for (const mob of mobs) {
                 const at = where(mob)
                 if (!at) continue
-                byId.set(mob.id, mob)
-                mobs.push({ id: mob.id, ...at, typeId: mob.typeId, keep: keepsMob(mob) })
+                const key = `${at.dimension}|${Math.floor(at.x / 16)}|${Math.floor(at.z / 16)}|${mob.typeId}`
+                counts.set(key, (counts.get(key) ?? 0) + 1)
+                found.push({ mob, at, key })
             }
         }
     }
+    const byId = new Map()
+    const crowded = []
+    for (const { mob, at, key } of found) {
+        if (counts.get(key) <= cap) continue
+        byId.set(mob.id, mob)
+        crowded.push({ id: mob.id, ...at, typeId: mob.typeId, keep: keepsMob(mob) })
+    }
+    if (!crowded.length) return none
+    const players = []
+    for (const p of world.getAllPlayers()) {
+        try { players.push({ dimension: p.dimension.id, x: p.location.x, z: p.location.z }) } catch { /* left */ }
+    }
+    return { plan: planMobLimit(crowded, cap, players), byId }
+}
+
+/** The mob limit, a batch per tick. Calls done(how many went). */
+function thinMobs(done, meter, cap = mobCap()) {
+    const { plan, byId } = crowdedMobs(cap)
+    if (!plan.length) return done(0)
     let gone = 0
-    inBatches(planMobLimit(mobs, cap), REMOVE_PER_TICK, id => {
+    inBatches(plan, REMOVE_PER_TICK, id => {
         const mob = byId.get(id)
         if (!mob || mob.isValid === false) return
         mob.remove()
@@ -324,47 +360,58 @@ function keepsMob(mob) {
     return false
 }
 
+/** "dropped items, XP orbs and crowded mobs" */
+function listWords(words) {
+    return words.length > 1 ? `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}` : words.join("")
+}
+
 /**
  * The whole clear: countdown, gather, remove, mob limit, report.
- * @param {{by?: object, seconds?: number, busiest?: boolean, why?: string}} options
+ * `level` is how hard it goes (CLEAR_LEVELS); a clear by itself is medium,
+ * which is the lag clear settings.
+ * @param {{by?: object, seconds?: number, why?: string, level?: string}} options
  */
-export function runClear({ by, seconds = warnSeconds(), busiest = false, why } = {}) {
+export function runClear({ by, seconds = warnSeconds(), why, level = "medium" } = {}) {
     if (state.running) {
         if (by?.sendMessage) info(by, "§7A lag clear is already running.")
         return false
     }
-    if (!activeGroups().length) {
-        if (by?.sendMessage) err(by, "Every cleanup group is switched off, so nothing would be removed.")
+    const { groups: picked, cap } = clearPlan(level)
+    const types = picked.flatMap(id => GROUPS[id].types)
+    if (!types.length && !cap) {
+        if (by?.sendMessage) err(by, `A ${level} lag clear would take nothing with the lag clear settings as they are.`)
         return false
     }
     state.running = true
-    const label = busiest ? "dropped items in the busiest places" : "dropped items and clutter"
+    const label = listWords([...picked.map(id => GROUPS[id].words), ...(cap ? ["crowded mobs"] : [])])
 
+    // Admin+ turned off during the countdown (its terms declined): stop.
+    const stopped = () => {
+        if (!adminplusDisabled()) return false
+        state.running = false
+        if (by?.sendMessage) info(by, "§7Admin+ was turned off, so the lag clear stopped.")
+        return true
+    }
     const clear = () => {
+        if (stopped()) return
         const meter = { ms: 0 }
         const started = Date.now()
         const tpsBefore = speed().tps
-        let candidates = clutter()
-        if (busiest) {
-            const spots = new Set(hotspots(candidates.map(e => ({ ...where(e), typeId: e.typeId, isMob: false })).filter(e => e.dimension), 3)
-                .map(s => `${s.dimension}|${s.cx}|${s.cz}`))
-            candidates = candidates.filter(e => {
-                const at = where(e)
-                return at && spots.has(`${at.dimension}|${Math.floor(at.x / 16)}|${Math.floor(at.z / 16)}`)
-            })
-        }
-        const kept = keptReasons(candidates)
-        const going = candidates.filter(e => judge(e).remove)
+        const candidates = clutter(types)
+        const kept = keptReasons(candidates, Date.now(), types)
+        const going = candidates.filter(e => judge(e, Date.now(), types).remove)
         meter.ms += Date.now() - started
-        removeAll(going, by, result => thinMobs(mobs => {
+        removeAll(going, by, result => thinMobs(mobsGone => {
             state.running = false
-            report(by, { removed: result.removed, back: result.back, kept, mobs, why, ms: meter.ms, tpsBefore })
-        }, meter), meter)
+            report(by, { removed: result.removed, back: result.back, kept, mobs: mobsGone, why, ms: meter.ms, tpsBefore, level })
+        }, meter, cap), meter, types)
     }
 
+    // Merging moves drops, so it only happens when dropped items are taken.
     const afterCountdown = () => {
-        if (!flag("cleanup.merge")) return clear()
-        gather(() => system.runTimeout(clear, SETTLE_TICKS))
+        if (stopped()) return
+        if (picked.includes("items")) gather(() => system.runTimeout(clear, SETTLE_TICKS))
+        else clear()
     }
 
     if (seconds <= 0) { afterCountdown(); return true }
@@ -376,7 +423,7 @@ export function runClear({ by, seconds = warnSeconds(), busiest = false, why } =
     return true
 }
 
-function report(by, { removed, back, kept, mobs, why, ms = 0, tpsBefore }) {
+function report(by, { removed, back, kept, mobs, why, ms = 0, tpsBefore, level = "medium" }) {
     const counts = tally(removed, { amounts: true })
     const total = removed.length + mobs
     const keptTotal = Object.values(kept).reduce((a, b) => a + b, 0)
@@ -392,7 +439,7 @@ function report(by, { removed, back, kept, mobs, why, ms = 0, tpsBefore }) {
     }
     const actor = by?.id ? by : AUTOMATIC
     record(actor, "admin.lagclear", undefined,
-        `${total} removed · ${describeTally(counts)}${mobs ? ` · ${mobs} mobs` : ""}${why ? ` · automatic (${why === "slow" ? "server slow" : "clutter"})` : ""} · ${ms} ms`)
+        `${level} clear · ${total} removed ·${describeTally(counts)}${mobs ? ` · ${mobs} mobs` : ""}${why ? ` · automatic (${why === "slow" ? "server slow" : "clutter"})` : ""} · ${ms} ms`)
     // Did it help? The speed a minute later goes on /lagcheck beside the cost.
     const entry = { at: Date.now(), total, ms, tpsBefore, tpsAfter: undefined }
     lastClear = entry
@@ -445,38 +492,64 @@ function speedWords(tps) {
     return "§cstruggling"
 }
 
-async function lagMenu(player) {
-    const sp = speed()
-    const found = clutter()
-    const clearable = found.filter(e => judge(e).remove).length
-    const back = undoCount()
-    const again = () => lagMenu(player)
-    return menu(player, {
-        title: hubTitle("settings", "Lag clear"),
-        body: subtitle([
-            `Server speed: §f${sp.tps}§7 ticks a second (${speedWords(sp.tps)}§7).`,
-            `§f${found.length}§7 dropped items and clutter loaded, §f${clearable}§7 clearable now.`,
-            "§8Never cleared: named, enchanted or valuable items, what someone just dropped, and death drops for a few minutes."
-        ].join("\n")),
-        buttons: [
-            { text: "§cClear now§r\n§8Countdown, merge, then clear", run: () => runClear({ by: player }) },
-            { text: "§aMerge only§r\n§8Full stacks, nothing is lost", run: () => mergeOnly(player) },
-            { text: "§eClear the busiest places only§r\n§8Where the clutter piles up", run: () => runClear({ by: player, busiest: true }) },
-            { text: "§fBusiest places§r\n§8Where the load is, and what it is", run: () => lagReport(player, again) },
-            back ? { text: `§bBring back the last clear§r\n§8${back} stacks, where they were`, run: () => bringBack(player) } : null
-        ].filter(Boolean)
-    })
+const LEVEL_NAMES = { minor: "Minor", medium: "Medium", high: "High" }
+
+/** "drops, XP, arrows and mobs down to 20 of a kind per chunk" */
+function levelWords(level, groups, cap) {
+    const parts = level === "high" ? ["all clutter, falling blocks too"] : groups.map(id => GROUPS[id].short)
+    if (cap) parts.push(`mobs down to ${cap} of a kind per chunk`)
+    return parts.length ? listWords(parts) : "nothing, with the lag clear settings as they are"
 }
 
-function mergeOnly(player) {
-    const before = clutter().filter(e => e.typeId === "minecraft:item").length
-    gather(moved => system.runTimeout(() => {
-        const after = clutter().filter(e => e.typeId === "minecraft:item").length
-        ok(player, moved
-            ? `Merged §f${before}§a dropped items into §f${after}§a. Nothing was lost.`
-            : "Nothing to merge: no piles of the same item.")
-        if (moved) record(player, "admin.lagclear", undefined, `merged ${before} into ${after}`)
-    }, SETTLE_TICKS))
+/**
+ * /lagclear (3.0.3): one dropdown, then Submit. The user: "a high lag clear,
+ * or a minor lag clear or like in between", then "Have it be a dropdown
+ * instead then you press submit ... it's best if you make this judgement
+ * call". The choices are the three levels and, when there's something to
+ * bring back, Bring back the last clear. It starts on Medium, the clear that
+ * runs by itself, and the text above says what each level takes and how many
+ * that is now.
+ */
+async function lagForm(player, back) {
+    const sp = speed()
+    const now = Date.now()
+    const counts = {}
+    for (const id of Object.keys(GROUPS)) counts[id] = clutter(GROUPS[id].types).filter(e => judge(e, now, GROUPS[id].types).remove).length
+    const crowdedAt = new Map()
+    const extraMobs = cap => {
+        if (!cap) return 0
+        if (!crowdedAt.has(cap)) crowdedAt.set(cap, crowdedMobs(cap).plan.length)
+        return crowdedAt.get(cap)
+    }
+    const lines = CLEAR_LEVELS.map(level => {
+        const { groups, cap } = clearPlan(level)
+        const total = groups.reduce((sum, id) => sum + counts[id], 0) + extraMobs(cap)
+        return `§f${LEVEL_NAMES[level]}§7: ${levelWords(level, groups, cap)} §8(${total} now)§7.${level === "medium" ? " It's the clear that runs by itself." : ""}`
+    })
+    const stacks = undoCount()
+    const choices = [
+        ...CLEAR_LEVELS.map(level => ({ id: level, label: `${LEVEL_NAMES[level]} lag clear` })),
+        ...(stacks ? [{ id: "back", label: `Bring back the last clear (${stacks} stacks)` }] : [])
+    ]
+    const values = await modal(player, hubTitle("settings", "Lag clear"), [
+        {
+            type: "label", label: [
+                `§7Server speed: §f${sp.tps}§7 ticks a second (${speedWords(sp.tps)}§7).`,
+                ...lines,
+                "§8Never cleared, at any level: named, enchanted or valuable items, fresh drops, death drops for a few minutes, and named, tamed or leashed mobs and villagers. Where the load is: /lagcheck."
+            ].join("\n")
+        },
+        { id: "what", type: "dropdown", label: "What to do", options: choices.map(c => c.label), default: CLEAR_LEVELS.indexOf("medium") }
+    ], { strict: true })
+    if (!values) return back?.()
+    if (values === INCOMPLETE) {
+        err(player, "Your choice didn't come back from the game, so nothing was cleared. Try again.")
+        return back?.()
+    }
+    const choice = choices[values.what]
+    if (!choice) return back?.()
+    if (choice.id === "back") return bringBack(player)
+    return runClear({ by: player, level: choice.id })
 }
 
 /** The report /lagcheck opens: speed, what is loaded, and the busiest chunks. */
@@ -520,7 +593,7 @@ export async function lagReport(player, back) {
                     run: () => goTo(player, spot)
                 }
             }),
-            { text: "§cClear now§r\n§8Countdown, merge, then clear", run: () => runClear({ by: player }) }
+            { text: "§cClear now§r\n§8Minor, medium or high", run: () => lagForm(player, () => lagReport(player, back)) }
         ],
         back
     })
@@ -545,13 +618,13 @@ function goTo(player, spot) {
 
 command({
     name: "lagclear",
-    description: "Clear dropped items and clutter, carefully",
+    description: "Clear dropped items, clutter and crowded mobs",
     perm: "admin.lagclear",
     optional: [{ name: "seconds", type: CustomCommandParamType.Integer }],
     run: (player, [seconds]) => {
         // A number is the shortcut: clear now, with that countdown.
         if (Number.isFinite(seconds)) return runClear({ by: player, seconds: Math.max(0, Math.round(seconds)) })
-        return lagMenu(player)
+        return lagForm(player)
     }
 })
 
@@ -570,6 +643,8 @@ command({
  * gather quietly when items pile up, and clear if it's needed.
  */
 export function autoCheck(now = Date.now()) {
+    // Off (the terms were declined): nothing clears by itself.
+    if (adminplusDisabled()) return undefined
     const sp = speed()
     state.slowChecks = sp.tps < 15 ? state.slowChecks + 1 : 0
     // Two checks (40 s) after a clear for a slow server: did it help?
@@ -580,9 +655,10 @@ export function autoCheck(now = Date.now()) {
     } else if (!state.verify && sp.tps >= 19) state.slowLevel = 0
     if (!flag("cleanup.auto") || state.running) return { go: false }
     const found = clutter()
-    if (flag("cleanup.merge") && found.filter(e => e.typeId === "minecraft:item").length >= 150) gather()
+    if (found.filter(e => e.typeId === "minecraft:item").length >= 150) gather()
     const decision = shouldAutoClear({
-        clutter: found.filter(e => judge(e, now).remove).length,
+        // Extra mobs count (3.0.3): a farm can lag a server with no drops at all.
+        clutter: found.filter(e => judge(e, now).remove).length + crowdedMobs().plan.length,
         tps: sp.tps, slowChecks: state.slowChecks, slowLevel: state.slowLevel, lastAuto: state.lastAuto, running: state.running, now
     })
     if (decision.go) {

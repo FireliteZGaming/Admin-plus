@@ -48,10 +48,7 @@
 						{
 							"small_chest_grid": {
 								"type": "grid",
-								"grid_dimensions": [
-									9,
-									3
-								],
+								"grid_rescaling_type": "horizontal",
 								"size": [
 									"100% - 14px",
 									"100% - 27px"
@@ -64,7 +61,14 @@
 								"anchor_to": "top_left",
 								"grid_item_template": "adminplus_ui.inventory_item",
 								"collection_name": "form_buttons",
-								"layer": 1
+								"layer": 1,
+								"bindings": [
+									{
+										"binding_name": "#form_button_contents",
+										"binding_name_override": "#maximum_grid_items",
+										"binding_condition": "visible"
+									}
+								]
 							}
 						}
 					],
@@ -105,10 +109,7 @@
 						{
 							"large_chest_grid": {
 								"type": "grid",
-								"grid_dimensions": [
-									9,
-									6
-								],
+								"grid_rescaling_type": "horizontal",
 								"size": [
 									"100% - 14px",
 									"100% - 27px"
@@ -121,7 +122,14 @@
 								"anchor_to": "top_left",
 								"grid_item_template": "adminplus_ui.inventory_item",
 								"collection_name": "form_buttons",
-								"layer": 1
+								"layer": 1,
+								"bindings": [
+									{
+										"binding_name": "#form_button_contents",
+										"binding_name_override": "#maximum_grid_items",
+										"binding_condition": "visible"
+									}
+								]
 							}
 						}
 					],
@@ -161,10 +169,7 @@
 						{
 							"big_chest_grid": {
 								"type": "grid",
-								"grid_dimensions": [
-									9,
-									8
-								],
+								"grid_rescaling_type": "horizontal",
 								"size": [
 									"100% - 14px",
 									144
@@ -177,7 +182,14 @@
 								"anchor_to": "top_left",
 								"grid_item_template": "adminplus_ui.inventory_item",
 								"collection_name": "form_buttons",
-								"layer": 1
+								"layer": 1,
+								"bindings": [
+									{
+										"binding_name": "#form_button_contents",
+										"binding_name_override": "#maximum_grid_items",
+										"binding_condition": "visible"
+									}
+								]
 							}
 						}
 					],

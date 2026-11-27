@@ -1,7 +1,8 @@
+import { system } from "@minecraft/server"
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui"
 import { CONFIG } from "../config.js"
 import { BRAND_PREFIX } from "./theme.js"
-import { betaLook, lookTitle, lift, tileText, cardText } from "./look.js"
+import { betaLook, lookTitle, lift, tileText, cardText, wideText } from "./look.js"
 
 // Form helpers. Every panel screen is built from these so navigation, paging and
 // the "back" affordance behave the same everywhere.
@@ -11,6 +12,23 @@ import { betaLook, lookTitle, lift, tileText, cardText } from "./look.js"
 // command registry guarantees that.
 
 const PAGE_SIZE = 24
+
+/**
+ * Show a form, and if the player is busy (their chat or another screen is
+ * open, so the game answers "UserBusy" without showing anything) show it
+ * again every half second until `ticks` run out. For a form that follows a
+ * chat line (3.1.3, Automod's "ask the sender"): the player usually still
+ * has chat open when it arrives. Returns the last response, which is still
+ * UserBusy when the time ran out.
+ */
+export async function showWhenFree(player, form, ticks = 200) {
+    let response = await form.show(player)
+    for (let waited = 0; response?.canceled && response.cancelationReason === "UserBusy" && waited < ticks; waited += 10) {
+        await new Promise(resolve => system.runTimeout(resolve, 10))
+        response = await form.show(player)
+    }
+    return response
+}
 
 /**
  * A header, label or divider: part of a menu that splits a list into sections
@@ -52,7 +70,7 @@ export function drawsTiles(spec, beta) {
  * other buttons and a Back button: those stay rows under the cards.
  */
 export function drawsCards(spec, beta) {
-    return !!beta && spec.layout === "cards"
+    return !!beta && (spec.layout === "cards" || spec.layout === "guard")
 }
 
 /**
@@ -67,10 +85,12 @@ export function drawsCards(spec, beta) {
  * text is lifted for the dark panel. With `layout: "tiles"` a button shows its
  * `tile` face (core/look.js tile()) instead of its text. With `layout:
  * "cards"` a button with a `card` face is drawn as a card (core/look.js CARD).
+ * `layout: "guard"` is Bot Guard's own frame (core/look.js GUARD): the body
+ * in a banner, `card` faces as cards, and `watching: true` lights it up.
  * On Default, `layout`, `tile` and `card` are ignored and the menu is exactly
  * what it was.
  * @param {import("@minecraft/server").Player} player
- * @param {{title: string, body?: string, profile?: string, layout?: "tiles"|"cards"|"logs", buttons: ({text: string, icon?: string, tile?: {text: string, icon: string}, card?: {text: string, icon?: string}, run: () => any}|{header?: string, label?: string, divider?: boolean})[], back?: () => any}} spec
+ * @param {{title: string, body?: string, profile?: string, layout?: "tiles"|"cards"|"logs"|"guard", watching?: boolean, buttons: ({text: string, icon?: string, tile?: {text: string, icon: string}, card?: {text: string, icon?: string}, run: () => any}|{header?: string, label?: string, divider?: boolean})[], back?: () => any}} spec
  */
 export async function menu(player, spec) {
     const beta = betaLook()
@@ -80,12 +100,14 @@ export async function menu(player, spec) {
     // A Profile card (2.12.3) goes with tiles only, and carries its own text
     // as the body: the card shows the body beside the player's model.
     const profile = tiles && spec.profile ? spec.profile : ""
-    // The Logs timeline (2.12.5) has a frame of its own in Admin+'s look.
+    // The Logs timeline (2.12.5) and Bot Guard (3.1.5) have frames of their own.
     const logs = beta && spec.layout === "logs"
-    const form = new ActionFormData().title(beta ? lookTitle(spec.title, { tiles, profile: !!profile, logs }) : spec.title)
+    const guard = beta && spec.layout === "guard" ? (spec.watching ? "on" : "off") : false
+    const form = new ActionFormData().title(beta ? lookTitle(spec.title, { tiles, profile: !!profile, logs, guard }) : spec.title)
     const body = profile || spec.body
     if (body) form.body(show(body))
     const actions = []
+    let tileIndex = 0
     for (const button of spec.buttons) {
         if (!button) continue
         if (isDecoration(button)) { decorate(form, beta ? liftDecoration(button) : button); continue }
@@ -95,16 +117,23 @@ export async function menu(player, spec) {
             continue
         }
         const face = tiles && button.tile ? button.tile : button
+        // A wide tile (3.1.6) spans both columns and takes no place in them.
+        if (tiles && button.wide) {
+            form.button(show(wideText(face.text)), face.icon)
+            actions.push(button.run)
+            continue
+        }
         // As tiles, every other one carries the left-column marker (core/look.js).
-        form.button(show(tiles ? tileText(face.text, actions.length) : face.text), face.icon)
+        form.button(show(tiles ? tileText(face.text, tileIndex++) : face.text), face.icon)
         actions.push(button.run)
     }
     if (spec.back) {
         form.button(show("§8< Back"))
         actions.push(spec.back)
     }
-    const response = await form.show(player)
-    if (response.canceled) return
+    // `waitWhileBusy` (ticks): keep trying while the player has chat open.
+    const response = spec.waitWhileBusy ? await showWhenFree(player, form, spec.waitWhileBusy) : await form.show(player)
+    if (response.canceled) return spec.onCancel?.(response.cancelationReason)
     const action = actions[response.selection]
     if (action) return action()
 }

@@ -47,6 +47,14 @@ function cap() {
 
 let sequence = 0
 
+/** Chat Moderation's note on an entry: `mod` (what it did) and `unsent`, nothing else. */
+function noteOf(extra) {
+    const out = {}
+    if (extra?.mod) out.mod = String(extra.mod)
+    if (extra?.unsent) out.unsent = true
+    return out
+}
+
 /**
  * Record one line of chat.
  *
@@ -55,7 +63,7 @@ let sequence = 0
  * the decoration rather than the words is harder to read at exactly the moment
  * somebody needs it.
  */
-export function noteChat(sender, message, channel) {
+export function noteChat(sender, message, channel, extra) {
     if (!flag("logs.chat")) return undefined
     const text = String(message ?? "").trim()
     if (!text) return undefined
@@ -70,7 +78,12 @@ export function noteChat(sender, message, channel) {
         // is decided by which room it was said in — and a display name is a
         // label an owner can rename, while the id is what canUse() answers on.
         channelId: channel?.id,
-        text
+        text,
+        // 3.1.4: what Chat Moderation did with it ("held for staff:
+        // harassment 85"), and `unsent` for a line that never reached the room
+        // (held, cancelled, or the player was kicked). The user: these "should
+        // also be logged in logs (chat)".
+        ...noteOf(extra)
     }
     log.set("lines", [entry, ...lines()].slice(0, cap()))
     return entry
@@ -92,8 +105,10 @@ export function noteChat(sender, message, channel) {
  * Low-volume next to chat, so it shares chat's cap without crowding it — a
  * busy world produces thousands of messages for every sign.
  */
-export function noteSign(player, text, where, previous) {
-    if (!flag("logs.signs")) return undefined
+export function noteSign(player, text, where, previous, extra) {
+    // A sign Chat Moderation cleared is kept even with the sign log off:
+    // what automod did is the record staff need.
+    if (!flag("logs.signs") && !extra?.mod) return undefined
     const written = String(text ?? "").trim()
     if (!written) return undefined
 
@@ -107,7 +122,8 @@ export function noteSign(player, text, where, previous) {
         // What it said before, when this was an edit. The reason to keep a sign
         // log at all is usually that somebody changed one into something else.
         was: previous ? String(previous) : undefined,
-        text: written
+        text: written,
+        ...noteOf(extra)
     }
     log.set("lines", [entry, ...lines()].slice(0, cap()))
     return entry

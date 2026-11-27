@@ -12,7 +12,7 @@ import { STYLES, STYLE_IDS, paint } from "../core/nametag.js"
 import { FONTS, FONT_IDS, applyFont, fontOptions } from "../core/fonts.js"
 import {
     ladder, getRank, saveRank, deleteRank, normaliseRankId, moveRank,
-    PRESETS, BUNDLES, PERMISSION_NODES, RANK_VALUES,
+    PRESETS, BUNDLES, PERMISSION_NODES, MEMBER_GROUPS, RANK_VALUES,
     applyPreset, restoreSnapshot, hasSnapshot, snapshot,
     canEditRank, canActOn, has, rankState, rankGrant, displacedBy, defaultRank,
     displayRanks, hiddenRanks, heldRankIds, primaryRank,
@@ -229,7 +229,6 @@ const holds = (rank, node) => ["own", "wildcard", "inherited"].includes(rankGran
  * what any player with the rank can do, Administrative is staff tools.
  */
 // Personalization (2.12.0) is for any player too, not a staff tool.
-const MEMBER_GROUPS = ["Everyone", "Personalization"]
 const ADMIN_GROUPS = Object.keys(PERMISSION_NODES).filter(group => !MEMBER_GROUPS.includes(group))
 const countOn = (rank, groups) => groups.reduce((n, g) => n + PERMISSION_NODES[g].filter(node => holds(rank, node)).length, 0)
 const countAll = groups => groups.reduce((n, g) => n + PERMISSION_NODES[g].length, 0)
@@ -605,7 +604,7 @@ async function templateStep(player, draft, prev, back) {
 }
 
 /** What a section of switches is called on the long list. */
-const SECTION_TITLES = { "Everyone": "What they can use", "Personalization": "Personalization" }
+const SECTION_TITLES = {}
 
 /**
  * Every permission on one form, as the user asked: sections split by a bold
@@ -994,7 +993,7 @@ async function permissionsScreen(player, rankId, back) {
                 : ""
         ].filter(Boolean).join("\n"),
         buttons: [
-            { text: hubEntry("ranks", "Member", `What they can use, personalization, limits and cooldowns · ${countOn(rank, MEMBER_GROUPS)} of ${countAll(MEMBER_GROUPS)} on`), run: () => memberPermissionsScreen(player, rankId, again) },
+            { text: hubEntry("ranks", "Member", `Transportation, communication, personalization, limits and cooldowns · ${countOn(rank, MEMBER_GROUPS)} of ${countAll(MEMBER_GROUPS)} on`), run: () => memberPermissionsScreen(player, rankId, again) },
             staff || adminOn
                 ? { text: hubEntry("actions", "Administrative", `Staff tools · ${adminOn} of ${countAll(ADMIN_GROUPS)} on`), run: () => adminPermissionsScreen(player, rankId, again) }
                 : null,
@@ -1002,6 +1001,13 @@ async function permissionsScreen(player, rankId, back) {
         ].filter(Boolean),
         back
     })
+}
+
+/** What each member group holds, on its button. */
+const MEMBER_HINTS = {
+    "Transportation": "Spawn, warps and teleport requests",
+    "Communication": "Who is online, and reporting a player",
+    "Personalization": "Name effect"
 }
 
 async function memberPermissionsScreen(player, rankId, back) {
@@ -1016,9 +1022,7 @@ async function memberPermissionsScreen(player, rankId, back) {
                 const nodes = PERMISSION_NODES[group]
                 const on = nodes.filter(node => holds(rank, node)).length
                 return {
-                    text: group === "Personalization"
-                        ? hubEntry("ranks", "Personalization", `Name effect · ${on ? "on" : "off"}`)
-                        : hubEntry("ranks", "What they can use", `Warps, spawn, requests, reports, who is online · ${on} of ${nodes.length} on`),
+                    text: hubEntry("ranks", group, `${MEMBER_HINTS[group] ?? ""} · ${nodes.length === 1 ? (on ? "on" : "off") : `${on} of ${nodes.length} on`}`),
                     run: () => nodeGroupScreen(player, rankId, group, again)
                 }
             }),

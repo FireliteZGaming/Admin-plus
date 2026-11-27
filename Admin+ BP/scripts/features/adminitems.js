@@ -10,7 +10,8 @@ import { hubTitle } from "../core/theme.js"
 import { isVanished } from "../core/vanish.js"
 import { worldToken, makeBanHammer, HAMMER_NAME } from "../core/banhammer.js"
 import { setting } from "../core/settings.js"
-import { trollAllowed, trollBlockedBy } from "../core/trollgate.js"
+import { trollAllowed, trollBlockedBy } from "../core/trollgate.js"
+import { adminplusDisabled } from "../core/terms.js"
 
 // /items — grab an admin item without vanishing or opening /admin.
 //
@@ -180,7 +181,7 @@ command({
             key, def, locked: lockedReasons(player, key)
         }))
         if (rows.every(row => row.locked.length)) {
-            return err(player, "You don't have permission to use any admin items. §7Ask an owner to switch one on in Ranks ▸ your rank ▸ Permissions ▸ Administrative ▸ Staff tools.")
+            return err(player, "You don't have permission to use any admin items. §7Ask an owner to switch one on in Ranks ▸ your rank ▸ Permissions ▸ Administrative.")
         }
 
         const chest = new ChestForm("large").title("Admin items")
@@ -307,6 +308,7 @@ export function installAdminItems() {
     const hit = world.afterEvents?.entityHitEntity
     if (hit?.subscribe) {
         hit.subscribe(event => {
+            if (adminplusDisabled()) return
             const attacker = event.damagingEntity
             const victim = event.hitEntity
             if (!attacker || !victim || victim.typeId !== "minecraft:player") return
@@ -345,7 +347,7 @@ export function installAdminItems() {
     if (beforeUse?.subscribe) {
         beforeUse.subscribe(event => {
             const player = event.source
-            if (!player) return
+            if (!player || adminplusDisabled()) return
             const key = itemKey(event.itemStack)
             // The eye must not do what its vanilla self does: fly off toward a
             // stronghold.
@@ -371,7 +373,7 @@ export function installAdminItems() {
     if (use?.subscribe) {
         use.subscribe(event => {
             const player = event.source
-            if (!player) return
+            if (!player || adminplusDisabled()) return
             const key = itemKey(event.itemStack)
             if (key !== "teleport" && (key !== "eye" || eyeHandled)) return
             if (!has(player, "admin.tp")) return

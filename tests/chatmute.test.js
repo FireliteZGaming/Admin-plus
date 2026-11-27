@@ -72,18 +72,6 @@ check("so the member is the one it stops",
 check("and the mod is not", isChannelMuted("general") && !isStaff(mod), false)
 unmuteChannel("general")
 
-console.log("\n— the emote settings —")
-check("emotes ship on", setting("feature.emote"), "true")
-// Either name token counts — the shipped line asks for {NICKNAME}, so an emote
-// reads as whoever they are calling themselves, but {NAME} would be just as
-// valid a choice for a server that wants the gamertag.
-check("the line names the player",
-    /\{NICKNAME\}|\{NAME\}/.test(setting("format.emote")), true)
-check("and carries what they did", setting("format.emote").includes("{MSG}"), true)
-check("it does not pretend to be normal chat",
-    setting("format.emote").includes("*"), true)
-resetSetting("format.emote")
-
 console.log("\n— the channels themselves are untouched —")
 check("general still exists", !!getChannel("general"), true)
 check("staff still exists", !!getChannel("staff"), true)

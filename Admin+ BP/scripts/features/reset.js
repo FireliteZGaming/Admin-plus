@@ -4,7 +4,6 @@ import { wipeAll } from "../core/storage.js"
 import { onPlayerJoin } from "../core/ranks.js"
 import { inStaffMode } from "../core/staffmode.js"
 import { isVanished, unvanish } from "../core/vanish.js"
-import { endAllDisguises } from "./disguise.js"
 import { applyFrozen, syncMuteTag } from "../core/moderation.js"
 import { removeAll as removeAllHolograms } from "../core/holograms.js"
 import { record } from "../core/logs.js"
@@ -21,19 +20,22 @@ import { stopStaffMode } from "./staffmode.js"
 //   2. Staff mode inventories of players who are offline: KEPT, so they get
 //      their things back the next time they join. Deleting them would delete
 //      somebody's items, and no setting is worth that.
-//   3. Vanished players are shown again, disguised players are themselves
-//      again (their mob bodies go), and frozen players can move again.
+//   3. Vanished players are shown again, and frozen players can move
+//      again.
 //
-// One more table is kept, because it undoes something in the world rather
+// Two more tables are kept, because each undoes something in the world rather
 // than configuring the pack: enderBlocks, the blocks an old version placed,
-// which its sweep puts back.
+// which its sweep puts back; and devOps (3.1.6), the developers Admin+ made
+// operators, so a decline after a reset still takes that operator status back
+// (features/terms.js). Forget it and Admin+ could never tell its own op from
+// one the owner gave.
 //
 // Everything else under the "ap:" prefix goes, including keys from older
 // versions that no table knows about any more. One log line says who did it,
 // so a wipe is never silent.
 
 /** Tables a factory reset keeps. See above for why each one. */
-export const KEPT_BY_RESET = Object.freeze(["staffmode", "enderBlocks"])
+export const KEPT_BY_RESET = Object.freeze(["staffmode", "enderBlocks", "devOps"])
 
 /**
  * Wipe Admin+ and start it over. Only the Factory reset screen calls this,
@@ -51,7 +53,6 @@ export function factoryReset(by) {
         returned++
     }
     for (const player of online) if (isVanished(player)) unvanish(player)
-    endAllDisguises()
     // Their entities go now rather than on the next sweep.
     const holograms = removeAllHolograms()
 

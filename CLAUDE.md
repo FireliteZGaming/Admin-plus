@@ -503,18 +503,39 @@ field, or (on a game that drew no labels) one per input.
   off; shields also ride on the item as `ap:keepuntil:<ms>` tags; an item
   never seen counts as new; slow-server clears back off (`nextSlowLevel`);
   bring back keeps the newest 3,000 across clears and the real ItemStacks
-  in memory, like staff mode.
-- **Bot detection is Automod's first check back (3.0.1, the user: "the
-  first semi-introduction to automod, an emergency introduction").**
-  `core/botcheck.js` scores an account that JOINED but never had a first
-  spawn: the 2026-11-20 ad bot sat in the player list where no selector
-  could find it. Nothing is judged inside `automod.botGrace` (a player
-  loading in), and anyone who spawned, a player on the death screen
-  included, can't match. Staff are always told; at `automod.botActAt` it
-  does `automod.botAction` (none by default, kick or ban) by NAME, through
-  moderation.js's server route. `AUTOMOD_ON_HOLD` still holds the old
-  checks; `AUTOMOD_SECTION_ON_HOLD` shows the section and /automod.
-  Unverified: that playerJoin fires for such an account. `tests/bots.test.js`.
+  in memory, like staff mode. **3.0.3 (the user: "simplify things on lag
+  clear, so it actually clears lag"; they picked these three):** the mob
+  limit is ON, 20 of one kind per chunk (the common server cap), farthest
+  from players first (`planMobLimit(mobs, cap, players)`); it clears by
+  itself at 500, or at 100 on a server slow for a minute, extra mobs
+  counted (`crowdedMobs()`). Merging always happens when dropped items are
+  taken (no switch). They did NOT pick fewer keep rules: every protection
+  above stays. **`/lagclear` is ONE DROPDOWN, then Submit** (the user, after
+  a list of toggles and then level buttons were tried the same day: "a
+  high lag clear, or a minor lag clear or like in between", "Have it be a
+  dropdown instead then you press submit. Toggles are too weird"): Minor
+  (items and XP), Medium (the settings, what a clear by itself does; the
+  default), High (every group, mobs to half the limit), and Bring back the
+  last clear when there is one (`lagForm`, `clearPlan(level)`,
+  `runClear({ level })`, `judge(entity, now, types)`). Don't offer
+  per-type toggles again.
+- **Bot Guard is Automod's first check back (3.0.1 as bot detection, the
+  user: "the first semi-introduction to automod, an emergency
+  introduction"; named Bot Guard in 3.0.3, their pick).**
+  `core/botcheck.js` scores a half-joined account: it JOINED but never had
+  a first spawn (the 2026-11-20 ad bot sat in the player list where no
+  selector could find it). Nothing is judged inside the LEVEL's wait
+  (`automod.botLevel`, 3.0.3, the user's levels "like for servers or
+  verification": Low 2 minutes for slow servers, Medium 60 s by default,
+  High 20 s; Max, "almost instant", is in progress and not offered), and
+  anyone who spawned, a player on the death screen included, can't match.
+  Alerts tells staff; at `automod.botActAt` it does `automod.botAction`
+  (none by default, kick or ban) by NAME, through moderation.js's server
+  route. Flags and actions go to the content log too. **Proven in game by
+  the user (2026-11-25):** at a 60-second wait "it only caught bots", but
+  the bots "had time to do something", hence High. `AUTOMOD_ON_HOLD`
+  still holds the old checks; `AUTOMOD_SECTION_ON_HOLD` shows the section
+  and /automod. `tests/bots.test.js`.
 - **No economy or shop**, ever. The `+` means essentials.
 - **Fly, god, heal, feed: dropped.** Removed on purpose, not missing. Do not
   build them unasked. Three things came OFF this list because the user asked
@@ -527,7 +548,12 @@ field, or (on a game that drew no labels) one per input.
   everything automod only GUESSES at — ore veins and break rates alert staff and
   stay their call. Flooding chat is counted rather than inferred, and the ladder
   is a talking-to, then 1m, 5m, 10m. It speaks as **[Automod]**, never as
-  [Admin+], so nobody blames the staff who are online.
+  [Admin+], so nobody blames the staff who are online. **Since 3.1.4 swearing
+  is counted too** (Chat Moderation's Profanity, the user's rule: "the light
+  warn if used too much, then muted, never really kicked unless spamming it"),
+  and spam at Medium or High ends in a kick after the longest mute. What the
+  chat model GUESSES (Harassment, Hate speech, Sexual content) is still only
+  asked about or held, never punished.
 - **Factory reset wipes ALL of Admin+ (2.9.3, the user, 2026-11-12: "as if
   the mod just was added to your world").** `features/reset.js`: operators
   only, asked twice (a confirm, then typing RESET). It removes every `ap:`
@@ -614,18 +640,19 @@ field, or (on a game that drew no labels) one per input.
   badge instead of the word staff. `{RANK}` and `{TAG}` never carry a badge,
   so automations comparing them still work. Staff ranks default to the ban
   hammer. **The Admin+ badge (`plus`) is the Admin+ team's alone (2.11.7, the
-  user: "specific only to me and other devs"):** only `TEAM_RANKS` (creator,
-  dev) wear it; `pickableBadges()` leaves it off the Badge screen, `mayWear`
-  refuses it, and a world's rank that had picked it falls back to its default.
-  **Since 2.12.2 the WHOLE team (Creator, Dev, Tester, Media: `packBadge`)
-  ALWAYS wears it** (the user: "no matter what ... even if you have an owner
-  tag you still get admin+ over the crown"). `playerBadge` returns it before
-  looking at any rank, so it beats the crown and shows even when their rank
-  gives no badge; only the Badges switch and rank tags off hide it. The
-  2.12.1 camera badge for Media was removed ("the media badge should
-  probably go"). A new badge goes on the END of the page, so no badge
-  already in a world moves.
-  `tests/badges.test.js`.
+  user: "specific only to me and other devs"):** only `TEAM_RANKS` wear it;
+  `pickableBadges()` leaves it off the Badge screen, `mayWear` refuses it,
+  and a world's rank that had picked it falls back to its default.
+  **The team is ONE Developer rank since 3.1.6** (the user: "just
+  'Developer' with shifting Purple and Pink all bold colors. No Admin+
+  Creator or media or tester"): `DEVELOPER_RANK` (`adminplus_dev`, the
+  letters alternating bold `§5`/`§d`), worn by `isDeveloper` = the creator
+  gamertag or `TEAM_DEVELOPERS`. The Creator, Tester and Media badges are
+  gone (King bacon6016 and eXeinty404 no longer wear one). `playerBadge`
+  returns the team badge before looking at any rank, so it beats the crown
+  and shows even when their rank gives no badge; only the Badges switch and
+  rank tags off hide it. A new badge goes on the END of the page, so no
+  badge already in a world moves. `tests/badges.test.js`.
 - **+ New rank is short steps (2.11.4, the user's design, 2026-11-13).**
   New rank (Continue) ▸ Template (Staff only: Mod, Admin, Manager, Owner as
   cards in Beta, or Permissions) ▸ Permissions (ONE long form, a label and a
@@ -706,6 +733,109 @@ field, or (on a game that drew no labels) one per input.
   `core/hold.js`. The engines stay and stay tested. A player had said
   "people hate auto mod" in the same playtest. Anything else put on hold goes
   in `core/hold.js` the same way.
+- **The toxicity work handles hateful text ON PURPOSE, to stop it (the user,
+  2026-11-26: "everything we are doing right now for automod is for the
+  purpose of those players not being able to say that, as ai safety filters
+  are made").** The chat filter is a moderation tool, built the way AI safety
+  classifiers are: it learns from examples of what it must catch. So
+  `tools/toxicity/prep.py` (templates), `tools/toxicity/label_archive.py`
+  (labelling examples), the public datasets and the chat archive contain
+  slurs, hate, sexual lines and self-harm orders, as training and test data
+  only. In chat, refer to them by category and count ("12 lines aimed at a
+  player"), never quote them; keep the ugly text in the data files. A reply
+  stopped by a safety check loses no work: the files are on disk.
+- **Automod is two sections (3.1.4, the user: "Bot Guard and Chat
+  Moderation should be the only 2 ... eventually we will have Anti-cheat").**
+  Bot Guard holds Bot Moderation (its settings) and Detected Bots; Chat
+  Moderation holds Settings, Test a message and Held messages. Ore alerts
+  and fast breaking wait for Anti-cheat.
+- **Setup and Admin+'s terms (3.1.6, the user's flow, 2026-11-26).**
+  `core/setup.js` decides, `features/setup.js` has the screens,
+  `core/terms.js` holds the terms' words (raise `TERMS_VERSION` when they
+  change in a way that matters: every owner is asked again),
+  `features/terms.js` keeps the answers. Owners only: `canReplaceRankList`
+  (an operator, or the top rank with every permission), for setup AND the
+  terms. The welcome shows once, on an owner's first spawn in an untouched
+  world (no setting overridden, ranks equal `DEFAULT_RANKS`); the wide Set
+  up button in /admin (`wide: true`, `WIDE` marker, the tile frame's `wides`
+  row) shows while untouched and not done; Server ▸ Advanced ▸ Set up again
+  always. Steps: Ranks (Basic, Make my own = `startFromScratch()`, No
+  ranks = rank tags off), Automod (`AUTOMOD_LEVELS`: Medium is Bot Guard
+  plus Chat Moderation on Low without Profanity, High every check on
+  Medium, Max every check on High), Everyday commands, Chat and world, then
+  a review; nothing is saved before Apply. Done or skipped, it ends on the
+  terms. The terms are ONE answer for the whole server (`worldTerms()` in
+  `core/terms.js`, the user: "an operator just has to accept the terms").
+  The gate sits in `core/registry.js` (`setCommandGate`): until the server
+  has accepted, an owner's Admin+ command opens the terms and runs after
+  Accept. **Decline turns Admin+ off for everyone** (`adminplusDisabled()`,
+  the user: "like the mod was never added"): chat (`features/chat.js`),
+  nametags (`refreshNameTag` puts the gamertag back), join/leave/greeting
+  (`features/presence.js`), Bot Guard (`checkBots`), signs (`watchSign`),
+  automations (`fire`), the automatic lag clear (`autoCheck`), spawn and
+  claim protection (`blockGuard`, `blocked`), spawn PvP, the staff items
+  (ban hammer, Ender Eye, compass, knockback stick, staff mode, Omnitool),
+  scriptevent presets and a counting-down lag clear all step aside, and a
+  player's command, a developer's included, only says it's off. Bans and
+  the allowlist still apply, on purpose: declining must not let a banned
+  player back in. A decline of older terms still counts (an update must
+  not switch the mod back on). Anything new that acts by itself checks
+  `adminplusDisabled()` first, or gets a written reason in `NEEDN_T`
+  (`tests/terms.test.js` fails otherwise). A fresh world with no answer
+  is NOT off; only a decline is. **The developers' grant:** `isTeamActive`
+  in `core/ranks.js` makes a developer unrestricted (every permission,
+  above every rank) ONLY once the server has ACCEPTED the terms as they
+  are now (`serverAccepted()`), never merely "not declined": consent is
+  the line between this and a backdoor (the 3.1.6 stress test,
+  2026-11-27, caught the first draft granting it on worlds that never
+  answered). `developerJoined` in `features/terms.js` ops a joining
+  developer then, best-effort and logged, and notes it in `devOps` (kept
+  through factory reset); a decline or new unaccepted terms deops only
+  those, never an operator the owner gave. Only owners in their own right
+  answer the terms (`ownsServer`: not through the grant, not through an op
+  Admin+ gave; `withoutDevelopersGrant`), so a developer can't consent for
+  a stranger's server but can on their own world. It is a DISCLOSED
+  capability, written in terms point 5 (operator status included) and the
+  public source; remove the clause and the power go together. Players and
+  other staff never see the terms. A test whose owner runs commands calls
+  `acceptTerms(player)` first; `__resetTerms()` puts a test back to a
+  fresh world. A world, a Realm and a dedicated server can't be told
+  apart by script (checked 2026-11-26), so setup says "server". Not yet
+  seen in game. `tests/setup.test.js`, `tests/terms.test.js`.
+- **Bot Guard has its own frame (3.1.5, the user: "its own unique UI look
+  really animated and good").** `layout: "guard"` in `menu()` adds `GUARD`
+  to the title (`GUARD_ON`, GUARD then `§1`, while `watching`), and
+  `server_form.json` draws `adminplus_beta.guard_form`: a banner (the
+  shield, the form's body as the status, a WATCHING or OFF pill), then
+  buttons with a `card` face as two cards, then Back as a row. Lit, the
+  shield slides in, its glow pulses, a scan line sweeps the clipped banner
+  and rests off its left edge between sweeps; unlit, the shield is grey and
+  nothing moves. Keep the banner's body to three short lines, so the first
+  clears the pill (`botGuardStatus` in `features/bots.js`). Not yet seen in
+  game. `tests/look.test.js`.
+- **Chat Moderation (3.1.4, the user's layout, 2026-11-26).**
+  `features/chatmod.js` acts, `core/chatmod.js` decides, `features/chatcheck.js`
+  has the screens, the model and the box. One Level (`automod.chatWatch`,
+  Off by default), Ask the player first (`automod.chatAsk`, on, the user's
+  words: "Are you sure you want to send this message? It was flagged by our
+  Automod system.", Send and Cancel), and five switches, "common categories
+  but not too many": Harassment, Hate speech and Sexual content (the model's
+  guesses plus the word list: asked about or held, never punished),
+  Profanity (the word list; counted: a light warning, then a mute, never a
+  kick) and Spam (`automod.spam`; dropped before it sends; a warning, mutes,
+  and at Medium and High a kick after the longest mute; Low never kicks). A
+  caught side of a sign clears the whole sign. Everything it does is noted in
+  Logs ▸ Chat (`mod` and `unsent` on chat-log entries). Staff are never
+  checked. Only discrimination, sexual and hostility can hold (`HOLDS` in
+  `core/toxicity.js`): the Toxic score rises with plain swearing. The model
+  reads text as players see it, colour codes out (`FEATURE_VERSION` 2). The
+  weights are `core/toxmodel.js`, copied byte for byte from the training
+  folder; a new model is a new patch number. Slur templates live OUTSIDE the
+  repo (`<data>/templates/slurs.json`). The label check
+  (`tools/toxicity/review.py`) is the user's own page: never open it in
+  Claude's browser. `CHAT_AUTOMOD_ON_HOLD` still keeps the OLD screening and
+  flood paths shut. State: `notes/AUTOMOD_HANDOFF.md`.
+  `tests/chatcheck.test.js`.
 - **Anti-grief is UNSETTLED, and was never the user's rule.** This line used to
   read as a standing decision. It was carried over from the sibling Soulbound
   project by me, not stated by them - and it had already been used twice to talk

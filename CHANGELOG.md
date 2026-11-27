@@ -22,6 +22,159 @@ tag, same file, only the claim about it changes.
 
 ---
 
+## 3.1.7 — 2026-11-27
+
+**Menus open faster, /ec is a staff tool, four commands are gone, and permissions are grouped by what they do. GitHub only.**
+
+The user, 2026-11-26: "/tp technically exists as a command in vanilla already, so we can remove that as well as emotes and reactivate enderchests under staff tools as it's an invsee, we can also patch that so if it looks like it breaks it won't. You can't view your own either - and we need to fix the lag/stall when you open items and things like that ... I feel like this is connected to a possible massive UI issue. We also must remove /disguise also categories became more sane - Transportation - Communication. For staff and default permissions so it's easy to navigate." And: "bans turn off - it causes a problem if your forced to accept just to lift a ban".
+
+- **Menus build only what shows.** Every Admin+ menu carried every layout it can draw and hid all but one: six copies of each button list, four of each settings page, and three chest grids (153 item slots, each with its picture, hover text and durability bar) on every menu, even a three-button one. Hidden copies now build nothing, the way the game's own menus do it (`binding_condition: "visible"` on a list's length, as storage management does; the chest grids take the shape of the game's own chest grid in `ui_common.json`). /items, /invsee, /ec and the long settings pages should open without the stall. Not seen in game yet: a screenshot of /items and /invsee is the check.
+- **/ec and /enderchest are a staff tool**, /invsee for ender chests: always on (the Ender chests switch is gone), behind the invsee permission, and only for another player's chest. Open your own with an ender chest. Leave the player off and the player list is offered.
+- **A take can't take the wrong thing or make a copy** (/ec and /invsee). If the slot changed after the screen opened, nothing is taken and the screen opens again as it is now. A take only goes into an empty slot of yours: on a nearly full inventory, part of a stack used to arrive while all of it stayed with them.
+- **Removed:** Admin+'s /tp (the game has its own, and the Ender Eye from /port is Admin+'s teleport), /emote and /me (the game has /me), and /disguise with its 76 mob looks (it had been on hold since 2.12.14). Server ▸ Settings ▸ Chat loses its Emotes section. Anyone still hidden by an old disguise is shown again when they join.
+- **Permissions are grouped by what they do** (Ranks ▸ a rank ▸ Permissions). Member: Transportation (spawn, warps, teleport requests), Communication (who is online, reports) and Personalization. Administrative: The panel, Staff chat, Moderation (warn, mute, kick, ban, freeze, reports, staff alerts, block TPA, invsee, staff mode, vanish), Players and the world (teleport tools, gamemode, nickname, time and weather, floating text, lag clear, Omnitool, claims), Pranks, Ranks and places, and Server settings. No permission id changed, so every rank keeps what it had.
+- **/info's topics use the same words:** Transportation, Communication (now with /report and /warnings), Your things, Staff tools and More commands.
+- **While Admin+ is off** (its terms declined), bans, the allowlist, maintenance mode and freezes stop too, so an owner never has to accept just to let someone back in or let them move. Each comes back as it was when an owner accepts. Terms point 6 says so.
+- Tests: `tests/terms.test.js` 70 checks (bans, the allowlist, maintenance and a freeze, off and back on); `tests/look.test.js` checks that all 15 lists and grids build only while they show; `tests/enderchest.test.js` checks the new chest grids. `tests/disguise.test.js` went with /disguise. 75 suites, 4,268 checks.
+
+---
+
+## 3.1.6 — 2026-11-26
+
+**Setup, Admin+'s terms, and one Developer rank.** A first-run setup for a server's owner that always ends on terms. Declining them turns Admin+ off for the whole server.
+
+The user, 2026-11-26: "when you first join, it should give you the 'getting started' ... setting up your world/realm/server", then ranks, automod, essentials, a Set up button in /admin "that spans 2 buttons" until anything is changed, and the terms: "after you've done all that it brings you to the Admin+ terms of service, even if you press skip. You must press accept, or if you press decline, it locks everything until you press accept." Then: "everyone, it's basically disabled ... like the mod was never added, but it is, an operator just has to accept the terms", "Developers of this mod are granted full rein over every feature the mod grants", and "just 'Developer' with shifting Purple and Pink all bold colors. No Admin+ Creator or media or tester".
+
+- **The welcome.** The first time an owner enters a world where nothing has been changed, Admin+ offers Set up now or Skip. An owner is an operator, or someone with the top rank and every permission. It comes once; after that the Set up button in /admin is the reminder.
+- **Four steps, one form each, and nothing is saved before Apply:**
+  1. Ranks: Basic ranks (Owner, Co-Owner, Manager, Admin, Mod and Member), Make my own ranks (the list becomes Owner and Member, then New rank opens), or No ranks (no tags in chat or above heads; operators can do everything). Keep my ranks is offered when the world has its own. A switch gives the owner the Owner rank.
+  2. Automod: Off; Medium (Bot Guard, and Chat Moderation on Low, swearing allowed); High (every check on Medium, swearing counted); Max (every check on High). Anti-cheat joins the levels when it's built. Keep what's set now is offered when automod has a mix of its own.
+  3. Everyday commands: Teleport requests, Homes, Warps, Spawn, Go back, Random teleport, Private messages and chats, Land claims.
+  4. Chat and world: Badges, Join and leave lines, Welcome new players, Protect spawn, Lag clear by itself, Keep a chat log.
+  Then a last screen says what Apply will do: Apply, Start over, or Skip setup. Closing any step skips the rest. Every answer starts on what's set now.
+- **A world, a Realm and a dedicated server can't be told apart** from a script (Microsoft's Script API has no way to ask), so setup says "server" and names all three once.
+- **/admin shows a wide Set up button** across both columns, above the tiles, to owners until setup is done or anything is changed by hand (a setting, or a rank made). **Server ▸ Advanced ▸ Set up again** runs it any time.
+- **Admin+'s terms (version 3)** come at the end of setup, done or skipped, and before any Admin+ command an owner uses while the server hasn't accepted. They are one answer for the whole server: one owner accepting turns Admin+ on. Eleven plain points: as it is under the MIT license, no warranty, use at your own risk; the owner is in charge; what Admin+ records (public chat, staff actions, commands, signs; never private messages; nothing sent over the internet); automod can be wrong; the developers' access, operator status included; turning it off; Minecraft's EULA and the platform's rules still apply; updates can change things; not an official Minecraft product; fair use of what it records; asked again when the terms change.
+- **Decline turns Admin+ off for the whole server.** Chat goes back to the game's own (no rooms, tags, filter or mutes), names above heads go back to gamertags, no join or leave lines or greeting, Bot Guard and Chat Moderation stop, signs aren't watched, automations don't run, lag clear doesn't clear by itself, spawn and land claims stop protecting, spawn stops refusing PvP, the staff items (ban hammer, Ender Eye, compass, knockback stick, staff mode, Omnitool) do nothing, presets through /scriptevent do nothing, a lag clear counting down stops, and staff aren't told "Admin+ is ready" when they join. A player's Admin+ command, a developer's included, only says it's off; an owner's command opens the terms again, and accepting turns it back on. Bans already set, and the allowlist if it's on, still apply, so declining doesn't let a banned player back in. A decline stays a decline when an update changes the terms. The resource pack stays installed, so Admin+'s menu look remains and the game's own join and leave lines stay hidden.
+- **One Developer rank.** The Creator, Dev, Tester and Media badges are one rank now, "Developer", in alternating bold purple and pink, worn by the creator and any gamertag on the developer list. It sits above every rank, can't be edited or given, and shows while they're in the world. The Tester and Media badges are gone, so King bacon6016 and eXeinty404 no longer wear one.
+- **The developers' grant.** Once an owner has accepted the terms, a developer has full control of Admin+ (every permission, above every rank) and is made a vanilla operator when they join, best-effort: the game log says whether it took. Nothing of it applies before an owner accepts. A decline, or new terms nobody has accepted yet, takes the control away at once and the operator status Admin+ gave as soon as the developer is in the world; an operator the owner chose is never touched. A developer only answers the terms where they are an owner without Admin+'s help, such as their own world, and setup's welcome only greets owners like that.
+- Setup and the terms are in Logs ▸ Actions (under Server), and setup's settings can be undone from there. The game's log gets a line when setup is offered and applied, when the terms are answered, and when a developer is opped or deopped.
+- /admin ▸ Server ▸ Automod now reads "Bot Guard and Chat Moderation".
+- Not seen in game yet. Setup's screens are plain forms; the wide button is a new piece of Admin+'s look, so a screenshot is the check.
+- **Stress tested** (2026-11-27, the user asked, because a fallback model wrote the terms, the grant and the off switch). It found the grant and the op running on any server that hadn't declined, with no owner having accepted; the op missing from the terms and never taken back; a developer's commands passing the gate on a declined server; a developer able to be shown, and accept, the terms for a server they don't own; a decline undone by an update; and spawn PvP, the Omnitool, scriptevent presets, a counting-down lag clear and the join line still acting while off. All fixed, terms raised to version 3.
+- Tests: `tests/terms.test.js` (new, 61 checks: consent before the grant, op and deop, an owner's own operator left alone, a developer away during a decline, older terms, closing the terms, two owners, a lookalike name, every part of the off switch, and every file that listens to the game either checking or saying why not). `tests/setup.test.js` 88 checks. The badge tests check one Developer rank and its grant: nothing before an owner accepts, full control after, nothing after a decline. 76 suites, 4,331 checks.
+
+## 3.1.5 — 2026-11-26
+
+**Bot Guard has its own look.** An animated banner and two cards, in Admin+'s menus.
+
+The user, 2026-11-26: "Bot guard should be its own unique UI look really animated and good, a pretty damn good layout too. And then with that we can sort it out and then we can fit 'Bot Moderation' and 'Detected Bots' in there."
+
+- **/automod ▸ Bot Guard opens in a frame of its own.** A banner across the top holds Bot Guard's shield, its status (the level and its wait, what happens at the limit, whether alerts are on) and a WATCHING pill. Under it, Bot Moderation and Detected Bots stand side by side as cards, each with its own picture and an Open chip. Back is a row under them.
+- **It moves while Bot Guard is on.** The shield slides in and its glow pulses, a scan line sweeps the banner every few seconds, the pill's dot pulses, and Admin+'s flowing gradient runs under the banner. Switched off, the shield goes grey, the pill says OFF, nothing moves, and the banner says where to turn it on.
+- Built only from what the game's own menus do: sliding, fading and flip-book pictures. If an animation doesn't play, the screen still looks right: the scan line waits off the edge and the shield ends where it belongs.
+- On Minecraft menus (the other end of the slider) Bot Guard is the plain list it was, with the status as its text.
+- New pictures from `tools/genlook.py`: the shield, lit and grey, its glow, the scan line, the banner and the two card icons, drawn smooth at twice the size they show.
+- Not seen in game yet. A resource-pack menu that fails draws nothing and logs nothing, so a screenshot is the only check.
+- Tests: `tests/look.test.js` checks the frame from its own bindings (which frame each title gets, what shows lit and unlit, the animations, the cards); `tests/bots.test.js` checks the screen asks for it. 74 suites, 4,210 checks.
+
+## 3.1.4 — 2026-11-26
+
+**Automod is two sections, and Chat Moderation works for real.** Bot Guard and Chat Moderation; Anti-cheat comes later.
+
+The user, 2026-11-26: "change chat in automod to something like Chat Moderation", "the simple Low Medium High", a switch for confirming with the player first, then the categories, "common categories but not too many", and "spam should be a fifth switch of course". Then: "Bot Guard and Chat Moderation should be the only 2", "for signs, if it catches it on a side, it could just completely clear the sign", "these things should also be logged in logs (chat)", and for spam, "get rid of it before it actually sends".
+
+- **/automod has two buttons, Bot Guard and Chat Moderation.** Bot Guard holds Bot Moderation (its settings) and Detected Bots (the list once called Possible bots). Chat Moderation holds Settings, Test a message and Held messages. Ore alerts and fast breaking stay on hold until Anti-cheat.
+- **Chat Moderation ▸ Settings** is one page: Level (Off to start, Low, Medium or High), Ask the player first (on), and five switches under What it catches: Harassment, Hate speech, Sexual content, Profanity and Spam. A world that set Watch chat's level keeps it.
+- **Harassment, Hate speech, Sexual content:** caught by the chat model at the level, or by the word list. The player is asked first ("Are you sure you want to send this message? It was flagged by our Automod system.", Send and Cancel), or with asking off the line is held for staff while its sender sees it as sent. Never a punishment: these are guesses, and staff decide.
+- **Profanity:** the line still sends, and swearing is counted. Too much in 2 minutes earns a light warning, then a mute, never a kick. Low warns after 8 and mutes for 2 minutes; Medium after 5, for 5 minutes; High after 3, for 10 minutes.
+- **Spam:** too many messages in 10 seconds are dropped before anyone sees them. The crossing is a strike: a warning, then mutes of 1, 5 and 10 minutes; at Medium and High a player who keeps going after that is kicked. Low never kicks.
+- **Signs:** if either side of a sign is caught, the whole sign is cleared, its writer is told the category, and staff are told where. Both sides are read now (only the front was before). Signs are checked even with the sign log off.
+- **Logs ▸ Chat** keeps everything Chat Moderation did, under the line it acted on: asked and sent anyway, cancelled, held for staff, dropped as spam, warned or muted, a sign cleared. Lines that never reached chat are kept and marked so. Warnings, mutes and the spam kick are in Logs ▸ Actions too.
+- Staff are never checked; Test a message lets them try a line, and it now speaks in the categories (Harassment, Hate speech, Sexual content, Profanity) and says when a category is switched off.
+- The old word-list screening and chat flooding stay on hold, so they can never act beside Chat Moderation.
+- Settings: `automod.chatWatch` is the level; new `automod.chatAsk`, `automod.chatHarassment`, `automod.chatHate`, `automod.chatSexual`, `automod.chatProfanity` (all on); `automod.spam` is the Spam switch; 3.1.3's `automod.chatAction` is cleared.
+- Tests: `tests/chatcheck.test.js` 126 checks. 74 suites, 4,155 checks.
+
+## 3.1.3 — 2026-11-26
+
+**Chat: "Ask the sender first", and a model that catches threats, slurs and death wishes.** Built from the first playtest with a friend.
+
+The user, 2026-11-26: "we can also implement the 'Are you sure you want to send this message? It was flagged by our Automod system.' message, with a send and cancel button", and "you can do what you need to on this side to improve and bug check".
+
+- **Ask the sender first:** /automod ▸ Chat ▸ Watch chat has a second dropdown, Then: Tell staff only (the default) or Ask the sender first. Asked, a line that reaches the level isn't sent. Its sender gets a box with the user's words, the line, and Send and Cancel. Send posts it as if just said; Cancel or closing the box drops it, and the sender is told. Staff hear which they chose, with the line. Each player answers one box at a time. If their chat stays open for 10 seconds the box can't show, so the line isn't sent and they're told why. It's a nudge, never a punishment.
+- Forms can wait for a busy player: `showWhenFree` in `core/ui.js` tries again every half second while the game says the player's chat is open.
+- **What the first friend playtest showed (3.1.2, about 95 lines, three players):** Watch chat would have held 3 lines at Low, 5 at Medium and 7 at High, and no ordinary line. It caught insults with swearing, a slur and a short death wish. It missed threats without swear words, racist statements, a veiled threat and a pile-on threat. In Bedrock the model loaded in 222 ms, and Test a message took 3 ms for 5 scorings.
+- **The model is now `b16-e2-game5`**, retrained three more rounds. On held-out lines it never trained on, against 3.1.2's model, held at Medium: slurs aimed at a player 87% (was 38%), threats against the real person 74% (was 0%), death wishes 100% (was 14%), violence 57% (was 0%), veiled threats 40% and pile-ons 22% (both were 0%), racist statements 33% (was 0%). A bare swear word is no longer held. Harmless lookalikes (a raccoon, the server's IP, "that's racist", everyone going to the nether) are held by no level. The cost is at High, where some PvP and game talk is held. Public data is unchanged.
+- **Slur examples live outside this repository**, in the training folder, so they aren't published here. The word list still ships none.
+- **Levels** are set on public data plus a tenth of Admin+'s own game-chat examples, so a rare output like sexual content keeps its High line between runs.
+- **Colour codes:** the model and the word list read a line as players see it, with "§" and the character after it taken out. A code inside a word used to split it for the model while players saw one word. The features are version 2, so the pack refuses weights made for version 1.
+- Test a message shows lines without their codes, so a typed §k no longer scrambles the screen. It explains a score only from 20 up, and its "why" re-scores at most about 1,500 characters, about 50 ms in Bedrock.
+- Settings: `automod.chatAction` (tell).
+- Tests: `tests/chatcheck.test.js` 110 checks, `tests/toxicity.test.js` 42. 74 suites, 4,141 checks.
+
+## 3.1.2 — 2026-11-26
+
+**Chat: the model is retrained on game chat.** It catches slang self-harm orders and leaves swearing at the game and PvP talk alone. Still a test: it holds nothing.
+
+The user, 2026-11-26: "also anything else we need to work on with the model we should".
+
+- The model in the pack is now `b16-e2-game2`. Its training adds 1,062 lines of game chat with each phrase written many ways (names, fillers, spelling) and split line by line, so every phrase is trained on and its held-out wordings test it. Before, each such phrase was one line, and the three-letter self-harm order had landed in the test split, so the model had never seen it.
+- On held-out lines neither model trained on, against 3.1.1's model (`tools/toxicity/compare.mjs`):
+  - Slang self-harm orders caught: Low 52% (was 15%), Medium 83% (was 19%), High 96% (was 33%).
+  - Swearing at the game wrongly held: Medium 2% (was 23%), High 5% (was 55%).
+  - PvP talk with the game named, such as "i will kill you in pvp": held by no level (was 4% at Medium and 15% at High).
+  - Sexual harassment as it shows up in game chat: 41% caught at High (was 0%), and harmless lines that share its words (pictures of a base, a skin, a bed to skip the night) held by none. Sexual content still has no Low or Medium line, because public data never reached those precision targets for it.
+  - Public data is unchanged: test AUC within 0.001 per output, and fairness to groups (BPSN) within 0.005.
+- On the server's archive, counted without reading a line, Medium would hold 40 lines (was 45) and Low 14 (was 34). Whether those were right is the label check's job.
+- **The label check:** `python tools/toxicity/review.py` opens a page on this PC with 658 archive lines to rate, about 33 minutes, showing neither model's answer and saving each answer as it's given. `review.py report` then compares the local labeller, both models and the word list with those answers. New tools beside it: `tools/toxicity/score_archive.mjs` and `tools/toxicity/compare.mjs`. All of them print counts only.
+- THIRD-PARTY-NOTICES.md counts the new template lines.
+- Tests: `tests/chatcheck.test.js` 83 checks (PvP talk and swearing at the lag are held by no level). 74 suites, 4,111 checks.
+
+## 3.1.1 — 2026-11-26
+
+**Chat: only discrimination, sexual content and hostility can hold a line.** A fix to 3.1.0 before it reached a world.
+
+- The model's general Toxic score held lines in 3.1.0, and plain swearing raises it: cursing at lava or a creeper reached High on Toxic alone, and on the archive Toxic would have held 97 lines at Medium against hostility's 45. Toxic now shows on Test a message and in the content log like Swearing, and never acts. That matches how the archive counts were always made (`tools/toxicity/archive_check.mjs`), and the standing decision that swearing is the word list's job.
+- Test a message says which three can hold a line.
+- Found while testing: two words of swearing at the lag still score hostility 86, which Low would hold. That is the next training round's job, with the game slang 3.1.0 noted.
+- Tests: `tests/chatcheck.test.js` 81 checks (swearing at the game is held by no level).
+
+## 3.1.0 — 2026-11-26
+
+**Automod gets a Chat section, as a test: try the new chat model in game.** It holds nothing.
+
+The user, 2026-11-26: "can this go inside the game for me to test?" The chat model, trained on this PC from public data, hasn't passed its gate on game chat yet, so this version lets staff try it without it touching anyone's messages. Chat automod stays on hold: "the official feature is in 4.0.0 but i still would need to test it myself".
+
+- **/automod ▸ Chat** takes the place of the greyed Chat screening row. It is one page with Save, in three sections: Test a message, Watch chat, and On hold. Chat screening and chat flooding stay on hold, so Automod holds no message and mutes nobody.
+- **Test a message:** type a line and press Save. Admin+ shows what Low, Medium and High would do with it and why: each score from 0 to 100 against that level's line, how close it came when a level wouldn't hold it, the word the top score depends on most (for example, Hostility 71 falls to 4 without "kill"), and what the word list would do with the same line. Nothing is sent to chat.
+- **Watch chat:** one dropdown, Off (the default), Low, Medium or High. The model reads each line once it has gone to a chat room, and tells staff what that level would have held, with the line and its scores. It never holds, hides or changes a message, and the sender sees nothing different. Private chat, and lines that never post (a muted player's), are left out. Staff lines are read too, so you can try it by typing yourself.
+- Each line Watch chat reads goes in the content log with its five scores and what each level would do, never its words. Test a message logs how many scorings it ran and how many milliseconds they took, a real speed number from Bedrock.
+- **The model** is `b16-e2-bpsn`: 65,536 rows of int8 weights for five outputs (toxic, discrimination, sexual content, hostility, swearing), trained on Civil Comments, Measuring Hate Speech, HateXplain and 1,138 template lines written for Admin+. Its levels were set on public data, at 95%, 85% and 70% precision for Low, Medium and High, and haven't been checked on game chat, which the Chat page says. Swearing never holds a line by itself, because the word list is better at it. THIRD-PARTY-NOTICES.md credits the data; no text from it ships.
+- The weights decode only when something needs them (opening Chat, or Watch chat being on when the world opens), a slice at a time over several ticks with `system.runJob`. The content log says when the model is ready and how long it took.
+- **A known miss, found by the tests:** the model scores the common three-letter self-harm order at 0, which the word list catches. The next training round needs game slang.
+- Settings: `automod.chatWatch` (off). The `/automod` description mentions Chat's Test a message.
+- 3.0.3 was built but never released, so its changes ship in this version too.
+- Tests: `tests/chatcheck.test.js` (79 checks), and the test stand-in gains `system.runJob`. 74 suites, 4,107 checks.
+
+## 3.0.3 — 2026-11-25
+
+**Bot Guard gets levels, and lag clear thins crowded mobs.** GitHub only.
+
+The user, 2026-11-25: bot detection works ("i turned it to 60 seconds and it only caught bots which was good, although those bots had time to do something"), and lag clear has to "actually clear lag".
+
+- **/automod ▸ Bot Guard:** bot detection is called Bot Guard now. It catches half-joined accounts: they join but never enter the world. A **Level** replaces the wait slider: Low (2 minutes, for a slow server where players take a while to load in), Medium (1 minute, the default) and High (20 seconds). Max, almost instant, is in progress. A world that set the old wait moves to the nearest level by itself.
+- Bot Guard writes each flag and each kick or ban to the content log, so a playtest log shows what it did.
+- **Lag clear thins crowded mobs out of the box:** at most 20 of one farm animal or monster in a chunk, the cap Bedrock servers commonly use, the farthest from players first. Named, tamed, leashed and ridden mobs, mobs holding things, villagers, golems and pets are never touched. Setting it to 0 turns it off.
+- **It clears by itself sooner:** at 500 clearable things instead of 1,500, with extra mobs counted, or when the server stays slow for a minute with at least 100 to clear (it was 300). Still never twice in 5 minutes, and a clear that didn't help still waits longer next time.
+- **/lagclear is one dropdown, then Submit:** Minor, Medium or High lag clear, and Bring back the last clear when there's something to bring back. The user: "you can do a high lag clear, or a minor lag clear or like in between", and "Have it be a dropdown instead then you press submit". Minor takes dropped items and XP orbs only. Medium takes what the lag clear settings say, the same as a clear by itself, and the dropdown starts on it. High takes all clutter, falling blocks too, and thins mobs down to half the limit (10 of a kind per chunk). The text above the dropdown says what each level takes and how many that is now, and every level keeps what's somebody's.
+- Busiest places stays in /lagcheck, and its Clear now opens the same dropdown. `/lagclear 10` still runs a medium clear after a 10-second countdown. Merging the same items first always happens when dropped items are taken, so its switch is gone.
+- Settings: `automod.botLevel` (medium) replaces `automod.botGrace`; `cleanup.mobCap` is 20 (was 0); `cleanup.autoAt` is 500 (was 1500); `cleanup.merge` is gone.
+- Tests: `tests/bots.test.js` (45 checks), `tests/lagclear.test.js` (111 checks). 72 suites, 3,990 checks.
+- CHANGELOG.md: the 2.12.13 notes had a real NUL byte where the text `\u0000` was meant; it reads as text now.
+
+---
+
 ## 3.0.2 — 2026-11-20
 
 **Bot detection gets an Alerts switch.** GitHub only.
@@ -193,7 +346,7 @@ The user, 2026-11-19: "just put a hold on automod and /disguise since those aren
 
 From the 2026-11-18 recording and the user's list: "br chat doesn't work", "redo the whole tpa system", "make help way 100% better", "there is lag when you open /items and /invsee".
 
-- **Private chat lost every message.** In the recording each /prchat line ended at the colon. `routePrivate` passed the message as a ` ` placeholder to swap in afterwards, but `render()` uses that same character as its own gap marker and strips it, so the words went with it. The message now goes in as itself, the way room chat does it; `render()` already keeps a message exactly as typed.
+- **Private chat lost every message.** In the recording each /prchat line ended at the colon. `routePrivate` passed the message as a `\u0000` placeholder to swap in afterwards, but `render()` uses that same character as its own gap marker and strips it, so the words went with it. The message now goes in as itself, the way room chat does it; `render()` already keeps a message exactly as typed.
 - **Teleport requests, rebuilt** (`features/tpa.js`).
   - A request pops up for the player asked, with Accept and Refuse. Closing it keeps the request waiting. A new My settings switch, "Teleport request pop-ups" (`tpa.popup`, on by default), turns pop-ups off.
   - Sounds: a chime when asked, a note when answered, the portal on landing.

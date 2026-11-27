@@ -8,6 +8,7 @@ import {
     doorCheck, inMaintenance, setMaintenance, maintenanceReason
 } from "../core/allowlist.js"
 import { kick } from "../core/moderation.js"
+import { adminplusDisabled } from "../core/terms.js"
 import { askText, pickFrom } from "../core/ask.js"
 
 // /guestlist on|off|add|remove|list [player]
@@ -130,14 +131,23 @@ async function removeUninvited(actor) {
  */
 export function installAllowlist() {
     world.afterEvents.playerSpawn.subscribe(({ player, initialSpawn }) => {
-        if (!initialSpawn) return
-        const door = doorCheck(player, { staff: isStaff(player), owner: isOwner(player) })
-        if (door.ok) return
-        // kick() is async now — it awaits the CommandResult so it can report
-        // whether anybody actually moved, rather than assuming.
-        kick(player, door.reason).then(removed => {
-            console.log(`[Admin+] turned away ${player.name}: ${door.reason}`
-                + (removed ? "" : " — BUT THEY WERE NOT REMOVED"))
-        })
+        if (initialSpawn) turnAwayOnJoin(player)
     })
+}
+
+/** On joining: turn away anyone the allowlist or maintenance keeps out. Exported for tests. */
+export function turnAwayOnJoin(player) {
+    // Off with the rest while Admin+'s terms are declined (3.1.7), the
+    // allowlist and maintenance both: nobody is turned away by a mod
+    // that is switched off.
+    if (adminplusDisabled()) return false
+    const door = doorCheck(player, { staff: isStaff(player), owner: isOwner(player) })
+    if (door.ok) return false
+    // kick() is async now — it awaits the CommandResult so it can report
+    // whether anybody actually moved, rather than assuming.
+    kick(player, door.reason).then(removed => {
+        console.log(`[Admin+] turned away ${player.name}: ${door.reason}`
+            + (removed ? "" : " — BUT THEY WERE NOT REMOVED"))
+    })
+    return true
 }

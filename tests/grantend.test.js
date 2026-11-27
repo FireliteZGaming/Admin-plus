@@ -1,6 +1,7 @@
 import { __test, world, ItemStack } from "@minecraft/server"
 import { __ui } from "@minecraft/server-ui"
 import "../Admin+ BP/scripts/main.js"
+import { acceptTerms } from "../Admin+ BP/scripts/features/terms.js"
 import { onPlayerJoin, applyPreset, heldRankIds, setRanks, grantRank, revokeRank } from "../Admin+ BP/scripts/core/ranks.js"
 import { keepOf, dueFor, timedGrants, setExpiry } from "../Admin+ BP/scripts/core/grants.js"
 import { beginGrant, runGrantChecks, sendToSpawn, __forgetLiveCopies } from "../Admin+ BP/scripts/features/grant.js"
@@ -64,6 +65,8 @@ __test.runStartup()
 applyPreset("server")
 const owner = fakePlayer("Owner")
 setRanks(owner.id, ["owner"], "Owner")
+// 3.1.6: an owner accepts Admin+'s terms before using its commands.
+acceptTerms(owner)
 owner.location = { x: 100.2, y: 70, z: -40.7 }
 setSpawn(owner)                       // Admin+ spawn at 100.5, 70, -40.5
 

@@ -73,7 +73,7 @@
 						},
 						{
 							"binding_type": "view",
-							"source_property_name": "((((not ((#title_text - '§b§e§t§a') = #title_text)) and ((#title_text - '§q§u§a§d') = #title_text)) and ((#title_text - '§m§c§e') = #title_text)) and ((#title_text - '§t§i§m§e') = #title_text))",
+							"source_property_name": "(((((not ((#title_text - '§b§e§t§a') = #title_text)) and ((#title_text - '§q§u§a§d') = #title_text)) and ((#title_text - '§m§c§e') = #title_text)) and ((#title_text - '§t§i§m§e') = #title_text)) and ((#title_text - '§g§h§s§d') = #title_text))",
 							"target_property_name": "#visible"
 						}
 					]
@@ -104,6 +104,21 @@
 						{
 							"binding_type": "view",
 							"source_property_name": "(((not ((#title_text - '§b§e§t§a') = #title_text)) and (not ((#title_text - '§q§u§a§d') = #title_text))) and ((#title_text - '§m§c§e') = #title_text))",
+							"target_property_name": "#visible"
+						}
+					]
+				}
+			},
+			{
+				"beta_guard@adminplus_beta.guard_form": {
+					"layer": 2,
+					"bindings": [
+						{
+							"binding_name": "#title_text"
+						},
+						{
+							"binding_type": "view",
+							"source_property_name": "(((((not ((#title_text - '§b§e§t§a') = #title_text)) and (not ((#title_text - '§g§h§s§d') = #title_text))) and ((#title_text - '§m§c§e') = #title_text)) and ((#title_text - '§q§u§a§d') = #title_text)) and ((#title_text - '§t§i§m§e') = #title_text))",
 							"target_property_name": "#visible"
 						}
 					]
@@ -232,7 +247,8 @@
 					"bindings": [
 						{
 							"binding_name": "#custom_form_length",
-							"binding_name_override": "#collection_length"
+							"binding_name_override": "#collection_length",
+							"binding_condition": "visible"
 						}
 					]
 				}
@@ -440,6 +456,69 @@
 						"100%sm"
 					]
 				}
+			}
+		]
+	},
+	"long_form_dynamic_buttons_panel": {
+		"type": "stack_panel",
+		"size": [
+			"100% - 4px",
+			"100%c"
+		],
+		"offset": [
+			2,
+			0
+		],
+		"orientation": "vertical",
+		"anchor_from": "top_middle",
+		"anchor_to": "top_middle",
+		"factory": {
+			"name": "buttons",
+			"control_ids": {
+				"button": "server_form.dynamic_button",
+				"label": "@server_form.dynamic_label",
+				"header": "@server_form.dynamic_header",
+				"divider": "@settings_common.option_group_section_divider"
+			}
+		},
+		"collection_name": "form_buttons",
+		"bindings": [
+			{
+				"binding_name": "#form_button_contents",
+				"binding_name_override": "#collection_length",
+				"binding_condition": "visible"
+			}
+		]
+	},
+	"generated_contents": {
+		"type": "stack_panel",
+		"size": [
+			"100%",
+			"100%c"
+		],
+		"orientation": "vertical",
+		"anchor_from": "top_left",
+		"anchor_to": "top_left",
+		"factory": {
+			"name": "buttons",
+			"control_ids": {
+				"label": "@server_form.custom_label",
+				"toggle": "@server_form.custom_toggle",
+				"slider": "@server_form.custom_slider",
+				"step_slider": "@server_form.custom_step_slider",
+				"dropdown": "@server_form.custom_dropdown",
+				"input": "@server_form.custom_input",
+				"header": "@server_form.custom_header",
+				"divider": "@settings_common.option_group_section_divider",
+				"multiselect": "@server_form.custom_multiselect"
+			}
+		},
+		"collection_name": "custom_form",
+		"bindings": [
+			{
+				"binding_name": "#custom_form_length",
+				"binding_name_override": "#collection_length",
+				"binding_condition": "visible"
 			}
 		]
 	}

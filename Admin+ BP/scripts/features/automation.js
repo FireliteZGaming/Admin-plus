@@ -8,6 +8,7 @@ import { allWarps, teleportTo } from "../core/warps.js"
 import { getNickname } from "../core/identity.js"
 import { hasOperator } from "../core/devgate.js"
 import { record } from "../core/logs.js"
+import { adminplusDisabled } from "../core/terms.js"
 
 // Automation: the part that touches the world. core/automation.js reads and
 // runs the text; this file stores automations, starts them when something
@@ -280,6 +281,7 @@ function enabled() { return flag("feature.automation") }
 
 /** Start every automation block for `trigger`. Not for chat; see chatAutomations. */
 export function fire(trigger, subject, extra = {}) {
+    if (adminplusDisabled()) return 0
     if (!enabled()) return 0
     let ran = 0
     for (const rec of store.values()) {

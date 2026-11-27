@@ -20,6 +20,11 @@ import { activeChannel, visibleTo, audienceFor, isChannelMuted, channelMute } fr
 // and keeps the read-only event context free of anything that sends.
 import { inPair as inPrivate } from "../core/privatechat.js"
 import { routePrivate } from "./privatechat.js"
+// 3.1.4: Chat Moderation decides what happens to a line on its way to a room
+// (features/chatmod.js): spam dropped, a flagged line asked about or held,
+// swearing counted.
+import { moderateLine } from "./chatmod.js"
+import { adminplusDisabled } from "../core/terms.js"
 
 // Chat: rank tag, display name, channels, and mute enforcement.
 //
@@ -62,8 +67,11 @@ export function formatChatLine(sender, message, channel, labelled) {
     return render(labelled ? "format.chatChannel" : "format.chat", tokens).replace(/^ +/, "")
 }
 
-/** Post a message into a channel as if `sender` said it. Used by chat and /sudo. */
-export function postToChannel(sender, message, channel) {
+/**
+ * Post a message into a channel as if `sender` said it. Used by chat and /sudo.
+ * `note` is Chat Moderation's note for the chat log (3.1.4), when it acted.
+ */
+export function postToChannel(sender, message, channel, note) {
     const readers = audienceFor(channel)
     for (const reader of readers) {
         const labelled = visibleTo(reader).length > 1
@@ -74,7 +82,7 @@ export function postToChannel(sender, message, channel) {
     console.log(`[Admin+] [${stripCodes(channel?.display ?? "?")}] ${sender.name}: ${message}`)
     // And kept in the world, so staff can read it back later. The content log
     // is wiped every session and nobody can open it from inside the game.
-    noteChat(sender, message, channel)
+    noteChat(sender, message, channel, note)
     return readers.length
 }
 
@@ -88,6 +96,11 @@ export function installChat() {
 
     event.subscribe(eventData => {
         const player = eventData.sender
+
+        // **Admin+ is off for the server** (the terms were declined, 3.1.6):
+        // chat is left exactly as the game sends it, as if the mod were not
+        // installed. No rooms, tags, filter or mute — core/terms.js.
+        if (adminplusDisabled()) return
 
         // Put the mirror tag back in step first. This is where a stuck mute
         // surfaces — somebody tries to talk and cannot — so it is the right
@@ -117,7 +130,12 @@ export function installChat() {
             // Automations still see it. They can stop it, but can't change its
             // words: the game or the other mod delivers it as typed.
             if (chatAutomations(player, said, { canReplace: false }).cancel) { eventData.cancel = true; return }
-            system.run(() => noteChat(player, said, undefined))
+            // Another mod delivers it, so Chat Moderation can only count and
+            // tell staff here: it can't hold, ask or drop.
+            system.run(() => moderateLine(player, said, undefined, {
+                post: note => noteChat(player, said, undefined, note),
+                canHold: false
+            }))
             return
         }
 
@@ -188,7 +206,14 @@ export function installChat() {
         const automated = chatAutomations(player, message)
         if (automated.cancel) return
         const said = automated.replace ?? message
-        system.run(() => postToChannel(player, said, channel))
+        system.run(() => {
+            // Chat Moderation judges what they typed, not an automation's
+            // rewrite; what goes out is the rewrite.
+            moderateLine(player, message, channel, {
+                post: note => postToChannel(player, said, channel, note),
+                preview: () => player.sendMessage(formatChatLine(player, said, channel, false))
+            })
+        })
     })
 
     console.log("[Admin+] chat channels active")

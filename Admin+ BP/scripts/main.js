@@ -32,6 +32,8 @@ import { installAutomation } from "./features/automation.js"
 import { menusName } from "./core/channel.js"
 import { installAutomod } from "./features/automod.js"
 import { installBotDetection } from "./features/bots.js"
+import { installChatCheck } from "./features/chatcheck.js"
+import { installChatModeration } from "./features/chatmod.js"
 import { installCleanup } from "./features/cleanup.js"
 import "./features/vanish.js"
 import "./features/online.js"
@@ -40,12 +42,12 @@ import { installSignLog } from "./features/signlog.js"
 import { installNameAnimation } from "./features/nameanim.js"
 import { installVanish } from "./core/vanish.js"
 import { installHiding } from "./core/hiding.js"
-import { installDisguise } from "./features/disguise.js"
 import "./features/reports.js"
 import "./features/warn.js"
 import "./features/nick.js"
 import "./features/chatcommands.js"
 import "./features/menu.js"
+import { adminplusDisabled } from "./core/terms.js"
 import "./features/info.js"
 import "./features/timeweather.js"
 import { installGrants } from "./features/grant.js"
@@ -59,6 +61,8 @@ import { installTpa } from "./features/tpa.js"
 import { installModeration } from "./core/moderation.js"
 import { installChat } from "./features/chat.js"
 import { installHealthCheck } from "./core/health.js"
+import { installSetup } from "./features/setup.js"
+import { installTerms } from "./features/terms.js"
 
 // ---------------------------------------------------------------- commands
 
@@ -69,80 +73,6 @@ command({
     run: (player) => openPanel(player)
 })
 
-// Teleport, resolved here rather than by the parser.
-//
-//   /a:tp <destination>            move yourself to them
-//   /a:tp <victim> <destination>   move them to the destination
-//
-// **`/tp @p` never worked**, and the reason is the one the 54 passthroughs hit
-// first: a custom command's PlayerSelector parameter is expanded by the ENGINE
-// at the command's declared permission level, core/registry.js declares `Any`
-// for everything, and every `@` form is refused there — before this handler
-// runs. A literal name got through, which is exactly why the breakage looked
-// random: `/tp Steve` worked and `/tp @p` did not.
-//
-// **This is NOT the last one.** Roughly two dozen of the pack's own commands
-// still declare PlayerSelector — /ban, /mute, /warn, /nick, /invsee, /smite,
-// /sudo, /tpa, /vanish and the rest — and every one of them refuses `@p` today
-// for exactly this reason. Nobody noticed because people type a name or leave
-// the argument off, which are the two cases that work. They want the same fix;
-// this one went first because teleport is typed hardest.
-//
-// So both arguments are plain text now and core/selector.js resolves them
-// through the script API, the same route the 54 vanilla passthroughs take. The
-// cost is the same one they pay: the game no longer offers `@a @e @p` as you
-// type. The description carries the vocabulary instead, and a NAME — gamertag
-// or nickname — still works, which is what most people type anyway.
-command({
-    name: "tp",
-    description: `Teleport players · ${SELECTOR_HELP}`,
-    perm: "admin.tp",
-    // `_or_me` on both, for the same reason the 54 passthroughs carry it: the
-    // description is gone by the time you are typing the argument, and
-    // `<target: string>` says nothing about what a target looks like.
-    mandatory: [{
-        name: "target_me_or_all", type: CustomCommandParamType.String,
-        // Bare /tp: pick who to go to. The gamertag goes back in as the text
-        // this handler already resolves.
-        ask: async player => (await pickPlayer(player, { title: "/tp", body: "Who do you want to go to?" }))?.name
-    }],
-    optional: [{ name: "destination_or_me", type: CustomCommandParamType.String }],
-    run: (player, [firstText, secondText]) => {
-        const first = resolveSelector(firstText, player, true)
-        if (!first.ok) return err(player, first.reason)
-        if (first.unsupported?.length) {
-            return err(player, `Admin+ can't use §f${first.unsupported.join(", ")}§c, so nothing was done.`)
-        }
-        if (!first.entities.length) return err(player, `Nothing matched §f${firstText}§c. ${SELECTOR_HINT}`)
-
-        // One argument: the selector IS the destination, and the player moves.
-        if (secondText === undefined || secondText === null || secondText === "") {
-            if (first.entities.length > 1) return err(player, "That matched more than one player.")
-            const destination = first.entities[0]
-            player.teleport(destination.location, { dimension: destination.dimension })
-            return ok(player, `Teleported you to §f${displayName(destination)}§a.`)
-        }
-
-        const second = resolveSelector(secondText, player, true)
-        if (!second.ok) return err(player, second.reason)
-        if (second.unsupported?.length) {
-            return err(player, `Admin+ can't use §f${second.unsupported.join(", ")}§c, so nothing was done.`)
-        }
-        if (!second.entities.length) return err(player, `Nothing matched §f${secondText}§c. ${SELECTOR_HINT}`)
-        if (second.entities.length > 1) return err(player, "The destination matched more than one player.")
-
-        const destination = second.entities[0]
-        const moved = []
-        const blocked = []
-        for (const target of first.entities) {
-            if (!canActOn(player, target)) { blocked.push(displayName(target)); continue }
-            target.teleport(destination.location, { dimension: destination.dimension })
-            moved.push(displayName(target))
-        }
-        if (moved.length) ok(player, `Teleported §f${moved.join(", ")}§a to §f${displayName(destination)}§a.`)
-        if (blocked.length) err(player, `Skipped because they outrank you: §f${blocked.join(", ")}`)
-    }
-})
 
 // ------------------------------------------------------------------- events
 
@@ -150,7 +80,7 @@ world.afterEvents.playerSpawn.subscribe(({ player, initialSpawn }) => {
     if (!initialSpawn) return
     system.run(() => {
         onPlayerJoin(player)
-        if (has(player, "admin.panel")) {
+        if (!adminplusDisabled() && has(player, "admin.panel")) {
             msg(player, `§7Admin+ v${ADMINPLUS_VERSION} is ready. Type §f/admin§7 for the panel.`)
         }
     })
@@ -167,9 +97,10 @@ installModeration()
 installSpawnProtection()
 installAutomod()
 installBotDetection()
+installChatCheck()
+installChatModeration()
 installHiding()
 installVanish()
-installDisguise()
 installPresence()
 installSignLog()
 installNameAnimation()
@@ -191,6 +122,8 @@ installCleanup()
 installEnderView()
 installEnderBlocks()
 installAllowlist()
+installSetup()
+installTerms()
 
 world.afterEvents.worldLoad.subscribe(() => {
     console.log(`[Admin+] v${ADMINPLUS_VERSION} loaded — command namespace "${NS}:"`)

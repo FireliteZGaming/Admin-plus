@@ -1,6 +1,7 @@
 import { __test } from "@minecraft/server"
 import { __ui } from "@minecraft/server-ui"
 import "../Admin+ BP/scripts/main.js"
+import { acceptTerms } from "../Admin+ BP/scripts/features/terms.js"
 import { setRanks, onPlayerJoin, applyPreset } from "../Admin+ BP/scripts/core/ranks.js"
 import { NS } from "../Admin+ BP/scripts/config.js"
 import { TIMES, WEATHERS, clockFace } from "../Admin+ BP/scripts/features/timeweather.js"
@@ -39,6 +40,8 @@ function makePlayer(name) {
 applyPreset("server")
 const owner = makePlayer("Owner")
 setRanks(owner.id, ["owner"], owner.name)
+// 3.1.6: an owner accepts Admin+'s terms before using its commands.
+acceptTerms(owner)
 const member = makePlayer("Member")
 setRanks(member.id, ["member"], member.name)
 

@@ -143,13 +143,6 @@ export const GROUPS = [
                 ]
             },
             {
-                label: "Emotes", hint: "/emote",
-                fields: [
-                    sw("feature.emote", "Emotes", "/emote: an action line, like * Steve waves"),
-                    beta(txt("format.emote", "Emote line", KEEPS_BOTH, true))
-                ]
-            },
-            {
                 label: "Join and leave", hint: "Who joined and left, and a hello for newcomers",
                 fields: [
                     sw("presence.announce", "Show join and leave lines", "Admin+ shows them instead of the game's"),
@@ -244,9 +237,9 @@ export const GROUPS = [
             {
                 label: "Lag clear", hint: "What it clears, what it never touches, and clearing by itself",
                 fields: [
-                    sw("cleanup.auto", "Clear by itself when it's needed", "Only when clutter piles up or the server is slow, with a countdown first, at most every 5 minutes"),
-                    num("cleanup.autoAt", "Clear by itself at this many clearable things", "", 200, 5000, 100),
-                    sw("cleanup.merge", "Merge piles of the same item first", "Nothing is lost, and there's far less to load"),
+                    sw("cleanup.auto", "Clear by itself when it's needed", "When clutter or crowded mobs pile up, or the server stays slow, with a countdown first, at most every 5 minutes"),
+                    num("cleanup.autoAt", "Clear by itself at this many clearable things", "Extra mobs in crowded chunks count too", 200, 5000, 100),
+                    num("cleanup.mobCap", "Most of one farm animal or monster in a chunk", "Thins out crowded farms, the farthest from players first. 0 turns it off. Named, tamed, leashed and ridden mobs, and mobs holding things, are never removed; villagers, golems and pets aren't touched.", 0, 200, 4),
                     sw("cleanup.items", "Dropped items", ""),
                     sw("cleanup.xp", "XP orbs", ""),
                     sw("cleanup.projectiles", "Spent arrows, snowballs and thrown potions", "Thrown tridents and ender pearls always stay"),
@@ -254,7 +247,6 @@ export const GROUPS = [
                     num("cleanup.warn", "Countdown before it clears, in seconds", "0 clears at once", 0, 30),
                     num("cleanup.minAge", "Leave items that dropped in the last ... seconds", "So nobody loses what they just dropped", 0, 300, 5),
                     num("cleanup.deathKeep", "Keep a player's death drops for ... minutes", "0 doesn't protect them", 0, 30),
-                    num("cleanup.mobCap", "Most of one farm animal or monster in a chunk", "0 is no limit. Named, tamed and leashed mobs are never removed; villagers, golems and pets aren't touched.", 0, 200, 4),
                     beta(txt("cleanup.keep", "Items it never clears", "Separated by commas, and part of a name is enough. Empty keeps the built-in list of valuables."))
                 ]
             },
@@ -290,14 +282,13 @@ export const GROUPS = [
     {
         id: "extras",
         label: "Player extras",
-        hint: "Land claims and ender chests",
+        hint: "Land claims",
         body: "Extra things players can use.",
         pages: [
             {
                 label: "Land claims", hint: "/claim: players protect their builds", note: PER_RANK,
                 fields: [sw("feature.claims", "Land claims", "/claim: players protect their builds")]
             },
-            { label: "Ender chests", hint: "/ec: open your ender chest anywhere", fields: [sw("feature.enderchest", "Ender chests", "/ec opens your ender chest anywhere. Staff can open another player's.")] }
         ]
     },
     {

@@ -1,65 +1,44 @@
-import { menu, modal, subtitle, INCOMPLETE } from "../core/ui.js"
+import { modal, menu, subtitle, INCOMPLETE } from "../core/ui.js"
 import { hubTitle, hubEntry } from "../core/theme.js"
 import { ok, info, err } from "../core/util.js"
 import { setting, setSetting, flag, overrides } from "../core/settings.js"
 import { num, txt, fieldFor, applyField } from "../core/settingFields.js"
 import { has } from "../core/ranks.js"
 import { record } from "../core/logs.js"
-import { automodScreen } from "./automod.js"
-import { CHAT_AUTOMOD_ON_HOLD, AUTOMOD_ON_HOLD } from "../core/hold.js"
-import { heldScreen, heldWaiting } from "./heldUI.js"
 import { command } from "../core/registry.js"
-import { botsOn, actAt, alertsOn } from "../core/botcheck.js"
-import { botSettingsScreen, botListScreen, possibleBots, actionWord } from "./bots.js"
+import { botGuardScreen, botGuardSummary } from "./bots.js"
+import { chatModerationScreen, chatSummary } from "./chatcheck.js"
 
-// /admin ▸ Server ▸ Automod
+// /admin ▸ Server ▸ Automod, and /automod.
 //
 // Its own door since 2.8.3, as the user laid Server out on 2026-11-12:
-// Settings, Automod, Advanced. It gathers what was spread over Server ▸ Chat
-// and Advanced: the three checks, chat screening, and held messages.
-
-// Chat flooding is left out while chat automod is on hold (core/hold.js).
-const CHECK_KEYS = CHAT_AUTOMOD_ON_HOLD
-    ? ["automod.ores", "automod.breaks"]
-    : ["automod.ores", "automod.breaks", "automod.spam"]
-const CHECK_NAMES = CHAT_AUTOMOD_ON_HOLD ? "Ore alerts, fast breaking" : "Ore alerts, fast breaking, chat flooding"
+// Settings, Automod, Advanced.
 
 /**
- * /automod, and /admin ▸ Server ▸ Automod (3.0.1). Automod comes back one
- * check at a time, bot detection first; the held checks stay in view,
- * greyed out, so the shape of what's coming is already there.
+ * /automod, and /admin ▸ Server ▸ Automod. Two sections since 3.1.4, the
+ * user: "Bot Guard and Chat Moderation should be the only 2 ... eventually we
+ * will have Anti-cheat". Each section holds its own pages: Bot Guard has Bot
+ * Moderation and Detected Bots; Chat Moderation has its settings, Test a
+ * message and Held messages. Ore alerts and fast breaking stay on hold
+ * (core/hold.js) until they come back as Anti-cheat.
  */
 export async function automodHubScreen(player, back) {
     if (!has(player, "admin.automod")) { err(player, "You can't change automod."); return back?.() }
     const again = () => automodHubScreen(player, back)
-    const waiting = heldWaiting()
-    const checksOn = CHECK_KEYS.filter(key => flag(key)).length
-    const bots = possibleBots().length
     return menu(player, {
         title: hubTitle("settings", "Automod"),
-        body: subtitle("Automod is coming back one check at a time. Bot detection is\nfirst: it spots accounts that join but never enter the world,\nlike the ad bots. The other checks are on hold for now."),
+        body: subtitle("Automod watches for trouble so staff don't have to.\nBot Guard catches bot accounts that join but never play.\nChat Moderation checks what players say and write on signs.\nAnti-cheat comes later."),
         buttons: [
-            { text: hubEntry("settings", "Bot detection", botsOn() ? `§aon§8 · at ${actAt()}%: ${actionWord()}${alertsOn() ? "" : " · alerts off"}` : "§coff§8 · spots accounts that never enter the world"), run: () => botSettingsScreen(player, again) },
-            { text: hubEntry("settings", `Possible bots (${bots})`, bots ? "Look at each one: kick, ban, or clear" : "Nobody right now"), run: () => botListScreen(player, again) },
-            AUTOMOD_ON_HOLD
-                ? { text: "§7Ore alerts and fast breaking\n§8On hold", run: () => { info(player, "Ore alerts and fast breaking are on hold for now."); return again() } }
-                : { text: hubEntry("settings", "Checks", `${CHECK_NAMES} · ${checksOn} of ${CHECK_KEYS.length} on`), run: () => automodScreen(player, again) },
-            // Greyed out and inactive while on hold, as the user asked: pressing
-            // it opens nothing and only says why.
-            CHAT_AUTOMOD_ON_HOLD
-                ? { text: "§7Chat screening\n§8On hold", run: () => { info(player, "Chat screening is on hold for now."); return again() } }
-                : { text: hubEntry("settings", "Chat screening", flag("filter.enabled") ? "§aon§8 · what to hold, and what it costs the sender" : "§coff§8 · holds flagged messages for staff"), run: () => screeningScreen(player, again) },
-            waiting
-                ? { text: hubEntry("settings", `Held messages (${waiting})`, "Messages the screen stopped: allow or delete them"), run: () => heldScreen(player, again) }
-                : null
-        ].filter(Boolean),
+            { text: hubEntry("settings", "Bot Guard", botGuardSummary()), run: () => botGuardScreen(player, again) },
+            { text: hubEntry("settings", "Chat Moderation", chatSummary()), run: () => chatModerationScreen(player, again) }
+        ],
         back
     })
 }
 
 command({
     name: "automod",
-    description: "Bot detection and the possible bots list",
+    description: "Bot Guard and Chat Moderation",
     perm: "admin.automod",
     run: player => automodHubScreen(player)
 })

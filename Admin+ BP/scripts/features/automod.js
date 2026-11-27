@@ -2,6 +2,7 @@ import { world, system } from "@minecraft/server"
 import { modal, INCOMPLETE } from "../core/ui.js"
 import { hubTitle } from "../core/theme.js"
 import { CHAT_AUTOMOD_ON_HOLD, AUTOMOD_ON_HOLD } from "../core/hold.js"
+import { adminplusDisabled } from "../core/terms.js"
 import { ok, err, info } from "../core/util.js"
 import { has, isStaff } from "../core/ranks.js"
 import { setSetting, flag, setting, overrides } from "../core/settings.js"
@@ -115,8 +116,8 @@ export function alertStaff(text) {
     }
 }
 
-/** To the person it is about, in automod's own voice. */
-function tell(player, text) {
+/** To the person it is about, in automod's own voice. Exported for the chat check's "ask the sender" (3.1.3). */
+export function tell(player, text) {
     try { player.sendMessage(`${TAG}${text}`) } catch { /* left mid-message */ }
 }
 
@@ -170,7 +171,7 @@ export function installAutomod() {
     if (breakEvent?.subscribe) {
         breakEvent.subscribe(eventData => {
             const player = eventData.player
-            if (!player || isStaff(player)) return
+            if (adminplusDisabled() || !player || isStaff(player)) return
 
             if (config.ores()) {
                 // The BLOCK's position, not the player's — veins are grouped by
@@ -205,7 +206,7 @@ export function installAutomod() {
         chatEvent.subscribe(eventData => {
             const player = eventData.sender
             // On hold since 2.9.2 (core/hold.js): nobody is warned or muted.
-            if (CHAT_AUTOMOD_ON_HOLD || !player || isStaff(player)) return
+            if (CHAT_AUTOMOD_ON_HOLD || adminplusDisabled() || !player || isStaff(player)) return
             const verdict = noteChat(player)
             if (!verdict) return
             system.run(() => {
@@ -287,7 +288,7 @@ export const CHECK_PAGES = {
     spam: {
         title: "Chat flooding",
         fields: [
-            sw("automod.spam", "Chat flooding", "Counts messages, then warns and mutes"),
+            // Its switch lives on Chat Moderation since 3.1.4 (Spam); the numbers stay here.
             num("automod.spamRate", "Messages in 10 seconds before they're told they're typing fast", "No strike, and nothing is recorded", 2, 30),
             num("automod.spamHard", "Messages in 10 seconds that count as spam", "Each strike is punished harder. Always at least one more than typing fast.", 3, 40),
             txt("automod.spamLadder", "Mute for each strike, in seconds", "In order, separated by commas. 0 is a warning only, and the last one repeats."),

@@ -2,7 +2,7 @@ import { readFileSync, existsSync } from "node:fs"
 import { inflateSync } from "node:zlib"
 import { __test } from "@minecraft/server"
 import { __ui } from "@minecraft/server-ui"
-import { setRanks, onPlayerJoin, applyPreset, getRank, saveRank, renderTags, rankType, playerBadge, badgedTags, mediaGamertags, testerGamertags } from "../Admin+ BP/scripts/core/ranks.js"
+import { setRanks, onPlayerJoin, applyPreset, getRank, saveRank, renderTags, rankType, playerBadge, badgedTags, __setTeamDevelopers } from "../Admin+ BP/scripts/core/ranks.js"
 import { setSetting, renderTag, render } from "../Admin+ BP/scripts/core/settings.js"
 import { BADGES, BADGE_PAGE, TICK, badgeChar, badgeOf, badgesOn, badgeLabel, canWearBadge, pickableBadges, mayWear, TEAM_RANKS } from "../Admin+ BP/scripts/core/badges.js"
 import { ranksScreen, rankScreen } from "../Admin+ BP/scripts/features/ranksUI.js"
@@ -151,9 +151,9 @@ console.log("\n— which badge a rank wears —")
     // now", after a player made a rank called "ADMIN+ CREATOR". 2.12.2: the
     // whole team, "the admin+ badge marks who is a true cooperator of the
     // admin+ team".
-    check("the whole Admin+ team: Creator, Dev, Tester and Media", TEAM_RANKS,
-        ["adminplus_creator", "adminplus_dev", "adminplus_tester", "adminplus_media"])
-    check("all four team ranks wear the Admin+ badge", TEAM_RANKS.map(id => badgeOf({ id }, "default")), ["plus", "plus", "plus", "plus"])
+    // 3.1.6: the four team badges are one Developer rank now.
+    check("one team rank, the Developer", TEAM_RANKS, ["adminplus_dev"])
+    check("it wears the Admin+ badge", TEAM_RANKS.map(id => badgeOf({ id }, "default")), ["plus"])
     check("the flask is a badge like any other now", mayWear({ id: "lab" }, "flask"), true)
     check("a world's own rank that picked it shows no badge", badgeOf({ id: "admin_creator", meta: { badge: "plus" } }, "default"), undefined)
     check("a staff rank that picked it goes back to the ban hammer", badgeOf({ id: "fake", meta: { badge: "plus" } }, "staff"), "hammer")
@@ -235,11 +235,12 @@ console.log("\n— on Beta, one badge per player, between bars —")
 
     // 2.12.2, the user: "no matter what, you will always get the admin +
     // badge ... even if you have an owner tag you still get admin+ over the
-    // crown". The whole team: a tester and a Media member stand in for it.
-    const maker = player("bdg-media", mediaGamertags()[0], ["member"])
-    const tester = player("bdg-tester", testerGamertags()[0], ["member"])
-    check("a team member on the starting rank wears the Admin+ badge", [playerBadge(maker), playerBadge(tester)], [badgeChar("plus"), badgeChar("plus")])
-    check("in front of their team tag", plain(badgedTags(maker)), `| ${badgeChar("plus")} | [Admin+ Media]`)
+    // crown". 3.1.6: two developers stand in for the team.
+    __setTeamDevelopers(["MakerDev", "SecondDev"])
+    const maker = player("bdg-maker", "MakerDev", ["member"])
+    const tester = player("bdg-second", "SecondDev", ["member"])
+    check("a developer on the starting rank wears the Admin+ badge", [playerBadge(maker), playerBadge(tester)], [badgeChar("plus"), badgeChar("plus")])
+    check("in front of their Developer tag", plain(badgedTags(maker)), `| ${badgeChar("plus")} | [Developer]`)
     setRanks(maker.id, ["owner"], maker.name)
     check("as an owner they still wear the Admin+ badge, not the crown", playerBadge(maker), badgeChar("plus"))
     check("in chat, in front of the owner's tag", line("format.chat", maker, "Maker"), `| ${badgeChar("plus")} | [Owner] Maker » hi`)
@@ -256,6 +257,7 @@ console.log("\n— on Beta, one badge per player, between bars —")
     setSetting("feature.badges", "false")
     check("the Badges switch still hides it, like everyone's", playerBadge(maker), "")
     setSetting("feature.badges", "true")
+    __setTeamDevelopers([])
     setSetting("feature.ranktags", "false")
     check("and so do rank tags off", playerBadge(maker), "")
     setSetting("feature.ranktags", "true")

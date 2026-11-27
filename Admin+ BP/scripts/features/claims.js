@@ -10,6 +10,7 @@ import {
     allClaims, claimsOf, getClaim, createClaim, removeClaim, claimAt,
     claimLimit, claimMaxSize, squareAround, trust, untrust, mayBuild
 } from "../core/claims.js"
+import { adminplusDisabled } from "../core/terms.js"
 
 // Claims, and the events that enforce them.
 //
@@ -39,6 +40,7 @@ function refuse(player, reason) {
 
 /** The one check every hook runs. Returns true when the event must be cancelled. */
 function blocked(player, block) {
+    if (adminplusDisabled()) return false
     if (!player || !block) return false
     const at = block.location
     if (!at) return false
@@ -73,7 +75,7 @@ export function installClaims() {
     before.playerInteractWithEntity?.subscribe(event => {
         const target = event.target
         const at = target?.location
-        if (!event.player || !at) return
+        if (adminplusDisabled() || !event.player || !at) return
         const verdict = mayBuild(event.player, target.dimension?.id, at.x, at.z)
         if (!verdict.ok) {
             refuse(event.player, `${verdict.reason} You can't touch things here.`)

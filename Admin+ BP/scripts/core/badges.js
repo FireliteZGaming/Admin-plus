@@ -68,7 +68,7 @@ const DEFAULT_BADGES = Object.freeze({
     owner: "crown", coowner: "crown", manager: "star", admin: "shield",
     mod: "hammer", staff: "hammer",
     vip: "gem", vipplus: "gem", mvp: "star",
-    adminplus_creator: "plus", adminplus_dev: "plus", adminplus_tester: "plus", adminplus_media: "plus"
+    adminplus_dev: "plus"
 })
 
 /**
@@ -104,7 +104,8 @@ export function canWearBadge(type) {
  * in core/ranks.js), named here by id so this file never imports ranks.js.
  */
 export const TEAM_BADGE = "plus"
-export const TEAM_RANKS = Object.freeze(["adminplus_creator", "adminplus_dev", "adminplus_tester", "adminplus_media"])
+// 3.1.6: the four team badges are one Developer rank now (core/ranks.js).
+export const TEAM_RANKS = Object.freeze(["adminplus_dev"])
 
 /** The Admin+ badge as a team member wears it, or "" when badges are off. */
 export function teamBadgeFor() {
