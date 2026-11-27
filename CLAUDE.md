@@ -56,8 +56,14 @@ storefront because nobody could tell shipped from played.
 - `--alpha` — tests pass, never run in game. GitHub pre-release; keep it OFF
   CurseForge, because MCPEDL mirrors CurseForge and that is the widest audience,
   not the narrowest.
-- `--beta` — ran in a world here. CurseForge file type Beta.
+- `--beta` — ran in a world here.
 - (no flag) — stable. Played by somebody who did not write it.
+- **Since 2026-11-27 no channel means CurseForge.** The user: stable is for
+  GitHub and the website; CurseForge stays on its file until 4.0.0 or until
+  they decide. Don't prepare upload copy unless they ask.
+- **Promote only after the release's own in-game checks were seen**, not
+  just clean loads. 3.1.7 was promoted on two loads with no errors while its
+  main change (the menus) needed screenshots, and its chest menus were empty.
 - `--promote` — an alpha/beta that survived becomes stable. Same tag, same file,
   prerelease flag flipped. **Never renumber to change a claim.**
 
@@ -125,12 +131,18 @@ These were each paid for with a playtest. Do not rediscover them.
    hidden copy still made a control per button, and the three fixed chest
    grids made 153 item slots on EVERY menu. Now every list length binds
    with `"binding_condition": "visible"` (the game's own pattern:
-   storage_management's factories, `ui_common.json` container_grid), the
-   chest grids are `grid_rescaling_type: "horizontal"` sized by
-   `#maximum_grid_items`, and `server_form.json` carries 1.26.45 copies of
-   the game's `long_form_dynamic_buttons_panel` and `generated_contents`
-   with the same condition. Any new layout or list must do the same;
-   `tests/look.test.js` counts all 15. Not yet seen in game.
+   storage_management's factories), and `server_form.json` carries 1.26.45
+   copies of the game's `long_form_dynamic_buttons_panel` and
+   `generated_contents` with the same condition. Any new layout or list must
+   do the same; `tests/look.test.js` counts all 12.
+7. **A chest grid keeps fixed `grid_dimensions` (3.1.8, the user: "items is
+   actually completely broken now - no items will appear").** 3.1.7 sized
+   the three chest grids by `#form_button_contents` as
+   `#maximum_grid_items` with `grid_rescaling_type`, and in game that built
+   NO cells: /items showed an empty chest. And the stall on /items stayed
+   with zero cells, so hidden chest cells were never its cause. The cause
+   is still unknown: find it in game, one change per build, before claiming
+   a fix. `tests/enderchest.test.js` pins the fixed sizes.
 
 **Font-page pictures draw at one game pixel per picture pixel, centred on
 the line, and are never shrunk (2.11.4, the user's screenshots).** A badge

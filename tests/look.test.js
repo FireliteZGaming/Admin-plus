@@ -790,9 +790,10 @@ console.log("\n— a menu builds only the layout that shows (3.1.7) —")
 {
     // Every Admin+ menu carries every layout it might draw (six for buttons,
     // four for fields) and hides all but one. Before 3.1.7 each hidden copy
-    // built every button too, and the three chest grids built 153 slots for
-    // every menu: the stall the user felt opening /items and /invsee. The
-    // game's own pattern is a length bound only while visible.
+    // built every button too. The game's own pattern is a length bound only
+    // while visible. The three chest grids are NOT counted since 3.1.8: their
+    // count binding built no cells in game, so they have fixed sizes again
+    // (tests/enderchest.test.js), and the stall on /items stayed either way.
     const files = ["adminplus_beta.json", "adminplus_ui.json", "server_form.json"]
     const lengths = []
     const walk = (node, file) => {
@@ -804,7 +805,7 @@ console.log("\n— a menu builds only the layout that shows (3.1.7) —")
         Object.values(node).forEach(v => walk(v, file))
     }
     for (const file of files) walk(JSON.parse(readFileSync(new URL(`../Admin+ RP/ui/${file}`, import.meta.url), "utf8")), file)
-    check("every list and grid of ours is counted", lengths.length, 15)
+    check("every list of ours is counted", lengths.length, 12)
     check("and builds only while it shows", lengths.filter(([, b]) => b.binding_condition !== "visible").map(([f]) => f), [])
     const form = JSON.parse(readFileSync(new URL("../Admin+ RP/ui/server_form.json", import.meta.url), "utf8"))
     check("the game's own button list and field list are copied with the same condition",

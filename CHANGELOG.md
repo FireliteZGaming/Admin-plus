@@ -22,6 +22,20 @@ tag, same file, only the claim about it changes.
 
 ---
 
+## 3.1.8 — 2026-11-27
+
+**Emergency fix: /items, /invsee and /ec show their items again. GitHub only.**
+
+The user, 2026-11-27: "items is actually completely broken now - no items will appear we need an emergency patch before hand. and the lag is still a thing with it".
+
+- **Chest menus draw their items again.** 3.1.7 changed the three chest grids (27, 54 and 72 slots) to count their slots from the form, the way the game's own chest screen does. In the game that count came out as nothing, so no slots were built and every chest menu opened empty. The grids are back to the fixed sizes that drew items up to 3.1.6.
+- **The stall when a chest menu opens is not fixed.** It stayed in 3.1.7 even with no slots built, so the hidden slots weren't its cause, as 3.1.7 had guessed. The cause is still unknown and needs testing in game, one change at a time.
+- Everything else in 3.1.7 stays: the other menus still build only the layout that shows.
+- Tests: `tests/enderchest.test.js` pins the fixed sizes again; `tests/look.test.js` counts the 12 lists that build only while they show.
+- Not seen in game yet: open /items and check the four items show.
+
+---
+
 ## 3.1.7 — 2026-11-27
 
 **Menus open faster, /ec is a staff tool, four commands are gone, and permissions are grouped by what they do. GitHub only.**

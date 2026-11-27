@@ -48,7 +48,10 @@
 						{
 							"small_chest_grid": {
 								"type": "grid",
-								"grid_rescaling_type": "horizontal",
+								"grid_dimensions": [
+									9,
+									3
+								],
 								"size": [
 									"100% - 14px",
 									"100% - 27px"
@@ -61,14 +64,7 @@
 								"anchor_to": "top_left",
 								"grid_item_template": "adminplus_ui.inventory_item",
 								"collection_name": "form_buttons",
-								"layer": 1,
-								"bindings": [
-									{
-										"binding_name": "#form_button_contents",
-										"binding_name_override": "#maximum_grid_items",
-										"binding_condition": "visible"
-									}
-								]
+								"layer": 1
 							}
 						}
 					],
@@ -109,7 +105,10 @@
 						{
 							"large_chest_grid": {
 								"type": "grid",
-								"grid_rescaling_type": "horizontal",
+								"grid_dimensions": [
+									9,
+									6
+								],
 								"size": [
 									"100% - 14px",
 									"100% - 27px"
@@ -122,14 +121,7 @@
 								"anchor_to": "top_left",
 								"grid_item_template": "adminplus_ui.inventory_item",
 								"collection_name": "form_buttons",
-								"layer": 1,
-								"bindings": [
-									{
-										"binding_name": "#form_button_contents",
-										"binding_name_override": "#maximum_grid_items",
-										"binding_condition": "visible"
-									}
-								]
+								"layer": 1
 							}
 						}
 					],
@@ -169,7 +161,10 @@
 						{
 							"big_chest_grid": {
 								"type": "grid",
-								"grid_rescaling_type": "horizontal",
+								"grid_dimensions": [
+									9,
+									8
+								],
 								"size": [
 									"100% - 14px",
 									144
@@ -182,14 +177,7 @@
 								"anchor_to": "top_left",
 								"grid_item_template": "adminplus_ui.inventory_item",
 								"collection_name": "form_buttons",
-								"layer": 1,
-								"bindings": [
-									{
-										"binding_name": "#form_button_contents",
-										"binding_name_override": "#maximum_grid_items",
-										"binding_condition": "visible"
-									}
-								]
+								"layer": 1
 							}
 						}
 					],

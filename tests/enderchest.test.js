@@ -160,16 +160,16 @@ for (const [name, { sentinel, count }] of sizes) {
 
     const kids = panel.controls.map(c => [Object.keys(c)[0], Object.values(c)[0]])
     const grid = kids.map(([, c]) => c).find(c => c?.type === "grid")
-    // Since 3.1.7 the grid is the game's own container_grid shape (ui_common.json):
-    // no fixed dimensions; 18px cells fill rows across its width, and its cells
-    // are built only while it shows. Before, all three grids (153 cells) were
-    // built for every Admin+ menu, a chest or not.
-    const span = (value, whole) => typeof value === "number" ? value : whole - Number(/^100% - (\d+)px$/.exec(value)?.[1])
-    const cols = span(grid?.size?.[0], panel.size[0]) / ROW
-    const rows = span(grid?.size?.[1], panel.size[1]) / ROW
-    check(`${name} builds its cells only while it shows, like the game's chest`,
-        [grid?.grid_rescaling_type, grid?.grid_dimensions, (grid?.bindings ?? []).find(b => b.binding_name_override === "#maximum_grid_items")],
-        ["horizontal", undefined, { binding_name: "#form_button_contents", binding_name_override: "#maximum_grid_items", binding_condition: "visible" }])
+    // FIXED dimensions again since 3.1.8. 3.1.7 swapped them for a grid that
+    // counts its cells from `#form_button_contents` (as `#maximum_grid_items`),
+    // and in the game that built no cells at all: /items showed an empty chest
+    // (the user, 2026-11-27: "items is actually completely broken now - no
+    // items will appear"). The stall it was meant to fix stayed, too. A fixed
+    // grid is the shape every chest drew items in up to 3.1.6.
+    const [cols, rows] = grid?.grid_dimensions ?? []
+    check(`${name} has fixed dimensions, not a count it reads from the form`,
+        [Array.isArray(grid?.grid_dimensions), grid?.grid_rescaling_type, (grid?.bindings ?? []).some(b => b.binding_name_override === "#maximum_grid_items")],
+        [true, undefined, false])
     check(`${name} is nine wide`, cols, 9)
 
     check(`${name} draws ${count} cells`, cols * rows, count)
