@@ -41,8 +41,8 @@ python tools/release.py --alpha    # tag, GitHub pre-release, archived build
   are running.
 - After a Minecraft update, run `python tools/genicons.py` — item icons come
   from texture paths read out of the installed game. Then
-  `python tools/gendisguise.py` (`--report` first): the 76 disguise look files
-  name the game's own models, textures and animations, read the same way.
+  `python tools/vanillaui.py` and reread the game's own menu files before
+  trusting the old shapes (`server_form.json` copies two of them, below).
 
 ## Releases have a channel, and it means how SURE, not how big
 
@@ -117,6 +117,20 @@ These were each paid for with a playtest. Do not rediscover them.
    game's files do 102 times. Hidden children take no room at all, so the
    made-in-both, shown-in-one trick is sound. `tests/look.test.js` checks
    every stack of ours.
+6. **Hidden is not free: every layout is BUILT, shown or not (3.1.7, the
+   user: "the lag/stall when you open items ... I feel like this is
+   connected to a possible massive UI issue").** `long_form` holds six
+   layouts (the game's list, the chest, list, logs, tiles, guard) and
+   `custom_form_switch` four, picked by `#visible` from the title. Each
+   hidden copy still made a control per button, and the three fixed chest
+   grids made 153 item slots on EVERY menu. Now every list length binds
+   with `"binding_condition": "visible"` (the game's own pattern:
+   storage_management's factories, `ui_common.json` container_grid), the
+   chest grids are `grid_rescaling_type: "horizontal"` sized by
+   `#maximum_grid_items`, and `server_form.json` carries 1.26.45 copies of
+   the game's `long_form_dynamic_buttons_panel` and `generated_contents`
+   with the same condition. Any new layout or list must do the same;
+   `tests/look.test.js` counts all 15. Not yet seen in game.
 
 **Font-page pictures draw at one game pixel per picture pixel, centred on
 the line, and are never shrunk (2.11.4, the user's screenshots).** A badge
@@ -329,38 +343,20 @@ field, or (on a game that drew no labels) one per input.
   padded default such as the one-space `format.tagJoin` is never trimmed).
   A new setting needs a home on a page; `tests/settingspages.test.js` fails
   until it has one.
-- **Hiding is one layer (2.12.8, `core/hiding.js`).** Vanish and disguise
-  are each a REASON to hide a player; they show again only when no reason is
-  left, so coming out of vanish leaves a disguise on. Effects are BORROWED:
+- **Hiding is one layer (2.12.8, `core/hiding.js`).** Each REASON hides a
+  player, and they show again only when no reason is left; vanish is the
+  only reason since /disguise went in 3.1.7 (an old disguise reason is
+  dropped on join). Effects are BORROWED:
   the invisibility and night vision a player had before (a potion) are given
   back with the time they had left, never just removed (the user: "using
   /vanish to disappear and appear should not affect your current effects or
   invisibility"). The every-tick animation stamp and the blank nametag live
   there, and `refreshNameTag` skips hidden players. Anything new that hides a
   player is a new reason, not its own copy of the effects.
-- **/disguise (2.12.8, Beta, the user: "disguise as anything. Sorta like a
-  morph mod ... skip flying mobs").** `features/disguise.js`. The player is
-  hidden (reason `disguise`) and a BODY follows them: `adminplus:disguise_<mob>`,
-  Admin+'s own entity with no AI, no damage, no pushing, family
-  `adminplus_disguise`, a 0.01 hitbox so hits reach the player. Never a real
-  mob: a script can't switch a mob's AI off. The body is PUSHED to the player
-  every tick (`clearVelocity` + `applyImpulse`), because the game animates legs
-  from distance actually travelled and a teleport travels none; it is snapped
-  when more than 4 blocks away or behind for 5 ticks, remade if it vanishes,
-  and removed while its player is vanished. Bodies carry `ap:disguise:<id>`;
-  strays are swept. It ends with `off`, factory reset or leaving (`onJoin`
-  ends a disguise left on the books). The 76 mobs and their look files come
-  from `tools/gendisguise.py`, which reads the installed game: references to
-  the game's own models, textures, animations and render controllers, plus
-  the molang that feeds them; a `minecraft:*` property reads as the mob's
-  default, and engine-supplied variables start at rest. Flying mobs stay off
-  the list. `tests/disguise.test.js`. **The content log is the check for the
-  look files** (2.12.9): the game derives a neck locator per geometry and
-  logs an error when two differ, so geometries a disguise never draws (baby,
-  coats, sheared, a plain look's poses) point at the default (`NEVER_DRAWN`);
-  and it asks some vanilla render controllers for names no vanilla file
-  defines, which `GAME_ASKS_FOR` supplies from the content log's own words.
-  After a game update, load a world and read the log for `adminplus:disguise_`.
+- **/disguise was REMOVED in 3.1.7** (the user: "We also must remove
+  /disguise"; on hold since 2.12.14). The command, `features/disguise.js`,
+  `core/disguises.js`, the 76 mob looks, `tools/gendisguise.py` and its
+  test are gone (in git before d9afa5b). Don't bring it back unasked.
 - **< Code > is JavaScript in Beta (2.12.7, the user: "we actually make that
   JavaScript too").** `const setup = "..."` and `const settings = { ... }`,
   one heading per group (`toScript`/`fromScript` in `features/code.js`).
@@ -380,6 +376,13 @@ field, or (on a game that drew no labels) one per input.
   name colour, typed chat colour, starting rank. Permissions: Member (use,
   limits, cooldowns) and Administrative (Staff type only). There is no colour
   LIST for names: people type codes, the user's call.
+  **The groups since 3.1.7** (the user: "categories became more sane -
+  Transportation - Communication. For staff and default permissions so it's
+  easy to navigate"): Member is Transportation, Communication and
+  Personalization (`MEMBER_GROUPS` in core/ranks.js); Administrative is The
+  panel, Staff chat, Moderation, Players and the world, Pranks, Ranks and
+  places, Server settings. /info's topics use the same words. Node ids
+  never change, only the group they show in.
 - **The four types (the user's, modelled on Discord roles).** Default and Staff
   are IN THE ORDER. Cosmetic (a tag, no permissions) and Unlisted (permissions,
   no tag) weigh 0 and are never in `ladder()`; weight 0 is what keeps them out
@@ -538,7 +541,13 @@ field, or (on a game that drew no labels) one per input.
   and /automod. `tests/bots.test.js`.
 - **No economy or shop**, ever. The `+` means essentials.
 - **Fly, god, heal, feed: dropped.** Removed on purpose, not missing. Do not
-  build them unasked. Three things came OFF this list because the user asked
+  build them unasked. **/tp, /emote and /me went in 3.1.7** (the user: "/tp
+  technically exists as a command in vanilla already, so we can remove that
+  as well as emotes"): the game has its own, and the Ender Eye (/port) is
+  Admin+'s teleport. **/ec is a staff tool** (3.1.7): /invsee for another
+  player's ender chest, behind `admin.invsee`, no switch, never your own.
+  A take re-reads the slot and refuses if it changed since the screen
+  opened, and only lands in an empty slot (`transfer` in core/inventory.js). Three things came OFF this list because the user asked
   for them back, and are not lapses: `bring` (2026-09-11, an entry in the Ender
   Eye's player menu), homes (2.7.0) and `/back` (2.7.4). Do not re-remove them.
 - **A node exists only if the code checks it.** A switch that does nothing is
@@ -776,9 +785,12 @@ field, or (on a game that drew no labels) one per input.
   claim protection (`blockGuard`, `blocked`), spawn PvP, the staff items
   (ban hammer, Ender Eye, compass, knockback stick, staff mode, Omnitool),
   scriptevent presets and a counting-down lag clear all step aside, and a
-  player's command, a developer's included, only says it's off. Bans and
-  the allowlist still apply, on purpose: declining must not let a banned
-  player back in. A decline of older terms still counts (an update must
+  player's command, a developer's included, only says it's off. Bans, the
+  allowlist, maintenance and freezes stop too (3.1.7, the user: "it causes
+  a problem if your forced to accept just to lift a ban"): `checkJoin` in
+  core/moderation.js, `turnAwayOnJoin` in features/allowlist.js, and
+  `applyFrozen` for everyone online when the answer changes; the records
+  stay and apply again on an accept. A decline of older terms still counts (an update must
   not switch the mod back on). Anything new that acts by itself checks
   `adminplusDisabled()` first, or gets a written reason in `NEEDN_T`
   (`tests/terms.test.js` fails otherwise). A fresh world with no answer
