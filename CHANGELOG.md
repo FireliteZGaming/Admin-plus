@@ -22,6 +22,25 @@ tag, same file, only the claim about it changes.
 
 ---
 
+## 3.1.9 — 2026-11-27
+
+**A Dev Team section in Ranks, a permanent Developer tag, /automod in its own look, yellow join and leave lines, and death messages with display names. GitHub only.**
+
+The user, 2026-11-27: "for the developer tag, i want to actually appear in a section called "Dev Team" in ranks, of course this section only appears if the dev is actually in the game ... and you can click the developer tag, and it will give you information about developer rank, developer rank also can't be replaced by any other role either, unless the developer themselves goes into the developer rank (which they can edit themselves) and toggles the perminant toggle off). and then i want a redo for /automod just like bot guard got". Then: "everything in and past /automod should be enhanced to the fullest with simple and cleanness as you see", and: "it shouldn't use color besides the natural yellow for join and leave messages. and nicknames for some reason didn't apply to death messages".
+
+- **Ranks ▸ Dev Team.** While a developer is in the world, Ranks opens on a Dev Team section above In the order, with the Developer rank in it. Tapping it says who wears it (the people who make Admin+, named by gamertag in Admin+'s own code), who is here, what it can do on this server, and that nobody can be given it or have it taken away. A hidden developer doesn't make the section show for anyone else.
+- **Permanent.** A rank the server gives a developer no longer replaces their Developer tag: it stays their main tag, with any cosmetic tags after it. Each developer can turn this off for themselves in **Ranks ▸ Dev Team ▸ Developer ▸ Permanent**; off is the rule from before (a rank from the server shows instead). On by default, kept per developer and per world. Staff can read the page but get no switch.
+- **/automod has its own look** in Admin+'s menus, in Bot Guard's family: a banner with Automod's eye (open and glowing while either section is on, shut and grey when both are off), a light sweeping across, an ACTIVE or OFF pill, and how each section is set. Bot Guard and Chat Moderation are cards, each with a light that's on while that section is.
+- **Chat Moderation has its own look too:** a banner with a speech bubble, its level and what it does with a flagged line, and a WATCHING or OFF pill, then Settings, Test a message and Held messages as three cards.
+- **Cleaner pages under /automod.** Bot Moderation is two sections (Bot Guard, When one is caught) with how the score is made at the end, instead of a long paragraph on top. Chat Moderation ▸ Settings explains each level under the Level list and puts the model's note last. Test a message says "press Test", which is its button. Held messages has a Back button on the list and on each message, and says so when nothing is held instead of closing. Detected Bots' empty list reads in one line.
+- **Join and leave lines are all in the game's yellow.** The display name keeps its letters but not its colour, so a coloured name no longer shows in its own colour inside the yellow line.
+- **Death messages use display names.** Admin+ says the game's own death messages, in the game's own words so each player reads them in their language, with display names in place of gamertags, and switches the game's own off while it does (the showDeathMessages rule). A mob is named in the reader's language, or by its name tag. A hidden player's death isn't said. **Server ▸ Settings ▸ Chat ▸ Death messages** turns it off, which hands them back to the game; so does declining the terms. On by default.
+- In Minecraft's own menus every screen is the plain list it was, with the same status words as its body.
+- Tests: `tests/devteam.test.js` (38 checks), `tests/deaths.test.js` (37, including a check that every death key is in the game's own en_US.lang), `tests/look.test.js` checks both new frames from the pack's bindings; `tests/presence.test.js`, `tests/ranks.test.js`, `tests/badges.test.js` and `tests/bots.test.js` updated.
+- Not seen in game. Menus fail silently, so screenshots of /automod, Chat Moderation and Ranks with a developer in the world are the check, and a death or two shows the messages.
+
+---
+
 ## 3.1.8 — 2026-11-27
 
 **Emergency fix: /items, /invsee and /ec show their items again. GitHub only.**

@@ -1,6 +1,6 @@
 import { world, system } from "@minecraft/server"
 import { render, flag } from "../core/settings.js"
-import { displayName, nameTokens, getNickname } from "../core/identity.js"
+import { displayName, nameTokens, getNickname, stripCodes } from "../core/identity.js"
 import { isVanished } from "../core/vanish.js"
 import { adminplusDisabled } from "../core/terms.js"
 
@@ -20,11 +20,21 @@ import { adminplusDisabled } from "../core/terms.js"
 // is a visible, harmless failure, which is the right way round: nobody is
 // silently un-hidden.
 
+/**
+ * The names for a join or leave line, without their colours (3.1.9, the
+ * user: "it shouldn't use color besides the natural yellow for join and leave
+ * messages"). A display name keeps its letters, its font included, but not
+ * its colour codes, so the whole line is the yellow the game's own line is.
+ */
+export function plainTokens(tokens) {
+    return Object.fromEntries(Object.entries(tokens).map(([key, value]) => [key, stripCodes(String(value ?? ""))]))
+}
+
 /** Print the join line for a player. */
 export function announceJoin(player) {
     if (adminplusDisabled()) return
     if (!flag("presence.announce")) return
-    world.sendMessage(render("format.join", nameTokens(player)))
+    world.sendMessage(render("format.join", plainTokens(nameTokens(player))))
 }
 
 /**
@@ -37,7 +47,7 @@ export function announceJoin(player) {
 export function announceLeave(name, nickname) {
     if (adminplusDisabled()) return
     if (!flag("presence.announce")) return
-    world.sendMessage(render("format.leave", nameTokens(name, nickname)))
+    world.sendMessage(render("format.leave", plainTokens(nameTokens(name, nickname))))
 }
 
 /**

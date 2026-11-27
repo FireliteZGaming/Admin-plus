@@ -146,3 +146,44 @@ export function setLook(playerOrId, key, on) {
     else looks.delete(id)
     return true
 }
+
+// ---------------------------------------------------------------- developers
+// The Developer rank's own switches (3.1.9). The user, 2026-11-27: the
+// Developer rank "can't be replaced by any other role either, unless the
+// developer themselves goes into the developer rank (which they can edit
+// themselves) and toggles the perminant toggle off". So each developer decides
+// for themselves, on each server, and nobody else can. Only a developer sees
+// these, in Ranks ▸ Dev Team ▸ Developer (features/ranksUI.js). Kept apart from
+// PREFS and LOOKS for that reason. The same honesty rule holds: every switch
+// names the file that reads it, and a test checks.
+
+const devPrefs = new Table("devprefs", {})
+
+export const DEV_PREFS = {
+    "dev.permanent": {
+        value: true,
+        label: "Permanent",
+        help: "Your Developer tag stays even when this server gives you a rank. Off: that rank shows instead.",
+        readBy: "core/ranks.js"
+    }
+}
+
+/** A developer's own answer for one of their switches, or its default. */
+export function devPref(playerOrId, key) {
+    const stored = devPrefs.get(idOf(playerOrId))?.[key]
+    if (stored === undefined) return DEV_PREFS[key]?.value ?? false
+    return stored === true || stored === "true"
+}
+
+/** Change a developer switch. Only differences from the default are stored. */
+export function setDevPref(playerOrId, key, on) {
+    if (!(key in DEV_PREFS)) return false
+    const id = idOf(playerOrId)
+    if (!id) return false
+    const held = { ...(devPrefs.get(id) ?? {}) }
+    if (!!on === !!DEV_PREFS[key].value) delete held[key]
+    else held[key] = !!on
+    if (Object.keys(held).length) devPrefs.set(id, held)
+    else devPrefs.delete(id)
+    return true
+}

@@ -70,7 +70,7 @@ export function drawsTiles(spec, beta) {
  * other buttons and a Back button: those stay rows under the cards.
  */
 export function drawsCards(spec, beta) {
-    return !!beta && (spec.layout === "cards" || spec.layout === "guard")
+    return !!beta && ["cards", "guard", "automod", "chat"].includes(spec.layout)
 }
 
 /**
@@ -87,10 +87,13 @@ export function drawsCards(spec, beta) {
  * "cards"` a button with a `card` face is drawn as a card (core/look.js CARD).
  * `layout: "guard"` is Bot Guard's own frame (core/look.js GUARD): the body
  * in a banner, `card` faces as cards, and `watching: true` lights it up.
+ * `layout: "automod"` is Automod's (3.1.9, core/look.js AUTOMOD), the same
+ * way, and a card with `on: true` lights its own light. `layout: "chat"` is
+ * Chat Moderation's (3.1.9, core/look.js CHATMOD): three cards in a row.
  * On Default, `layout`, `tile` and `card` are ignored and the menu is exactly
  * what it was.
  * @param {import("@minecraft/server").Player} player
- * @param {{title: string, body?: string, profile?: string, layout?: "tiles"|"cards"|"logs"|"guard", watching?: boolean, buttons: ({text: string, icon?: string, tile?: {text: string, icon: string}, card?: {text: string, icon?: string}, run: () => any}|{header?: string, label?: string, divider?: boolean})[], back?: () => any}} spec
+ * @param {{title: string, body?: string, profile?: string, layout?: "tiles"|"cards"|"logs"|"guard"|"automod"|"chat", watching?: boolean, buttons: ({text: string, icon?: string, tile?: {text: string, icon: string}, card?: {text: string, icon?: string, on?: boolean}, run: () => any}|{header?: string, label?: string, divider?: boolean})[], back?: () => any}} spec
  */
 export async function menu(player, spec) {
     const beta = betaLook()
@@ -103,7 +106,9 @@ export async function menu(player, spec) {
     // The Logs timeline (2.12.5) and Bot Guard (3.1.5) have frames of their own.
     const logs = beta && spec.layout === "logs"
     const guard = beta && spec.layout === "guard" ? (spec.watching ? "on" : "off") : false
-    const form = new ActionFormData().title(beta ? lookTitle(spec.title, { tiles, profile: !!profile, logs, guard }) : spec.title)
+    const automod = beta && spec.layout === "automod" ? (spec.watching ? "on" : "off") : false
+    const chat = beta && spec.layout === "chat" ? (spec.watching ? "on" : "off") : false
+    const form = new ActionFormData().title(beta ? lookTitle(spec.title, { tiles, profile: !!profile, logs, guard, automod, chat }) : spec.title)
     const body = profile || spec.body
     if (body) form.body(show(body))
     const actions = []
@@ -112,7 +117,7 @@ export async function menu(player, spec) {
         if (!button) continue
         if (isDecoration(button)) { decorate(form, beta ? liftDecoration(button) : button); continue }
         if (cards && button.card) {
-            form.button(show(cardText(button.card.text)), button.card.icon)
+            form.button(show(cardText(button.card.text, !!button.card.on)), button.card.icon)
             actions.push(button.run)
             continue
         }

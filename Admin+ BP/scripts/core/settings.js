@@ -72,6 +72,13 @@ export const DEFAULTS = {
         label: "Leave line",
         help: "Tokens: {NAME} {NICKNAME} · /vanish shows this too, so vanishing looks like leaving"
     },
+    // 3.1.9 (features/deaths.js): Admin+ says the game's death messages with
+    // display names, and turns the game's own off while it does.
+    "presence.deaths": {
+        value: "true",
+        label: "Death messages with display names",
+        help: "true / false · Admin+ says the game's death messages, in each player's language, with display names instead of gamertags. Off: the game says them"
+    },
     "presence.greet": {
         value: "true",
         label: "Tell new players about /info",

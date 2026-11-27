@@ -38,6 +38,7 @@ import { installCleanup } from "./features/cleanup.js"
 import "./features/vanish.js"
 import "./features/online.js"
 import { installPresence } from "./features/presence.js"
+import { installDeathMessages } from "./features/deaths.js"
 import { installSignLog } from "./features/signlog.js"
 import { installNameAnimation } from "./features/nameanim.js"
 import { installVanish } from "./core/vanish.js"
@@ -102,6 +103,7 @@ installChatModeration()
 installHiding()
 installVanish()
 installPresence()
+installDeathMessages()
 installSignLog()
 installNameAnimation()
 installClaims()

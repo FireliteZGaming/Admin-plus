@@ -225,13 +225,21 @@ export async function botSettingsScreen(player, back) {
     if (!has(player, "admin.automod")) { err(player, "You can't change automod."); return back?.() }
     const s = SCORE_STEPS
     const level = botLevel()
+    // 3.1.9 (the user: "everything in and past /automod should be enhanced to
+    // the fullest with simple and cleanness"): one short line on top, the
+    // switches in two sections, and how the score is made last, for whoever
+    // wants it, instead of one long paragraph before anything can be set.
     const values = await modal(player, hubTitle("settings", "Bot Moderation"), [
-        { type: "label", label: `§7Bot Guard catches half-joined accounts: they join but never enter the world, which is how ad bots usually show up.\n§7The level is how long a new join has to enter: ${LEVELS.map(l => `${l.label} §f${l.wait}§7`).join(", ")}. Use Low on a slow server where players take a while to load in. §8Max, almost instant, is in progress.\n§7Then each account gets a score: never entered after the wait §f${s.stuck}%§7, still not after two and a half waits §f+${s.longer}§7, chatted without entering §f+${s.chat}§7, posted a link §f+${s.link}§7, a name like Xbox's made-up ones §f+${s.name}§7. Alerts sends each one to staff. Flagged accounts go on the list either way.` },
+        { type: "label", label: "§7Bot Guard catches half-joined accounts: they join but never enter the world, which is how ad bots usually show up." },
         { id: "on", type: "toggle", label: "Bot Guard", default: botsOn() },
-        { id: "level", type: "dropdown", label: "Level", options: LEVELS.map(l => `${l.label}: ${l.wait}`), default: Math.max(0, LEVELS.findIndex(l => l.id === level.id)) },
-        { id: "alerts", type: "toggle", label: "Alerts", default: alertsOn() },
+        { id: "level", type: "dropdown", label: "Level\n§8How long a new join has to enter. Use Low on a slow server where players take a while to load in.", options: LEVELS.map(l => `${l.label}: ${l.wait}`), default: Math.max(0, LEVELS.findIndex(l => l.id === level.id)) },
+        { type: "divider" },
+        { type: "label", label: "§lWhen one is caught§r" },
+        { id: "alerts", type: "toggle", label: "Alerts\n§8Tell staff about each one. Caught accounts go on Detected Bots either way.", default: alertsOn() },
         { id: "action", type: "dropdown", label: "At the limit", options: ACTIONS.map(a => a.label), default: Math.max(0, ACTIONS.findIndex(a => a.id === botAction())) },
-        { id: "at", type: "slider", label: "The limit (%)", min: 50, max: 100, step: 5, default: actAt() }
+        { id: "at", type: "slider", label: "The limit (%)", min: 50, max: 100, step: 5, default: actAt() },
+        { type: "divider" },
+        { type: "label", label: `§lHow the score is made§r\n§7Never entered after the wait §f${s.stuck}%§7. Still not after two and a half waits §f+${s.longer}§7. Chatted without entering §f+${s.chat}§7. Posted a link §f+${s.link}§7. A name like Xbox's made-up ones §f+${s.name}§7.\n§8Max, almost instant, is in progress.` }
     ], { strict: true, submit: "Save" })
     if (!values) return back?.()
     if (values === INCOMPLETE) {
@@ -269,7 +277,7 @@ export async function botListScreen(player, back) {
         title: hubTitle("settings", "Detected Bots"),
         body: subtitle(bots.length
             ? "Half-joined accounts: they joined but never entered the world. Highest score first."
-            : "Nobody right now. Half-joined accounts, which join but never\nenter the world, show up here."),
+            : "Nobody right now. Accounts that join but never enter the world show up here."),
         buttons: bots.map(b => ({
             text: `§f${b.name} §8· §f${b.score}%§r\n§8${b.action || b.reasons[0] || ""}`,
             run: () => botEntryScreen(player, b.key, again)

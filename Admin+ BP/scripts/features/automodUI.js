@@ -6,13 +6,31 @@ import { num, txt, fieldFor, applyField } from "../core/settingFields.js"
 import { has } from "../core/ranks.js"
 import { record } from "../core/logs.js"
 import { command } from "../core/registry.js"
-import { botGuardScreen, botGuardSummary } from "./bots.js"
-import { chatModerationScreen, chatSummary } from "./chatcheck.js"
+import { automodIcon } from "../core/look.js"
+import { botsOn, botLevel } from "../core/botcheck.js"
+import { botGuardScreen, botGuardSummary, possibleBots } from "./bots.js"
+import { chatModerationScreen, chatSummary, modLevel } from "./chatcheck.js"
+import { heldWaiting } from "./heldUI.js"
 
 // /admin ▸ Server ▸ Automod, and /automod.
 //
 // Its own door since 2.8.3, as the user laid Server out on 2026-11-12:
 // Settings, Automod, Advanced.
+
+/**
+ * What Automod's banner says (3.1.9): each section and how it is set, in
+ * four short lines, the first short enough to clear the pill. The same words
+ * are the body in the game's own menus.
+ */
+export function automodStatus() {
+    const level = modLevel()
+    return [
+        "§f§lAutomod§r",
+        `§7Bot Guard: ${botsOn() ? `§aon§7, ${botLevel().label}` : "§coff"}`,
+        `§7Chat Moderation: ${level ? `§aon§7, ${level.label}` : "§coff"}`,
+        "§7Anti-cheat comes later."
+    ].join("\n")
+}
 
 /**
  * /automod, and /admin ▸ Server ▸ Automod. Two sections since 3.1.4, the
@@ -21,16 +39,33 @@ import { chatModerationScreen, chatSummary } from "./chatcheck.js"
  * Moderation and Detected Bots; Chat Moderation has its settings, Test a
  * message and Held messages. Ore alerts and fast breaking stay on hold
  * (core/hold.js) until they come back as Anti-cheat.
+ *
+ * Since 3.1.9 it has its own frame in Admin+'s menus (the user: "i want a
+ * redo for /automod just like bot guard got", core/look.js AUTOMOD): the eye
+ * and the status in a banner, lit while either section is on, and the two
+ * sections as cards, each with a light that is on while that section is.
  */
 export async function automodHubScreen(player, back) {
     if (!has(player, "admin.automod")) { err(player, "You can't change automod."); return back?.() }
     const again = () => automodHubScreen(player, back)
+    const bots = botsOn(), chat = !!modLevel()
+    const detected = possibleBots().length, held = heldWaiting()
     return menu(player, {
         title: hubTitle("settings", "Automod"),
-        body: subtitle("Automod watches for trouble so staff don't have to.\nBot Guard catches bot accounts that join but never play.\nChat Moderation checks what players say and write on signs.\nAnti-cheat comes later."),
+        body: automodStatus(),
+        layout: "automod",
+        watching: bots || chat,
         buttons: [
-            { text: hubEntry("settings", "Bot Guard", botGuardSummary()), run: () => botGuardScreen(player, again) },
-            { text: hubEntry("settings", "Chat Moderation", chatSummary()), run: () => chatModerationScreen(player, again) }
+            {
+                text: hubEntry("settings", "Bot Guard", botGuardSummary()),
+                card: { text: `§f§lBot Guard§r\n§7Catches bot accounts${detected ? `\n§f${detected}§7 detected` : ""}`, icon: automodIcon("bots"), on: bots },
+                run: () => botGuardScreen(player, again)
+            },
+            {
+                text: hubEntry("settings", "Chat Moderation", chatSummary()),
+                card: { text: `§f§lChat Moderation§r\n§7Checks chat and signs${held ? `\n§f${held}§7 held` : ""}`, icon: automodIcon("chat"), on: chat },
+                run: () => chatModerationScreen(player, again)
+            }
         ],
         back
     })

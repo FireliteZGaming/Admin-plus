@@ -31,9 +31,18 @@ export async function heldScreen(player, back) {
     }
 
     const waiting = heldMessages()
+    // 3.1.9: an empty list is a screen that says so, with Back, rather than a
+    // chat line and a jump back (Chat Moderation's card leads here either way).
     if (!waiting.length) {
-        info(player, "§7No messages are held right now.")
-        return back()
+        return menu(player, {
+            title: hubTitle("settings", "Held messages"),
+            body: [
+                subtitle("Nothing is held right now."),
+                "§7A held message waits here until staff approve or deny it. The sender isn't told either way."
+            ].join("\n"),
+            buttons: [],
+            back
+        })
     }
 
     const again = () => heldScreen(player, back)
@@ -44,6 +53,7 @@ export async function heldScreen(player, back) {
             "§8Approving posts it where it was going. Denying drops it.",
             "§8The sender isn't told either way."
         ].join("\n"),
+        back,
         buttons: [
             ...waiting.map(entry => ({
                 // The message itself, because deciding without reading it is
@@ -83,6 +93,7 @@ async function oneScreen(player, id, back) {
 
     return menu(player, {
         title: hubTitle("settings", "Held message"),
+        back,
         body: [
             `§f${entry.player?.name ?? "?"}§r §8· ${ago(entry.at)}`,
             `§8Heading for §7${channel?.display ?? "General"}`,

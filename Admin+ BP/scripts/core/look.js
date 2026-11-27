@@ -59,11 +59,17 @@ export function lift(text) {
  * A title for the Beta look. The frame draws "Admin+" itself, so the brand
  * prefix comes off and the screen's own name stays, in its hub colour.
  */
-export function lookTitle(title, { tiles = false, profile = false, logs = false, guard = false } = {}) {
+export function lookTitle(title, { tiles = false, profile = false, logs = false, guard = false, automod = false, chat = false } = {}) {
     let text = String(title ?? "")
     if (text.startsWith(BRAND_PREFIX)) text = text.slice(BRAND_PREFIX.length)
-    const guarded = !tiles && !logs && guard ? (guard === "on" ? GUARD_ON : GUARD) : ""
-    return lift(text) + BETA_LOOK + (tiles ? TILES : "") + (tiles && profile ? PROFILE : "") + (!tiles && logs ? LOGS : "") + guarded
+    // A frame of its own (Bot Guard's, Automod's, Chat Moderation's) never
+    // goes with tiles or the Logs timeline, and only one is ever marked.
+    const framed = tiles || logs ? ""
+        : guard ? (guard === "on" ? GUARD_ON : GUARD)
+        : automod ? (automod === "on" ? AUTOMOD_ON : AUTOMOD)
+        : chat ? (chat === "on" ? CHATMOD_ON : CHATMOD)
+        : ""
+    return lift(text) + BETA_LOOK + (tiles ? TILES : "") + (tiles && profile ? PROFILE : "") + (!tiles && logs ? LOGS : "") + framed
 }
 
 /**
@@ -81,6 +87,38 @@ export const GUARD_ON = "§g§h§s§d§1"
 
 /** A picture in Bot Guard's frame, drawn by tools/genlook.py. */
 export function guardIcon(key) { return `textures/ui/adminplus/guard_${key}` }
+
+/**
+ * Automod's own frame (3.1.9, the user: "i want a redo for /automod just like
+ * bot guard got"). A title ending in AUTOMOD is drawn the way Bot Guard's is,
+ * with art of its own: a banner with Automod's eye, the form's body as its
+ * status and an ACTIVE or OFF pill, then each section as a card with a light
+ * that is on while that section is on (a card whose text ends in CARD_ON),
+ * and Back as a row. AUTOMOD_ON (AUTOMOD then §1) lights the banner while any
+ * section is on: the eye open and glowing, a light sweeping across. Without
+ * it the eye is shut and grey and nothing moves. Same hidden-code style as
+ * the markers above.
+ */
+export const AUTOMOD = "§a§u§t§m"
+export const AUTOMOD_ON = "§a§u§t§m§1"
+
+/** A picture in Automod's frame, drawn by tools/genlook.py. */
+export function automodIcon(key) { return `textures/ui/adminplus/automod_${key}` }
+
+/**
+ * Chat Moderation's own frame (3.1.9, the user: "everything in and past
+ * /automod should be enhanced to the fullest with simple and cleanness"). The
+ * same family as Bot Guard's and Automod's: a banner with a speech bubble,
+ * the form's body as Chat Moderation's status and a WATCHING or OFF pill,
+ * then its three pages as cards in a row, and Back as a row. CHATMOD_ON
+ * (CHATMOD then §1) lights it while a level is set. Same hidden-code style
+ * as the markers above.
+ */
+export const CHATMOD = "§c§h§m§d"
+export const CHATMOD_ON = "§c§h§m§d§1"
+
+/** A picture in Chat Moderation's frame, drawn by tools/genlook.py. */
+export function chatIcon(key) { return `textures/ui/adminplus/chat_${key}` }
 
 /**
  * The Logs (2.12.5): a timeline frame of its own. The user, 2026-11-13: "do a
@@ -142,8 +180,14 @@ export function tileIcon(key) { return `textures/ui/adminplus/tile_${key}` }
  */
 export const CARD = "§j§c§a§s"
 
-/** A card's text, marked so the list frame draws it as a card. */
-export function cardText(text) { return `${text}${CARD}` }
+/**
+ * A card that is on (3.1.9): CARD and one more code, so it is still a card
+ * everywhere, and Automod's frame lights the light in its corner.
+ */
+export const CARD_ON = "§j§c§a§s§1"
+
+/** A card's text, marked so the list frame draws it as a card; `on` lights its light. */
+export function cardText(text, on = false) { return `${text}${on ? CARD_ON : CARD}` }
 
 /** The coloured strip along a card's top edge, drawn by tools/genlook.py. */
 export function cardStripe(key) { return `textures/ui/adminplus/stripe_${key}` }

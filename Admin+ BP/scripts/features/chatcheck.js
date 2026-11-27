@@ -10,6 +10,7 @@ import { has } from "../core/ranks.js"
 import { record } from "../core/logs.js"
 import { menu, modal, INCOMPLETE } from "../core/ui.js"
 import { hubTitle, hubEntry } from "../core/theme.js"
+import { guardIcon, chatIcon } from "../core/look.js"
 import { ok, info, err } from "../core/util.js"
 import { heldWaiting, heldScreen } from "./heldUI.js"
 import { CATEGORIES, HELD_CATEGORIES, caughtFor, categoryOfOutput } from "../core/chatmod.js"
@@ -201,7 +202,29 @@ function modelLine() {
     return "§7Its levels were set on public data and Admin+'s own game-chat examples, not on your server's chat, so treat them as a first guess."
 }
 
-/** /automod ▸ Chat Moderation: Settings, Test a message, Held messages. */
+/**
+ * What Chat Moderation's banner says (3.1.9): its level and what it does with
+ * a flagged line, then what it catches and what is waiting. Three short
+ * lines, the first short enough to clear the pill. The same words are the
+ * body in the game's own menus.
+ */
+export function chatStatus() {
+    const level = modLevel()
+    if (!level) return ["§f§lChat Moderation§r", "§7Off. Pick a level in Settings.", "§7Test a message works either way."].join("\n")
+    const on = CATEGORIES.filter(c => flag(c.key)).length
+    return [
+        "§f§lChat Moderation§r",
+        `§7Level §f${level.label}§7, ${flag("automod.chatAsk") ? "asks the player first" : "holds for staff"}`,
+        `§7Catches §f${on}§7 of §f${CATEGORIES.length}§7 · §f${heldWaiting()}§7 held`
+    ].join("\n")
+}
+
+/**
+ * /automod ▸ Chat Moderation: Settings, Test a message, Held messages. Since
+ * 3.1.9 it has its own frame in Admin+'s menus (core/look.js CHATMOD): the
+ * bubble and the status in a banner, lit while a level is set, and the three
+ * pages as cards in a row.
+ */
 export async function chatModerationScreen(player, back) {
     if (!has(player, "admin.automod")) { err(player, "You can't change automod."); return back?.() }
     loadChatModel()
@@ -209,11 +232,25 @@ export async function chatModerationScreen(player, back) {
     const waiting = heldWaiting()
     return menu(player, {
         title: hubTitle("settings", "Chat Moderation"),
-        body: "§7Checks what players say and write on signs. Pick a level and what it catches in Settings. Staff are never checked: try a line yourself with Test a message.",
+        body: chatStatus(),
+        layout: "chat",
+        watching: !!modLevel(),
         buttons: [
-            { text: hubEntry("settings", "Settings", chatSummary()), run: () => chatSettingsScreen(player, again) },
-            { text: hubEntry("settings", "Test a message", "See what each level would do with a line"), run: () => testScreen(player, again) },
-            { text: hubEntry("settings", `Held messages (${waiting})`, waiting ? "Allow or delete what was held for staff" : "None waiting"), run: () => heldScreen(player, again) }
+            {
+                text: hubEntry("settings", "Settings", chatSummary()),
+                card: { text: "§f§lSettings§r\n§7Level and what it catches", icon: guardIcon("moderation") },
+                run: () => chatSettingsScreen(player, again)
+            },
+            {
+                text: hubEntry("settings", "Test a message", "See what each level would do with a line"),
+                card: { text: "§f§lTest a message§r\n§7Try any line", icon: chatIcon("test") },
+                run: () => testScreen(player, again)
+            },
+            {
+                text: hubEntry("settings", `Held messages (${waiting})`, waiting ? "Allow or delete what was held for staff" : "None waiting"),
+                card: { text: `§f§lHeld messages§r\n${waiting ? `§f${waiting}§7 waiting` : "§7None waiting"}`, icon: chatIcon("held") },
+                run: () => heldScreen(player, again)
+            }
         ],
         back
     })
@@ -227,13 +264,17 @@ export async function chatSettingsScreen(player, back) {
     const at = Math.max(0, LEVEL_CHOICES.findIndex(choice => choice.id === current))
     const askField = CHAT_FIELDS.find(f => f.key === "automod.chatAsk")
     const switches = CHAT_FIELDS.filter(f => f.kind === "toggle" && f.key !== "automod.chatAsk")
+    // 3.1.9: one short line on top, each level explained under the Level
+    // list where it's picked, and the model's note last, out of the way.
     const values = await modal(player, hubTitle("settings", "Chat Moderation"), [
-        { type: "label", label: `§7Pick how strict, then what it catches.\n§7Low: only clear cases, and it never kicks. Medium: also clear insults; it kicks only for spam. High: anything likely toxic, with quicker warnings and longer mutes.\n${modelLine()}` },
-        { id: "level", type: "dropdown", label: "Level", options: LEVEL_CHOICES.map(c => c.label), default: at },
+        { type: "label", label: "§7Pick how strict it is, then what it catches. Staff are never checked." },
+        { id: "level", type: "dropdown", label: "Level\n§8Low: only clear cases, and it never kicks. Medium: also clear insults, and it kicks only for spam. High: anything likely toxic, with quicker warnings and longer mutes.", options: LEVEL_CHOICES.map(c => c.label), default: at },
         fieldFor(askField, `Ask the player first\n§8"${ASK_TEXT}" with Send and Cancel. Off: a flagged message is held for staff instead.`),
         { type: "divider" },
         { type: "label", label: "§lWhat it catches§r" },
-        ...switches.map(f => fieldFor(f, `${f.label}\n§8${f.detail}`))
+        ...switches.map(f => fieldFor(f, `${f.label}\n§8${f.detail}`)),
+        { type: "divider" },
+        { type: "label", label: modelLine() }
     ], { strict: true, submit: "Save" })
     if (!values) return back?.()
     if (values === INCOMPLETE) {
@@ -268,7 +309,7 @@ export async function testScreen(player, back, line = "") {
     if (!has(player, "admin.automod")) { err(player, "You can't change automod."); return back?.() }
     loadChatModel()
     const values = await modal(player, hubTitle("settings", "Test a message"), [
-        { type: "label", label: `§7Type a line, then Save, to see what each level would do with it. It isn't sent to chat.\n${modelLine()}` },
+        { type: "label", label: `§7Type a line and press Test to see what each level would do with it. It isn't sent to chat.\n${modelLine()}` },
         { id: "test", type: "text", label: "Message", placeholder: "Example: gg, well played", default: line }
     ], { strict: true, submit: "Test" })
     if (!values || values === INCOMPLETE) return back?.()

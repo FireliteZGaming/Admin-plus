@@ -2,11 +2,15 @@ import { readFileSync, existsSync, readdirSync } from "node:fs"
 import { __test } from "@minecraft/server"
 import { __ui } from "@minecraft/server-ui"
 import { setRanks, onPlayerJoin, applyPreset } from "../Admin+ BP/scripts/core/ranks.js"
-import { BETA_LOOK, TILES, TILE_LEFT, CARD, PROFILE, LOGS, TAB, TAB_ON, PILL, GUARD, GUARD_ON, WIDE, wideText, guardIcon, tabText, pillText, logIcon, cardText, cardStripe, lift, lookTitle, tile, tileIcon, tileText, betaLook } from "../Admin+ BP/scripts/core/look.js"
+import { BETA_LOOK, TILES, TILE_LEFT, CARD, CARD_ON, PROFILE, LOGS, TAB, TAB_ON, PILL, GUARD, GUARD_ON, AUTOMOD, AUTOMOD_ON, CHATMOD, CHATMOD_ON, WIDE, wideText, guardIcon, automodIcon, chatIcon, tabText, pillText, logIcon, cardText, cardStripe, lift, lookTitle, tile, tileIcon, tileText, betaLook } from "../Admin+ BP/scripts/core/look.js"
 import { MULTILINE, hubTitle, hubButton, BRAND_PREFIX, COLOUR_CODE_TIP } from "../Admin+ BP/scripts/core/theme.js"
 import { menu, modal, confirm, drawsTiles, drawsCards, INCOMPLETE } from "../Admin+ BP/scripts/core/ui.js"
 import { openPanel } from "../Admin+ BP/scripts/features/panel.js"
 import { openMenu, profileLines, statsLines } from "../Admin+ BP/scripts/features/menu.js"
+import { automodHubScreen } from "../Admin+ BP/scripts/features/automodUI.js"
+import { chatModerationScreen } from "../Admin+ BP/scripts/features/chatcheck.js"
+import { setSetting, resetSetting } from "../Admin+ BP/scripts/core/settings.js"
+import { botsOn, botLevel } from "../Admin+ BP/scripts/core/botcheck.js"
 
 const plainText = s => String(s ?? "").replace(/§./g, "")
 import { panelsOf, shownFor, evaluate, visibleExpr } from "./jsonui.js"
@@ -84,8 +88,9 @@ for (const parts of [["BETA_LOOK", "TILES"], ["MULTILINE", "BETA_LOOK"], ["MULTI
 console.log("\n— the pack draws one look per menu title —")
 {
     const panels = panelsOf(FORM.long_form.controls)
-    // 2.12.5 added the Logs timeline, a fifth; 3.1.5 Bot Guard's frame, a sixth.
-    check("six ways to draw a menu", panels.map(p => p.name), ["long_form", "adminplus_ui", "beta_list", "beta_logs", "beta_tiles", "beta_guard"])
+    // 2.12.5 added the Logs timeline, a fifth; 3.1.5 Bot Guard's frame, a
+    // sixth; 3.1.9 Automod's and Chat Moderation's, a seventh and an eighth.
+    check("eight ways to draw a menu", panels.map(p => p.name), ["long_form", "adminplus_ui", "beta_list", "beta_logs", "beta_tiles", "beta_guard", "beta_automod", "beta_chat"])
     const plain = hubTitle("ranks", "Staff panel")
     for (const [what, title, expected] of [
         ["a plain title", plain, "long_form"],
@@ -100,12 +105,23 @@ console.log("\n— the pack draws one look per menu title —")
         ["the Bot Guard marker without the Beta look", plain + GUARD_ON, "long_form"],
         ["tiles that somehow carry the Bot Guard marker", lookTitle(plain, { tiles: true }) + GUARD, "beta_tiles"],
         ["the Logs timeline that somehow carries it", lookTitle(plain, { logs: true }) + GUARD, "beta_logs"],
-        ["a chest grid that somehow carries it", "Inventory§m§c§e" + BETA_LOOK + GUARD_ON, "adminplus_ui"]
+        ["a chest grid that somehow carries it", "Inventory§m§c§e" + BETA_LOOK + GUARD_ON, "adminplus_ui"],
+        ["Automod with a section on", lookTitle(plain, { automod: "on" }), "beta_automod"],
+        ["Automod with both off", lookTitle(plain, { automod: "off" }), "beta_automod"],
+        ["the Automod marker without the Beta look", plain + AUTOMOD_ON, "long_form"],
+        ["tiles that somehow carry the Automod marker", lookTitle(plain, { tiles: true }) + AUTOMOD, "beta_tiles"],
+        ["the Logs timeline that somehow carries it", lookTitle(plain, { logs: true }) + AUTOMOD_ON, "beta_logs"],
+        ["Bot Guard's frame that somehow carries it too", lookTitle(plain, { guard: "on" }) + AUTOMOD, "beta_guard"],
+        ["Chat Moderation with a level set", lookTitle(plain, { chat: "on" }), "beta_chat"],
+        ["Chat Moderation switched off", lookTitle(plain, { chat: "off" }), "beta_chat"],
+        ["the Chat Moderation marker without the Beta look", plain + CHATMOD_ON, "long_form"],
+        ["Bot Guard's frame that somehow carries it", lookTitle(plain, { guard: "on" }) + CHATMOD, "beta_guard"],
+        ["a chest grid that somehow carries it", "Inventory§m§c§e" + BETA_LOOK + CHATMOD_ON, "adminplus_ui"]
     ]) {
         check(`${what}: ${expected} and nothing else`, shownFor(panels, title), [expected])
     }
     check("each Beta menu is drawn in Admin+'s own frame",
-        panels.filter(p => p.name.startsWith("beta_")).map(p => p.base), ["adminplus_beta.list_form", "adminplus_beta.log_form", "adminplus_beta.tile_form", "adminplus_beta.guard_form"])
+        panels.filter(p => p.name.startsWith("beta_")).map(p => p.base), ["adminplus_beta.list_form", "adminplus_beta.log_form", "adminplus_beta.tile_form", "adminplus_beta.guard_form", "adminplus_beta.automod_form", "adminplus_beta.chat_form"])
 }
 
 console.log("\n— the Beta frames are all there —")
@@ -420,6 +436,151 @@ console.log("\n— Bot Guard's own frame —")
     check("and drawn from scratch by the tool", ["guard_shield", "guard_banner", "guard_glow", "guard_scan", "guard_icon_moderation", "guard_icon_detected"].every(f => tool.includes(`def ${f}(`)), true)
 }
 
+// 3.1.9, the user: "i want a redo for /automod just like bot guard got", then
+// "everything in and past /automod should be enhanced to the fullest with
+// simple and cleanness". Automod's hub and Chat Moderation get frames in Bot
+// Guard's family: a banner, then cards, then the rows. Worked out from the
+// bindings themselves, as above.
+const ANIMS = Object.fromEntries(Object.entries(LOOK).filter(([, v]) => v && typeof v === "object" && "anim_type" in v))
+const controlsOf = element => Object.fromEntries(element.controls.map(c => Object.entries(c)[0]).map(([k, v]) => [k.split("@")[0], v]))
+
+console.log("\n— Automod's own frame —")
+{
+    const markers = [AUTOMOD, AUTOMOD_ON, CHATMOD, CHATMOD_ON, CARD_ON]
+    check("its markers print nothing and restyle nothing", markers.every(m => /^(?:§[0-9a-jmnpqstuv])+$/.test(m)), true)
+    check("lifting leaves them alone", markers.map(lift), markers)
+    check("lit up is the frame's marker and one more code",
+        [[AUTOMOD_ON, AUTOMOD], [CHATMOD_ON, CHATMOD], [CARD_ON, CARD]].map(([on, off]) => on.startsWith(off) && on.length - off.length === 2), [true, true, true])
+    const others = [MULTILINE, BETA_LOOK, TILES, TILE_LEFT, CARD, PROFILE, LOGS, TAB, TAB_ON, PILL, GUARD, GUARD_ON, WIDE, ...CHEST]
+    check("the frames' markers spell no other marker",
+        [AUTOMOD, AUTOMOD_ON, CHATMOD, CHATMOD_ON].flatMap(m => others.filter(o => m.includes(o) || o.includes(m))), [])
+    check("nor each other", [AUTOMOD.includes(CHATMOD), CHATMOD.includes(AUTOMOD)], [false, false])
+    check("and no other title of ours spells them by accident",
+        [lookTitle("x"), lookTitle("x", { tiles: true, profile: true }), lookTitle("x", { logs: true }), lookTitle("x", { guard: "on" }), "x" + MULTILINE + BETA_LOOK]
+            .filter(t => t.includes(AUTOMOD) || t.includes(CHATMOD)), [])
+    check("asked for, it goes last: lit, or not",
+        [lookTitle("x", { automod: "on" }).endsWith(BETA_LOOK + AUTOMOD_ON), lookTitle("x", { automod: "off" }).endsWith(BETA_LOOK + AUTOMOD), lookTitle("x", { automod: "off" }).includes(AUTOMOD_ON)], [true, true, false])
+    check("never with tiles or the Logs timeline, and only one frame is marked",
+        [lookTitle("x", { tiles: true, automod: "on" }), lookTitle("x", { logs: true, automod: "on" }), lookTitle("x", { guard: "on", automod: "on" })].some(t => t.includes(AUTOMOD)), false)
+
+    const scroll = panelsOf(LOOK.automod_scroll.controls)
+    check("a banner, then the cards, then the rows", scroll.map(p => p.name), ["banner", "padding", "cards", "wrapping_panel"])
+    const banner = controlsOf(LOOK.automod_banner)
+    const emblem = controlsOf(LOOK.automod_emblem)
+    check("the banner holds the eye, Automod's status and its pill",
+        Object.keys(banner), ["edge", "inside", "sweep", "emblem", "status", "pill_on", "pill_off", "line"])
+    check("its status is the form's body", banner.status.text, "#form_text")
+    check("cut off before it runs out of the banner", banner.status.max_size[1] <= LOOK.automod_banner.size[1] - 4, true)
+    check("and nothing moves outside it", LOOK.automod_banner.clips_children, true)
+
+    const on = "§bAutomod" + BETA_LOOK + AUTOMOD_ON, off = "§bAutomod" + BETA_LOOK + AUTOMOD
+    const lit = control => [evaluate(visibleExpr(control), { "#title_text": on }), evaluate(visibleExpr(control), { "#title_text": off })]
+    for (const [what, control, expected] of [
+        ["the open eye", emblem.eye, [true, false]],
+        ["its glow", emblem.glow, [true, false]],
+        ["the sweeping light", banner.sweep, [true, false]],
+        ["the flowing line under the banner", banner.line, [true, false]],
+        ["ACTIVE", LOOK.automod_pill_on, [true, false]],
+        ["the shut eye", emblem.eye_off, [false, true]],
+        ["OFF", LOOK.automod_pill_off, [false, true]]
+    ]) {
+        check(`${what} shows ${expected[0] ? "only while a section is on" : "only while both are off"}`, lit(control), expected)
+    }
+    check("the pills say so", [LOOK.automod_pill_on.controls[3].word.text, LOOK.automod_pill_off.controls[3].word.text], ["ACTIVE", "OFF"])
+    check("Bot Guard's frame isn't lit by Automod's marker", evaluate(visibleExpr(controlsOf(LOOK.guard_emblem).shield), { "#title_text": on }), false)
+
+    const sweep = ANIMS.anim_automod_sweep, rest = ANIMS.anim_automod_sweep_rest
+    check("the light rests off the banner's left edge, so a sweep that never plays shows nothing",
+        [banner.sweep.offset, banner.sweep.anchor_from, rest.from, rest.to], [[-24, 0], "left_middle", [-24, 0], [-24, 0]])
+    check("it crosses from the right, waits off the edge, and goes again",
+        [sweep.from, sweep.to, sweep.next, rest.next], [["100%", 0], [-24, 0], "@adminplus_beta.anim_automod_sweep_rest", "@adminplus_beta.anim_automod_sweep"])
+    check("the eye rises into place and ends where it belongs",
+        [LOOK.automod_emblem.anims, ANIMS.anim_automod_rise.to], [["@adminplus_beta.anim_automod_rise"], LOOK.automod_emblem.offset])
+    check("the glow pulses like Bot Guard's, without ever disappearing", emblem.glow.anims, ["@adminplus_beta.anim_guard_glow_dim"])
+
+    const shown = (control, text) => evaluate(visibleExpr(control), { "#form_button_text": text })
+    for (const [what, text, expected] of [
+        ["a section's card, on", cardText("§f§lBot Guard§r\n§7Catches bot accounts", true), ["card"]],
+        ["a section's card, off", cardText("§f§lChat Moderation§r\n§7Checks chat and signs"), ["card"]],
+        ["Back", "§7< Back", ["row"]]
+    ]) {
+        check(`${what} shows as a ${expected.join(" and a ")}`, [["card", LOOK.automod_card], ["row", LOOK.row]].filter(([, c]) => shown(c, text)).map(([k]) => k), expected)
+    }
+    const face = controlsOf(LOOK.automod_card_content)
+    check("an on card lights its light, green and pulsing",
+        [shown(face.light_on, cardText("x", true)), shown(face.light_off, cardText("x", true)), face.light_on.anims], [true, false, ["@adminplus_beta.anim_knot_dim"]])
+    check("an off card shows it grey and still",
+        [shown(face.light_on, cardText("x")), shown(face.light_off, cardText("x")), face.light_off.anims], [false, true, undefined])
+    check("the cards are made from the form's buttons, like the game's list",
+        [LOOK.automod_cards.collection_name, LOOK.automod_cards.factory.name, LOOK.automod_cards.bindings[0], Object.keys(LOOK.automod_cards.factory.control_ids)],
+        ["form_buttons", "buttons", { binding_name: "#form_button_contents", binding_name_override: "#collection_length", binding_condition: "visible" }, ["button", "label", "header", "divider"]])
+    check("a label, header or divider makes no card",
+        ["label", "header", "divider"].every(k => LOOK.automod_cards.factory.control_ids[k] === "@adminplus_beta.nothing"), true)
+    check("two side by side, half the width each", [LOOK.automod_cards.orientation, LOOK.automod_card.size[0]], ["horizontal", "50%"])
+    const cardButton = LOOK["automod_card_button@adminplus_beta.dark_content_button"]
+    check("a card presses like the game's own form button, and knows which it is",
+        [cardButton.$pressed_button_name, cardButton.bindings.some(x => x.binding_type === "collection_details" && x.binding_collection_name === "form_buttons")], ["button.form_button_click", true])
+    check("it fits in its slot", [cardButton.size[1] <= LOOK.automod_card.size[1], cardButton.$button_content], [true, "adminplus_beta.automod_card_content"])
+    check("its words stop before the Open chip", face.text.offset[1] + face.text.max_size[1] <= cardButton.size[1] + face.open.offset[1] - face.open.size[1], true)
+    check("and the light sits clear of the picture", face.light_on.anchor_from === "top_right" && face.icon.anchor_from === "top_left", true)
+
+    const pictures = ["eye", "eye_off", "banner", "glow", "sweep", "bots", "chat"].map(automodIcon)
+    check("every Automod picture is in the pack", pictures.filter(t => !textureExists(t)), [])
+    const tool = readFileSync(new URL("../tools/genlook.py", import.meta.url), "utf8")
+    check("and drawn from scratch by the tool", ["automod_eye", "automod_banner", "automod_glow", "automod_sweep", "automod_icon_bots", "automod_icon_chat"].every(f => tool.includes(`def ${f}(`)), true)
+}
+
+console.log("\n— Chat Moderation's own frame —")
+{
+    check("asked for, it goes last: lit, or not",
+        [lookTitle("x", { chat: "on" }).endsWith(BETA_LOOK + CHATMOD_ON), lookTitle("x", { chat: "off" }).endsWith(BETA_LOOK + CHATMOD), lookTitle("x", { chat: "off" }).includes(CHATMOD_ON)], [true, true, false])
+    check("never with tiles or the Logs timeline",
+        [lookTitle("x", { tiles: true, chat: "on" }), lookTitle("x", { logs: true, chat: "on" })].some(t => t.includes(CHATMOD)), false)
+    const scroll = panelsOf(LOOK.chat_scroll.controls)
+    check("a banner, then the cards, then the rows", scroll.map(p => p.name), ["banner", "padding", "cards", "wrapping_panel"])
+    const banner = controlsOf(LOOK.chat_banner)
+    const emblem = controlsOf(LOOK.chat_emblem)
+    check("the banner holds the bubble, the status and its pill",
+        Object.keys(banner), ["edge", "inside", "sweep", "emblem", "status", "pill_on", "pill_off", "line"])
+    check("its status is the form's body, cut off inside the banner",
+        [banner.status.text, banner.status.max_size[1] <= LOOK.chat_banner.size[1] - 4, LOOK.chat_banner.clips_children], ["#form_text", true, true])
+    const on = "§bChat Moderation" + BETA_LOOK + CHATMOD_ON, off = "§bChat Moderation" + BETA_LOOK + CHATMOD
+    const lit = control => [evaluate(visibleExpr(control), { "#title_text": on }), evaluate(visibleExpr(control), { "#title_text": off })]
+    for (const [what, control, expected] of [
+        ["the bubble in colour", emblem.bubble, [true, false]],
+        ["its glow", emblem.glow, [true, false]],
+        ["the sweeping light", banner.sweep, [true, false]],
+        ["the flowing line", banner.line, [true, false]],
+        ["WATCHING", LOOK.chat_pill_on, [true, false]],
+        ["the grey bubble", emblem.bubble_off, [false, true]],
+        ["OFF", LOOK.chat_pill_off, [false, true]]
+    ]) {
+        check(`${what} shows ${expected[0] ? "only while a level is set" : "only while it is off"}`, lit(control), expected)
+    }
+    check("the pills say so", [LOOK.chat_pill_on.controls[3].word.text, LOOK.chat_pill_off.controls[3].word.text], ["WATCHING", "OFF"])
+    check("Automod's frame isn't lit by Chat Moderation's marker", evaluate(visibleExpr(controlsOf(LOOK.automod_emblem).eye), { "#title_text": on }), false)
+    check("the bubble rises into place like Automod's eye", [LOOK.chat_emblem.anims, LOOK.chat_emblem.offset], [["@adminplus_beta.anim_automod_rise"], ANIMS.anim_automod_rise.to])
+
+    const shown = (control, text) => evaluate(visibleExpr(control), { "#form_button_text": text })
+    check("a page's card shows as a card, Back as a row",
+        [[shown(LOOK.chat_card, cardText("§f§lSettings")), shown(LOOK.row, cardText("§f§lSettings"))], [shown(LOOK.chat_card, "§7< Back"), shown(LOOK.row, "§7< Back")]],
+        [[true, false], [false, true]])
+    check("three in a row, a third of the width each", [LOOK.chat_cards.orientation, LOOK.chat_card.size[0]], ["horizontal", "33%"])
+    check("the cards are made from the form's buttons, like the game's list",
+        [LOOK.chat_cards.collection_name, LOOK.chat_cards.factory.name, LOOK.chat_cards.bindings[0]],
+        ["form_buttons", "buttons", { binding_name: "#form_button_contents", binding_name_override: "#collection_length", binding_condition: "visible" }])
+    check("a label, header or divider makes no card",
+        ["label", "header", "divider"].every(k => LOOK.chat_cards.factory.control_ids[k] === "@adminplus_beta.nothing"), true)
+    const cardButton = LOOK["chat_card_button@adminplus_beta.dark_content_button"]
+    check("a card presses like the game's own button, fits its slot, and wears Bot Guard's card face",
+        [cardButton.$pressed_button_name, cardButton.size[1] <= LOOK.chat_card.size[1], cardButton.$button_content], ["button.form_button_click", true, "adminplus_beta.guard_card_content"])
+
+    const pictures = [...["bubble", "bubble_off", "banner", "glow", "test", "held"].map(chatIcon), guardIcon("moderation")]
+    check("every Chat Moderation picture is in the pack", pictures.filter(t => !textureExists(t)), [])
+    const tool = readFileSync(new URL("../tools/genlook.py", import.meta.url), "utf8")
+    check("and drawn from scratch by the tool", ["chat_bubble", "chat_banner", "chat_glow", "chat_icon_test", "chat_icon_held"].every(f => tool.includes(`def ${f}(`)), true)
+}
+
 console.log("\n— Admin+'s look moves —")
 // 2.12.6, the user: "the second one that has animations, I mean everyone
 // loves animation right?". Built only from patterns the game's own menus use
@@ -449,9 +610,12 @@ console.log("\n— Admin+'s look moves —")
     const flowing = images.filter(([, n]) => n.texture.endsWith("/flow"))
     // 3.1.5 added Bot Guard's: a card's Open chip and the line under its banner.
     // 3.1.6 the shine along a wide tile's bottom edge.
-    check("the bar, the BETA LOOK chip, a card's Select, the open tab, Bot Guard's Open, its banner's line and a wide tile's shine flow",
+    // 3.1.9 Automod's card Open chip, and the line under Automod's and Chat
+    // Moderation's banners (Chat Moderation's cards wear Bot Guard's face).
+    const flowOf = name => [name, "@adminplus_beta.anim_flow", [128, 2]]
+    check("the bar, the BETA LOOK chip, a card's Select, the open tab, the three banners' lines, two cards' Open and a wide tile's shine flow",
         flowing.map(([k, n]) => [k, n.uv, n.uv_size]).sort(),
-        [["bar", "@adminplus_beta.anim_flow", [128, 2]], ["chip", "@adminplus_beta.anim_flow", [128, 2]], ["chip", "@adminplus_beta.anim_flow", [128, 2]], ["chip", "@adminplus_beta.anim_flow", [128, 2]], ["line", "@adminplus_beta.anim_flow", [128, 2]], ["shine", "@adminplus_beta.anim_flow", [128, 2]], ["underline", "@adminplus_beta.anim_flow", [128, 2]]])
+        [flowOf("bar"), flowOf("chip"), flowOf("chip"), flowOf("chip"), flowOf("chip"), flowOf("line"), flowOf("line"), flowOf("line"), flowOf("shine"), flowOf("underline")])
     // The flip book steps frame_step pixels a frame. Which way it steps isn't
     // written down, so the texture holds every frame either way.
     const png = readFileSync(new URL("flow.png", TEXTURES))
@@ -633,6 +797,47 @@ console.log("\n— Bot Guard's menu —")
     setBeta(false)
 }
 
+console.log("\n— Automod's and Chat Moderation's menus (3.1.9) —")
+{
+    const buttonsNow = () => partsOf(lastForm(), "button")
+    setBeta(false)
+    await automodHubScreen(boss, () => {})
+    check("on Default the hub is the plain list it always was",
+        [titleOf(lastForm()), buttonsNow().map(p => plainText(p[1]).split("\n")[0]), buttonsNow().map(p => p[2])],
+        [hubTitle("settings", "Automod"), ["Bot Guard", "Chat Moderation", "< Back"], [null, null, null]])
+    check("its body says how each section is set", plainText(partsOf(lastForm(), "body")[0][1]).split("\n"),
+        ["Automod", `Bot Guard: ${botsOn() ? `on, ${botLevel().label}` : "off"}`, "Chat Moderation: off", "Anti-cheat comes later."])
+
+    setBeta(true)
+    setSetting("automod.bots", "false")
+    await automodHubScreen(boss, () => {})
+    check("on Beta, with both sections off, Automod's frame is asked for unlit",
+        [titleOf(lastForm()).endsWith(BETA_LOOK + AUTOMOD), titleOf(lastForm()).includes(AUTOMOD_ON)], [true, false])
+    check("both cards dark", buttonsNow().slice(0, 2).map(p => [p[1].endsWith(CARD), p[1].endsWith(CARD_ON), p[2]]),
+        [[true, false, automodIcon("bots")], [true, false, automodIcon("chat")]])
+    check("and Back stays a row", buttonsNow()[2][1], "§7< Back")
+    resetSetting("automod.bots")
+
+    setSetting("automod.chatWatch", "medium")
+    await automodHubScreen(boss, () => {})
+    check("a level set: the frame lights up", titleOf(lastForm()).endsWith(BETA_LOOK + AUTOMOD_ON), true)
+    check("and Chat Moderation's card lights its light", buttonsNow()[1][1].endsWith(CARD_ON), true)
+    check("Bot Guard's card is lit exactly while Bot Guard is on", buttonsNow()[0][1].endsWith(CARD_ON), botsOn())
+
+    await chatModerationScreen(boss, () => {})
+    check("Chat Moderation asks for its own frame, lit while a level is set", titleOf(lastForm()).endsWith(BETA_LOOK + CHATMOD_ON), true)
+    check("its three pages are cards with their pictures, then Back as a row",
+        buttonsNow().map(p => [plainText(p[1]).split("\n")[0], p[2]]),
+        [["Settings", guardIcon("moderation")], ["Test a message", chatIcon("test")], ["Held messages", chatIcon("held")], ["< Back", null]])
+    check("its body says the level and what it catches", plainText(partsOf(lastForm(), "body")[0][1]).split("\n").slice(0, 2),
+        ["Chat Moderation", "Level Medium, asks the player first"])
+    resetSetting("automod.chatWatch")
+    await chatModerationScreen(boss, () => {})
+    check("off, the frame is asked for unlit", [titleOf(lastForm()).endsWith(BETA_LOOK + CHATMOD), titleOf(lastForm()).includes(CHATMOD_ON)], [true, false])
+    check("and says how to turn it on", plainText(partsOf(lastForm(), "body")[0][1]).split("\n")[1], "Off. Pick a level in Settings.")
+    setBeta(false)
+}
+
 console.log("\n— a long form in sections —")
 {
     const FIELDS = [
@@ -805,7 +1010,8 @@ console.log("\n— a menu builds only the layout that shows (3.1.7) —")
         Object.values(node).forEach(v => walk(v, file))
     }
     for (const file of files) walk(JSON.parse(readFileSync(new URL(`../Admin+ RP/ui/${file}`, import.meta.url), "utf8")), file)
-    check("every list of ours is counted", lengths.length, 12)
+    // 3.1.9 added two: Automod's cards and Chat Moderation's.
+    check("every list of ours is counted", lengths.length, 14)
     check("and builds only while it shows", lengths.filter(([, b]) => b.binding_condition !== "visible").map(([f]) => f), [])
     const form = JSON.parse(readFileSync(new URL("../Admin+ RP/ui/server_form.json", import.meta.url), "utf8"))
     check("the game's own button list and field list are copied with the same condition",

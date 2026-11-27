@@ -4,7 +4,9 @@ import { hubTitle, hubEntry, COLOUR_CODE_TIP } from "../core/theme.js"
 import { setting, flag, render, renderTag } from "../core/settings.js"
 import { record } from "../core/logs.js"
 import { ok, err, info } from "../core/util.js"
-import { TICK, badgeChar, badgeFor, badgeLabel, badgeOf, badgeStyle, badgesOn, canWearBadge, pickableBadges, mayWear } from "../core/badges.js"
+import { TICK, badgeChar, badgeFor, badgeLabel, badgeOf, badgeStyle, badgesOn, canWearBadge, pickableBadges, mayWear, teamBadgeFor } from "../core/badges.js"
+import { devPref, setDevPref } from "../core/prefs.js"
+import { serverAccepted, adminplusDisabled } from "../core/terms.js"
 import { cardStripe } from "../core/look.js"
 import { STAFF_TEMPLATES, staffTemplate } from "../core/rankTemplates.js"
 import { stripCodes, displayName } from "../core/identity.js"
@@ -18,7 +20,8 @@ import {
     displayRanks, hiddenRanks, heldRankIds, primaryRank,
     setRanks, grantRank, revokeRank, knownHolders, nodeLabels, topWeight,
     RANK_TYPES, rankType, isRanked, unrankedRanks,
-    canGiveNode, nodesBeyond, gainedBy, canReplaceRankList, idsAfterGrant
+    canGiveNode, nodesBeyond, gainedBy, canReplaceRankList, idsAfterGrant,
+    DEVELOPER_RANK, developersHere, isDeveloper, refreshNameTag
 } from "../core/ranks.js"
 
 // ------------------------------------------------- only give what you have
@@ -287,20 +290,41 @@ function ladderLine(rank, index) {
     return rankText(rank, isRanked(rank) ? `§8${index + 1}. §r` : "§r")
 }
 
+/** The Developer rank's place in the rank list: not a rank in the table, so a marker. */
+const DEV_TEAM = Object.freeze({ devTeam: true })
+
+/** The Developer rank's button in Ranks ▸ Dev Team: its badge, its tag, who is here. */
+function devTeamLine(devs) {
+    const badge = teamBadgeFor()
+    return `${badge ? `${badge} §r` : ""}${DEVELOPER_RANK.display}§r\n§8the Admin+ team · ${devs.length} here`
+}
+
 /**
  * The rank list, in two sections with a divider between them, asked for on
  * 2026-11-11 "so people understand what they are editing": ranks in the
  * order, then cosmetic and unlisted ranks. Each section says what its ranks
  * are, and an empty second section says how to make one.
+ *
+ * Above them, while a developer is here, the Dev Team section (3.1.9, the
+ * user: "it'll be like how cosmetic and default/staff have their own section,
+ * but this section appears at the top of ranks only when a developer joins").
  */
 async function ladderScreen(player, back) {
     const ranks = ladder()
     const unranked = unrankedRanks()
     const again = () => ladderScreen(player, back)
+    const devs = developersHere(player)
+    const devTeam = devs.length ? [
+        { label: "§lDev Team" },
+        { label: "§8The people who make Admin+. Shown while one of them is here." },
+        DEV_TEAM,
+        { divider: true }
+    ] : []
     return pagedMenu(player, {
         title: hubTitle("ranks", "Ranks"),
         body: subtitle("Tap a rank to change it."),
         items: [
+            ...devTeam,
             { label: "§lIn the order" },
             { label: "§8Strongest first. Each rank outranks the ranks below it." },
             ...ranks,
@@ -314,8 +338,9 @@ async function ladderScreen(player, back) {
             ...unranked,
             { divider: true }
         ],
-        render: item => isDecoration(item) ? item : { text: ladderLine(item, ranks.indexOf(item)) },
-        onPick: rank => rankScreen(player, rank.id, again),
+        render: item => item === DEV_TEAM ? { text: devTeamLine(devs) }
+            : isDecoration(item) ? item : { text: ladderLine(item, ranks.indexOf(item)) },
+        onPick: item => item === DEV_TEAM ? developerScreen(player, again) : rankScreen(player, item.id, again),
         extra: [
             { text: hubEntry("presets", "+ New rank", "A few short steps"), run: () => createRankScreen(player, again) },
             { text: hubEntry("ranks", "Give a rank to a player", "Or take one away"), run: () => rankPlayersScreen(player, again) },
@@ -330,6 +355,70 @@ async function ladderScreen(player, back) {
         ].filter(Boolean),
         back
     })
+}
+
+/**
+ * Ranks ▸ Dev Team ▸ Developer (3.1.9, the user: "you can click the developer
+ * tag, and it will give you information about developer rank"). Anyone who
+ * can open Ranks reads what the rank is. A developer also gets their own
+ * Permanent switch ("which they can edit themselves"); nobody else can change
+ * it, and the rank can't be given or taken away.
+ */
+export async function developerScreen(player, back) {
+    const devs = developersHere(player)
+    const mine = isDeveloper(player)
+    const again = () => developerScreen(player, back)
+    const names = devs.map(dev => `§f${dev.name}${devPref(dev, "dev.permanent") ? "" : "§7 (not permanent)"}`).join("§7, ")
+    const body = [
+        `${DEVELOPER_RANK.display}§r`,
+        subtitle("The Admin+ team · shown while a developer is here"),
+        "",
+        "§fWho wears it: §7the people who make Admin+, named by gamertag in Admin+'s own code. Nobody can be given this rank or have it taken away.",
+        `§fHere now: ${names || "§7nobody"}`,
+        `§fWhat it can do: §7${developerGrantLine()}`,
+        "§fPermanent: §7no rank from this server replaces a permanent Developer tag. Each developer turns it on or off for themselves.",
+        mine ? "" : "\n§7Only a developer can change their own tag."
+    ].join("\n")
+    return menu(player, {
+        title: hubTitle("ranks", "Developer"),
+        body,
+        buttons: mine ? [{
+            text: hubEntry("ranks", "Permanent", devPref(player, "dev.permanent")
+                ? "§aon§8 · no rank from this server replaces your tag"
+                : "§coff§8 · a rank from this server shows instead"),
+            run: () => permanentScreen(player, again)
+        }] : [],
+        back
+    })
+}
+
+/** What the developers' grant gives on this server, in one line. */
+function developerGrantLine() {
+    if (adminplusDisabled()) return "nothing. This server declined Admin+'s terms, so Admin+ is off."
+    if (serverAccepted()) return "full control of Admin+, and operator status, because this server accepted Admin+'s terms (point 5)."
+    return "nothing extra yet. A developer gets full control only after an owner accepts Admin+'s terms."
+}
+
+/** A developer's own Permanent switch. Nobody else's answer changes. */
+async function permanentScreen(player, back) {
+    if (!isDeveloper(player)) { err(player, "Only a developer can change this."); return back() }
+    const on = devPref(player, "dev.permanent")
+    const values = await modal(player, hubTitle("ranks", "Developer"), [
+        { type: "label", label: "§7On: your Developer tag stays even when this server gives you a rank.\n§7Off: a rank this server gives you shows instead. With only the rank everyone starts with, Developer still shows." },
+        { id: "permanent", type: "toggle", label: "Permanent", default: on }
+    ], { strict: true, submit: "Save" })
+    if (!values) return back()
+    if (values === INCOMPLETE) {
+        err(player, "Not every setting came back from the game, so nothing was saved. Try again.")
+        return back()
+    }
+    if (values.permanent === undefined || !!values.permanent === on) { info(player, "Nothing changed."); return back() }
+    setDevPref(player, "dev.permanent", !!values.permanent)
+    refreshNameTag(player)
+    ok(player, values.permanent
+        ? "Your Developer tag is permanent: no rank from this server replaces it."
+        : "Your Developer tag isn't permanent: a rank from this server shows instead.")
+    return back()
 }
 
 /** Said when someone without full control reaches a whole-list action. */

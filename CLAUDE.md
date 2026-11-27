@@ -837,6 +837,29 @@ field, or (on a game that drew no labels) one per input.
   nothing moves. Keep the banner's body to three short lines, so the first
   clears the pill (`botGuardStatus` in `features/bots.js`). Not yet seen in
   game. `tests/look.test.js`.
+- **Ranks ▸ Dev Team and Permanent (3.1.9, the user: the Developer rank
+  "can't be replaced by any other role either, unless the developer
+  themselves goes into the developer rank (which they can edit themselves)
+  and toggles the perminant toggle off").** While a developer is in the world
+  (`developersHere`: a hidden one only counts for themselves), Ranks opens on
+  a Dev Team section with the Developer rank; tapping it is information only
+  (`developerScreen` in features/ranksUI.js), plus a Permanent switch for a
+  developer. Permanent is `dev.permanent` in `DEV_PREFS` (core/prefs.js), per
+  developer and per world, ON by default: `displayRanks` then shows the
+  Developer tag as their main tag whatever the server gives them, cosmetic
+  tags after it. OFF is the rule from before 3.1.9 (it stands in for the
+  starting rank only). Nobody but that developer can change it, and the tag
+  still carries no permission. `tests/devteam.test.js`.
+- **Automod's and Chat Moderation's frames (3.1.9, the user: "i want a redo
+  for /automod just like bot guard got", then "everything in and past
+  /automod should be enhanced to the fullest with simple and cleanness").**
+  Bot Guard's family: `layout: "automod"` (AUTOMOD / AUTOMOD_ON, the eye,
+  ACTIVE or OFF, two cards whose `card.on` lights a light via CARD_ON) and
+  `layout: "chat"` (CHATMOD / CHATMOD_ON, the bubble, WATCHING or OFF, three
+  cards at 33% wearing Bot Guard's card face). Art from `tools/genlook.py`
+  (`automod_*`, `chat_*`). `server_form.json` has eight panels now; the list
+  frame must exclude every frame marker. Bodies are the status (`automodStatus`,
+  `chatStatus`) in both looks. Not yet seen in game. `tests/look.test.js`.
 - **Chat Moderation (3.1.4, the user's layout, 2026-11-26).**
   `features/chatmod.js` acts, `core/chatmod.js` decides, `features/chatcheck.js`
   has the screens, the model and the box. One Level (`automod.chatWatch`,

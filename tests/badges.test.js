@@ -6,6 +6,7 @@ import { setRanks, onPlayerJoin, applyPreset, getRank, saveRank, renderTags, ran
 import { setSetting, renderTag, render } from "../Admin+ BP/scripts/core/settings.js"
 import { BADGES, BADGE_PAGE, TICK, badgeChar, badgeOf, badgesOn, badgeLabel, canWearBadge, pickableBadges, mayWear, TEAM_RANKS } from "../Admin+ BP/scripts/core/badges.js"
 import { ranksScreen, rankScreen } from "../Admin+ BP/scripts/features/ranksUI.js"
+import { setDevPref } from "../Admin+ BP/scripts/core/prefs.js"
 import { GROUPS, groupScreen, settingKeys } from "../Admin+ BP/scripts/features/settingsUI.js"
 
 // Rank badges (2.11.2, Beta). The user, 2026-11-13: badges like Twitch's mod
@@ -243,8 +244,14 @@ console.log("\n— on Beta, one badge per player, between bars —")
     check("in front of their Developer tag", plain(badgedTags(maker)), `| ${badgeChar("plus")} | [Developer]`)
     setRanks(maker.id, ["owner"], maker.name)
     check("as an owner they still wear the Admin+ badge, not the crown", playerBadge(maker), badgeChar("plus"))
-    check("in chat, in front of the owner's tag", line("format.chat", maker, "Maker"), `| ${badgeChar("plus")} | [Owner] Maker » hi`)
+    // 3.1.9, Permanent (on by default): the server's Owner rank doesn't
+    // replace the Developer tag. With it off, the owner's tag shows, with the
+    // Admin+ badge in front all the same.
+    check("in chat, in front of their Developer tag, which the Owner rank doesn't replace", line("format.chat", maker, "Maker"), `| ${badgeChar("plus")} | [Developer] Maker » hi`)
+    setDevPref(maker, "dev.permanent", false)
+    check("with Permanent off, in front of the owner's tag", line("format.chat", maker, "Maker"), `| ${badgeChar("plus")} | [Owner] Maker » hi`)
     check("on a room line too", line("format.chatChannel", maker, "Maker", { CHANNEL: "General" }), `General | ${badgeChar("plus")} | [Owner] Maker: hi`)
+    setDevPref(maker, "dev.permanent", true)
     check("while anyone else who is owner keeps the crown", playerBadge(boss), badgeChar("crown"))
     setRanks(tester.id, ["vip"], tester.name)
     check("over a default rank's badge too, like VIP's gem", playerBadge(tester), badgeChar("plus"))

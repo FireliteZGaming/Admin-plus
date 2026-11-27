@@ -13,6 +13,7 @@ import {
     DEVELOPER_RANK, isDeveloper, developerGamertags, __setTeamDevelopers, nodeLabels, canTrollOn, onStaffLost
 } from "../Admin+ BP/scripts/core/ranks.js"
 import { CONFIG } from "../Admin+ BP/scripts/config.js"
+import { setDevPref } from "../Admin+ BP/scripts/core/prefs.js"
 import { SERVER_PRESETS_ON_HOLD, AUTOMOD_SECTION_ON_HOLD } from "../Admin+ BP/scripts/core/hold.js"
 
 let passed = 0, failed = 0
@@ -515,12 +516,19 @@ check("it is not in the rank table, so it cannot be granted to anyone",
     allRanks().some(r => r.id === "adminplus_dev"), false)
 check("nor edited", getRank("adminplus_dev"), undefined)
 
-// It holds until a world gives them a real rank, then comes back.
+// 3.1.9, Permanent (the user: the Developer rank "can't be replaced by any
+// other role either, unless the developer themselves ... toggles the
+// perminant toggle off"). On by default, so a real rank doesn't replace it.
 grantRank(creator.id, "mod", creator.name)
-check("a real rank replaces the tag", primaryRank(creator).id, "mod")
+check("Permanent: a real rank doesn't replace the tag", primaryRank(creator).id, "adminplus_dev")
+// Off, the rule from before 3.1.9: it holds until a world gives them a real
+// rank, then comes back.
+setDevPref(creator, "dev.permanent", false)
+check("not Permanent: a real rank replaces the tag", primaryRank(creator).id, "mod")
 check("and the badge is gone from the tags", displayRanks(creator).some(r => r.id === "adminplus_dev"), false)
 revokeRank(creator.id, "mod")
 check("taking that rank away brings it back", primaryRank(creator).id, "adminplus_dev")
+setDevPref(creator, "dev.permanent", true)
 
 // The display half and the authority half, both intact (this split once bit:
 // the creator silently lost warp.use and their weight).

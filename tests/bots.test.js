@@ -149,11 +149,14 @@ console.log("\n— 3.0.2: the Alerts switch, before the action —")
 {
     __ui.shown.length = 0; __ui.answers.length = 0
     await botSettingsScreen(staff, () => {})
-    const fields = (__ui.shown[0]?.parts ?? []).filter(p => ["toggle", "dropdown", "slider"].includes(p[0])).map(p => plain(p[1]))
+    const fields = (__ui.shown[0]?.parts ?? []).filter(p => ["toggle", "dropdown", "slider"].includes(p[0])).map(p => plain(p[1]).split("\n")[0])
     check("the screen: Bot Guard, its level, Alerts, then what to do at the limit", fields.slice(0, 4), ["Bot Guard", "Level", "Alerts", "At the limit"])
-    // Save it on High: [label, on, level, alerts, action, limit].
+    // 3.1.9: two sections, and how the score is made at the end.
+    check("in two sections, with the scoring last", (__ui.shown[0]?.parts ?? []).filter(p => p[0] === "label").map(p => plain(p[1]).split("\n")[0]),
+        ["Bot Guard catches half-joined accounts: they join but never enter the world, which is how ad bots usually show up.", "When one is caught", "How the score is made"])
+    // Save it on High: [label, on, level, divider, label, alerts, action, limit, divider, label].
     __ui.shown.length = 0
-    __ui.answers.push({ canceled: false, formValues: [undefined, true, 2, true, 0, 80] })
+    __ui.answers.push({ canceled: false, formValues: [undefined, true, 2, undefined, undefined, true, 0, 80, undefined, undefined] })
     staff.inbox.length = 0
     await botSettingsScreen(staff, () => {})
     check("picking High saves the level", overrides()["automod.botLevel"], "high")

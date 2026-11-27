@@ -151,6 +151,10 @@ export const GROUPS = [
                     sw("presence.greet", "Greet newcomers", "One line, a few seconds after they join, that only they see"),
                     beta(txt("format.greeting", "Greeting line", "Empty sends nothing", true))
                 ]
+            },
+            {
+                label: "Death messages", hint: "Display names in the game's death messages",
+                fields: [sw("presence.deaths", "Death messages with display names", "Admin+ says the game's own death messages, in each player's language, with display names instead of gamertags. Off: the game says them, with gamertags.")]
             }
         ],
         // Rooms are made and ordered on their own screen; the switch is above.

@@ -538,6 +538,208 @@ def guard_icon_detected():
     return smooth(w, h, draw, "guard_detected", out=(56, 56))
 
 
+# ------------------------------------------------------------- Automod
+# Automod's own look (3.1.9, the user: "i want a redo for /automod just like
+# bot guard got"). Drawn the same smooth way as Bot Guard's, with its own
+# emblem: an eye that watches, in a ring of the Admin+ colours.
+
+def lens_points(cx, cy, half_w, half_h, n=24):
+    """An almond: two arcs that meet at points left and right."""
+    top = [(cx - half_w + 2 * half_w * i / n, cy - half_h * math.sin(math.pi * i / n)) for i in range(n + 1)]
+    bottom = [(cx + half_w - 2 * half_w * i / n, cy + half_h * math.sin(math.pi * i / n)) for i in range(1, n)]
+    return top + bottom
+
+
+def automod_eye(off=False):
+    """The emblem: a ring aqua to pink round a dark disc, an open eye inside
+    with an aqua iris. Off, the ring is grey and the eye is shut, so a
+    switched-off Automod looks asleep."""
+    w = h = 44
+    ring = (rgb("5c6375"), rgb("3a3f4c")) if off else (AQUA, PINK)
+
+    def draw(img, d, s):
+        W, H = img.size
+        cx, cy = W / 2, H / 2
+        r = min(W, H) / 2 - s * 0.5
+        mask = Image.new("L", (W, H), 0)
+        ImageDraw.Draw(mask).ellipse([cx - r, cy - r, cx + r, cy + r], fill=255)
+        img.paste(vertical_gradient(W, H, *ring), (0, 0), mask)
+        inner = r - s * 3
+        d.ellipse([cx - inner, cy - inner, cx + inner, cy + inner], fill=DARK)
+        half_w, half_h = inner * 0.72, inner * 0.42
+        if off:
+            # A shut eye: the lower lid's curve, and three short lashes under it.
+            lid = [(cx - half_w + 2 * half_w * i / 24, cy + half_h * 0.35 * math.sin(math.pi * i / 24)) for i in range(25)]
+            d.line(lid, fill=rgb("6b7285"), width=max(1, round(s * 1.6)), joint="curve")
+            for dx in (-0.45, 0, 0.45):
+                x = cx + half_w * dx
+                y = cy + half_h * 0.35 * math.sin(math.pi * (0.5 + dx / 2))
+                d.line([(x, y), (x + dx * s * 1.5, y + s * 2.2)], fill=rgb("6b7285"), width=max(1, round(s * 1.2)))
+            return
+        d.polygon(lens_points(cx, cy, half_w, half_h), fill=WHITE)
+        iris = half_h * 0.92
+        d.ellipse([cx - iris, cy - iris, cx + iris, cy + iris], fill=AQUA)
+        pupil = iris * 0.48
+        d.ellipse([cx - pupil, cy - pupil, cx + pupil, cy + pupil], fill=DARK)
+        shine = iris * 0.22
+        sx, sy = cx + iris * 0.38, cy - iris * 0.38
+        d.ellipse([sx - shine, sy - shine, sx + shine, sy + shine], fill=WHITE)
+
+    return smooth(w, h, draw, "automod_eye_off" if off else "automod_eye")
+
+
+def automod_banner():
+    """The banner behind Automod's status: faintly violet at the eye's end, plain dark at the other."""
+    return gradient(blend(TILE, PURPLE, 0.14), TILE, "automod_banner", 64, 1)
+
+
+def automod_glow():
+    """A soft violet glow behind the eye, to pulse."""
+    w = h = 64
+    img = Image.new("RGBA", (w, h), CLEAR)
+    mid = (w - 1) / 2
+    for x in range(w):
+        for y in range(h):
+            d = ((x - mid) ** 2 + (y - mid) ** 2) ** 0.5 / mid
+            if d < 1:
+                img.putpixel((x, y), PURPLE[:3] + (round(150 * (1 - d) ** 2),))
+    return save(img, "automod_glow")
+
+
+def automod_sweep():
+    """The light that sweeps the banner: a soft pink band with a white core, fading at its sides and ends."""
+    w, h = 24, 64
+    img = Image.new("RGBA", (w, h), CLEAR)
+    mid = (w - 1) / 2
+    for x in range(w):
+        t = 1 - abs(x - mid) / mid
+        colour = blend(PINK, WHITE, max(0, t - 0.7) / 0.3)
+        for y in range(h):
+            fade = min(1, min(y, h - 1 - y) / 10)
+            img.putpixel((x, y), colour[:3] + (round(120 * t ** 2 * fade),))
+    return save(img, "automod_sweep")
+
+
+def automod_icon_bots():
+    """Bot Guard's card: its shield, ringed aqua to pink, with the robot inside."""
+    w = h = 32
+
+    def draw(img, d, s):
+        W, H = img.size
+        sw, sh = 26 * s, 29 * s
+        ox, oy = (W - sw) / 2, (H - sh) / 2
+        outer = [(ox + x, oy + y) for x, y in shield_points(sw, sh, inset=s * 0.5)]
+        mask = Image.new("L", (W, H), 0)
+        ImageDraw.Draw(mask).polygon(outer, fill=255)
+        img.paste(vertical_gradient(W, H, AQUA, PINK), (0, 0), mask)
+        d.polygon([(ox + x, oy + y) for x, y in shield_points(sw, sh, inset=s * 2.4)], fill=DARK)
+        robot(d, W / 2, oy + sh * 0.47, sw * 0.46, WHITE, AQUA, PINK)
+
+    return smooth(w, h, draw, "automod_bots", out=(56, 56))
+
+
+def automod_icon_chat():
+    """Chat Moderation's card: a speech bubble with three dots, aqua, pink and gold."""
+    w = h = 32
+
+    def draw(img, d, s):
+        d.rounded_rectangle([3 * s, 5 * s, 29 * s, 22 * s], radius=6 * s, fill=WHITE)
+        d.polygon([(8 * s, 21 * s), (8 * s, 28 * s), (15 * s, 21 * s)], fill=WHITE)
+        for i, colour in enumerate([AQUA, PINK, GOLD]):
+            x = (10 + i * 6) * s
+            d.ellipse([x - 2.2 * s, 13.5 * s - 2.2 * s, x + 2.2 * s, 13.5 * s + 2.2 * s], fill=colour)
+
+    return smooth(w, h, draw, "automod_chat", out=(56, 56))
+
+
+# ------------------------------------------------------- Chat Moderation
+# Chat Moderation's own look (3.1.9, the user: "everything in and past
+# /automod should be enhanced to the fullest with simple and cleanness").
+# The same family: a ring round a dark disc, a speech bubble inside.
+
+def chat_bubble(off=False):
+    """The emblem: a ring aqua to pink, a white speech bubble with three
+    coloured dots. Off, greys and a flat line, so a switched-off Chat
+    Moderation looks quiet."""
+    w = h = 44
+    ring = (rgb("5c6375"), rgb("3a3f4c")) if off else (AQUA, PINK)
+
+    def draw(img, d, s):
+        W, H = img.size
+        cx, cy = W / 2, H / 2
+        r = min(W, H) / 2 - s * 0.5
+        mask = Image.new("L", (W, H), 0)
+        ImageDraw.Draw(mask).ellipse([cx - r, cy - r, cx + r, cy + r], fill=255)
+        img.paste(vertical_gradient(W, H, *ring), (0, 0), mask)
+        inner = r - s * 3
+        d.ellipse([cx - inner, cy - inner, cx + inner, cy + inner], fill=DARK)
+        bw, bh = inner * 1.15, inner * 0.78
+        top = cy - bh * 0.62
+        face = rgb("6b7285") if off else WHITE
+        d.rounded_rectangle([cx - bw / 2, top, cx + bw / 2, top + bh], radius=bh * 0.38, fill=face)
+        d.polygon([(cx - bw * 0.28, top + bh - s), (cx - bw * 0.30, top + bh + bh * 0.42), (cx - bw * 0.02, top + bh - s)], fill=face)
+        mid = top + bh / 2
+        if off:
+            d.rounded_rectangle([cx - bw * 0.26, mid - s * 0.9, cx + bw * 0.26, mid + s * 0.9], radius=s * 0.9, fill=rgb("3a3f4c"))
+            return
+        dot = bh * 0.15
+        for i, colour in enumerate([AQUA, PINK, GOLD]):
+            x = cx + (i - 1) * bw * 0.26
+            d.ellipse([x - dot, mid - dot, x + dot, mid + dot], fill=colour)
+
+    return smooth(w, h, draw, "chat_bubble_off" if off else "chat_bubble")
+
+
+def chat_banner():
+    """The banner behind Chat Moderation's status: faintly pink at the bubble's end, plain dark at the other."""
+    return gradient(blend(TILE, PINK, 0.12), TILE, "chat_banner", 64, 1)
+
+
+def chat_glow():
+    """A soft pink glow behind the bubble, to pulse."""
+    w = h = 64
+    img = Image.new("RGBA", (w, h), CLEAR)
+    mid = (w - 1) / 2
+    for x in range(w):
+        for y in range(h):
+            d = ((x - mid) ** 2 + (y - mid) ** 2) ** 0.5 / mid
+            if d < 1:
+                img.putpixel((x, y), PINK[:3] + (round(140 * (1 - d) ** 2),))
+    return save(img, "chat_glow")
+
+
+def chat_icon_test():
+    """Test a message's card: a magnifying glass over a line of chat."""
+    w = h = 32
+
+    def draw(img, d, s):
+        for i, width in enumerate([18, 12]):
+            y = (21 + i * 5) * s
+            d.rounded_rectangle([3 * s, y - s, (3 + width) * s, y + s], radius=s, fill=STEEL)
+        cx, cy, r = 19 * s, 12 * s, 7.5 * s
+        d.line([(cx + r * 0.7, cy + r * 0.7), (29 * s, 26 * s)], fill=WHITE, width=round(3.2 * s))
+        d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=AQUA)
+        d.ellipse([cx - r + 2.4 * s, cy - r + 2.4 * s, cx + r - 2.4 * s, cy + r - 2.4 * s], fill=DARK)
+        d.ellipse([cx - 3.4 * s, cy - 3.6 * s, cx - 1.2 * s, cy - 1.4 * s], fill=WHITE)
+
+    return smooth(w, h, draw, "chat_test", out=(56, 56))
+
+
+def chat_icon_held():
+    """Held messages' card: an hourglass, gold, with pink sand: they wait for staff."""
+    w = h = 32
+
+    def draw(img, d, s):
+        d.rounded_rectangle([7 * s, 3 * s, 25 * s, 6 * s], radius=1.2 * s, fill=GOLD)
+        d.rounded_rectangle([7 * s, 26 * s, 25 * s, 29 * s], radius=1.2 * s, fill=GOLD)
+        glass = [(9 * s, 6 * s), (23 * s, 6 * s), (17.2 * s, 16 * s), (23 * s, 26 * s), (9 * s, 26 * s), (14.8 * s, 16 * s)]
+        d.polygon(glass, fill=WHITE)
+        d.polygon([(11.5 * s, 8.5 * s), (20.5 * s, 8.5 * s), (16 * s, 14.5 * s)], fill=PINK)
+        d.polygon([(16 * s, 19 * s), (21.5 * s, 24.5 * s), (10.5 * s, 24.5 * s)], fill=PINK)
+
+    return smooth(w, h, draw, "chat_held", out=(56, 56))
+
+
 def main():
     made = [
         flat(rgb("ffffff"), "white"),
@@ -556,6 +758,9 @@ def main():
     made.append(flow_texture())
     made += [guard_shield(), guard_shield(off=True), guard_banner(), guard_glow(), guard_scan(),
              guard_icon_moderation(), guard_icon_detected()]
+    made += [automod_eye(), automod_eye(off=True), automod_banner(), automod_glow(), automod_sweep(),
+             automod_icon_bots(), automod_icon_chat()]
+    made += [chat_bubble(), chat_bubble(off=True), chat_banner(), chat_glow(), chat_icon_test(), chat_icon_held()]
     print(f"{len(made)} textures in {OUT}")
     for name in made:
         print(f"  {name}.png")

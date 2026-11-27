@@ -6,7 +6,7 @@ import { render, renderTag, nameTagsEnabled, flag, setting } from "./settings.js
 import { STYLES, STYLE_IDS, paint, currentFrame, rampFrom } from "./nametag.js"
 import { isHidden } from "./hiding.js"
 import { SERVER_PRESETS_ON_HOLD, AUTOMOD_SECTION_ON_HOLD } from "./hold.js"
-import { look } from "./prefs.js"
+import { look, devPref } from "./prefs.js"
 import { applyFont } from "./fonts.js"
 import { badgeFor, teamBadgeFor } from "./badges.js"
 import { adminplusDisabled, serverAccepted } from "./terms.js"
@@ -696,6 +696,9 @@ export function __setTeamDevelopers(names) {
 // chat and above the head alike. It sits above every rank (packBadge comes
 // first in displayRanks), cannot be edited or granted (it is outside the rank
 // table), and shows only while the developer is in the world, like any tag.
+// Since 3.1.9 no rank a server gives them replaces it, unless that developer
+// turns Permanent off for themselves (core/prefs.js DEV_PREFS), and Ranks has
+// a Dev Team section for it while a developer is here (developersHere below).
 const DEVELOPER_TAG = "§5§lD§d§le§5§lv§d§le§5§ll§d§lo§5§lp§d§le§5§lr"
 const DEVELOPER_RANK = Object.freeze({
     id: "adminplus_dev",
@@ -744,6 +747,18 @@ function packBadge(playerOrId) {
 }
 
 /**
+ * Developers in the world now, for Ranks ▸ Dev Team (3.1.9, the user: "this
+ * section appears at the top of ranks only when a developer joins"). A hidden
+ * developer (vanish) isn't here to anyone else, but always is to themselves,
+ * so they can still reach their own switch.
+ */
+export function developersHere(viewer) {
+    let online = []
+    try { online = world.getAllPlayers() } catch { /* before the world is up */ }
+    return online.filter(p => isDeveloper(p) && (p.id === viewer?.id || !isHidden(p)))
+}
+
+/**
  * True while they hold nothing but the rank everybody starts with.
  *
  * onPlayerJoin writes the default rank as a real assignment, so "has no rank"
@@ -789,9 +804,16 @@ export function displayRanks(playerOrId) {
     // [Member]` — which reads as somebody who collected a cosmetic rather than
     // as the pack's own mark. Asked for 2026-09-19.
     //
-    // Only the DEFAULT rank is displaced, and only while that is all they hold.
-    // The contract is unchanged where it matters: the moment a world gives them
-    // a rank of its own, the badge is gone and the world's rank shows.
+    // **Permanent (3.1.9, the user: the Developer rank "can't be replaced by
+    // any other role either, unless the developer themselves ... toggles the
+    // perminant toggle off").** With Permanent on, the default, the Developer
+    // tag is their main tag whatever this server gives them, and their
+    // cosmetic ranks follow it as they follow anyone's main tag.
+    //
+    // With it off, the rule from before 3.1.9: only the DEFAULT rank is
+    // displaced, and only while that is all they hold. The moment a world
+    // gives them a rank of its own, the badge is gone and the world's rank
+    // shows.
     //
     // **This is the DISPLAY list, and nothing may read authority from it.**
     // That used to be untrue in the most direct way possible — `playerRanks`
@@ -801,6 +823,7 @@ export function displayRanks(playerOrId) {
     // rights than a stranger. Two assertions caught it; they are why the two
     // lists are now built separately rather than one from the other.
     const badge = packBadge(playerOrId)
+    if (badge && devPref(playerOrId, "dev.permanent")) return [badge, ...ordered.filter(rank => rankType(rank) === "cosmetic")]
     if (badge && onlyDefaultRank(playerOrId)) return [badge]
     // **ONE MAIN TAG (2.10.0, the user, 2026-11-12):** "if you have multiple
     // staff ranks for some reason, it'll only show 1, and it'll show the
